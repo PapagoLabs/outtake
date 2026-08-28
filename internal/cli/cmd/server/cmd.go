@@ -6,14 +6,16 @@ package server
 
 import (
 	"github.com/spf13/cobra"
+
+	clilib "github.com/PapagoLabs/outtake/internal/cli"
 )
 
 // NewCommand creates the server command and its subcommands.
 func NewCommand() *cobra.Command {
-	serverCmd := &cobra.Command{
-		Use:   "server",
-		Short: "Manage the outtake server",
-	}
+	serverCmd := clilib.Command()
+
+	serverCmd.Use = "server"
+	serverCmd.Short = "Manage the outtake server"
 
 	serverCmd.AddCommand(NewStartCommand())
 
