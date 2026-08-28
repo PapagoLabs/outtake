@@ -5,7 +5,6 @@ dist/
 
 # Go
 vendor/
-go.sum
 
 # IDE
 .vscode/

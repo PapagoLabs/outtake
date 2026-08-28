@@ -291,7 +291,7 @@ linters:
       # Default: false
       default-case-required: false
 
-    exhaustruct:
+    exhaustruct_v5:
       # List of regular expressions to match type names that should be processed.
       # Anonymous structs can be matched by '<anonymous>' alias.
       #
@@ -4130,7 +4130,7 @@ issues:
 
   # Apply the fixes detected by the linters and formatters (if it's supported by the linter).
   # Default: false
-  fix: true
+  fix: false
 
 # Output configuration options.
 output:
