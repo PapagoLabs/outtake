@@ -1,0 +1,84 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/input"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"strconv"
+)
+
+type NewClipProps struct {
+	MediaID    string
+	MediaTitle string
+	MediaType  string
+	StartTime  float64
+	Duration   float64
+	MaxDur     int
+}
+
+templ NewClip(props NewClipProps) {
+	@Layout(LayoutProps{Title: "New Clip", Active: "clips"}) {
+		<div class="flex flex-col gap-6 max-w-xl">
+			<div>
+				<h2 class="text-2xl font-bold tracking-tight">Create Clip</h2>
+				<p class="text-muted-foreground">{ props.MediaTitle }</p>
+			</div>
+			@card.Card() {
+				@card.Content() {
+					<form action="/api/clips" method="POST" class="flex flex-col gap-4">
+						<input type="hidden" name="mediaId" value={ props.MediaID }/>
+						<input type="hidden" name="mediaTitle" value={ props.MediaTitle }/>
+						<input type="hidden" name="mediaType" value={ props.MediaType }/>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "startTime"}) {
+								Start (seconds) 
+							}
+							@input.Input(input.Props{ID: "startTime", Name: "startTime", Type: input.TypeNumber, Value: strconv.FormatFloat(props.StartTime, 'f', 1, 64)})
+						</div>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "duration"}) {
+								Duration (seconds, max { strconv.Itoa(props.MaxDur) }) 
+							}
+							@input.Input(input.Props{ID: "duration", Name: "duration", Type: input.TypeNumber, Value: durationValue(props.Duration)})
+						</div>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "clipType"}) {
+								Type 
+							}
+							<select id="clipType" name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+								<option value="clip">Video clip</option>
+								<option value="gif">GIF</option>
+								<option value="screenshot">Screenshot</option>
+							</select>
+						</div>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "quality"}) {
+								Quality 
+							}
+							<select id="quality" name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+								<option value="low">Low</option>
+								<option value="medium" selected>Medium</option>
+								<option value="high">High</option>
+							</select>
+						</div>
+						@button.Button(button.Props{Type: button.TypeSubmit}) {
+							Create
+						}
+					</form>
+				}
+			}
+		</div>
+	}
+}
+
+func durationValue(duration float64) string {
+	if duration <= 0 {
+		return "10"
+	}
+
+	return strconv.FormatFloat(duration, 'f', 1, 64)
+}

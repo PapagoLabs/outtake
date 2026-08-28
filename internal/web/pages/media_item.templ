@@ -1,0 +1,248 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/input"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"strconv"
+)
+
+type MediaItemPageProps struct {
+	ID        string
+	Title     string
+	Type      string
+	Duration  float64
+	MaxDur    int
+	Clips     []ClipItem
+	Error     string
+	PreviewID string
+	StartTime float64
+	EndTime   float64
+}
+
+type PlaybackProps struct {
+	Playing    bool
+	ViewOffset float64
+	Title      string
+}
+
+templ PlaybackPanel(props PlaybackProps) {
+	<div>
+		if props.Playing {
+			<p class="text-sm">Plex is at <span class="font-medium">{ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }s</span>.</p>
+			<div class="flex gap-3 mt-2">
+				<button type="button" class="js-mark-start text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set start from Plex</button>
+				<button type="button" class="js-mark-end text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set end from Plex</button>
+			</div>
+		} else {
+			<p class="text-sm text-muted-foreground">Play this item in Plex, then mark start and end from the live playback position.</p>
+		}
+	</div>
+}
+
+templ MediaItemPage(props MediaItemPageProps) {
+	@Layout(LayoutProps{Title: props.Title, Active: "media"}) {
+		<div class="flex flex-col gap-8 max-w-5xl">
+			<div>
+				<a href="/media" class="text-sm text-muted-foreground hover:text-foreground">Media Libraries</a>
+				<h2 class="text-2xl font-bold tracking-tight mt-2">{ props.Title }</h2>
+				<p class="text-muted-foreground capitalize">{ props.Type }</p>
+			</div>
+			if props.Error != "" {
+				<div class="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+					{ props.Error }
+				</div>
+			}
+			@card.Card() {
+				@card.Header() {
+					@card.Title() {
+						Plex playback
+					}
+					@card.Description() {
+						Watch in Plex on any client. Outtake reads the current position.
+					}
+				}
+				@card.Content() {
+					<div hx-get={ "/media/item/" + props.ID + "/playback" } hx-trigger="load, every 2s" hx-swap="innerHTML"></div>
+				}
+			}
+			if props.PreviewID != "" {
+				<video class="w-full rounded-md bg-black" controls preload="metadata">
+					<source src={ "/previews/" + props.PreviewID } type="video/mp4"/>
+				</video>
+			}
+			@card.Card() {
+				@card.Header() {
+					@card.Title() {
+						New export
+					}
+					@card.Description() {
+						Set start and end from Plex, preview the segment, then save.
+					}
+				}
+				@card.Content() {
+					<form id="clip-form" class="flex flex-col gap-4">
+						<input type="hidden" name="mediaId" value={ props.ID }/>
+						<input type="hidden" name="mediaTitle" value={ props.Title }/>
+						<input type="hidden" name="mediaType" value={ props.Type }/>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "name"}) {
+								Clip name
+							}
+							@input.Input(input.Props{ID: "name", Name: "name", Placeholder: "Optional name", Value: props.Title})
+						</div>
+						<div class="grid gap-4 sm:grid-cols-2">
+							<div class="flex flex-col gap-2">
+								@label.Label(label.Props{For: "startTime"}) {
+									Start (seconds)
+								}
+								<input id="startTime" name="startTime" type="number" step="0.1" min="0" value={ strconv.FormatFloat(props.StartTime, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+							</div>
+							<div class="flex flex-col gap-2">
+								@label.Label(label.Props{For: "endTime"}) {
+									End (seconds)
+								}
+								<input id="endTime" type="number" step="0.1" min="0" value={ strconv.FormatFloat(props.EndTime, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+							</div>
+						</div>
+						<input type="hidden" id="duration" name="duration" value="10"/>
+						<p class="text-sm text-muted-foreground">Duration: <span id="duration-label">10</span>s (max { strconv.Itoa(props.MaxDur) }s)</p>
+						<div class="grid gap-4 sm:grid-cols-2">
+							<div class="flex flex-col gap-2">
+								@label.Label(label.Props{For: "clipType"}) {
+									Export as
+								}
+								<select id="clipType" name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+									<option value="clip">Video clip</option>
+									<option value="gif">GIF</option>
+									<option value="screenshot">Screenshot</option>
+								</select>
+							</div>
+							<div class="flex flex-col gap-2">
+								@label.Label(label.Props{For: "quality"}) {
+									Quality
+								}
+								<select id="quality" name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+									<option value="low">Low</option>
+									<option value="medium" selected>Medium</option>
+									<option value="high">High</option>
+								</select>
+							</div>
+						</div>
+						<div class="flex gap-3">
+							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
+								Preview
+							</button>
+							@button.Button(button.Props{Type: button.TypeSubmit, Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}) {
+								Save clip
+							}
+						</div>
+					</form>
+				}
+			}
+			<div class="flex flex-col gap-4">
+				<h3 class="text-lg font-semibold">Clips from this item</h3>
+				if len(props.Clips) == 0 {
+					<p class="text-sm text-muted-foreground">No clips yet.</p>
+				}
+				for _, item := range props.Clips {
+					@clipEditCard(item, props.MaxDur)
+				}
+			</div>
+		</div>
+		<div id="clip-form-config" data-max-dur={ strconv.Itoa(props.MaxDur) } class="hidden"></div>
+		<script>
+			(function () {
+				var startEl = document.getElementById('startTime');
+				var endEl = document.getElementById('endTime');
+				var durEl = document.getElementById('duration');
+				var label = document.getElementById('duration-label');
+				var maxDur = parseInt(document.getElementById('clip-form-config').getAttribute('data-max-dur'), 10) || 600;
+				function syncDuration() {
+					var start = parseFloat(startEl.value) || 0;
+					var end = parseFloat(endEl.value) || 0;
+					var dur = Math.max(0, end - start);
+					if (dur > maxDur) { dur = maxDur; }
+					durEl.value = dur.toFixed(1);
+					label.textContent = dur.toFixed(1);
+				}
+				document.addEventListener('click', function (event) {
+					var startBtn = event.target.closest('.js-mark-start');
+					var endBtn = event.target.closest('.js-mark-end');
+					if (startBtn) {
+						startEl.value = startBtn.getAttribute('data-offset');
+						syncDuration();
+					}
+					if (endBtn) {
+						endEl.value = endBtn.getAttribute('data-offset');
+						syncDuration();
+					}
+				});
+				startEl.addEventListener('input', syncDuration);
+				endEl.addEventListener('input', syncDuration);
+				syncDuration();
+			})();
+		</script>
+	}
+}
+
+templ clipEditCard(item ClipItem, maxDur int) {
+	@card.Card() {
+		@card.Content() {
+			<form action={ "/api/clips/" + item.ID + "/update" } method="POST" class="flex flex-col gap-3">
+				<div class="flex items-center justify-between">
+					<span class="font-medium">{ clipDisplayName(item) }</span>
+					<span class="text-xs text-muted-foreground capitalize">{ item.Status }</span>
+				</div>
+				<input type="hidden" name="mediaId" value={ item.MediaID }/>
+				<div class="grid gap-3 sm:grid-cols-2">
+					<div class="flex flex-col gap-1">
+						@label.Label(label.Props{For: "name-" + item.ID}) {
+							Name
+						}
+						<input id={ "name-" + item.ID } name="name" value={ clipDisplayName(item) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+					</div>
+					<div class="flex flex-col gap-1">
+						@label.Label(label.Props{For: "start-" + item.ID}) {
+							Start
+						}
+						<input id={ "start-" + item.ID } name="startTime" type="number" step="0.1" value={ strconv.FormatFloat(item.StartTime, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+					</div>
+					<div class="flex flex-col gap-1">
+						@label.Label(label.Props{For: "dur-" + item.ID}) {
+							Duration (max { strconv.Itoa(maxDur) })
+						}
+						<input id={ "dur-" + item.ID } name="duration" type="number" step="0.1" value={ strconv.FormatFloat(item.Duration, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+					</div>
+					<div class="flex flex-col gap-1">
+						@label.Label(label.Props{For: "type-" + item.ID}) {
+							Type
+						}
+						<select id={ "type-" + item.ID } name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+							<option value="clip">Video clip</option>
+							<option value="gif">GIF</option>
+							<option value="screenshot">Screenshot</option>
+						</select>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
+						Save metadata
+					}
+					<button type="submit" name="regenerate" value="1" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+						Regenerate
+					</button>
+					if item.Status == "completed" {
+						<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+							Download
+						</a>
+					}
+				</div>
+			</form>
+		}
+	}
+}

@@ -1,0 +1,83 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/separator"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
+)
+
+type LayoutProps struct {
+	Title  string
+	Active string
+}
+
+templ Layout(props LayoutProps) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ props.Title } - Outtake</title>
+			<link href="/assets/css/output.css" rel="stylesheet"/>
+			<script src="/assets/js/htmx.min.js"></script>
+		</head>
+		<body class="min-h-screen bg-background text-foreground">
+			<div class="flex min-h-screen">
+				<aside class="w-64 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2">
+					<h1 class="text-xl font-bold text-sidebar-foreground mb-4">Outtake</h1>
+					<a
+						href="/"
+						class={ utils.TwMerge(
+							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
+							utils.IfElse(props.Active == "dashboard", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+						) }
+					>
+						Dashboard
+					</a>
+					<div class="flex flex-col gap-1">
+						<a
+							href="/media"
+							class={ utils.TwMerge(
+								"px-3 py-2 rounded-md text-sm font-medium transition-colors",
+								utils.IfElse(props.Active == "media", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+							) }
+						>
+							Media Libraries
+						</a>
+						<div id="nav-libraries" class="flex flex-col gap-1 pl-2" hx-get="/nav/libraries" hx-trigger="load" hx-swap="innerHTML"></div>
+					</div>
+					<a
+						href="/clips"
+						class={ utils.TwMerge(
+							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
+							utils.IfElse(props.Active == "clips", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+						) }
+					>
+						Clips
+					</a>
+					<a
+						href="/servers"
+						class={ utils.TwMerge(
+							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
+							utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+						) }
+					>
+						Servers
+					</a>
+					@separator.Separator()
+					<a
+						href="/api/auth/logout"
+						class="px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-destructive hover:text-white transition-colors mt-auto"
+					>
+						Logout
+					</a>
+				</aside>
+				<main class="flex-1 p-8 overflow-auto">
+					{ children... }
+				</main>
+			</div>
+		</body>
+	</html>
+}

@@ -1,0 +1,21 @@
+services:
+  outtake:
+    build:
+      context: .
+      dockerfile: build/docker/Dockerfile.dev
+    container_name: outtake
+    ports:
+      - "8080:8080"
+    volumes:
+      - outtake-data:/data
+      - ${OUTTAKE_MEDIA_PATH:-/path/to/your/media}:/media:ro
+    environment:
+      OUTTAKE_LOG_LEVEL: info
+      OUTTAKE_LISTEN_ADDR: 0.0.0.0:8080
+      OUTTAKE_PUBLIC_BASE_URL: ${OUTTAKE_PUBLIC_BASE_URL:-http://localhost:8080}
+      OUTTAKE_PLEX_MEDIA_ROOT: ${OUTTAKE_PLEX_MEDIA_ROOT:-}
+      OUTTAKE_LOCAL_MEDIA_ROOT: ${OUTTAKE_LOCAL_MEDIA_ROOT:-/media}
+    restart: unless-stopped
+
+volumes:
+  outtake-data:

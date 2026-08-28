@@ -1,0 +1,40 @@
+CREATE TABLE IF NOT EXISTS plex_tokens (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	client_id TEXT NOT NULL UNIQUE,
+	access_token TEXT NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS clips (
+	id TEXT PRIMARY KEY,
+	media_id TEXT NOT NULL,
+	media_title TEXT NOT NULL,
+	media_type TEXT NOT NULL DEFAULT 'movie',
+	clip_type TEXT NOT NULL DEFAULT 'clip',
+	status TEXT NOT NULL DEFAULT 'pending',
+	progress INTEGER NOT NULL DEFAULT 0,
+	input_path TEXT NOT NULL,
+	output_path TEXT,
+	start_time REAL NOT NULL,
+	duration REAL NOT NULL,
+	quality TEXT NOT NULL DEFAULT 'medium',
+	width INTEGER NOT NULL DEFAULT 0,
+	fps INTEGER NOT NULL DEFAULT 0,
+	error_message TEXT,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS selected_server (
+	id INTEGER PRIMARY KEY CHECK (id = 1),
+	name TEXT NOT NULL,
+	address TEXT NOT NULL,
+	port INTEGER NOT NULL,
+	scheme TEXT NOT NULL,
+	token TEXT NOT NULL,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_clips_status ON clips(status);
+CREATE INDEX IF NOT EXISTS idx_clips_media_id ON clips(media_id);

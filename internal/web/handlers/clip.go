@@ -1,0 +1,529 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package handlers
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+
+	fiber "github.com/gofiber/fiber/v3"
+
+	"github.com/PapagoLabs/outtake/internal/api"
+	"github.com/PapagoLabs/outtake/internal/binding"
+	"github.com/PapagoLabs/outtake/internal/config"
+	"github.com/PapagoLabs/outtake/internal/database"
+	"github.com/PapagoLabs/outtake/internal/media"
+	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/storage"
+)
+
+// ClipHandler handles clip-related requests.
+type ClipHandler struct {
+	clipQueue   *queue.Queue
+	clipStorage *storage.Storage
+	db          *database.DB
+	cfg         *config.Config
+	bind        *binding.Binding
+	product     string
+	clientID    string
+}
+
+const (
+	// DefaultQuality is the default clip quality.
+	defaultQuality = "medium"
+	// DefaultMediaType is the default media type.
+	defaultMediaType = "movie"
+	// ErrorNotFound is the error code for not found.
+	errorNotFound = "not_found"
+	// MessageNotFound is the message for not found.
+	messageNotFound = "clip not found"
+	// ParamID is the parameter name for ID.
+	paramID = "id"
+)
+
+var (
+	// ErrNoPlexServer is returned when no PMS is selected.
+	errNoPlexServer = errors.New("no plex server selected")
+
+	// ErrInvalidDuration is returned when a clip duration is out of range.
+	errInvalidDuration = errors.New("invalid duration")
+)
+
+// NewClipHandler creates a new clip handler.
+func NewClipHandler(
+	jobQueue *queue.Queue,
+	store *storage.Storage,
+	db *database.DB,
+	cfg *config.Config,
+	bind *binding.Binding,
+	product, clientID string,
+) *ClipHandler {
+	return &ClipHandler{
+		clipQueue:   jobQueue,
+		clipStorage: store,
+		db:          db,
+		cfg:         cfg,
+		bind:        bind,
+		product:     product,
+		clientID:    clientID,
+	}
+}
+
+// Create handles the create clip request.
+func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
+	req, err := parseClipRequest(ctx)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
+	}
+
+	jobType, ok := NormalizeClipType(req.ClipType)
+	if !ok {
+		return writeError(
+			ctx,
+			fiber.StatusBadRequest,
+			"invalid_clip_type",
+			"clip type must be one of: clip, video, screenshot, gif",
+		)
+	}
+
+	err = handler.validateDuration(jobType, req.Duration)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, "invalid_duration", err.Error())
+	}
+
+	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
+	}
+
+	job := buildJob(&req, jobType, inputPath)
+	assignOutputPaths(job, handler.clipStorage)
+	applyDefaults(job)
+
+	err = handler.db.SaveClip(ctx.Context(), job)
+	if err != nil {
+		return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
+	}
+
+	handler.clipQueue.Submit(job)
+
+	if isFormRequest(ctx) {
+		return redirectTo(ctx, clipReturnPath(req.MediaID))
+	}
+
+	return writeJSON(ctx, fiber.StatusCreated, clipResponse(job))
+}
+
+// Delete handles the delete clip request.
+func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
+	id := ctx.Params(paramID)
+	job := handler.lookupJob(ctx.Context(), id)
+	if job == nil {
+		return writeError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+	}
+
+	if job.OutputPath != "" {
+		err := handler.clipStorage.DeleteFile(job.OutputPath)
+		if err != nil {
+			return writeError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
+		}
+	}
+
+	err := handler.db.DeleteClip(ctx.Context(), id)
+	if err != nil {
+		return writeError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
+	}
+
+	handler.clipQueue.Delete(id)
+
+	err = ctx.SendStatus(fiber.StatusNoContent)
+	if err != nil {
+		return fmt.Errorf("send status: %w", err)
+	}
+
+	return nil
+}
+
+// Download handles the download clip request.
+func (handler *ClipHandler) Download(ctx fiber.Ctx) error {
+	id := ctx.Params(paramID)
+	job := handler.lookupJob(ctx.Context(), id)
+	if job == nil {
+		return writeError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+	}
+
+	if job.Status != queue.JobStatusCompleted {
+		return writeError(ctx, fiber.StatusConflict, "not_ready", "clip is not ready for download")
+	}
+
+	if !handler.clipStorage.FileExists(job.OutputPath) {
+		return writeError(
+			ctx,
+			fiber.StatusNotFound,
+			"file_missing",
+			"output file not found on disk",
+		)
+	}
+
+	ctx.Attachment(downloadName(job))
+
+	err := ctx.SendFile(job.OutputPath)
+	if err != nil {
+		return fmt.Errorf("send file: %w", err)
+	}
+
+	return nil
+}
+
+// GetStatus handles the get clip status request.
+func (handler *ClipHandler) GetStatus(ctx fiber.Ctx) error {
+	id := ctx.Params(paramID)
+	job := handler.lookupJob(ctx.Context(), id)
+	if job == nil {
+		return writeError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+	}
+
+	return writeJSON(ctx, fiber.StatusOK, clipResponse(job))
+}
+
+// List handles the list clips request.
+func (handler *ClipHandler) List(ctx fiber.Ctx) error {
+	jobs := handler.listJobs(ctx.Context())
+	clips := make([]api.ClipResponse, 0, len(jobs))
+
+	for _, job := range jobs {
+		clips = append(clips, clipResponse(job))
+	}
+
+	return writeJSON(ctx, fiber.StatusOK, fiber.Map{"clips": clips})
+}
+
+// Preview renders a short low-quality segment without saving a clip.
+func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
+	req, err := parseClipRequest(ctx)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
+	}
+
+	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
+	}
+
+	previewID := uuid.New().String()
+	output := handler.clipStorage.PreviewPath(previewID)
+	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
+
+	err = ffmpeg.ExtractClip(
+		ctx.Context(),
+		inputPath,
+		output,
+		req.StartTime,
+		req.Duration,
+		media.ClipQualityLow,
+	)
+	if err != nil {
+		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
+	}
+
+	end := req.StartTime + req.Duration
+
+	return redirectTo(ctx, "/media/item/"+req.MediaID+
+		"?preview="+previewID+
+		"&start="+strconv.FormatFloat(req.StartTime, 'f', 1, 64)+
+		"&end="+strconv.FormatFloat(end, 'f', 1, 64))
+}
+
+// Update saves clip metadata and optionally regenerates the file.
+func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
+	job := handler.lookupJob(ctx.Context(), ctx.Params(paramID))
+	if job == nil {
+		return writeError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+	}
+
+	req, err := parseClipRequest(ctx)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
+	}
+
+	applyClipEdits(job, req)
+
+	err = handler.db.SaveClip(ctx.Context(), job)
+	if err != nil {
+		return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
+	}
+
+	if ctx.FormValue("regenerate") == "1" {
+		err = handler.queueRegenerate(ctx.Context(), job)
+		if err != nil {
+			return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
+		}
+	}
+
+	return redirectTo(ctx, clipReturnPath(job.MediaID))
+}
+
+// applyClipEdits writes editable clip fields onto a stored job.
+func applyClipEdits(job *queue.Job, req api.ClipRequest) {
+	jobType, ok := NormalizeClipType(req.ClipType)
+	if ok {
+		job.Type = jobType
+	}
+
+	if req.Name != "" {
+		job.Name = req.Name
+	}
+
+	if req.Quality != "" {
+		job.Quality = req.Quality
+	}
+
+	job.StartTime = req.StartTime
+	job.Duration = req.Duration
+	job.UpdatedAt = time.Now()
+}
+
+// clipReturnPath sends form posts back to the source media item when possible.
+func clipReturnPath(mediaID string) string {
+	if mediaID != "" {
+		return "/media/item/" + mediaID
+	}
+
+	return pathClips
+}
+
+// listJobs returns in-memory jobs, falling back to persisted clips.
+func (handler *ClipHandler) listJobs(ctx context.Context) []*queue.Job {
+	jobs := handler.clipQueue.GetAllJobs()
+	if len(jobs) > 0 {
+		return jobs
+	}
+
+	stored, err := handler.db.ListClips(ctx)
+	if err != nil {
+		return nil
+	}
+
+	return stored
+}
+
+// lookupJob finds a job in the queue or the database.
+func (handler *ClipHandler) lookupJob(ctx context.Context, id string) *queue.Job {
+	job := handler.clipQueue.GetJob(id)
+	if job != nil {
+		return job
+	}
+
+	stored, err := handler.db.GetClip(ctx, id)
+	if err != nil {
+		return nil
+	}
+
+	return stored
+}
+
+// queueRegenerate re-queues a clip after metadata changes.
+func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job) error {
+	assignOutputPaths(job, handler.clipStorage)
+
+	job.Status = queue.JobStatusPending
+	job.Progress = 0
+	job.Error = ""
+
+	err := handler.db.SaveClip(ctx, job)
+	if err != nil {
+		return fmt.Errorf("save regenerate: %w", err)
+	}
+
+	handler.clipQueue.Submit(job)
+
+	return nil
+}
+
+// resolveInput maps a media id onto a local filesystem path.
+func (handler *ClipHandler) resolveInput(ctx context.Context, mediaID string) (string, error) {
+	if handler.cfg.Env == "e2e" {
+		info, err := os.Stat(mediaID)
+		if err == nil && !info.IsDir() {
+			return mediaID, nil
+		}
+	}
+
+	server, ok := handler.bind.Get()
+	if !ok {
+		return "", errNoPlexServer
+	}
+
+	plexClient := plex.NewClient(plex.ClientConfig{
+		Product:  handler.product,
+		ClientID: handler.clientID,
+		Token:    server.Token,
+		Timeout:  0,
+		BaseURL:  "",
+	})
+
+	path, err := plexClient.GetMediaPath(ctx, server, mediaID)
+	if err != nil {
+		return "", fmt.Errorf("resolve media path: %w", err)
+	}
+
+	return handler.cfg.RemapMediaPath(path), nil
+}
+
+// validateDuration enforces clip duration limits.
+func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration float64) error {
+	if jobType == queue.JobTypeScreenshot {
+		if duration < 0 {
+			return fmt.Errorf("%w: must be zero or greater", errInvalidDuration)
+		}
+
+		return nil
+	}
+
+	maxDur := handler.cfg.MaxClipDurSec
+	if maxDur <= 0 {
+		maxDur = defaultMaxClipDur
+	}
+
+	if duration <= 0 || duration > float64(maxDur) {
+		return fmt.Errorf("%w: must be between 0 and %d seconds", errInvalidDuration, maxDur)
+	}
+
+	return nil
+}
+
+// parseClipRequest binds JSON or form fields into a clip request.
+func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
+	if strings.Contains(ctx.Get(fiber.HeaderContentType), "json") {
+		var req api.ClipRequest
+
+		err := ctx.Bind().Body(&req)
+		if err != nil {
+			return api.ClipRequest{}, fmt.Errorf("bind json: %w", err)
+		}
+
+		return req, nil
+	}
+
+	duration, err := strconv.ParseFloat(ctx.FormValue("duration"), floatBitSize)
+	if err != nil {
+		duration = 0
+	}
+
+	start, err := strconv.ParseFloat(ctx.FormValue("startTime"), floatBitSize)
+	if err != nil {
+		start = 0
+	}
+
+	width, err := strconv.Atoi(ctx.FormValue("width"))
+	if err != nil {
+		width = 0
+	}
+
+	fps, err := strconv.Atoi(ctx.FormValue("fps"))
+	if err != nil {
+		fps = 0
+	}
+
+	return api.ClipRequest{
+		Name:       ctx.FormValue("name"),
+		MediaID:    ctx.FormValue("mediaId"),
+		MediaTitle: ctx.FormValue("mediaTitle"),
+		MediaType:  ctx.FormValue("mediaType"),
+		StartTime:  start,
+		Duration:   duration,
+		Quality:    ctx.FormValue("quality"),
+		ClipType:   ctx.FormValue("clipType"),
+		Width:      width,
+		FPS:        fps,
+	}, nil
+}
+
+// clipName prefers the user-supplied name, then the media title.
+func clipName(req *api.ClipRequest) string {
+	if req.Name != "" {
+		return req.Name
+	}
+
+	return req.MediaTitle
+}
+
+// downloadName builds a Content-Disposition filename for a completed clip.
+func downloadName(job *queue.Job) string {
+	base := job.Name
+	if base == "" {
+		base = job.MediaTitle
+	}
+	if base == "" {
+		base = job.ID
+	}
+
+	base = strings.ReplaceAll(base, "/", "-")
+	base = strings.ReplaceAll(base, "\\", "-")
+
+	switch job.Type {
+	case queue.JobTypeGIF:
+		return base + ".gif"
+	case queue.JobTypeScreenshot:
+		return base + ".jpg"
+	default:
+		return base + ".mp4"
+	}
+}
+
+// isFormRequest reports whether the request is urlencoded form data.
+func isFormRequest(ctx fiber.Ctx) bool {
+	return strings.Contains(ctx.Get(fiber.HeaderContentType), "application/x-www-form-urlencoded")
+}
+
+// buildJob constructs a pending queue job from a clip request.
+func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *queue.Job {
+	return &queue.Job{
+		ID:         uuid.New().String(),
+		Type:       jobType,
+		Name:       clipName(req),
+		MediaID:    req.MediaID,
+		MediaTitle: req.MediaTitle,
+		MediaType:  req.MediaType,
+		InputPath:  inputPath,
+		OutputPath: "",
+		StartTime:  req.StartTime,
+		Duration:   req.Duration,
+		Quality:    req.Quality,
+		Width:      req.Width,
+		FPS:        req.FPS,
+		Status:     queue.JobStatusPending,
+		Progress:   0,
+		Error:      "",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+}
+
+// clipResponse maps a job onto the public clip payload.
+func clipResponse(job *queue.Job) api.ClipResponse {
+	return api.ClipResponse{
+		ID:         job.ID,
+		Name:       job.Name,
+		MediaID:    job.MediaID,
+		MediaTitle: job.MediaTitle,
+		MediaType:  job.MediaType,
+		ClipType:   string(job.Type),
+		Status:     string(job.Status),
+		Progress:   job.Progress,
+		InputPath:  "",
+		OutputPath: "",
+		Error:      job.Error,
+		CreatedAt:  job.CreatedAt,
+		UpdatedAt:  job.UpdatedAt,
+	}
+}

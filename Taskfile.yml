@@ -1,0 +1,126 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+tasks:
+  default:
+    - task: lint
+    - task: vet
+
+  build:
+    desc: Build the outtake binary
+    cmds:
+      - go build -o ./bin/outtake .
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  test-e2e:
+    desc: Run e2e tests (requires FFmpeg and Plex credentials)
+    cmds:
+      - go test -v -count=1 -tags e2e ./testing/e2e/...
+
+  test-e2e-parallel:
+    desc: Run e2e tests in parallel (requires FFmpeg and Plex credentials)
+    cmds:
+      - go test -v -count=1 -p 4 -parallel 8 -tags e2e ./testing/e2e/...
+
+  mock:
+    desc: Generate test mocks using mockery
+    cmds:
+      - mockery --config=build/mockery/mockery.yaml
+    preconditions:
+      - sh: "command -v mockery"
+        msg: "mockery must be installed (run: task mockery-install)"
+
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run --fix --config build/golangci-lint/golangci-lint.yaml ./...
+
+  lint-ci:
+    desc: Run golangci-lint in CI mode (no fix)
+    cmds:
+      - golangci-lint run --config build/golangci-lint/golangci-lint.yaml ./...
+
+  vet:
+    desc: Run go vet
+    cmds:
+      - go vet ./...
+
+  fmt:
+    desc: Format code
+    cmds:
+      - golangci-lint fmt --config build/golangci-lint/golangci-lint.yaml ./...
+
+  run:
+    desc: Run outtake
+    cmds:
+      - go run .
+
+  compose-dev:
+    desc: Run outtake via docker-compose.dev.yml
+    cmds:
+      - docker compose -f docker-compose.dev.yml up --build
+
+  goreleaser:
+    desc: Validate and snapshot-build with GoReleaser
+    cmds:
+      - goreleaser build --config build/goreleaser/goreleaser.yaml --snapshot --clean
+
+  goreleaser:check:
+    desc: Validate the GoReleaser configuration
+    cmds:
+      - goreleaser check --config build/goreleaser/goreleaser.yaml
+
+  goreleaser:release:
+    desc: Create a release with GoReleaser
+    cmds:
+      - goreleaser release --config build/goreleaser/goreleaser.yaml
+
+  install:
+    desc: Install outtake
+    cmds:
+      - go install .
+
+  mod-tidy:
+    desc: Tidy Go modules
+    cmds:
+      - go mod tidy
+
+  mod-download:
+    desc: Download Go modules
+    cmds:
+      - go mod download
+
+  mod-verify:
+    desc: Verify Go modules
+    cmds:
+      - go mod verify
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf bin/
+
+  templ:
+    desc: Run templ
+    cmds:
+      - templ generate
+
+  templ-watch:
+    desc: Run templ with integrated server and hot reload
+    cmds:
+      - templ generate --watch --proxy="http://localhost:8090" --cmd="go run ." --open-browser=false
+
+  tailwind:
+    desc: Watch Tailwind CSS changes
+    cmds:
+      - "tailwindcss -i ./internal/web/assets/css/input.css -o ./internal/web/assets/css/output.css"
+
+  tailwind-watch:
+    desc: Watch Tailwind CSS changes
+    cmds:
+      - "tailwindcss -i ./internal/web/assets/css/input.css -o ./internal/web/assets/css/output.css --watch"

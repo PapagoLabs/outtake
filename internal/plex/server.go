@@ -1,0 +1,427 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// Package plex provides a client for the Plex Media Server API.
+package plex
+
+import (
+	"context"
+	"encoding/xml"
+	"fmt"
+	"net"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/PapagoLabs/outtake/internal/logging"
+)
+
+const (
+	// ServerAPIBase is the PMS library API prefix.
+	serverAPIBase = "/library"
+
+	// HeaderPlexToken is the Plex token header name.
+	headerPlexToken = "X-Plex-Token"
+
+	// HeaderAccept is the HTTP Accept header name.
+	headerAccept = "Accept"
+
+	// AcceptJSON is the JSON Accept value.
+	acceptJSON = "application/json"
+
+	// ScaleMsToS converts Plex millisecond timestamps to seconds.
+	scaleMsToS = 1000.0
+
+	// PingTimeoutSec is the PMS ping timeout in seconds.
+	pingTimeoutSec = 5
+
+	// HttpScheme is the HTTP URL scheme.
+	httpScheme = "http"
+)
+
+// plexTypeNames maps Plex metadata types onto outtake type names.
+var plexTypeNames = map[string]string{
+	"movie":    "movie",
+	TypeShow:   TypeShow,
+	"episode":  "episode",
+	TypeSeason: TypeSeason,
+	TypeAlbum:  TypeAlbum,
+	"track":    "track",
+	TypeArtist: TypeArtist,
+	"photo":    "photo",
+	"clip":     "clip",
+}
+
+// formatHost returns host:port, omitting the port if it's the default for the scheme.
+func formatHost(address, scheme string, port int) string {
+	if (scheme == defaultScheme && port == httpsPort) ||
+		(scheme == httpScheme && port == httpPort) {
+
+		return address
+	}
+
+	return net.JoinHostPort(address, strconv.Itoa(port))
+}
+
+// GetLibraries fetches libraries from the Plex server.
+func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Library, error) {
+	scheme := server.Scheme
+	if scheme == "" {
+		scheme = defaultScheme
+	}
+
+	hostPort := formatHost(server.Address, scheme, server.Port)
+	reqURL := fmt.Sprintf("%s://%s%s/sections/all", scheme, hostPort, serverAPIBase)
+
+	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+
+	resp, err := client.httpClient.Get(reqURL, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("get libraries: %w", err)
+	}
+
+	container, err := decodePMS(resp.Body())
+	if err != nil {
+		return nil, fmt.Errorf("decode libraries: %w", err)
+	}
+
+	libs := make([]Library, 0, len(container.Directory))
+	for _, section := range container.Directory {
+		libs = append(libs, Library{
+			ID:    section.Key,
+			Title: section.Title,
+			Type:  section.Type,
+		})
+	}
+
+	logging.Logger.Debug().
+		Str("server", server.Name).
+		Int("count", len(libs)).
+		Msg("fetched libraries")
+
+	return libs, nil
+}
+
+// GetMedia fetches media items from a library.
+func (client *Client) GetMedia(
+	ctx context.Context,
+	server Server,
+	libraryID string,
+) ([]MediaItem, error) {
+	scheme := server.Scheme
+	if scheme == "" {
+		scheme = defaultScheme
+	}
+
+	hostPort := formatHost(server.Address, scheme, server.Port)
+	reqURL := fmt.Sprintf(
+		"%s://%s%s/sections/%s/all",
+		scheme,
+		hostPort,
+		serverAPIBase,
+		libraryID,
+	)
+
+	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+
+	resp, err := client.httpClient.Get(reqURL, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("get media: %w", err)
+	}
+
+	container, decodeErr := decodePMS(resp.Body())
+	if decodeErr != nil {
+		return nil, fmt.Errorf("get media: %w", decodeErr)
+	}
+
+	return metadataItems(container.Metadata, ""), nil
+}
+
+// GetMediaPath fetches the file path for a media item.
+func (client *Client) GetMediaPath(
+	ctx context.Context,
+	server Server,
+	mediaID string,
+) (string, error) {
+	scheme := server.Scheme
+	if scheme == "" {
+		scheme = defaultScheme
+	}
+
+	hostPort := formatHost(server.Address, scheme, server.Port)
+	reqURL := fmt.Sprintf("%s://%s/library/metadata/%s", scheme, hostPort, mediaID)
+
+	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+
+	resp, err := client.httpClient.Get(reqURL, cfg)
+	if err != nil {
+		return "", fmt.Errorf("get media path: %w", err)
+	}
+
+	container, decodeErr := decodePMS(resp.Body())
+	if decodeErr != nil {
+		return "", fmt.Errorf("decode media detail: %w", decodeErr)
+	}
+
+	for index := range container.Metadata {
+		if file := firstMediaFile(container.Metadata[index]); file != "" {
+			return file, nil
+		}
+	}
+
+	return "", ErrNoFilePathFound
+}
+
+// DiscoverServers discovers Plex servers.
+func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
+	resp, err := client.doRequest(ctx, "/api/resources", "includeHttps=1")
+	if err != nil {
+		return nil, fmt.Errorf("discover servers: %w", err)
+	}
+
+	var data deviceResponse
+
+	body := resp.Body()
+	if len(body) == 0 {
+		return nil, errEmptyBody
+	}
+
+	err = xml.Unmarshal(body, &data)
+	if err != nil {
+		return nil, fmt.Errorf("decode servers: %w", err)
+	}
+
+	servers := serversFromDevices(data.Device)
+
+	logging.Logger.Debug().
+		Int("count", len(servers)).
+		Msg("discovered servers")
+
+	return servers, nil
+}
+
+// Ping pings the server to check connectivity.
+func (client *Client) Ping(ctx context.Context, server Server) error {
+	scheme := server.Scheme
+	if scheme == "" {
+		scheme = defaultScheme
+	}
+
+	hostPort := formatHost(server.Address, scheme, server.Port)
+	reqURL := fmt.Sprintf("%s://%s/identity", scheme, hostPort)
+
+	cfg := newRequestConfig(ctx, map[string]string{headerPlexToken: server.Token}, nil)
+
+	cfg.Timeout = pingTimeoutSec * time.Second
+
+	resp, err := client.httpClient.Get(reqURL, cfg)
+	if err != nil {
+		return fmt.Errorf("ping server: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("%w %d", ErrServerReturnedError, resp.StatusCode())
+	}
+
+	return nil
+}
+
+// GetServerIdentity fetches the server identity.
+func (client *Client) GetServerIdentity(
+	ctx context.Context,
+	server Server,
+) (*ServerIdentity, error) {
+	scheme := server.Scheme
+	if scheme == "" {
+		scheme = defaultScheme
+	}
+
+	hostPort := formatHost(server.Address, scheme, server.Port)
+	reqURL := fmt.Sprintf("%s://%s/identity", scheme, hostPort)
+
+	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+
+	resp, err := client.httpClient.Get(reqURL, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("get server identity: %w", err)
+	}
+
+	container, decodeErr := decodePMS(resp.Body())
+	if decodeErr != nil {
+		return nil, fmt.Errorf("decode server identity: %w", decodeErr)
+	}
+
+	return &ServerIdentity{
+		MachineIdentifier: container.MachineIdentifier,
+		Version:           container.Version,
+	}, nil
+}
+
+// SearchMedia searches for media across all accessible servers using the Plex.tv API.
+func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaItem, error) {
+	resp, err := client.doRequest(
+		ctx,
+		"/search",
+		"query="+url.QueryEscape(query),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("search media: %w", err)
+	}
+
+	var data searchResponse
+
+	body := resp.Body()
+	if len(body) == 0 {
+		return nil, errEmptyBody
+	}
+
+	err = xml.Unmarshal(body, &data)
+	if err != nil {
+		return nil, fmt.Errorf("decode search: %w", err)
+	}
+
+	items := make([]MediaItem, 0, len(data.Video))
+	for _, entry := range data.Video {
+		items = append(items, mediaItemFromEntry(entry, ""))
+	}
+
+	return items, nil
+}
+
+// GetSessions fetches active sessions using the Plex.tv API.
+func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
+	resp, err := client.doRequest(ctx, "/status/sessions", "")
+	if err != nil {
+		return nil, fmt.Errorf("get sessions: %w", err)
+	}
+
+	var data sessionResponse
+
+	body := resp.Body()
+	if len(body) == 0 {
+		return nil, nil
+	}
+
+	err = xml.Unmarshal(body, &data)
+	if err != nil {
+		return nil, fmt.Errorf("decode sessions: %w", err)
+	}
+
+	sessions := make([]Session, 0, len(data.Video))
+	for _, entry := range data.Video {
+		sessions = append(sessions, Session{
+			ID: entry.Session.ID,
+			MediaItem: mediaItemFromEntry(
+				mediaEntry{
+					RatingKey: entry.RatingKey,
+					Key:       entry.Key,
+					Title:     entry.Title,
+					Duration:  entry.Duration,
+					Thumb:     "",
+					Type:      entry.Type,
+				},
+				"",
+			),
+			Title:      entry.Title,
+			Duration:   float64(entry.Duration) / scaleMsToS,
+			ViewOffset: float64(entry.ViewOffset) / scaleMsToS,
+		})
+	}
+
+	return sessions, nil
+}
+
+// MapPlexType maps Plex type strings to standardized types.
+func MapPlexType(plexType string) string {
+	mapped, ok := plexTypeNames[plexType]
+	if !ok {
+		return "unknown"
+	}
+
+	return mapped
+}
+
+// serversFromDevices flattens discovered devices into server connections.
+func serversFromDevices(devices []deviceEntry) []Server {
+	servers := make([]Server, 0, len(devices))
+
+	for _, device := range devices {
+		token := device.AccessToken
+
+		for _, conn := range device.Connection {
+			servers = append(servers, serverFromConnection(device.Name, token, conn))
+		}
+	}
+
+	return servers
+}
+
+// serverFromConnection maps a Plex Connection element onto a Server.
+func serverFromConnection(name, token string, conn deviceConnection) Server {
+	if conn.URI != "" {
+		parsed, ok := ServerFromURL(conn.URI, token)
+		if ok {
+			parsed.Name = name
+			parsed.Local = conn.Local == 1
+
+			return parsed
+		}
+	}
+
+	scheme := conn.Protocol
+	if scheme == "" {
+		scheme = defaultScheme
+	}
+
+	port := conn.Port
+	if port == 0 {
+		port = defaultPortForScheme(scheme)
+	}
+
+	return Server{
+		Name:    name,
+		Address: conn.Address,
+		Port:    port,
+		Token:   token,
+		Scheme:  scheme,
+		Local:   conn.Local == 1,
+	}
+}
+
+// jsonHeaders returns PMS JSON request headers as documented by the OpenAPI spec.
+func jsonHeaders(token string) map[string]string {
+	return map[string]string{
+		headerPlexToken: token,
+		headerAccept:    acceptJSON,
+	}
+}
+
+// mediaItemFromEntry converts a Plex media listing entry.
+func mediaItemFromEntry(entry mediaEntry, libraryTitle string) MediaItem {
+	return MediaItem{
+		ID:           mediaEntryID(entry),
+		Title:        entry.Title,
+		Type:         MapPlexType(entry.Type),
+		Duration:     float64(entry.Duration) / scaleMsToS,
+		ThumbPath:    entry.Thumb,
+		LibraryTitle: libraryTitle,
+	}
+}
+
+// mediaEntryID prefers ratingKey, then the metadata id in key.
+func mediaEntryID(entry mediaEntry) string {
+	if entry.RatingKey != "" {
+		return entry.RatingKey
+	}
+
+	id := strings.TrimPrefix(entry.Key, "/library/metadata/")
+
+	id = strings.TrimSuffix(id, "/")
+	if slash := strings.Index(id, "/"); slash >= 0 {
+		id = id[:slash]
+	}
+
+	return id
+}

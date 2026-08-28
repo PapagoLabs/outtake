@@ -1,0 +1,141 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/badge"
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"strconv"
+)
+
+type ClipItem struct {
+	ID         string
+	Name       string
+	MediaID    string
+	MediaTitle string
+	ClipType   string
+	Status     string
+	Progress   int
+	CreatedAt  string
+	StartTime  float64
+	Duration   float64
+}
+
+type ClipsProps struct {
+	Items []ClipItem
+}
+
+func statusBadgeVariant(status string) badge.Variant {
+	switch status {
+	case "completed":
+		return badge.VariantDefault
+	case "pending", "processing":
+		return badge.VariantSecondary
+	case "failed":
+		return badge.VariantDestructive
+	default:
+		return badge.VariantOutline
+	}
+}
+
+func isActiveClip(status string) bool {
+	return status == "pending" || status == "processing"
+}
+
+func clipDisplayName(item ClipItem) string {
+	if item.Name != "" {
+		return item.Name
+	}
+
+	return item.MediaTitle
+}
+
+templ ClipCard(item ClipItem) {
+	<div
+		id={ "clip-" + item.ID }
+		if isActiveClip(item.Status) {
+			hx-get={ "/clips/" + item.ID + "/row" }
+			hx-trigger="every 2s"
+			hx-swap="outerHTML"
+		}
+	>
+		@card.Card() {
+			@card.Content() {
+				<div class="flex items-center justify-between">
+					<div class="flex flex-col gap-1">
+						<div class="flex items-center gap-2">
+							<span class="font-medium">{ clipDisplayName(item) }</span>
+							@badge.Badge(badge.Props{Variant: statusBadgeVariant(item.Status)}) {
+								{ item.Status }
+							}
+						</div>
+						<div class="flex items-center gap-2 text-sm text-muted-foreground">
+							<span class="capitalize">{ item.ClipType }</span>
+							if item.MediaTitle != "" {
+								<span>&middot;</span>
+								if item.MediaID != "" {
+									<a href={ templ.SafeURL("/media/item/" + item.MediaID) } class="hover:text-foreground">{ item.MediaTitle }</a>
+								} else {
+									<span>{ item.MediaTitle }</span>
+								}
+							}
+							<span>&middot;</span>
+							<span>{ item.CreatedAt }</span>
+							if isActiveClip(item.Status) {
+								<span>&middot;</span>
+								<span>{ strconv.Itoa(item.Progress) }%</span>
+							}
+						</div>
+					</div>
+					<div class="flex items-center gap-2">
+						if item.Status == "completed" {
+							<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download>
+								@button.Button(button.Props{Variant: button.VariantOutline, Size: button.SizeSm}) {
+									Download
+								}
+							</a>
+						}
+						<button
+							hx-delete={ "/api/clips/" + item.ID }
+							hx-target={ "#clip-" + item.ID }
+							hx-swap="delete"
+							class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
+						>
+							Delete
+						</button>
+					</div>
+				</div>
+			}
+		}
+	</div>
+}
+
+templ Clips(props ClipsProps) {
+	@Layout(LayoutProps{Title: "Clips", Active: "clips"}) {
+		<div class="flex flex-col gap-6">
+			<div class="flex items-center justify-between">
+				<div>
+					<h2 class="text-2xl font-bold tracking-tight">Clips</h2>
+					<p class="text-muted-foreground">Manage your generated video clips, GIFs, and screenshots.</p>
+				</div>
+			</div>
+			if len(props.Items) == 0 {
+				@card.Card() {
+					@card.Content() {
+						<div class="text-center py-12 text-muted-foreground">
+							<p>No clips yet. Browse your media library and create your first clip.</p>
+							<a href="/media" class="mt-4 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
+								Browse Media
+							</a>
+						</div>
+					}
+				}
+			}
+			for _, item := range props.Items {
+				@ClipCard(item)
+			}
+		</div>
+	}
+}

@@ -1,0 +1,7 @@
+{
+  "componentsDir": "internal/web/components",
+  "utilsDir": "internal/web/utils",
+  "moduleName": "github.com/PapagoLabs/outtake",
+  "jsDir": "internal/web/assets/js",
+  "jsPublicPath": "/internal/web/assets/js"
+}

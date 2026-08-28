@@ -1,0 +1,46 @@
+# Binaries
+outtake
+dist/
+*.exe
+
+# Go
+vendor/
+go.sum
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+coverage.out
+coverage/
+*.test
+*.prof
+
+# Generated
+**/*.templ.go
+!vendor/**/*.templ.go
+
+# CSS
+share/css/dist/
+node_modules/
+
+# Data
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# Environment
+.env
+.env.local
+docker-compose.dev.yml
+
+# Local reference dumps
+References/

@@ -1,0 +1,105 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"strconv"
+)
+
+type SessionItem struct {
+	ID         string
+	MediaID    string
+	Title      string
+	ViewOffset float64
+	Duration   float64
+}
+
+type DashboardProps struct {
+	TotalClips   int
+	PendingClips int
+	Completed    int
+	Failed       int
+	Sessions     []SessionItem
+}
+
+templ Dashboard(props DashboardProps) {
+	@Layout(LayoutProps{Title: "Dashboard", Active: "dashboard"}) {
+		<div class="flex flex-col gap-6">
+			<div>
+				<h2 class="text-2xl font-bold tracking-tight">Dashboard</h2>
+				<p class="text-muted-foreground">Overview of your media clipping activity.</p>
+			</div>
+			<div class="grid gap-4 md:grid-cols-4">
+				@card.Card() {
+					@card.Content() {
+						<div class="flex flex-col gap-1">
+							<p class="text-sm text-muted-foreground">Total Clips</p>
+							<p class="text-3xl font-bold">{ strconv.Itoa(props.TotalClips) }</p>
+						</div>
+					}
+				}
+				@card.Card() {
+					@card.Content() {
+						<div class="flex flex-col gap-1">
+							<p class="text-sm text-muted-foreground">Pending</p>
+							<p class="text-3xl font-bold text-yellow-500">{ strconv.Itoa(props.PendingClips) }</p>
+						</div>
+					}
+				}
+				@card.Card() {
+					@card.Content() {
+						<div class="flex flex-col gap-1">
+							<p class="text-sm text-muted-foreground">Completed</p>
+							<p class="text-3xl font-bold text-green-500">{ strconv.Itoa(props.Completed) }</p>
+						</div>
+					}
+				}
+				@card.Card() {
+					@card.Content() {
+						<div class="flex flex-col gap-1">
+							<p class="text-sm text-muted-foreground">Failed</p>
+							<p class="text-3xl font-bold text-destructive">{ strconv.Itoa(props.Failed) }</p>
+						</div>
+					}
+				}
+			</div>
+			if len(props.Sessions) > 0 {
+				<div class="flex flex-col gap-3">
+					<h3 class="text-lg font-semibold">Live Sessions</h3>
+					for _, sess := range props.Sessions {
+						@card.Card() {
+							@card.Content() {
+								<div class="flex items-center justify-between gap-4">
+									<div>
+										<p class="font-medium">{ sess.Title }</p>
+										<p class="text-sm text-muted-foreground">
+											{ strconv.Itoa(int(sess.ViewOffset)) }s / { strconv.Itoa(int(sess.Duration)) }s
+										</p>
+									</div>
+									if sess.MediaID != "" {
+										<a
+											href={ templ.SafeURL("/clips/new?mediaId=" + sess.MediaID + "&title=" + sess.Title + "&start=" + strconv.FormatFloat(sess.ViewOffset, 'f', 1, 64)) }
+											class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
+										>
+											Clip now
+										</a>
+									}
+								</div>
+							}
+						}
+					}
+				</div>
+			}
+			<div class="flex gap-4">
+				<a href="/media" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
+					Browse Media
+				</a>
+				<a href="/clips" class="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent transition-colors">
+					View Clips
+				</a>
+			</div>
+		</div>
+	}
+}

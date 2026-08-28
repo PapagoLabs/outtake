@@ -1,0 +1,97 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/input"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+)
+
+type LoginProps struct {
+	AuthURL string
+	Error   string
+}
+
+templ Login(props LoginProps) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Login - Outtake</title>
+			<link href="/assets/css/output.css" rel="stylesheet"/>
+			<script src="/assets/js/htmx.min.js"></script>
+		</head>
+		<body class="min-h-screen bg-background text-foreground flex items-center justify-center">
+			<div class="w-full max-w-md p-8">
+				@card.Card() {
+					@card.Header() {
+						@card.Title() {
+							Outtake
+						}
+						@card.Description() {
+							Sign in with your Plex account to start creating clips.
+						}
+					}
+					@card.Content() {
+						if props.Error != "" {
+							<div class="mb-4 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+								{ props.Error }
+							</div>
+						}
+						<div id="plex-error" class="mb-4 hidden rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"></div>
+						@button.Button(button.Props{ID: "plex-login", Type: button.TypeButton, FullWidth: true}) {
+							Sign in with Plex
+						}
+						<div id="auth-status" class="mt-4 hidden text-center text-sm text-muted-foreground" hx-get="/api/auth/status" hx-trigger="every 2s" hx-swap="innerHTML">
+							Waiting for Plex authorization...
+						</div>
+						<div class="relative my-4">
+							<div class="absolute inset-0 flex items-center"><div class="w-full border-t"></div></div>
+							<div class="relative flex justify-center text-xs uppercase"><span class="bg-card px-2 text-muted-foreground">Or</span></div>
+						</div>
+						<form action="/api/auth/login" method="POST" class="flex flex-col gap-4">
+							<div class="flex flex-col gap-2">
+								@label.Label(label.Props{For: "manual-token"}) {
+									Plex Token
+								}
+								@input.Input(input.Props{ID: "manual-token", Name: "token", Type: "password", Placeholder: "Enter token manually"})
+							</div>
+							@button.Button(button.Props{Type: button.TypeSubmit, FullWidth: true}) {
+								Sign In
+							}
+						</form>
+					}
+				}
+			</div>
+			<script>
+				document.getElementById('plex-login').addEventListener('click', async function () {
+					var errorEl = document.getElementById('plex-error');
+					var statusEl = document.getElementById('auth-status');
+					errorEl.classList.add('hidden');
+					errorEl.textContent = '';
+					try {
+						var res = await fetch('/api/auth/login', {
+							method: 'POST',
+							headers: { 'Accept': 'application/json' }
+						});
+						var data = await res.json();
+						if (!res.ok || !data.authUrl) {
+							errorEl.textContent = data.message || 'Failed to start Plex sign-in.';
+							errorEl.classList.remove('hidden');
+							return;
+						}
+						window.open(data.authUrl, 'plex-auth', 'popup=yes,width=800,height=740');
+						statusEl.classList.remove('hidden');
+					} catch (err) {
+						errorEl.textContent = 'Failed to start Plex sign-in.';
+						errorEl.classList.remove('hidden');
+					}
+				});
+			</script>
+		</body>
+	</html>
+}

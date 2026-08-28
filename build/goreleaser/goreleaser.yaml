@@ -1,0 +1,222 @@
+################################################################################
+#                                                                              #
+#                       GoReleaser OSS Release Configuration                   #
+#                                                                              #
+# Project: outtake                                                             #
+# Repository: https://github.com/PapagoLabs/outtake/                           #
+#                                                                              #
+# GoReleaser URL: https://goreleaser.com/                                      #
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json      #
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj                                             #
+#                                                                              #
+################################################################################
+
+################################################################################
+# Configuration Version
+version: 2
+################################################################################
+
+################################################################################
+# Project Configuration
+# https://goreleaser.com/customization/project/
+################################################################################
+project_name: "outtake"
+
+################################################################################
+# Verifiable Builds (Supply Chain Security)
+# https://goreleaser.com/customization/builds/verifiable_builds/
+################################################################################
+gomod:
+  proxy: true
+  env:
+    - GOPROXY=https://proxy.golang.org,direct
+    - GOSUMDB=sum.golang.org
+
+################################################################################
+# Build Hooks
+# https://goreleaser.com/customization/hooks/
+################################################################################
+before:
+  hooks:
+    - go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
+
+################################################################################
+# Go Binary Build Configuration
+# https://goreleaser.com/customization/builds/go/
+################################################################################
+builds:
+  - id: "outtake-binary"
+    main: "main.go"
+    binary: "outtake"
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/PapagoLabs/outtake/internal/metadata.Version={{ .Version }}
+      - -X github.com/PapagoLabs/outtake/internal/metadata.CommitSHA={{ .Commit }}
+      - -X github.com/PapagoLabs/outtake/internal/metadata.BuildTime={{ .CommitDate }}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - "386"
+      - arm
+      - arm64
+      - riscv64
+    ignore:
+      - goos: windows
+        goarch: riscv64
+      - goos: windows
+        goarch: arm
+      - goos: darwin
+        goarch: "386"
+      - goos: darwin
+        goarch: arm
+      - goos: darwin
+        goarch: riscv64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+################################################################################
+# Binary Archive Configuration
+# https://goreleaser.com/customization/package/archives/
+################################################################################
+archives:
+  - formats: ["tar.gz"]
+    name_template: >-
+      {{- .ProjectName }}_
+      {{- if eq .Os "darwin" }}macOS
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}amd64
+      {{- else if eq .Arch "386" }}i386
+      {{- else if eq .Arch "arm" }}armhf
+      {{- else if eq .Arch "arm64" }}arm64v8
+      {{- else if eq .Arch "riscv64" }}riscv64
+      {{- else }}{{ .Arch }}{{ end }}_
+      {{- .Version -}}
+    format_overrides:
+      - goos: windows
+        formats: ["zip"]
+    files:
+      - LICENSE
+    builds_info:
+      mtime: "{{ .CommitTimestamp }}"
+
+################################################################################
+# Source Archive Configuration
+################################################################################
+source:
+  enabled: true
+  name_template: "outtake.src"
+
+################################################################################
+# Checksums Configuration
+# https://goreleaser.com/customization/package/checksum/
+################################################################################
+checksum:
+  name_template: "checksums.txt"
+
+################################################################################
+# Docker Digests Configuration
+# https://goreleaser.com/customization/package/docker_digests/
+################################################################################
+docker_digest:
+  name_template: "digests.txt"
+
+################################################################################
+# Docker Image Build Configuration
+# https://goreleaser.com/customization/package/dockers_v2/
+################################################################################
+dockers_v2:
+  ##############################################################################
+  # Multi-platform manifest (all platforms) - non-prefixed tags only
+  ##############################################################################
+  - id: "outtake-manifest"
+    ids: ["outtake-binary"]
+    images:
+      - "ghcr.io/papagolabs/outtake"
+    tags:
+      - "{{ .Major }}"
+      - "{{ .Major }}.{{ .Minor }}"
+      - "{{ .Version }}"
+      - "latest"
+    dockerfile: build/docker/Dockerfile
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.name: "outtake"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.description: "A clip manager for Plex libraries."
+      org.opencontainers.image.licenses: "AGPL-3.0-or-later"
+      org.opencontainers.image.url: "https://github.com/PapagoLabs/outtake"
+
+  ##############################################################################
+  # Platform-specific images - platform-prefixed tags only
+  ##############################################################################
+  - id: "outtake-amd64"
+    ids: ["outtake-binary"]
+    images:
+      - "ghcr.io/papagolabs/outtake"
+    tags:
+      - "amd64-{{ .Major }}"
+      - "amd64-{{ .Major }}.{{ .Minor }}"
+      - "amd64-{{ .Version }}"
+      - "amd64-latest"
+    dockerfile: build/docker/Dockerfile
+    platforms:
+      - linux/amd64
+    labels:
+      org.opencontainers.image.name: "outtake"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.description: "A clip manager for Plex libraries."
+      org.opencontainers.image.licenses: "AGPL-3.0-or-later"
+      org.opencontainers.image.url: "https://github.com/PapagoLabs/outtake"
+
+  - id: "outtake-arm64v8"
+    ids: ["outtake-binary"]
+    images:
+      - "ghcr.io/papagolabs/outtake"
+    tags:
+      - "arm64v8-{{ .Major }}"
+      - "arm64v8-{{ .Major }}.{{ .Minor }}"
+      - "arm64v8-{{ .Version }}"
+      - "arm64v8-latest"
+    dockerfile: build/docker/Dockerfile
+    platforms:
+      - linux/arm64
+    labels:
+      org.opencontainers.image.name: "outtake"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.description: "A clip manager for Plex libraries."
+      org.opencontainers.image.licenses: "AGPL-3.0-or-later"
+      org.opencontainers.image.url: "https://github.com/PapagoLabs/outtake"
+
+################################################################################
+# Software Bill of Materials (SBOM) Configuration
+# https://goreleaser.com/customization/sbom/
+################################################################################
+sboms:
+  - id: binaries
+    artifacts: archive
+  - id: source
+    artifacts: source
+
+################################################################################
+# Changelog Configuration
+# https://goreleaser.com/customization/changelog/
+################################################################################
+changelog:
+  disable: true

@@ -1,0 +1,88 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"strconv"
+)
+
+type ServerItem struct {
+	Name    string
+	Address string
+	Port    int
+	Scheme  string
+	Token   string
+	Local   bool
+}
+
+type ServersProps struct {
+	Servers []ServerItem
+	Error   string
+}
+
+templ Servers(props ServersProps) {
+	@Layout(LayoutProps{Title: "Plex Servers", Active: "servers"}) {
+		<div class="flex flex-col gap-6 max-w-xl">
+			<div>
+				<h2 class="text-2xl font-bold tracking-tight">Select a Plex server</h2>
+				<p class="text-muted-foreground">Choose the Media Server that holds the files you want to clip.</p>
+			</div>
+			if props.Error != "" {
+				<div class="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+					{ props.Error }
+				</div>
+			}
+			if len(props.Servers) == 0 {
+				@card.Card() {
+					@card.Content() {
+						<p class="text-muted-foreground">No Plex servers were discovered for this account.</p>
+					}
+				}
+			}
+			for _, server := range props.Servers {
+				@card.Card() {
+					@card.Content() {
+						<form action="/servers" method="POST" class="flex items-center justify-between gap-4">
+							<input type="hidden" name="name" value={ server.Name }/>
+							<input type="hidden" name="address" value={ server.Address }/>
+							<input type="hidden" name="port" value={ strconv.Itoa(server.Port) }/>
+							<input type="hidden" name="scheme" value={ server.Scheme }/>
+							<input type="hidden" name="token" value={ server.Token }/>
+							<div>
+								<p class="font-medium">{ server.Name }</p>
+								<p class="text-sm text-muted-foreground">
+									{ server.Scheme }://{ server.Address }:{ strconv.Itoa(server.Port) }
+									if server.Local {
+										<span>(local)</span>
+									} else {
+										<span>(remote)</span>
+									}
+								</p>
+							</div>
+							@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
+								Use this server
+							}
+						</form>
+					}
+				}
+			}
+			@card.Card() {
+				@card.Content() {
+					<form action="/servers" method="POST" class="flex flex-col gap-3">
+						<div>
+							<p class="font-medium">Custom server URL</p>
+							<p class="text-sm text-muted-foreground">Use an FQDN or ingress address, such as https://plex.example.com.</p>
+						</div>
+						<input type="url" name="customUrl" placeholder="https://plex.example.com" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+						@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
+							Use this URL
+						}
+					</form>
+				}
+			}
+		</div>
+	}
+}

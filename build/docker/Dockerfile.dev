@@ -1,0 +1,49 @@
+# Copyright 2026 Nicholas Fedor <nick@nickfedor.com>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Development Dockerfile for outtake.
+# Builds the binary from source and bundles static ffmpeg/ffprobe.
+
+ARG BASE_IMAGE=golang:1.27-alpine@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc
+
+FROM ${BASE_IMAGE} AS builder
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+WORKDIR /build
+
+COPY scripts/download-ffmpeg ./scripts/download-ffmpeg
+RUN cd ./scripts/download-ffmpeg && go mod download && go run .
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o outtake .
+
+FROM scratch
+
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /build/outtake /outtake
+COPY --from=builder /build/ffmpeg /usr/bin/ffmpeg
+COPY --from=builder /build/ffprobe /usr/bin/ffprobe
+
+EXPOSE 8080
+
+VOLUME ["/data"]
+
+ENV OUTTAKE_DATABASE_PATH=/data/outtake.db
+ENV OUTTAKE_STORAGE_PATH=/data/output
+ENV OUTTAKE_LISTEN_ADDR=:8080
+ENV OUTTAKE_FFMPEG_PATH=/usr/bin/ffmpeg
+ENV OUTTAKE_FFPROBE_PATH=/usr/bin/ffprobe
+ENV OUTTAKE_PUBLIC_BASE_URL=http://localhost:8080
+
+USER 1000:1000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/outtake", "health"]
+
+ENTRYPOINT ["/outtake"]
+CMD ["server", "start"]
