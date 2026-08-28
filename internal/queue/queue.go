@@ -21,6 +21,7 @@ type Queue struct {
 	jobChan  chan *Job
 	jobs     map[string]*Job
 	mu       sync.RWMutex
+	wg       sync.WaitGroup
 	handler  JobHandler
 	done     chan struct{}
 	cancel   context.CancelFunc
@@ -46,6 +47,7 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 		jobChan:  make(chan *Job, jobChannelSize),
 		jobs:     make(map[string]*Job),
 		mu:       sync.RWMutex{},
+		wg:       sync.WaitGroup{},
 		handler:  handler,
 		done:     make(chan struct{}),
 		cancel:   cancel,
@@ -105,7 +107,9 @@ func (que *Queue) SetStatusFunc(fn StatusFunc) {
 // Start starts the job queue workers.
 func (que *Queue) Start() {
 	for i := range que.workers {
-		go que.worker(i)
+		que.wg.Go(func() {
+			que.worker(i)
+		})
 	}
 
 	logging.Logger.Info().Int("workers", que.workers).Msg("job queue started")
@@ -116,6 +120,7 @@ func (que *Queue) Stop() {
 	que.cancel()
 	close(que.jobChan)
 	close(que.done)
+	que.wg.Wait()
 }
 
 // Submit submits a job to the queue.

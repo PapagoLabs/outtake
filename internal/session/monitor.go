@@ -20,22 +20,30 @@ type Monitor struct {
 	interval time.Duration
 
 	mu       sync.RWMutex
+	wg       sync.WaitGroup
 	sessions []plex.Session
 
-	stop chan struct{}
-	once sync.Once
+	stop   chan struct{}
+	once   sync.Once
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 // NewMonitor creates a new session monitor.
 func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration) *Monitor {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	return &Monitor{
 		client:   client,
 		server:   server,
 		interval: interval,
 		mu:       sync.RWMutex{},
+		wg:       sync.WaitGroup{},
 		sessions: nil,
 		stop:     make(chan struct{}),
 		once:     sync.Once{},
+		ctx:      ctx,
+		cancel:   cancel,
 	}
 }
 
@@ -58,14 +66,16 @@ func (mon *Monitor) Start() {
 		Dur("interval", mon.interval).
 		Msg("starting session monitor")
 
-	go mon.poll()
+	mon.wg.Go(mon.poll)
 }
 
 // Stop stops the session monitor.
 func (mon *Monitor) Stop() {
 	mon.once.Do(func() {
 		close(mon.stop)
+		mon.cancel()
 	})
+	mon.wg.Wait()
 }
 
 // poll polls for session updates.
@@ -87,7 +97,7 @@ func (mon *Monitor) poll() {
 
 // refresh refreshes the session list.
 func (mon *Monitor) refresh() {
-	ctx, cancel := context.WithTimeout(context.Background(), mon.interval)
+	ctx, cancel := context.WithTimeout(mon.ctx, mon.interval)
 	defer cancel()
 
 	sessions, err := mon.client.GetSessionsOnServer(ctx, mon.server)

@@ -7,6 +7,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -128,99 +129,97 @@ func TestQueue_GetAllJobs(t *testing.T) {
 }
 
 func TestQueue_ProcessJob_Success(t *testing.T) {
-	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
 
-	var mu sync.Mutex
+		completed := false
 
-	completed := false
+		handler := func(_ context.Context, job *Job) error {
+			mu.Lock()
+			defer mu.Unlock()
 
-	handler := func(ctx context.Context, job *Job) error {
+			completed = true
+			job.Progress = 50
+
+			return nil
+		}
+
+		q := NewQueue(1, handler)
+		q.Start()
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{
+			ID:         "success-job",
+			Type:       JobTypeClip,
+			Name:       "",
+			InputPath:  "/tmp/input.mp4",
+			Status:     JobStatusPending,
+			MediaID:    "",
+			MediaTitle: "",
+			MediaType:  "",
+			OutputPath: "",
+			StartTime:  0,
+			Duration:   0,
+			Quality:    "",
+			Width:      0,
+			FPS:        0,
+			Progress:   0,
+			Error:      "",
+			CreatedAt:  time.Time{},
+			UpdatedAt:  time.Time{},
+		})
+
+		synctest.Wait()
+
+		job := q.GetJob("success-job")
+		require.NotNil(t, job)
+		assert.Equal(t, JobStatusCompleted, job.Status)
+		assert.Equal(t, 100, job.Progress)
+
 		mu.Lock()
-		defer mu.Unlock()
-
-		completed = true
-		job.Progress = 50
-
-		return nil
-	}
-
-	q := NewQueue(1, handler)
-	q.Start()
-
-	q.Submit(&Job{
-		ID:         "success-job",
-		Type:       JobTypeClip,
-		Name:       "",
-		InputPath:  "/tmp/input.mp4",
-		Status:     JobStatusPending,
-		MediaID:    "",
-		MediaTitle: "",
-		MediaType:  "",
-		OutputPath: "",
-		StartTime:  0,
-		Duration:   0,
-		Quality:    "",
-		Width:      0,
-		FPS:        0,
-		Progress:   0,
-		Error:      "",
-		CreatedAt:  time.Time{},
-		UpdatedAt:  time.Time{},
+		assert.True(t, completed)
+		mu.Unlock()
 	})
-
-	time.Sleep(200 * time.Millisecond)
-
-	job := q.GetJob("success-job")
-	require.NotNil(t, job)
-	assert.Equal(t, JobStatusCompleted, job.Status)
-	assert.Equal(t, 100, job.Progress)
-
-	mu.Lock()
-	assert.True(t, completed)
-	mu.Unlock()
-
-	q.Stop()
 }
 
 func TestQueue_ProcessJob_Failure(t *testing.T) {
-	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		handler := func(_ context.Context, _ *Job) error {
+			return assert.AnError
+		}
 
-	handler := func(ctx context.Context, job *Job) error {
-		return assert.AnError
-	}
+		q := NewQueue(1, handler)
+		q.Start()
+		t.Cleanup(q.Stop)
 
-	q := NewQueue(1, handler)
-	q.Start()
+		q.Submit(&Job{
+			ID:         "fail-job",
+			Type:       JobTypeGIF,
+			Name:       "",
+			InputPath:  "/tmp/input.mp4",
+			Status:     JobStatusPending,
+			MediaID:    "",
+			MediaTitle: "",
+			MediaType:  "",
+			OutputPath: "",
+			StartTime:  0,
+			Duration:   0,
+			Quality:    "",
+			Width:      0,
+			FPS:        0,
+			Progress:   0,
+			Error:      "",
+			CreatedAt:  time.Time{},
+			UpdatedAt:  time.Time{},
+		})
 
-	q.Submit(&Job{
-		ID:         "fail-job",
-		Type:       JobTypeGIF,
-		Name:       "",
-		InputPath:  "/tmp/input.mp4",
-		Status:     JobStatusPending,
-		MediaID:    "",
-		MediaTitle: "",
-		MediaType:  "",
-		OutputPath: "",
-		StartTime:  0,
-		Duration:   0,
-		Quality:    "",
-		Width:      0,
-		FPS:        0,
-		Progress:   0,
-		Error:      "",
-		CreatedAt:  time.Time{},
-		UpdatedAt:  time.Time{},
+		synctest.Wait()
+
+		job := q.GetJob("fail-job")
+		require.NotNil(t, job)
+		assert.Equal(t, JobStatusFailed, job.Status)
+		assert.NotEmpty(t, job.Error)
 	})
-
-	time.Sleep(200 * time.Millisecond)
-
-	job := q.GetJob("fail-job")
-	require.NotNil(t, job)
-	assert.Equal(t, JobStatusFailed, job.Status)
-	assert.NotEmpty(t, job.Error)
-
-	q.Stop()
 }
 
 func TestQueue_DeleteAndRestore(t *testing.T) {
@@ -236,15 +235,15 @@ func TestQueue_DeleteAndRestore(t *testing.T) {
 }
 
 func TestQueue_Stop(t *testing.T) {
-	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		q := NewQueue(1, nil)
+		q.Start()
+		q.Stop()
 
-	q := NewQueue(1, nil)
-	q.Start()
-	q.Stop()
-
-	select {
-	case <-q.Done():
-	case <-time.After(time.Second):
-		t.Fatal("queue did not stop")
-	}
+		select {
+		case <-q.Done():
+		default:
+			t.Fatal("queue did not stop")
+		}
+	})
 }
