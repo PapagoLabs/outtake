@@ -30,7 +30,7 @@ func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 	require.NoError(t, err)
 	defer closeBody(t, resp)
 
-	assert.Equal(t, fiber.StatusFound, resp.StatusCode)
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
 
 	parsed, err := url.Parse(resp.Header.Get("Location"))
 	require.NoError(t, err)

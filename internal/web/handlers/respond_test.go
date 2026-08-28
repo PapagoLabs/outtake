@@ -41,7 +41,7 @@ func TestWriteErrorFormRedirectsToMediaItem(t *testing.T) {
 	resp := postWriteError(t, formContentType, "mediaId=42&duration=0", "")
 	defer closeBody(t, resp)
 
-	assert.Equal(t, fiber.StatusFound, resp.StatusCode)
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
 	assertFormErrorLocation(t, resp, "/media/item/42", "must be between 0 and 600 seconds")
 }
 
@@ -56,7 +56,7 @@ func TestWriteErrorFormRedirectsToReferer(t *testing.T) {
 	)
 	defer closeBody(t, resp)
 
-	assert.Equal(t, fiber.StatusFound, resp.StatusCode)
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
 	assertFormErrorLocation(t, resp, "/login", "must be between 0 and 600 seconds")
 }
 
