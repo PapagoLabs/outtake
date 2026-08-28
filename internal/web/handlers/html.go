@@ -447,7 +447,7 @@ func (handler *HTMLHandler) mediaContent(
 func (handler *HTMLHandler) plexPair() (*plex.Client, plex.Server, bool) {
 	server, ok := handler.bind.Get()
 	if !ok {
-		return nil, plex.Server{}, false
+		return nil, plex.EmptyServer(), false
 	}
 
 	return newBoundClient(handler.product, handler.clientID, server.Token), server, true
