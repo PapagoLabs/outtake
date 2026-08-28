@@ -1,6 +1,6 @@
 # AGENTS
 
-Shared style: [PapagoLabs/code-guide](https://github.com/PapagoLabs/code-guide) (HEAD `97abb7b`). Nested tree: `Git/`, `Text/`, `Docker/`, `Go/{language,libraries,tooling}/`.
+Shared style: [PapagoLabs/code-guide](https://github.com/PapagoLabs/code-guide). Nested tree: `Git/`, `Text/`, `Docker/`, `Go/{language,libraries,tooling}/`.
 
 ## Generate
 
