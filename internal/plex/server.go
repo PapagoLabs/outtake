@@ -110,6 +110,7 @@ func (client *Client) GetMedia(
 	server Server,
 	libraryID string,
 ) ([]MediaItem, error) {
+	// List media in a library.
 	scheme := server.Scheme
 	if scheme == "" {
 		scheme = defaultScheme
@@ -145,6 +146,7 @@ func (client *Client) GetMediaPath(
 	server Server,
 	mediaID string,
 ) (string, error) {
+	// Resolve the filesystem path for a media item.
 	scheme := server.Scheme
 	if scheme == "" {
 		scheme = defaultScheme
@@ -233,6 +235,7 @@ func (client *Client) GetServerIdentity(
 	ctx context.Context,
 	server Server,
 ) (*ServerIdentity, error) {
+	// Fetch the PMS machine identity.
 	scheme := server.Scheme
 	if scheme == "" {
 		scheme = defaultScheme

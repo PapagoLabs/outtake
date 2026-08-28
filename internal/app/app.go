@@ -103,6 +103,7 @@ func newRouter(
 	bind *binding.Binding,
 	plexProduct, plexClientID string,
 ) *fiber.App {
+	// Register page and API routes.
 	clipHandler := handlers.NewClipHandler(
 		jobQueue,
 		store,
@@ -175,6 +176,7 @@ func mountPages(
 	htmlHandler *handlers.HTMLHandler,
 	thumbHandler *handlers.ThumbHandler,
 ) {
+	// Mount HTML page routes.
 	app.Get("/login", htmlHandler.Login)
 	app.Get("/", guard, htmlHandler.Dashboard)
 	app.Get("/media", guard, htmlHandler.Media)
@@ -198,6 +200,7 @@ func mountAPI(
 	mediaHandler *handlers.MediaHandler,
 	authHandler *handlers.AuthHandler,
 ) {
+	// Mount JSON API routes.
 	api := app.Group("/api")
 	api.Post(routeClips, guard, clipHandler.Create)
 	api.Post("/clips/preview", guard, clipHandler.Preview)
