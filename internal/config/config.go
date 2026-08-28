@@ -112,7 +112,24 @@ func Load(configFile string) (*Config, error) {
 		return nil, fmt.Errorf("bind env: %w", err)
 	}
 
-	cfg := &Config{}
+	cfg := &Config{
+		ListenAddr:     "",
+		DatabasePath:   "",
+		StoragePath:    "",
+		FFmpegPath:     "",
+		FFprobePath:    "",
+		LogLevel:       "",
+		Env:            "",
+		SessionPollSec: 0,
+		NumWorkers:     0,
+		MaxClipDurSec:  0,
+		PlexServerURL:  "",
+		PlexToken:      "",
+		PlexClientID:   "",
+		PublicBaseURL:  "",
+		PlexMediaRoot:  "",
+		LocalMediaRoot: "",
+	}
 
 	err = viperInstance.Unmarshal(cfg)
 	if err != nil {

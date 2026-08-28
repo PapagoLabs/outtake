@@ -162,7 +162,26 @@ func (db *DB) DeleteClip(ctx context.Context, id string) error {
 
 // scanJob reads one clip row into a job.
 func scanJob(row scannable) (*queue.Job, error) {
-	job := &queue.Job{}
+	job := &queue.Job{
+		ID:         "",
+		Type:       "",
+		Name:       "",
+		MediaID:    "",
+		MediaTitle: "",
+		MediaType:  "",
+		InputPath:  "",
+		OutputPath: "",
+		StartTime:  0,
+		Duration:   0,
+		Quality:    "",
+		Width:      0,
+		FPS:        0,
+		Status:     "",
+		Progress:   0,
+		Error:      "",
+		CreatedAt:  time.Time{},
+		UpdatedAt:  time.Time{},
+	}
 	var output sql.NullString
 	var errMsg sql.NullString
 	var created time.Time
@@ -224,7 +243,7 @@ func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 // nullString converts an empty string into a SQL NULL.
 func nullString(value string) sql.NullString {
 	if value == "" {
-		return sql.NullString{}
+		return sql.NullString{String: "", Valid: false}
 	}
 
 	return sql.NullString{String: value, Valid: true}
