@@ -31,9 +31,25 @@ func Init() {
 
 	if os.Getenv("ENV") == "development" {
 		Logger = zerolog.New(zerolog.ConsoleWriter{
-			Out:        os.Stderr,
-			TimeFormat: time.RFC3339,
-			NoColor:    false,
+			Out:                   os.Stderr,
+			NoColor:               false,
+			TimeFormat:            time.RFC3339,
+			TimeLocation:          nil,
+			PartsOrder:            nil,
+			PartsExclude:          nil,
+			FieldsOrder:           nil,
+			FieldsExclude:         nil,
+			FormatTimestamp:       nil,
+			FormatLevel:           nil,
+			FormatCaller:          nil,
+			FormatMessage:         nil,
+			FormatFieldName:       nil,
+			FormatFieldValue:      nil,
+			FormatErrFieldName:    nil,
+			FormatErrFieldValue:   nil,
+			FormatPartValueByName: nil,
+			FormatExtra:           nil,
+			FormatPrepare:         nil,
 		}).With().Timestamp().Caller().Logger().Level(level)
 	} else {
 		Logger = zerolog.New(os.Stderr).

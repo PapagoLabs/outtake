@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+	clilib "github.com/PapagoLabs/outtake/internal/cli"
 	"github.com/PapagoLabs/outtake/internal/cli/flags"
 	"github.com/PapagoLabs/outtake/internal/metadata"
 )
@@ -20,23 +21,31 @@ import (
 // Returns:
 //   - *cobra.Command: The version command that prints application version information.
 func NewCommand() *cobra.Command {
-	vflags := &flags.VersionFlags{}
+	vflags := &flags.VersionFlags{
+		CommonFlags: flags.CommonFlags{
+			LogLevel: "",
+			Config:   "",
+			Quiet:    false,
+			Verbose:  false,
+		},
+		JSON: false,
+	}
 
-	cmd := &cobra.Command{
-		Use:   "version",
-		Short: "Print the application version",
-		Long:  "Print the application version, including commit SHA and build details.",
-		Example: `  # Print version
+	cmd := clilib.Command()
+
+	cmd.Use = "version"
+	cmd.Short = "Print the application version"
+	cmd.Long = "Print the application version, including commit SHA and build details."
+	cmd.Example = `  # Print version
   outtake version
 
   # Print detailed version info
   outtake version --verbose
 
   # Print version as JSON
-  outtake version --json`,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runVersionCmd(cmd, vflags)
-		},
+  outtake version --json`
+	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
+		return runVersionCmd(cmd, vflags)
 	}
 
 	vflags.Bind(cmd.Flags())

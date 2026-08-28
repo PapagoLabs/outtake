@@ -7,8 +7,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
-
+	clilib "github.com/PapagoLabs/outtake/internal/cli"
 	"github.com/PapagoLabs/outtake/internal/cli/cmd/health"
 	"github.com/PapagoLabs/outtake/internal/cli/cmd/server"
 	"github.com/PapagoLabs/outtake/internal/cli/cmd/version"
@@ -16,11 +15,11 @@ import (
 
 // Execute runs the CLI.
 func Execute() error {
-	rootCmd := &cobra.Command{
-		Use:   "outtake",
-		Short: "Media clipper for Plex libraries",
-		Long:  "outtake creates video clips, GIFs, and screenshots from your Plex media server.",
-	}
+	rootCmd := clilib.Command()
+
+	rootCmd.Use = "outtake"
+	rootCmd.Short = "Media clipper for Plex libraries"
+	rootCmd.Long = "outtake creates video clips, GIFs, and screenshots from your Plex media server."
 
 	rootCmd.AddCommand(server.NewCommand())
 	rootCmd.AddCommand(health.NewCommand())

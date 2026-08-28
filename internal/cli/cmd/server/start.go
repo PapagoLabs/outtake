@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/PapagoLabs/outtake/internal/app"
+	clilib "github.com/PapagoLabs/outtake/internal/cli"
 	"github.com/PapagoLabs/outtake/internal/cli/flags"
 	"github.com/PapagoLabs/outtake/internal/config"
 )
@@ -18,12 +19,12 @@ import (
 func NewStartCommand() *cobra.Command {
 	var serverFlags flags.ServerFlags
 
-	cmd := &cobra.Command{
-		Use:   "start",
-		Short: "Start the outtake server",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return runStart(&serverFlags)
-		},
+	cmd := clilib.Command()
+
+	cmd.Use = "start"
+	cmd.Short = "Start the outtake server"
+	cmd.RunE = func(_ *cobra.Command, _ []string) error {
+		return runStart(&serverFlags)
 	}
 
 	serverFlags.Bind(cmd.Flags())
