@@ -53,6 +53,9 @@ const (
 
 	// PersistTokenMsg is logged when storing the Plex token fails.
 	persistTokenMsg = "failed to persist token"
+
+	// MsgPlexTokenRequired is shown when the login form is posted empty.
+	msgPlexTokenRequired = "Plex token is required"
 )
 
 // NewAuthHandler creates a new auth handler.
@@ -75,7 +78,7 @@ func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	pinID := sessionInt(sess, sessionKeyPinID)
 	if pinID == 0 {
-		return redirectTo(ctx, pathLogin+"?error=No PIN session")
+		return redirectTo(ctx, pathWithError(pathLogin, "No PIN session"))
 	}
 
 	pinCode := sessionString(sess, sessionKeyPinCode)
@@ -85,7 +88,7 @@ func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 	if err != nil {
 		log.Error().Err(err).Msg("failed to poll PIN")
 
-		return redirectTo(ctx, pathLogin+"?error=PIN not yet authorized")
+		return redirectTo(ctx, pathWithError(pathLogin, "PIN not yet authorized"))
 	}
 
 	clearPIN(sess)
@@ -110,6 +113,10 @@ func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if sessionString(sess, middleware.SessionKeyToken) != "" {
 		return redirectTo(ctx, pathRoot)
+	}
+
+	if isFormRequest(ctx) {
+		return redirectTo(ctx, pathWithError(pathLogin, msgPlexTokenRequired))
 	}
 
 	authURL, err := handler.startPIN(ctx, sess)

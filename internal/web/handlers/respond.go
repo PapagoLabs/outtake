@@ -6,6 +6,7 @@ package handlers
 import (
 	"fmt"
 	"io"
+	"net/url"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
 
@@ -33,6 +34,9 @@ const (
 	// QueryTitle is the media browse title query parameter.
 	queryTitle = "title"
 
+	// QueryError is the flash-error query parameter on HTML pages.
+	queryError = "error"
+
 	// DefaultSegmentSecs is the fallback clip window when end is omitted.
 	defaultSegmentSecs = 10
 
@@ -50,6 +54,9 @@ const (
 
 	// ContentTypeHTML is the HTML content type written by page handlers.
 	contentTypeHTML = "text/html; charset=utf-8"
+
+	// MediaLoadFailedMsg is shown when Plex metadata cannot be loaded.
+	mediaLoadFailedMsg = "Could not load this item from Plex. You can still create a clip if the file is reachable."
 )
 
 // writeJSON writes a JSON response and wraps Fiber errors.
@@ -62,12 +69,75 @@ func writeJSON(ctx fiber.Ctx, status int, payload any) error {
 	return nil
 }
 
-// writeError writes a JSON error payload.
+// writeError writes a JSON error payload, or redirects HTML form posts.
 func writeError(ctx fiber.Ctx, status int, code, message string) error {
+	if isFormRequest(ctx) {
+		return redirectTo(ctx, formErrorLocation(ctx, message))
+	}
+
 	return writeJSON(ctx, status, api.ErrorResponse{
 		Error:   code,
 		Message: message,
 	})
+}
+
+// formErrorLocation returns the HTML page that should show a form error.
+func formErrorLocation(ctx fiber.Ctx, message string) string {
+	mediaID := ctx.FormValue("mediaId")
+	if mediaID != "" {
+		return pathWithError(clipReturnPath(mediaID), message)
+	}
+
+	referer := ctx.Get(fiber.HeaderReferer)
+	if referer != "" {
+		return pathWithError(refererPath(referer), message)
+	}
+
+	return pathWithError(pathRoot, message)
+}
+
+// pathWithError appends an encoded error query to a path-only location.
+func pathWithError(location, message string) string {
+	parsed, err := url.Parse(location)
+	if err != nil || parsed.Path == "" {
+		location = pathRoot
+		parsed, err = url.Parse(location)
+		if err != nil {
+			return pathRoot
+		}
+	}
+
+	query := parsed.Query()
+	query.Set(queryError, message)
+
+	return parsed.Path + "?" + query.Encode()
+}
+
+// refererPath keeps only the path and query of a Referer URL.
+func refererPath(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Path == "" {
+		return pathRoot
+	}
+
+	if parsed.RawQuery == "" {
+		return parsed.Path
+	}
+
+	return parsed.Path + "?" + parsed.RawQuery
+}
+
+// mediaItemError prefers a form-flash query over a Plex metadata load failure.
+func mediaItemError(itemErr error, queryErr string) string {
+	if queryErr != "" {
+		return queryErr
+	}
+
+	if itemErr != nil {
+		return mediaLoadFailedMsg
+	}
+
+	return ""
 }
 
 // redirectTo issues a redirect and wraps Fiber errors.
