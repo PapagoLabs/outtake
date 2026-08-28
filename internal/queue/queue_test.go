@@ -146,6 +146,7 @@ func TestQueue_ProcessJob_Success(t *testing.T) {
 
 		q := NewQueue(1, handler)
 		q.Start()
+		t.Cleanup(q.Stop)
 
 		q.Submit(&Job{
 			ID:         "success-job",
@@ -178,8 +179,6 @@ func TestQueue_ProcessJob_Success(t *testing.T) {
 		mu.Lock()
 		assert.True(t, completed)
 		mu.Unlock()
-
-		q.Stop()
 	})
 }
 
@@ -191,6 +190,7 @@ func TestQueue_ProcessJob_Failure(t *testing.T) {
 
 		q := NewQueue(1, handler)
 		q.Start()
+		t.Cleanup(q.Stop)
 
 		q.Submit(&Job{
 			ID:         "fail-job",
@@ -219,8 +219,6 @@ func TestQueue_ProcessJob_Failure(t *testing.T) {
 		require.NotNil(t, job)
 		assert.Equal(t, JobStatusFailed, job.Status)
 		assert.NotEmpty(t, job.Error)
-
-		q.Stop()
 	})
 }
 
