@@ -100,7 +100,11 @@ func formErrorLocation(ctx fiber.Ctx, message string) string {
 func pathWithError(location, message string) string {
 	parsed, err := url.Parse(location)
 	if err != nil || parsed.Path == "" {
-		parsed = &url.URL{Path: pathRoot}
+		location = pathRoot
+		parsed, err = url.Parse(location)
+		if err != nil {
+			return pathRoot
+		}
 	}
 
 	query := parsed.Query()
@@ -121,6 +125,19 @@ func refererPath(raw string) string {
 	}
 
 	return parsed.Path + "?" + parsed.RawQuery
+}
+
+// mediaItemError prefers a form-flash query over a Plex metadata load failure.
+func mediaItemError(itemErr error, queryErr string) string {
+	if queryErr != "" {
+		return queryErr
+	}
+
+	if itemErr != nil {
+		return mediaLoadFailedMsg
+	}
+
+	return ""
 }
 
 // redirectTo issues a redirect and wraps Fiber errors.
