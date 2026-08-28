@@ -309,9 +309,6 @@ linters:
       # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
       # but not `http\.Cookie`.
       # Default: []
-      exclude:
-        - '.+/cobra\.Command$'
-        - 'github\.com/rs/zerolog\.ConsoleWriter'
       # Allows empty structures, effectively excluding them from the check.
       # Default: false
       allow-empty: true
