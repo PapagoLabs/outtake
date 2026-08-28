@@ -114,7 +114,7 @@ func (*HTMLHandler) Login(ctx fiber.Ctx) error {
 	return renderHTML(ctx, func(writer io.Writer) error {
 		return pages.Login(pages.LoginProps{
 			AuthURL: ctx.Query("authUrl"),
-			Error:   ctx.Query("error"),
+			Error:   ctx.Query(queryError),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -177,15 +177,12 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		Duration:  0,
 		MaxDur:    maxDur,
 		Clips:     clips,
-		Error:     "",
+		Error:     mediaItemError(itemErr, ctx.Query(queryError)),
 		PreviewID: ctx.Query("preview"),
 		StartTime: start,
 		EndTime:   end,
 	}
-	if itemErr != nil {
-		props.Title = id
-		props.Error = "Could not load this item from Plex. You can still create a clip if the file is reachable."
-	} else {
+	if itemErr == nil {
 		props.Title = item.Title
 		props.Type = item.Type
 		props.Duration = item.Duration
@@ -296,7 +293,7 @@ func (handler *HTMLHandler) Servers(ctx fiber.Ctx) error {
 	return renderHTML(ctx, func(writer io.Writer) error {
 		return pages.Servers(pages.ServersProps{
 			Servers: toServerItems(handler.discoverServers(ctx)),
-			Error:   ctx.Query("error"),
+			Error:   ctx.Query(queryError),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -310,7 +307,7 @@ func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error 
 
 	server, ok := plex.ServerFromURL(rawURL, token)
 	if !ok {
-		return redirectTo(ctx, pathServers+"?error="+url.QueryEscape("invalid server URL"))
+		return redirectTo(ctx, pathWithError(pathServers, "invalid server URL"))
 	}
 
 	if name := ctx.FormValue("name"); name != "" {
@@ -402,6 +399,19 @@ func (handler *HTMLHandler) loadMediaItem(ctx fiber.Ctx, mediaID string) (plex.M
 	}
 
 	return *item, nil
+}
+
+// mediaItemError prefers a form-flash query over a Plex metadata load failure.
+func mediaItemError(itemErr error, queryErr string) string {
+	if queryErr != "" {
+		return queryErr
+	}
+
+	if itemErr != nil {
+		return mediaLoadFailedMsg
+	}
+
+	return ""
 }
 
 // mediaContent loads libraries or media for the media page.
