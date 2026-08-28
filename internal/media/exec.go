@@ -68,6 +68,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	start, duration float64,
 	quality ClipQuality,
 ) error {
+	// Build and run the clip ffmpeg command.
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 
@@ -105,6 +106,7 @@ func gifPaletteArgs(
 	start, duration float64,
 	width, fps int,
 ) []string {
+	// Palettegen arguments for the GIF pass.
 	return []string{
 		ffmpegPath,
 		outputFlag,
@@ -126,6 +128,7 @@ func gifEncodeArgs(
 	start, duration float64,
 	width, fps int,
 ) []string {
+	// Paletteuse arguments for the GIF pass.
 	return []string{
 		ffmpegPath,
 		outputFlag,
@@ -154,6 +157,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	start, duration float64,
 	width, fps int,
 ) error {
+	// Build and run the two-pass GIF ffmpeg command.
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 
@@ -209,6 +213,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 	input, output string,
 	timestamp float64,
 ) error {
+	// Build and run the screenshot ffmpeg command.
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 

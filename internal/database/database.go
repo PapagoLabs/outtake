@@ -13,9 +13,9 @@ import (
 	"path/filepath"
 	"slices"
 
-	// libsql driver
+	// LibSQL driver.
 	_ "github.com/tursodatabase/libsql-client-go/libsql"
-	// sqlite driver
+	// SQLite driver.
 	_ "modernc.org/sqlite"
 )
 

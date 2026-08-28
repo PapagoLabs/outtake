@@ -129,6 +129,8 @@ func TestQueue_GetAllJobs(t *testing.T) {
 }
 
 func TestQueue_ProcessJob_Success(t *testing.T) {
+	t.Parallel()
+
 	synctest.Test(t, func(t *testing.T) {
 		var mu sync.Mutex
 
@@ -183,6 +185,8 @@ func TestQueue_ProcessJob_Success(t *testing.T) {
 }
 
 func TestQueue_ProcessJob_Failure(t *testing.T) {
+	t.Parallel()
+
 	synctest.Test(t, func(t *testing.T) {
 		handler := func(_ context.Context, _ *Job) error {
 			return assert.AnError
@@ -235,6 +239,8 @@ func TestQueue_DeleteAndRestore(t *testing.T) {
 }
 
 func TestQueue_Stop(t *testing.T) {
+	t.Parallel()
+
 	synctest.Test(t, func(t *testing.T) {
 		q := NewQueue(1, nil)
 		q.Start()

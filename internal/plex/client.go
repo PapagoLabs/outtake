@@ -69,6 +69,7 @@ func (client *FiberClient) Get(
 	requestURL string,
 	cfg ...fiberClient.Config,
 ) (*fiberClient.Response, error) {
+	// Forward the GET to the Fiber client.
 	resp, err := client.client.Get(requestURL, cfg...)
 	if err != nil {
 		return nil, fmt.Errorf("fiber get: %w", err)
@@ -82,6 +83,7 @@ func (client *FiberClient) Post(
 	requestURL string,
 	cfg ...fiberClient.Config,
 ) (*fiberClient.Response, error) {
+	// Forward the POST to the Fiber client.
 	resp, err := client.client.Post(requestURL, cfg...)
 	if err != nil {
 		return nil, fmt.Errorf("fiber post: %w", err)
@@ -184,6 +186,7 @@ func (client *Client) doRequest(
 	ctx context.Context,
 	path, rawQuery string,
 ) (*fiberClient.Response, error) {
+	// Send the request against the plex.tv base URL.
 	reqURL := client.baseURL.ResolveReference(newURL("", "", path, rawQuery))
 	headers := map[string]string{
 		"Accept":                   acceptJSON,

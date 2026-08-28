@@ -30,6 +30,7 @@ func (client *Client) getPMS(
 	path string,
 	rawQuery string,
 ) (*fiberClient.Response, error) {
+	// Send the request against the PMS base URL.
 	reqURL := serverBaseURL(server) + path
 	if rawQuery != "" {
 		reqURL += "?" + rawQuery
@@ -69,6 +70,7 @@ func (client *Client) GetThumb(
 	server Server,
 	path string,
 ) ([]byte, string, error) {
+	// Fetch a thumbnail from the PMS.
 	if !ValidThumbPath(path) {
 		return nil, "", ErrInvalidThumbPath
 	}
@@ -104,6 +106,7 @@ func (client *Client) SearchOnServer(
 	server Server,
 	query string,
 ) ([]MediaItem, error) {
+	// Search hubs on the PMS.
 	resp, err := client.getPMS(ctx, server, "/hubs/search", "query="+url.QueryEscape(query))
 	if err != nil {
 		return nil, fmt.Errorf("search hubs: %w", err)
@@ -128,6 +131,7 @@ func (client *Client) GetChildren(
 	server Server,
 	mediaID string,
 ) ([]MediaItem, error) {
+	// List child metadata for a container.
 	path := "/library/metadata/" + url.PathEscape(mediaID) + "/children"
 
 	resp, err := client.getPMS(ctx, server, path, "")
@@ -157,6 +161,7 @@ func (client *Client) GetMediaItem(
 	server Server,
 	mediaID string,
 ) (*MediaItem, error) {
+	// Fetch one metadata item from the PMS.
 	resp, err := client.getPMS(ctx, server, "/library/metadata/"+url.PathEscape(mediaID), "")
 	if err != nil {
 		return nil, fmt.Errorf("get media item: %w", err)

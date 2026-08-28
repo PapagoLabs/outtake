@@ -25,14 +25,11 @@ type Monitor struct {
 
 	stop   chan struct{}
 	once   sync.Once
-	ctx    context.Context
 	cancel context.CancelFunc
 }
 
 // NewMonitor creates a new session monitor.
 func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration) *Monitor {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	return &Monitor{
 		client:   client,
 		server:   server,
@@ -42,8 +39,7 @@ func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration)
 		sessions: nil,
 		stop:     make(chan struct{}),
 		once:     sync.Once{},
-		ctx:      ctx,
-		cancel:   cancel,
+		cancel:   func() {},
 	}
 }
 
@@ -66,7 +62,12 @@ func (mon *Monitor) Start() {
 		Dur("interval", mon.interval).
 		Msg("starting session monitor")
 
-	mon.wg.Go(mon.poll)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	mon.cancel = cancel
+	mon.wg.Go(func() {
+		mon.poll(ctx)
+	})
 }
 
 // Stop stops the session monitor.
@@ -79,25 +80,31 @@ func (mon *Monitor) Stop() {
 }
 
 // poll polls for session updates.
-func (mon *Monitor) poll() {
+//
+// Parameters:
+//   - ctx: Parent context canceled when the monitor stops.
+func (mon *Monitor) poll(ctx context.Context) {
 	ticker := time.NewTicker(mon.interval)
 	defer ticker.Stop()
 
-	mon.refresh()
+	mon.refresh(ctx)
 
 	for {
 		select {
 		case <-mon.stop:
 			return
 		case <-ticker.C:
-			mon.refresh()
+			mon.refresh(ctx)
 		}
 	}
 }
 
 // refresh refreshes the session list.
-func (mon *Monitor) refresh() {
-	ctx, cancel := context.WithTimeout(mon.ctx, mon.interval)
+//
+// Parameters:
+//   - ctx: Parent context for the session fetch timeout.
+func (mon *Monitor) refresh(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, mon.interval)
 	defer cancel()
 
 	sessions, err := mon.client.GetSessionsOnServer(ctx, mon.server)
