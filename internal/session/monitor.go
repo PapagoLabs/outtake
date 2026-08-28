@@ -20,6 +20,7 @@ type Monitor struct {
 	interval time.Duration
 
 	mu       sync.RWMutex
+	wg       sync.WaitGroup
 	sessions []plex.Session
 
 	stop chan struct{}
@@ -33,6 +34,7 @@ func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration)
 		server:   server,
 		interval: interval,
 		mu:       sync.RWMutex{},
+		wg:       sync.WaitGroup{},
 		sessions: nil,
 		stop:     make(chan struct{}),
 		once:     sync.Once{},
@@ -58,7 +60,7 @@ func (mon *Monitor) Start() {
 		Dur("interval", mon.interval).
 		Msg("starting session monitor")
 
-	go mon.poll()
+	mon.wg.Go(mon.poll)
 }
 
 // Stop stops the session monitor.
@@ -66,6 +68,7 @@ func (mon *Monitor) Stop() {
 	mon.once.Do(func() {
 		close(mon.stop)
 	})
+	mon.wg.Wait()
 }
 
 // poll polls for session updates.
