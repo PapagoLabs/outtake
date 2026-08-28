@@ -44,7 +44,7 @@ func New(product, clientID string, interval time.Duration) *Binding {
 		clientID: clientID,
 		interval: interval,
 		mu:       sync.RWMutex{},
-		server:   plex.Server{},
+		server:   plex.EmptyServer(),
 		ok:       false,
 		monitor:  nil,
 	}

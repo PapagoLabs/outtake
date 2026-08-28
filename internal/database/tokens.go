@@ -77,10 +77,10 @@ func (db *DB) SelectedServer(ctx context.Context) (plex.Server, bool, error) {
 	).Scan(&server.Name, &server.Address, &server.Port, &server.Scheme, &server.Token)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return plex.Server{}, false, nil
+			return server, false, nil
 		}
 
-		return plex.Server{}, false, fmt.Errorf("selected server: %w", err)
+		return server, false, fmt.Errorf("selected server: %w", err)
 	}
 
 	return server, true, nil

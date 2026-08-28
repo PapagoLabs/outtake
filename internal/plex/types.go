@@ -59,6 +59,21 @@ const (
 	TypeAlbum = "album"
 )
 
+// EmptyServer returns a Server with every exported field set to its zero value.
+//
+// Returns:
+//   - server: A Server ready to fill or return as a missing-server sentinel.
+func EmptyServer() Server {
+	return Server{
+		Name:    "",
+		Address: "",
+		Port:    0,
+		Token:   "",
+		Scheme:  "",
+		Local:   false,
+	}
+}
+
 // IsContainerType reports whether the metadata type has children to browse.
 func IsContainerType(mediaType string) bool {
 	switch mediaType {

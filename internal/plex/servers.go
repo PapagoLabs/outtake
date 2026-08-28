@@ -63,17 +63,17 @@ func PreferUniqueServers(servers []Server) []Server {
 //   - ok: False when the URL is empty or invalid.
 func ServerFromURL(rawURL, token string) (Server, bool) {
 	if rawURL == "" || token == "" {
-		return Server{}, false
+		return EmptyServer(), false
 	}
 
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Hostname() == "" {
-		return Server{}, false
+		return EmptyServer(), false
 	}
 
 	portNum, ok := portFromURL(parsed)
 	if !ok {
-		return Server{}, false
+		return EmptyServer(), false
 	}
 
 	scheme := parsed.Scheme
