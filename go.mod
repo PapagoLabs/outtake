@@ -1,6 +1,6 @@
 module github.com/PapagoLabs/outtake
 
-go 1.26.6
+go 1.26.7
 
 require (
 	github.com/Oudwins/tailwind-merge-go v0.2.3
