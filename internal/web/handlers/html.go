@@ -401,19 +401,6 @@ func (handler *HTMLHandler) loadMediaItem(ctx fiber.Ctx, mediaID string) (plex.M
 	return *item, nil
 }
 
-// mediaItemError prefers a form-flash query over a Plex metadata load failure.
-func mediaItemError(itemErr error, queryErr string) string {
-	if queryErr != "" {
-		return queryErr
-	}
-
-	if itemErr != nil {
-		return mediaLoadFailedMsg
-	}
-
-	return ""
-}
-
 // mediaContent loads libraries or media for the media page.
 func (handler *HTMLHandler) mediaContent(
 	ctx fiber.Ctx,
