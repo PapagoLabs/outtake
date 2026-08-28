@@ -5,7 +5,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -122,5 +121,3 @@ func closeBody(t *testing.T, resp *http.Response) {
 	err := resp.Body.Close()
 	require.NoError(t, err)
 }
-
-var _ = io.Discard
