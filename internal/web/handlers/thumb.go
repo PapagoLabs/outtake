@@ -32,6 +32,7 @@ func NewThumbHandler(
 	bind *binding.Binding,
 	product, clientID string,
 ) *ThumbHandler {
+	// Bundle thumbnail storage and Plex binding.
 	return &ThumbHandler{
 		store:    store,
 		bind:     bind,
@@ -66,6 +67,7 @@ func (handler *ThumbHandler) fetchAndCache(
 	ctx fiber.Ctx,
 	path, cacheID, cached string,
 ) error {
+	// Resolve the bound server before fetching the thumbnail.
 	server, ok := handler.bind.Get()
 	if !ok {
 		return sendStatusCode(ctx, fiber.StatusBadRequest)

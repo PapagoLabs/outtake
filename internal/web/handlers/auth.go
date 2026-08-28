@@ -64,6 +64,7 @@ func NewAuthHandler(
 	db *database.DB,
 	bind *binding.Binding,
 ) *AuthHandler {
+	// Bundle product identity, store, and Plex binding.
 	return &AuthHandler{
 		product:  product,
 		clientID: clientID,

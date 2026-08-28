@@ -11,9 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	fiber "github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
 )
@@ -29,6 +30,7 @@ func TestWriteErrorJSON(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 
 	var payload api.ErrorResponse
+
 	err := json.NewDecoder(resp.Body).Decode(&payload)
 	require.NoError(t, err)
 	assert.Equal(t, "invalid_duration", payload.Error)
@@ -92,9 +94,14 @@ func postWriteError(t *testing.T, contentType, body, referer string) *http.Respo
 		)
 	})
 
-	req := httptest.NewRequest(http.MethodPost, "/err", strings.NewReader(body))
-	req = req.WithContext(t.Context())
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/err",
+		strings.NewReader(body),
+	)
 	req.Header.Set(fiber.HeaderContentType, contentType)
+
 	if referer != "" {
 		req.Header.Set(fiber.HeaderReferer, referer)
 	}

@@ -10,9 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	fiber "github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	fiber "github.com/gofiber/fiber/v3"
 )
 
 func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
@@ -22,12 +23,17 @@ func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 	app := fiber.New()
 	app.Post("/api/auth/login", handler.Login)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader("token="))
-	req = req.WithContext(t.Context())
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/auth/login",
+		strings.NewReader("token="),
+	)
 	req.Header.Set(fiber.HeaderContentType, formContentType)
 
 	resp, err := app.Test(req)
 	require.NoError(t, err)
+
 	defer closeBody(t, resp)
 
 	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)

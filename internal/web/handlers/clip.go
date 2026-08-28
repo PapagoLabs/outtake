@@ -67,6 +67,7 @@ func NewClipHandler(
 	bind *binding.Binding,
 	product, clientID string,
 ) *ClipHandler {
+	// Bundle queue, store, database, config, and Plex binding.
 	return &ClipHandler{
 		clipQueue:   jobQueue,
 		clipStorage: store,

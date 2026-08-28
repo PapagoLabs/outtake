@@ -51,6 +51,7 @@ func NewHTMLHandler(
 	cfg *config.Config,
 	product, clientID string,
 ) *HTMLHandler {
+	// Bundle queue, database, binding, and config.
 	return &HTMLHandler{
 		queue:    jobQueue,
 		db:       db,
@@ -406,6 +407,7 @@ func (handler *HTMLHandler) mediaContent(
 	ctx fiber.Ctx,
 	query, libraryID, parentID string,
 ) ([]pages.MediaItem, []pages.LibraryItem) {
+	// Resolve the bound Plex client before listing media.
 	plexClient, server, ok := handler.plexPair()
 	if !ok {
 		return nil, nil
@@ -578,6 +580,7 @@ func listMedia(
 	server plex.Server,
 	libraryID, parentID string,
 ) ([]plex.MediaItem, error) {
+	// Prefer children of a container when parentID is set.
 	if parentID != "" {
 		items, err := plexClient.GetChildren(ctx.Context(), server, parentID)
 		if err != nil {
@@ -661,6 +664,7 @@ func toMediaItems(
 	items []plex.MediaItem,
 	libraryID, parentID, parentTitle string,
 ) []pages.MediaItem {
+	// Preserve input order while mapping onto page models.
 	out := make([]pages.MediaItem, 0, len(items))
 	for _, item := range items {
 		out = append(out, pages.MediaItem{
