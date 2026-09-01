@@ -1,6 +1,6 @@
 module outtake-scripts
 
-go 1.27.0
+go 1.27.1
 
 require github.com/mholt/archives v0.1.5
 
