@@ -22,13 +22,13 @@ import (
 //   - *cobra.Command: The version command that prints application version information.
 func NewCommand() *cobra.Command {
 	vflags := &flags.VersionFlags{
-		CommonFlags: {
+		flags.CommonFlags{
 			LogLevel: "",
 			Config:   "",
 			Quiet:    false,
 			Verbose:  false,
 		},
-		JSON: false,
+		false,
 	}
 
 	cmd := clilib.Command()
