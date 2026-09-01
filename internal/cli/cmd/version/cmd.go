@@ -22,7 +22,7 @@ import (
 //   - *cobra.Command: The version command that prints application version information.
 func NewCommand() *cobra.Command {
 	vflags := &flags.VersionFlags{
-		flags.CommonFlags{
+		CommonFlags: {
 			LogLevel: "",
 			Config:   "",
 			Quiet:    false,
