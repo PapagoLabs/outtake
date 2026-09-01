@@ -21,9 +21,26 @@
       "enabled": true
     },
     {
+      "description": "Disable modernc.org/libc/v2 dead major",
+      "matchPackageNames": ["modernc.org/libc/v2"],
+      "enabled": false
+    },
+    {
+      "description": "Do not major-bump modernc.org/libc onto v2",
+      "matchPackageNames": ["modernc.org/libc"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
       "description": "Automerge non-major updates",
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "automerge": true
+    },
+    {
+      "description": "Do not automerge the Go toolchain",
+      "matchDepNames": ["go"],
+      "matchDepTypes": ["golang"],
+      "automerge": false
     }
   ]
 }
