@@ -21,7 +21,7 @@ Web and API use Fiber v3. HTML is Templ + HTMX. Pages live in `internal/web/page
 ## Validate
 
 `task vet`, then `task lint`, then `task test`. E2E (`task test-e2e`) needs FFmpeg and Plex credentials in `testing/e2e/.env`.
-This module's `go` directive is 1.26.7. Org current minor is in the guide.
+This module's `go` directive is 1.27.0. Org current minor is in the guide.
 
 ## Layout
 
