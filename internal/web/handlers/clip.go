@@ -11,8 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
+	"uuid"
 
 	fiber "github.com/gofiber/fiber/v3"
 
@@ -292,6 +291,8 @@ func applyClipEdits(job *queue.Job, req api.ClipRequest) {
 
 	job.StartTime = req.StartTime
 	job.Duration = req.Duration
+	job.AudioIndex = req.AudioIndex
+	job.CropBlackBars = req.CropBlackBars
 	job.UpdatedAt = time.Now()
 }
 
@@ -417,38 +418,40 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		return req, nil
 	}
 
-	duration, err := strconv.ParseFloat(ctx.FormValue("duration"), floatBitSize)
-	if err != nil {
-		duration = 0
-	}
-
-	start, err := strconv.ParseFloat(ctx.FormValue("startTime"), floatBitSize)
-	if err != nil {
-		start = 0
-	}
-
-	width, err := strconv.Atoi(ctx.FormValue("width"))
-	if err != nil {
-		width = 0
-	}
-
-	fps, err := strconv.Atoi(ctx.FormValue("fps"))
-	if err != nil {
-		fps = 0
-	}
-
 	return api.ClipRequest{
-		Name:       ctx.FormValue("name"),
-		MediaID:    ctx.FormValue("mediaId"),
-		MediaTitle: ctx.FormValue("mediaTitle"),
-		MediaType:  ctx.FormValue("mediaType"),
-		StartTime:  start,
-		Duration:   duration,
-		Quality:    ctx.FormValue("quality"),
-		ClipType:   ctx.FormValue("clipType"),
-		Width:      width,
-		FPS:        fps,
+		Name:          ctx.FormValue("name"),
+		MediaID:       ctx.FormValue("mediaId"),
+		MediaTitle:    ctx.FormValue("mediaTitle"),
+		MediaType:     ctx.FormValue("mediaType"),
+		StartTime:     formSeconds(ctx, "startTime"),
+		Duration:      formSeconds(ctx, "duration"),
+		Quality:       ctx.FormValue("quality"),
+		ClipType:      ctx.FormValue("clipType"),
+		Width:         formInt(ctx, "width"),
+		FPS:           formInt(ctx, "fps"),
+		AudioIndex:    formInt(ctx, "audioIndex"),
+		CropBlackBars: ctx.FormValue("cropBlackBars") == "1",
 	}, nil
+}
+
+// formInt parses a form field as int, or 0.
+func formInt(ctx fiber.Ctx, name string) int {
+	value, err := strconv.Atoi(ctx.FormValue(name))
+	if err != nil {
+		return 0
+	}
+
+	return value
+}
+
+// formSeconds parses a form field as a timecode or raw seconds.
+func formSeconds(ctx fiber.Ctx, name string) float64 {
+	tc, err := media.Parse(ctx.FormValue(name))
+	if err != nil {
+		return 0
+	}
+
+	return tc.Seconds()
 }
 
 // clipName prefers the user-supplied name, then the media title.
@@ -491,42 +494,46 @@ func isFormRequest(ctx fiber.Ctx) bool {
 // buildJob constructs a pending queue job from a clip request.
 func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *queue.Job {
 	return &queue.Job{
-		ID:         uuid.New().String(),
-		Type:       jobType,
-		Name:       clipName(req),
-		MediaID:    req.MediaID,
-		MediaTitle: req.MediaTitle,
-		MediaType:  req.MediaType,
-		InputPath:  inputPath,
-		OutputPath: "",
-		StartTime:  req.StartTime,
-		Duration:   req.Duration,
-		Quality:    req.Quality,
-		Width:      req.Width,
-		FPS:        req.FPS,
-		Status:     queue.JobStatusPending,
-		Progress:   0,
-		Error:      "",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		ID:            uuid.New().String(),
+		Type:          jobType,
+		Name:          clipName(req),
+		MediaID:       req.MediaID,
+		MediaTitle:    req.MediaTitle,
+		MediaType:     req.MediaType,
+		InputPath:     inputPath,
+		OutputPath:    "",
+		StartTime:     req.StartTime,
+		Duration:      req.Duration,
+		Quality:       req.Quality,
+		Width:         req.Width,
+		FPS:           req.FPS,
+		AudioIndex:    req.AudioIndex,
+		CropBlackBars: req.CropBlackBars,
+		Status:        queue.JobStatusPending,
+		Progress:      0,
+		Error:         "",
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 }
 
 // clipResponse maps a job onto the public clip payload.
 func clipResponse(job *queue.Job) api.ClipResponse {
 	return api.ClipResponse{
-		ID:         job.ID,
-		Name:       job.Name,
-		MediaID:    job.MediaID,
-		MediaTitle: job.MediaTitle,
-		MediaType:  job.MediaType,
-		ClipType:   string(job.Type),
-		Status:     string(job.Status),
-		Progress:   job.Progress,
-		InputPath:  "",
-		OutputPath: "",
-		Error:      job.Error,
-		CreatedAt:  job.CreatedAt,
-		UpdatedAt:  job.UpdatedAt,
+		ID:            job.ID,
+		Name:          job.Name,
+		MediaID:       job.MediaID,
+		MediaTitle:    job.MediaTitle,
+		MediaType:     job.MediaType,
+		ClipType:      string(job.Type),
+		Status:        string(job.Status),
+		Progress:      job.Progress,
+		InputPath:     "",
+		OutputPath:    "",
+		Error:         job.Error,
+		CreatedAt:     job.CreatedAt,
+		UpdatedAt:     job.UpdatedAt,
+		AudioIndex:    job.AudioIndex,
+		CropBlackBars: job.CropBlackBars,
 	}
 }

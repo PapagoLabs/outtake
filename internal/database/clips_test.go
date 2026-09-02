@@ -22,24 +22,26 @@ func TestClipPersistence(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 
 	job := &queue.Job{
-		ID:         "clip-1",
-		Type:       queue.JobTypeClip,
-		Name:       "Bond intro",
-		MediaID:    "100",
-		MediaTitle: "Test Movie",
-		MediaType:  "movie",
-		InputPath:  "/media/movie.mkv",
-		OutputPath: "/out/clip-1.mp4",
-		StartTime:  10,
-		Duration:   15,
-		Quality:    "medium",
-		Width:      0,
-		FPS:        0,
-		Status:     queue.JobStatusPending,
-		Progress:   0,
-		Error:      "",
-		CreatedAt:  time.Now().UTC().Truncate(time.Second),
-		UpdatedAt:  time.Now().UTC().Truncate(time.Second),
+		ID:            "clip-1",
+		Type:          queue.JobTypeClip,
+		Name:          "Bond intro",
+		MediaID:       "100",
+		MediaTitle:    "Test Movie",
+		MediaType:     "movie",
+		InputPath:     "/media/movie.mkv",
+		OutputPath:    "/out/clip-1.mp4",
+		StartTime:     10,
+		Duration:      15,
+		Quality:       "medium",
+		Width:         0,
+		FPS:           0,
+		AudioIndex:    1,
+		CropBlackBars: true,
+		Status:        queue.JobStatusPending,
+		Progress:      0,
+		Error:         "",
+		CreatedAt:     time.Now().UTC().Truncate(time.Second),
+		UpdatedAt:     time.Now().UTC().Truncate(time.Second),
 	}
 
 	require.NoError(t, db.SaveClip(t.Context(), job))
@@ -48,6 +50,8 @@ func TestClipPersistence(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, job.MediaTitle, got.MediaTitle)
 	assert.Equal(t, "Bond intro", got.Name)
+	assert.Equal(t, 1, got.AudioIndex)
+	assert.True(t, got.CropBlackBars)
 
 	byMedia, err := db.ListClipsForMedia(t.Context(), "100")
 	require.NoError(t, err)

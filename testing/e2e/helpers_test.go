@@ -73,6 +73,7 @@ var _ = BeforeSuite(func() {
 		SessionPollSec: 10,
 		NumWorkers:     2,
 		MaxClipDurSec:  600,
+		CropBlackBars:  false,
 		PlexServerURL:  os.Getenv("PLEX_SERVER_URL"),
 		PlexToken:      os.Getenv("PLEX_TOKEN"),
 		PlexClientID:   outtakeE2ETest,
