@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/mascot.png" alt="Outtake" width="180"/>
+</p>
+
 # outtake
 
 A clip manager for Plex libraries. Create video clips, GIFs, and screenshots from your Plex media server through an HTMX-powered web interface.

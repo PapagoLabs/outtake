@@ -22,13 +22,15 @@ templ Login(props LoginProps) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>Login - Outtake</title>
+			@IconHead()
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
 		</head>
 		<body class="min-h-screen bg-background text-foreground flex items-center justify-center">
 			<div class="w-full max-w-md p-8">
 				@card.Card() {
-					@card.Header() {
+					@card.Header(card.HeaderProps{Class: "items-center text-center"}) {
+						<img src="/assets/brand/mascot-128.png" width="80" height="80" alt="" class="size-20"/>
 						@card.Title() {
 							Outtake
 						}
