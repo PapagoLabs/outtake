@@ -33,5 +33,6 @@ Build context is always the repo root.
 
 - Local/from-source image: `build/docker/Dockerfile.dev` (`docker-compose.yml` uses this).
 - Release image: `build/docker/Dockerfile` is a GoReleaser `dockers_v2` context (pre-built binary at `${TARGETPLATFORM}/outtake`). Do not `docker build` it from the repo root.
+- Production compose example: `examples/docker-compose.yaml` (GHCR image, no local build).
 
-`docker-compose.dev.yml` is gitignored machine-local overlay. Keep host media paths out of tracked compose files.
+Local compose config is gitignored `.env` (`cp .env.example .env`). Keep host media paths out of tracked compose files.

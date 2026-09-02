@@ -58,12 +58,12 @@ tasks:
   run:
     desc: Run outtake
     cmds:
-      - go run .
+      - go run . server start
 
   compose-dev:
-    desc: Run outtake via docker-compose.dev.yml
+    desc: Run outtake via docker compose
     cmds:
-      - docker compose -f docker-compose.dev.yml up --build
+      - docker compose up --build
 
   goreleaser:
     desc: Validate and snapshot-build with GoReleaser
@@ -113,7 +113,7 @@ tasks:
   templ-watch:
     desc: Run templ with integrated server and hot reload
     cmds:
-      - templ generate --watch --proxy="http://localhost:8090" --cmd="go run ." --open-browser=false
+      - templ generate --watch --proxy="http://localhost:8080" --cmd="go run . server start" --open-browser=false
 
   tailwind:
     desc: Watch Tailwind CSS changes

@@ -80,6 +80,10 @@ Or: `docker compose up --build`.
 
 `build/docker/Dockerfile` is consumed by GoReleaser (`dockers_v2`). It copies a pre-built binary and is not a from-source build. Published images: `ghcr.io/papagolabs/outtake`.
 
+```bash
+docker compose -f examples/docker-compose.yaml up -d
+```
+
 ### Media paths
 
 Plex reports absolute file paths. outtake must be able to read those files, or you must set `OUTTAKE_PLEX_MEDIA_ROOT` and `OUTTAKE_LOCAL_MEDIA_ROOT` so paths are rewritten onto the container mount (typically `/media`).
