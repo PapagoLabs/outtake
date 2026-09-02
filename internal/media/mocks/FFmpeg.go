@@ -41,6 +41,84 @@ func (_m *MockFFmpeg) EXPECT() *MockFFmpeg_Expecter {
 	return &MockFFmpeg_Expecter{mock: &_m.Mock}
 }
 
+// DetectCrop provides a mock function for the type MockFFmpeg
+func (_mock *MockFFmpeg) DetectCrop(ctx context.Context, input string, start float64, duration float64) (media.CropRect, error) {
+	ret := _mock.Called(ctx, input, start, duration)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DetectCrop")
+	}
+
+	var r0 media.CropRect
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, float64, float64) (media.CropRect, error)); ok {
+		return returnFunc(ctx, input, start, duration)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, float64, float64) media.CropRect); ok {
+		r0 = returnFunc(ctx, input, start, duration)
+	} else {
+		r0 = ret.Get(0).(media.CropRect)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, float64, float64) error); ok {
+		r1 = returnFunc(ctx, input, start, duration)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFFmpeg_DetectCrop_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DetectCrop'
+type MockFFmpeg_DetectCrop_Call struct {
+	*mock.Call
+}
+
+// DetectCrop is a helper method to define mock.On call
+//   - ctx context.Context
+//   - input string
+//   - start float64
+//   - duration float64
+func (_e *MockFFmpeg_Expecter) DetectCrop(ctx any, input any, start any, duration any) *MockFFmpeg_DetectCrop_Call {
+	return &MockFFmpeg_DetectCrop_Call{Call: _e.mock.On("DetectCrop", ctx, input, start, duration)}
+}
+
+func (_c *MockFFmpeg_DetectCrop_Call) Run(run func(ctx context.Context, input string, start float64, duration float64)) *MockFFmpeg_DetectCrop_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 float64
+		if args[2] != nil {
+			arg2 = args[2].(float64)
+		}
+		var arg3 float64
+		if args[3] != nil {
+			arg3 = args[3].(float64)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFFmpeg_DetectCrop_Call) Return(cropRect media.CropRect, err error) *MockFFmpeg_DetectCrop_Call {
+	_c.Call.Return(cropRect, err)
+	return _c
+}
+
+func (_c *MockFFmpeg_DetectCrop_Call) RunAndReturn(run func(ctx context.Context, input string, start float64, duration float64) (media.CropRect, error)) *MockFFmpeg_DetectCrop_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ExtractClip provides a mock function for the type MockFFmpeg
 func (_mock *MockFFmpeg) ExtractClip(ctx context.Context, input string, output string, start float64, duration float64, quality media.ClipQuality) error {
 	ret := _mock.Called(ctx, input, output, start, duration, quality)

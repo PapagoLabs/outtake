@@ -50,6 +50,8 @@ const (
 	defaultVideoCodec = "libx264"
 	// DefaultAudioCodec is the default audio codec.
 	defaultAudioCodec = "aac"
+	// VideoFilterFlag is the FFmpeg video-filter flag.
+	videoFilterFlag = "-vf"
 )
 
 // NewExecFFmpeg creates a new FFmpeg executor.
@@ -59,6 +61,46 @@ func NewExecFFmpeg(ffmpegPath, ffprobePath string) *ExecFFmpeg {
 		ffprobePath: ffprobePath,
 		timeout:     DefaultFFmpegTimeout(),
 	}
+}
+
+// DetectCrop samples the source with cropdetect and returns a crop rectangle.
+func (execFFmpeg *ExecFFmpeg) DetectCrop(
+	ctx context.Context,
+	input string,
+	start, duration float64,
+) (CropRect, error) {
+	cleanInput := filepath.Clean(input)
+	args := cropdetectArgs(execFFmpeg.ffmpegPath, cleanInput, start, duration)
+
+	detectCtx, cancel := context.WithTimeout(ctx, execFFmpeg.timeout)
+	defer cancel()
+
+	// #nosec G204 - args are controlled by the application
+	cmd := exec.CommandContext(detectCtx, args[0], args[1:]...)
+
+	cmd.Dir = "/"
+
+	var stderr bytes.Buffer
+
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		logging.Logger.Debug().Err(err).Msg("cropdetect finished")
+	}
+
+	log := stderr.String()
+	crop, ok := ParseCropdetect(log)
+	size := parseStreamSize(log)
+	if !ok || !crop.Trims(size.width, size.height) {
+		if err != nil && !ok {
+			return CropRect{}, fmt.Errorf("cropdetect: %w", err)
+		}
+
+		return CropRect{}, nil
+	}
+
+	return crop, nil
 }
 
 // ExtractClip extracts a clip from a video.
