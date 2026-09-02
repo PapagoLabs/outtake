@@ -85,3 +85,4 @@ jobs:
     with:
       build-type: nightly
       dry-run: ${{ inputs.dry-run || false }}
+      environment: Release
