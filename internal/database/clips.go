@@ -22,7 +22,7 @@ const (
 	// ClipSelectCols is the clip table projection used by read queries.
 	clipSelectCols = `id, media_id, media_title, media_type, clip_type, status, progress,
 		input_path, output_path, start_time, duration, quality, width, fps,
-		error_message, created_at, updated_at, name`
+		error_message, created_at, updated_at, name, audio_index, crop_black_bars`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
@@ -34,8 +34,8 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 		INSERT INTO clips (
 			id, media_id, media_title, media_type, clip_type, status, progress,
 			input_path, output_path, start_time, duration, quality, width, fps,
-			error_message, created_at, updated_at, name
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			error_message, created_at, updated_at, name, audio_index, crop_black_bars
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			clip_type = excluded.clip_type,
@@ -45,6 +45,8 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 			start_time = excluded.start_time,
 			duration = excluded.duration,
 			quality = excluded.quality,
+			audio_index = excluded.audio_index,
+			crop_black_bars = excluded.crop_black_bars,
 			error_message = excluded.error_message,
 			updated_at = excluded.updated_at
 	`,
@@ -66,6 +68,8 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 		job.CreatedAt,
 		job.UpdatedAt,
 		job.Name,
+		job.AudioIndex,
+		cropBlackBarsColumn(job),
 	)
 	if err != nil {
 		return fmt.Errorf("save clip: %w", err)
@@ -162,30 +166,12 @@ func (db *DB) DeleteClip(ctx context.Context, id string) error {
 
 // scanJob reads one clip row into a job.
 func scanJob(row scannable) (*queue.Job, error) {
-	job := &queue.Job{
-		ID:         "",
-		Type:       "",
-		Name:       "",
-		MediaID:    "",
-		MediaTitle: "",
-		MediaType:  "",
-		InputPath:  "",
-		OutputPath: "",
-		StartTime:  0,
-		Duration:   0,
-		Quality:    "",
-		Width:      0,
-		FPS:        0,
-		Status:     "",
-		Progress:   0,
-		Error:      "",
-		CreatedAt:  time.Time{},
-		UpdatedAt:  time.Time{},
-	}
+	job := &queue.Job{}
 	var output sql.NullString
 	var errMsg sql.NullString
 	var created time.Time
 	var updated time.Time
+	var cropBlackBars int
 
 	err := row.Scan(
 		&job.ID,
@@ -206,6 +192,8 @@ func scanJob(row scannable) (*queue.Job, error) {
 		&created,
 		&updated,
 		&job.Name,
+		&job.AudioIndex,
+		&cropBlackBars,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan clip: %w", err)
@@ -215,6 +203,7 @@ func scanJob(row scannable) (*queue.Job, error) {
 	job.Error = errMsg.String
 	job.CreatedAt = created
 	job.UpdatedAt = updated
+	job.CropBlackBars = cropBlackBars != 0
 
 	return job, nil
 }
@@ -238,6 +227,15 @@ func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 	}
 
 	return jobs, nil
+}
+
+// cropBlackBarsColumn stores the clip crop setting as 0 or 1.
+func cropBlackBarsColumn(job *queue.Job) int {
+	if job.CropBlackBars {
+		return 1
+	}
+
+	return 0
 }
 
 // nullString converts an empty string into a SQL NULL.

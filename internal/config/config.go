@@ -36,6 +36,8 @@ type Config struct {
 	NumWorkers int `mapstructure:"num-workers"`
 	// MaxClipDurSec is the maximum clip duration in seconds.
 	MaxClipDurSec int `mapstructure:"max-clip-dur-sec"`
+	// CropBlackBars is the default for trimming letterbox/pillarbox bars.
+	CropBlackBars bool `mapstructure:"crop-black-bars"`
 	// PlexServerURL is the Plex server URL.
 	PlexServerURL string `mapstructure:"plex-server-url"`
 	// PlexToken is the Plex token.
@@ -123,6 +125,7 @@ func Load(configFile string) (*Config, error) {
 		SessionPollSec: 0,
 		NumWorkers:     0,
 		MaxClipDurSec:  0,
+		CropBlackBars:  false,
 		PlexServerURL:  "",
 		PlexToken:      "",
 		PlexClientID:   "",
@@ -156,6 +159,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("session-poll-sec", defaultSessionPoll)
 	viperInstance.SetDefault("num-workers", defaultNumWorkers)
 	viperInstance.SetDefault("max-clip-dur-sec", defaultMaxClipDur)
+	viperInstance.SetDefault("crop-black-bars", false)
 	viperInstance.SetDefault("plex-media-root", "")
 	viperInstance.SetDefault("local-media-root", "")
 }
@@ -173,6 +177,7 @@ func bindEnv(viperInstance *viper.Viper) error {
 		"session-poll-sec",
 		"num-workers",
 		"max-clip-dur-sec",
+		"crop-black-bars",
 		"plex-server-url",
 		"plex-token",
 		"plex-client-id",

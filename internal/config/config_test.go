@@ -79,6 +79,7 @@ func testConfig() Config {
 		SessionPollSec: 0,
 		NumWorkers:     0,
 		MaxClipDurSec:  0,
+		CropBlackBars:  false,
 		PlexServerURL:  "",
 		PlexToken:      "",
 		PlexClientID:   "",
