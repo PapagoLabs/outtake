@@ -39,7 +39,6 @@ data/
 # Environment
 .env
 .env.local
-docker-compose.dev.yml
 
 # Local reference dumps
 References/

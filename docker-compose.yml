@@ -6,15 +6,19 @@ services:
     container_name: outtake
     ports:
       - "8080:8080"
-    volumes:
-      - outtake-data:/data
-      - ${OUTTAKE_MEDIA_PATH:-/path/to/your/media}:/media:ro
+    env_file:
+      - path: .env
+        required: false
     environment:
-      OUTTAKE_LOG_LEVEL: info
-      OUTTAKE_LISTEN_ADDR: 0.0.0.0:8080
+      OUTTAKE_LOG_LEVEL: ${OUTTAKE_LOG_LEVEL:-info}
+      OUTTAKE_ENV: ${OUTTAKE_ENV:-production}
+      OUTTAKE_LISTEN_ADDR: ${OUTTAKE_LISTEN_ADDR:-0.0.0.0:8080}
       OUTTAKE_PUBLIC_BASE_URL: ${OUTTAKE_PUBLIC_BASE_URL:-http://localhost:8080}
       OUTTAKE_PLEX_MEDIA_ROOT: ${OUTTAKE_PLEX_MEDIA_ROOT:-}
       OUTTAKE_LOCAL_MEDIA_ROOT: ${OUTTAKE_LOCAL_MEDIA_ROOT:-/media}
+    volumes:
+      - ${OUTTAKE_DATA_PATH:-outtake-data}:/data
+      - ${OUTTAKE_MEDIA_PATH:-/path/to/your/media}:/media:ro
     restart: unless-stopped
 
 volumes:
