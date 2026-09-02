@@ -73,7 +73,7 @@ func TestClipEncodeArgs(t *testing.T) {
 	assert.Contains(t, args, "2")
 	assert.Contains(t, args, "-b:a")
 	assert.Contains(t, args, "320k")
-	assert.Contains(t, args, "0:a:1")
+	assert.Contains(t, args, "0:a:1?")
 	assert.Contains(t, args, "-pix_fmt")
 	assert.Contains(t, args, pixelFormatYUV420P)
 	assert.Contains(t, args, "-vf")
@@ -122,6 +122,13 @@ func TestPreviewDuration(t *testing.T) {
 	assert.InDelta(t, 10.0, previewDuration(10), 0.001)
 	assert.InDelta(t, float64(previewMaxSecs), previewDuration(600), 0.001)
 	assert.InDelta(t, 0.0, previewDuration(0), 0.001)
+}
+
+func TestScaleFilterForcesEvenWidth(t *testing.T) {
+	t.Parallel()
+
+	assert.Contains(t, scaleFilter(1920, scaleFlagsLanczos), "trunc(min(1920,iw)/2)*2")
+	assert.Contains(t, scaleFilter(1920, scaleFlagsLanczos), "h=-2")
 }
 
 func TestExecFFmpeg_ExtractScreenshot_Args(t *testing.T) {

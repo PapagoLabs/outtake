@@ -224,7 +224,7 @@ func previewDuration(duration float64) float64 {
 
 // scaleFilter downscales to maxWidth while keeping even dimensions.
 func scaleFilter(maxWidth int, flags string) string {
-	return fmt.Sprintf("scale=w='min(%d,iw)':h=-2:flags=%s", maxWidth, flags)
+	return fmt.Sprintf("scale=w='trunc(min(%d,iw)/2)*2':h=-2:flags=%s", maxWidth, flags)
 }
 
 // videoFilter applies optional black-bar crop then scale.
@@ -249,7 +249,7 @@ func h264EncodeArgs(req h264EncodeRequest) []string {
 		inputFlag, req.input,
 		durationFlag, formatDuration(req.duration),
 		"-map", "0:v:0",
-		"-map", "0:a:" + strconv.Itoa(audioIndex),
+		"-map", "0:a:" + strconv.Itoa(audioIndex) + "?",
 		"-c:v", defaultVideoCodec,
 		pixelFormatFlag, pixelFormatYUV420P,
 		videoFilterFlag, videoFilter(req.maxWidth, req.scaleFlags, req.crop),
