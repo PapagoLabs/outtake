@@ -42,7 +42,7 @@ const (
 var cropdetectPattern = regexp.MustCompile(`crop=(\d+):(\d+):(\d+):(\d+)`)
 
 // streamSizePattern matches the decoded video WxH in ffmpeg logs.
-var streamSizePattern = regexp.MustCompile(`Video:.*?(\d{3,5})x(\d{3,5})`)
+var streamSizePattern = regexp.MustCompile(`Video:.*?(\d+)x(\d+)`)
 
 // Filter returns the ffmpeg crop filter argument.
 func (crop CropRect) Filter() string {

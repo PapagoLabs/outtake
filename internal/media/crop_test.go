@@ -58,6 +58,10 @@ func TestParseStreamSize(t *testing.T) {
 	size := parseStreamSize(log)
 	assert.Equal(t, 3840, size.width)
 	assert.Equal(t, 2160, size.height)
+
+	small := parseStreamSize(`Stream #0:0: Video: h264, yuv420p, 64x64`)
+	assert.Equal(t, 64, small.width)
+	assert.Equal(t, 64, small.height)
 }
 
 func TestCropdetectDuration(t *testing.T) {

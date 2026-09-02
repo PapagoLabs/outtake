@@ -93,6 +93,10 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 	crop, ok := ParseCropdetect(log)
 	size := parseStreamSize(log)
 	if !ok || !crop.Trims(size.width, size.height) {
+		if err != nil && !ok {
+			return CropRect{}, fmt.Errorf("cropdetect: %w", err)
+		}
+
 		return CropRect{}, nil
 	}
 
