@@ -4,20 +4,23 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
-	"strconv"
 )
 
 type NewClipProps struct {
-	MediaID    string
-	MediaTitle string
-	MediaType  string
-	StartTime  float64
-	Duration   float64
-	MaxDur     int
+	MediaID     string
+	MediaTitle  string
+	MediaType   string
+	StartTime   float64
+	Duration    float64
+	MaxDur      int
+	Profiles    []ClipProfileOption
+	AudioTracks   []AudioTrackOption
+	CropBlackBars bool
 }
 
 templ NewClip(props NewClipProps) {
@@ -35,19 +38,19 @@ templ NewClip(props NewClipProps) {
 						<input type="hidden" name="mediaType" value={ props.MediaType }/>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "startTime"}) {
-								Start (seconds) 
+								Start
 							}
-							@input.Input(input.Props{ID: "startTime", Name: "startTime", Type: input.TypeNumber, Value: strconv.FormatFloat(props.StartTime, 'f', 1, 64)})
+							@input.Input(input.Props{ID: "startTime", Name: "startTime", Type: input.TypeText, Value: media.FromSeconds(props.StartTime).String(), Placeholder: "00:00:00.000"})
 						</div>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "duration"}) {
-								Duration (seconds, max { strconv.Itoa(props.MaxDur) }) 
+								Duration (max { media.FromSeconds(float64(props.MaxDur)).String() })
 							}
-							@input.Input(input.Props{ID: "duration", Name: "duration", Type: input.TypeNumber, Value: durationValue(props.Duration)})
+							@input.Input(input.Props{ID: "duration", Name: "duration", Type: input.TypeText, Value: durationValue(props.Duration), Placeholder: "00:00:00.000"})
 						</div>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "clipType"}) {
-								Type 
+								Type
 							}
 							<select id="clipType" name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
 								<option value="clip">Video clip</option>
@@ -57,14 +60,19 @@ templ NewClip(props NewClipProps) {
 						</div>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "quality"}) {
-								Quality 
+								Profile
 							}
-							<select id="quality" name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-								<option value="low">Low</option>
-								<option value="medium" selected>Medium</option>
-								<option value="high">High</option>
-							</select>
+							@QualitySelect("quality", props.Profiles, "")
 						</div>
+						if len(props.AudioTracks) > 0 {
+							<div class="flex flex-col gap-2">
+								@label.Label(label.Props{For: "audioIndex"}) {
+									Audio track
+								}
+								@AudioSelect("audioIndex", props.AudioTracks, 0)
+							</div>
+						}
+						@CropBlackBarsField(props.CropBlackBars)
 						@button.Button(button.Props{Type: button.TypeSubmit}) {
 							Create
 						}
@@ -77,8 +85,8 @@ templ NewClip(props NewClipProps) {
 
 func durationValue(duration float64) string {
 	if duration <= 0 {
-		return "10"
+		duration = 10
 	}
 
-	return strconv.FormatFloat(duration, 'f', 1, 64)
+	return media.FromSeconds(duration).String()
 }

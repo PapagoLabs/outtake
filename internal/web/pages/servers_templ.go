@@ -12,10 +12,11 @@ package pages
 import (
 	"strconv"
 
-	"github.com/PapagoLabs/outtake/internal/web/components/button"
-	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
+
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
 )
 
 type ServerItem struct {

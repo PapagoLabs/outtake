@@ -37,6 +37,9 @@ const (
 	// QueryTitle is the media browse title query parameter.
 	queryTitle = "title"
 
+	// QueryLibrary is the media library id query parameter.
+	queryLibrary = "library"
+
 	// QueryError is the flash-error query parameter on HTML pages.
 	queryError = "error"
 
@@ -67,6 +70,23 @@ func writeJSON(ctx fiber.Ctx, status int, payload any) error {
 	err := ctx.Status(status).JSON(payload)
 	if err != nil {
 		return fmt.Errorf("write json: %w", err)
+	}
+
+	return nil
+}
+
+// sendRangedFile serves a media file with HTTP byte-range support.
+func sendRangedFile(ctx fiber.Ctx, path string) error {
+	err := ctx.SendFile(path, fiber.SendFile{
+		FS:            nil,
+		Compress:      false,
+		ByteRange:     true,
+		Download:      false,
+		CacheDuration: 0,
+		MaxAge:        0,
+	})
+	if err != nil {
+		return fmt.Errorf("send ranged file: %w", err)
 	}
 
 	return nil

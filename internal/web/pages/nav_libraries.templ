@@ -3,11 +3,16 @@
 
 package pages
 
-templ NavLibraries(libs []LibraryItem) {
+import "github.com/PapagoLabs/outtake/internal/web/utils"
+
+templ NavLibraries(libs []LibraryItem, selected string) {
 	for _, lib := range libs {
 		<a
 			href={ templ.SafeURL("/media?library=" + lib.ID) }
-			class="px-3 py-1.5 rounded-md text-xs font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+			class={ utils.TwMerge(
+				"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+				utils.IfElse(lib.ID == selected, "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+			) }
 		>
 			{ lib.Title }
 		</a>

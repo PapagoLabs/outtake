@@ -4,11 +4,12 @@
 package pages
 
 import (
+	"net/url"
+
+	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
-	"net/url"
-	"strconv"
 )
 
 type MediaItem struct {
@@ -54,9 +55,9 @@ templ mediaCard(item MediaItem) {
 		@card.Content() {
 			<div class="flex flex-col gap-2">
 				if item.ThumbPath != "" {
-					<img src={ item.ThumbPath } alt={ item.Title } class="w-full aspect-video rounded-md object-cover bg-muted"/>
+					<img src={ item.ThumbPath } alt={ item.Title } class="w-full aspect-[2/3] rounded-md object-cover bg-muted"/>
 				} else {
-					<div class="w-full aspect-video rounded-md bg-muted flex items-center justify-center">
+					<div class="w-full aspect-[2/3] rounded-md bg-muted flex items-center justify-center">
 						<span class="text-muted-foreground text-sm">No thumbnail</span>
 					</div>
 				}
@@ -65,7 +66,7 @@ templ mediaCard(item MediaItem) {
 					<span class="capitalize">{ item.Type }</span>
 					if item.Duration > 0 {
 						<span>&middot;</span>
-						<span>{ strconv.Itoa(int(item.Duration)) }s</span>
+						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
 					}
 				</div>
 				if item.Browsable {

@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -19,6 +21,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/binding"
 	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/database"
+	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/queue"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
@@ -62,21 +65,37 @@ func NewHTMLHandler(
 	}
 }
 
+// ClipFile streams a completed clip for in-browser playback.
+func (handler *HTMLHandler) ClipFile(ctx fiber.Ctx) error {
+	job := handler.lookupClip(ctx, ctx.Params(paramID))
+	if job == nil || job.Status != queue.JobStatusCompleted || job.OutputPath == "" {
+		return sendStatusCode(ctx, fiber.StatusNotFound)
+	}
+
+	if !clipFileExists(job.OutputPath) {
+		return sendStatusCode(ctx, fiber.StatusNotFound)
+	}
+
+	err := sendRangedFile(ctx, job.OutputPath)
+	if err != nil {
+		return fmt.Errorf("send clip file: %w", err)
+	}
+
+	return nil
+}
+
 // ClipRow renders a single clip card for HTMX polling.
 func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
-	id := ctx.Params(paramID)
-	job := handler.queue.GetJob(id)
+	job := handler.lookupClip(ctx, ctx.Params(paramID))
 	if job == nil {
-		stored, err := handler.db.GetClip(ctx.Context(), id)
-		if err != nil {
-			return sendStatusCode(ctx, fiber.StatusNotFound)
-		}
-
-		job = stored
+		return sendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.ClipCard(toClipItem(job)).Render(ctx.Context(), writer)
+		return pages.ClipCard(toClipItem(job, handler.clipProfileOptions(ctx))).Render(
+			ctx.Context(),
+			writer,
+		)
 	})
 }
 
@@ -123,7 +142,7 @@ func (*HTMLHandler) Login(ctx fiber.Ctx) error {
 // Media handles the media library page request.
 func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 	query := ctx.Query("q")
-	libraryID := ctx.Query("library")
+	libraryID := ctx.Query(queryLibrary)
 	parentID := ctx.Query("parent")
 	items, libraries := handler.mediaContent(ctx, query, libraryID, parentID)
 	props := pages.MediaProps{
@@ -156,6 +175,12 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	item, itemErr := handler.loadMediaItem(ctx, id)
 	clips := handler.clipsForMedia(ctx, id)
+	tracks := handler.mediaAudioTracks(ctx, id)
+
+	for index := range clips {
+		clips[index].AudioTracks = tracks
+	}
+
 	maxDur := handler.cfg.MaxClipDurSec
 	if maxDur <= 0 {
 		maxDur = defaultMaxClipDur
@@ -172,16 +197,19 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	}
 
 	props := pages.MediaItemPageProps{
-		ID:        id,
-		Title:     id,
-		Type:      "",
-		Duration:  0,
-		MaxDur:    maxDur,
-		Clips:     clips,
-		Error:     mediaItemError(itemErr, ctx.Query(queryError)),
-		PreviewID: ctx.Query("preview"),
-		StartTime: start,
-		EndTime:   end,
+		ID:            id,
+		Title:         id,
+		Type:          "",
+		Duration:      0,
+		MaxDur:        maxDur,
+		Clips:         clips,
+		Profiles:      handler.clipProfileOptions(ctx),
+		AudioTracks:   tracks,
+		Error:         mediaItemError(itemErr, ctx.Query(queryError)),
+		PreviewID:     ctx.Query("preview"),
+		StartTime:     start,
+		EndTime:       end,
+		CropBlackBars: handler.cfg.CropBlackBars,
 	}
 	if itemErr == nil {
 		props.Title = item.Title
@@ -196,9 +224,30 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 
 // NavLibraries renders sidebar library links.
 func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
+	selected := selectedLibraryID(ctx.Get("HX-Current-URL"), ctx.Query(queryLibrary))
+
 	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.NavLibraries(handler.sidebarLibraries(ctx)).Render(ctx.Context(), writer)
+		return pages.NavLibraries(handler.sidebarLibraries(ctx), selected).
+			Render(ctx.Context(), writer)
 	})
+}
+
+// selectedLibraryID returns the library id from the nav query or the current page URL.
+func selectedLibraryID(currentURL, fromQuery string) string {
+	if fromQuery != "" {
+		return fromQuery
+	}
+
+	if currentURL == "" {
+		return ""
+	}
+
+	parsed, err := url.Parse(currentURL)
+	if err != nil {
+		return ""
+	}
+
+	return parsed.Query().Get(queryLibrary)
 }
 
 // NewClip handles the create-clip form.
@@ -220,12 +269,15 @@ func (handler *HTMLHandler) NewClip(ctx fiber.Ctx) error {
 
 	return renderHTML(ctx, func(writer io.Writer) error {
 		return pages.NewClip(pages.NewClipProps{
-			MediaID:    ctx.Query("mediaId"),
-			MediaTitle: ctx.Query("title"),
-			MediaType:  ctx.Query("type"),
-			StartTime:  start,
-			Duration:   duration,
-			MaxDur:     maxDur,
+			MediaID:       ctx.Query("mediaId"),
+			MediaTitle:    ctx.Query("title"),
+			MediaType:     ctx.Query("type"),
+			StartTime:     start,
+			Duration:      duration,
+			MaxDur:        maxDur,
+			Profiles:      handler.clipProfileOptions(ctx),
+			AudioTracks:   handler.mediaAudioTracks(ctx, ctx.Query("mediaId")),
+			CropBlackBars: handler.cfg.CropBlackBars,
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -262,7 +314,7 @@ func (handler *HTMLHandler) PreviewFile(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	path := filepath.Join(handler.cfg.StoragePath, "previews", id+".mp4")
 
-	err := ctx.SendFile(path)
+	err := sendRangedFile(ctx, path)
 	if err != nil {
 		return fmt.Errorf("send preview: %w", err)
 	}
@@ -332,7 +384,7 @@ func (handler *HTMLHandler) clipItems(ctx fiber.Ctx) []pages.ClipItem {
 	items := make([]pages.ClipItem, 0, len(jobs))
 
 	for _, job := range jobs {
-		items = append(items, toClipItem(job))
+		items = append(items, toClipItem(job, handler.clipProfileOptions(ctx)))
 	}
 
 	return items
@@ -347,7 +399,7 @@ func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []pages
 
 	items := make([]pages.ClipItem, 0, len(jobs))
 	for _, job := range jobs {
-		items = append(items, toClipItem(job))
+		items = append(items, toClipItem(job, handler.clipProfileOptions(ctx)))
 	}
 
 	return items
@@ -400,6 +452,94 @@ func (handler *HTMLHandler) loadMediaItem(ctx fiber.Ctx, mediaID string) (plex.M
 	}
 
 	return *item, nil
+}
+
+// lookupClip finds a job in the queue or the database.
+func (handler *HTMLHandler) lookupClip(ctx fiber.Ctx, id string) *queue.Job {
+	job := handler.queue.GetJob(id)
+	if job != nil {
+		return job
+	}
+
+	stored, err := handler.db.GetClip(ctx.Context(), id)
+	if err != nil {
+		return nil
+	}
+
+	return stored
+}
+
+// mediaAudioTracks probes audio streams for a media item.
+func (handler *HTMLHandler) mediaAudioTracks(
+	ctx fiber.Ctx,
+	mediaID string,
+) []pages.AudioTrackOption {
+	// Skip probing when the media id is missing.
+	if mediaID == "" {
+		return nil
+	}
+
+	path, err := resolveMediaPath(
+		ctx.Context(),
+		handler.cfg,
+		handler.bind,
+		handler.product,
+		handler.clientID,
+		mediaID,
+	)
+	if err != nil {
+		return nil
+	}
+
+	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
+
+	info, err := ffmpeg.Probe(ctx.Context(), path)
+	if err != nil {
+		return nil
+	}
+
+	return audioTrackOptions(info.AudioTracks)
+}
+
+// audioTrackOptions maps probed streams onto select options.
+func audioTrackOptions(tracks []media.AudioTrack) []pages.AudioTrackOption {
+	options := make([]pages.AudioTrackOption, 0, len(tracks))
+
+	for _, track := range tracks {
+		options = append(options, pages.AudioTrackOption{
+			Index: track.Index,
+			Label: audioTrackLabel(track),
+		})
+	}
+
+	return options
+}
+
+// audioTrackLabel builds a short description of an audio stream.
+func audioTrackLabel(track media.AudioTrack) string {
+	var parts []string
+
+	if track.Language != "" && track.Language != "und" {
+		parts = append(parts, track.Language)
+	}
+
+	if track.Codec != "" {
+		parts = append(parts, track.Codec)
+	}
+
+	if layout := media.ChannelLayoutName(track.Channels); layout != "" {
+		parts = append(parts, layout)
+	}
+
+	if track.Title != "" {
+		parts = append(parts, track.Title)
+	}
+
+	if len(parts) == 0 {
+		return "Track " + strconv.Itoa(track.Index+1)
+	}
+
+	return strings.Join(parts, " · ")
 }
 
 // mediaContent loads libraries or media for the media page.
@@ -543,19 +683,48 @@ func newBoundClient(product, clientID, token string) *plex.Client {
 	})
 }
 
+// clipFileExists reports whether a clip output is present on disk.
+func clipFileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+
+	_, err := os.Stat(path)
+
+	return err == nil
+}
+
+// clipProfileName returns a stored profile's display name.
+func clipProfileName(quality string, profiles []pages.ClipProfileOption) string {
+	for _, profile := range profiles {
+		if profile.ID == quality {
+			return profile.Name
+		}
+	}
+
+	return quality
+}
+
 // toClipItem maps a job onto a clips-page card.
-func toClipItem(job *queue.Job) pages.ClipItem {
+func toClipItem(job *queue.Job, profiles []pages.ClipProfileOption) pages.ClipItem {
 	return pages.ClipItem{
-		ID:         job.ID,
-		Name:       job.Name,
-		MediaID:    job.MediaID,
-		MediaTitle: job.MediaTitle,
-		ClipType:   string(job.Type),
-		Status:     string(job.Status),
-		Progress:   job.Progress,
-		CreatedAt:  job.CreatedAt.Format(time.RFC3339),
-		StartTime:  job.StartTime,
-		Duration:   job.Duration,
+		ID:            job.ID,
+		Name:          job.Name,
+		MediaID:       job.MediaID,
+		MediaTitle:    job.MediaTitle,
+		ClipType:      string(job.Type),
+		Status:        string(job.Status),
+		Progress:      job.Progress,
+		CreatedAt:     job.CreatedAt.Format(time.RFC3339),
+		StartTime:     job.StartTime,
+		Duration:      job.Duration,
+		Quality:       job.Quality,
+		ProfileName:   clipProfileName(job.Quality, profiles),
+		Profiles:      profiles,
+		FileExists:    clipFileExists(job.OutputPath),
+		AudioIndex:    job.AudioIndex,
+		AudioTracks:   nil,
+		CropBlackBars: job.CropBlackBars,
 	}
 }
 
@@ -638,7 +807,7 @@ func mediaCrumbs(libs []pages.LibraryItem, libraryID, upID, upTitle, title strin
 // browseURL builds a drill-down link for a container item.
 func browseURL(libraryID, itemID, itemTitle, parentID, parentTitle string) string {
 	values := url.Values{}
-	values.Set("library", libraryID)
+	values.Set(queryLibrary, libraryID)
 	values.Set("parent", itemID)
 	values.Set(queryTitle, itemTitle)
 

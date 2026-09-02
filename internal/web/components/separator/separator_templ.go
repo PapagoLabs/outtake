@@ -10,9 +10,10 @@ package separator
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
 import (
-	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
+
+	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
 
 type Orientation string
