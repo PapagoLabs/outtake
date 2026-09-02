@@ -40,12 +40,12 @@ func (_m *MockHTTPClient) EXPECT() *MockHTTPClient_Expecter {
 }
 
 // Get provides a mock function for the type MockHTTPClient
-func (_mock *MockHTTPClient) Get(url string, cfg ...client.Config) (*client.Response, error) {
+func (_mock *MockHTTPClient) Get(requestURL string, cfg ...client.Config) (*client.Response, error) {
 	var tmpRet mock.Arguments
 	if len(cfg) > 0 {
-		tmpRet = _mock.Called(url, cfg)
+		tmpRet = _mock.Called(requestURL, cfg)
 	} else {
-		tmpRet = _mock.Called(url)
+		tmpRet = _mock.Called(requestURL)
 	}
 	ret := tmpRet
 
@@ -56,17 +56,17 @@ func (_mock *MockHTTPClient) Get(url string, cfg ...client.Config) (*client.Resp
 	var r0 *client.Response
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(string, ...client.Config) (*client.Response, error)); ok {
-		return returnFunc(url, cfg...)
+		return returnFunc(requestURL, cfg...)
 	}
 	if returnFunc, ok := ret.Get(0).(func(string, ...client.Config) *client.Response); ok {
-		r0 = returnFunc(url, cfg...)
+		r0 = returnFunc(requestURL, cfg...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*client.Response)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string, ...client.Config) error); ok {
-		r1 = returnFunc(url, cfg...)
+		r1 = returnFunc(requestURL, cfg...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -79,14 +79,14 @@ type MockHTTPClient_Get_Call struct {
 }
 
 // Get is a helper method to define mock.On call
-//   - url string
+//   - requestURL string
 //   - cfg ...client.Config
-func (_e *MockHTTPClient_Expecter) Get(url any, cfg ...any) *MockHTTPClient_Get_Call {
+func (_e *MockHTTPClient_Expecter) Get(requestURL any, cfg ...any) *MockHTTPClient_Get_Call {
 	return &MockHTTPClient_Get_Call{Call: _e.mock.On("Get",
-		append([]any{url}, cfg...)...)}
+		append([]any{requestURL}, cfg...)...)}
 }
 
-func (_c *MockHTTPClient_Get_Call) Run(run func(url string, cfg ...client.Config)) *MockHTTPClient_Get_Call {
+func (_c *MockHTTPClient_Get_Call) Run(run func(requestURL string, cfg ...client.Config)) *MockHTTPClient_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -111,18 +111,18 @@ func (_c *MockHTTPClient_Get_Call) Return(response *client.Response, err error) 
 	return _c
 }
 
-func (_c *MockHTTPClient_Get_Call) RunAndReturn(run func(url string, cfg ...client.Config) (*client.Response, error)) *MockHTTPClient_Get_Call {
+func (_c *MockHTTPClient_Get_Call) RunAndReturn(run func(requestURL string, cfg ...client.Config) (*client.Response, error)) *MockHTTPClient_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Post provides a mock function for the type MockHTTPClient
-func (_mock *MockHTTPClient) Post(url string, cfg ...client.Config) (*client.Response, error) {
+func (_mock *MockHTTPClient) Post(requestURL string, cfg ...client.Config) (*client.Response, error) {
 	var tmpRet mock.Arguments
 	if len(cfg) > 0 {
-		tmpRet = _mock.Called(url, cfg)
+		tmpRet = _mock.Called(requestURL, cfg)
 	} else {
-		tmpRet = _mock.Called(url)
+		tmpRet = _mock.Called(requestURL)
 	}
 	ret := tmpRet
 
@@ -133,17 +133,17 @@ func (_mock *MockHTTPClient) Post(url string, cfg ...client.Config) (*client.Res
 	var r0 *client.Response
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(string, ...client.Config) (*client.Response, error)); ok {
-		return returnFunc(url, cfg...)
+		return returnFunc(requestURL, cfg...)
 	}
 	if returnFunc, ok := ret.Get(0).(func(string, ...client.Config) *client.Response); ok {
-		r0 = returnFunc(url, cfg...)
+		r0 = returnFunc(requestURL, cfg...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*client.Response)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string, ...client.Config) error); ok {
-		r1 = returnFunc(url, cfg...)
+		r1 = returnFunc(requestURL, cfg...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -156,14 +156,14 @@ type MockHTTPClient_Post_Call struct {
 }
 
 // Post is a helper method to define mock.On call
-//   - url string
+//   - requestURL string
 //   - cfg ...client.Config
-func (_e *MockHTTPClient_Expecter) Post(url any, cfg ...any) *MockHTTPClient_Post_Call {
+func (_e *MockHTTPClient_Expecter) Post(requestURL any, cfg ...any) *MockHTTPClient_Post_Call {
 	return &MockHTTPClient_Post_Call{Call: _e.mock.On("Post",
-		append([]any{url}, cfg...)...)}
+		append([]any{requestURL}, cfg...)...)}
 }
 
-func (_c *MockHTTPClient_Post_Call) Run(run func(url string, cfg ...client.Config)) *MockHTTPClient_Post_Call {
+func (_c *MockHTTPClient_Post_Call) Run(run func(requestURL string, cfg ...client.Config)) *MockHTTPClient_Post_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -188,7 +188,7 @@ func (_c *MockHTTPClient_Post_Call) Return(response *client.Response, err error)
 	return _c
 }
 
-func (_c *MockHTTPClient_Post_Call) RunAndReturn(run func(url string, cfg ...client.Config) (*client.Response, error)) *MockHTTPClient_Post_Call {
+func (_c *MockHTTPClient_Post_Call) RunAndReturn(run func(requestURL string, cfg ...client.Config) (*client.Response, error)) *MockHTTPClient_Post_Call {
 	_c.Call.Return(run)
 	return _c
 }
