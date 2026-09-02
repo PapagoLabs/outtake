@@ -12,6 +12,11 @@ on:
         required: false
         default: false
         type: boolean
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.build-type }}-${{ github.head_ref || github.ref }}
