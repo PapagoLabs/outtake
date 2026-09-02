@@ -15,24 +15,26 @@ type JobStatus string
 
 // Job represents a media processing job.
 type Job struct {
-	ID         string
-	Type       JobType
-	Name       string
-	MediaID    string
-	MediaTitle string
-	MediaType  string
-	InputPath  string
-	OutputPath string
-	StartTime  float64
-	Duration   float64
-	Quality    string
-	Width      int
-	FPS        int
-	Status     JobStatus
-	Progress   int
-	Error      string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID            string
+	Type          JobType
+	Name          string
+	MediaID       string
+	MediaTitle    string
+	MediaType     string
+	InputPath     string
+	OutputPath    string
+	StartTime     float64
+	Duration      float64
+	Quality       string
+	Width         int
+	FPS           int
+	AudioIndex    int
+	CropBlackBars bool
+	Status        JobStatus
+	Progress      int
+	Error         string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 const (

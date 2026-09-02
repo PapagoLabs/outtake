@@ -230,7 +230,9 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		output,
 		req.StartTime,
 		req.Duration,
-		media.ClipQualityLow,
+		media.QualityPresets[media.ClipQualityLow],
+		0,
+		media.CropRect{},
 	)
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())

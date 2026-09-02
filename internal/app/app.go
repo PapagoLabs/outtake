@@ -350,7 +350,9 @@ func processJob(ctx context.Context, job *queue.Job, ffmpeg media.FFmpeg) error 
 			job.OutputPath,
 			job.StartTime,
 			job.Duration,
-			media.ClipQuality(job.Quality),
+			media.ResolvePreset(job.Quality, nil),
+			job.AudioIndex,
+			detectJobCrop(ctx, ffmpeg, job),
 		)
 		if err != nil {
 			return fmt.Errorf("extract clip: %w", err)
@@ -378,4 +380,18 @@ func processJob(ctx context.Context, job *queue.Job, ffmpeg media.FFmpeg) error 
 	}
 
 	return nil
+}
+
+// detectJobCrop runs cropdetect when the job requested black-bar trimming.
+func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) media.CropRect {
+	if !job.CropBlackBars {
+		return media.CropRect{}
+	}
+
+	crop, err := ffmpeg.DetectCrop(ctx, job.InputPath, job.StartTime, job.Duration)
+	if err != nil {
+		return media.CropRect{}
+	}
+
+	return crop
 }
