@@ -40,3 +40,4 @@ jobs:
     with:
       build-type: stable
       dry-run: ${{ inputs.dry-run || false }}
+      environment: Release
