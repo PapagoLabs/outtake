@@ -76,9 +76,12 @@ docker run -d \
 
 Or: `docker compose up --build`.
 
-### Release image
+### Release Images
 
-`build/docker/Dockerfile` is consumed by GoReleaser (`dockers_v2`). It copies a pre-built binary and is not a from-source build. Published images: `ghcr.io/papagolabs/outtake`.
+`build/docker/Dockerfile` is consumed by GoReleaser (`dockers_v2`). It copies a pre-built binary and is not a from-source build. Published images:
+
+- `ghcr.io/papagolabs/outtake`
+- `papagolabs/outtake`
 
 ```bash
 docker compose -f examples/docker-compose.yaml up -d

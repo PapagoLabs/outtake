@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Production Dockerfile for outtake.
-# Expects a GoReleaser dockers_v2 context with the pre-built binary at
-# ${TARGETPLATFORM}/outtake.
+# Expects a GoReleaser dockers_v2 context with the pre-built binary and
+# static ffmpeg/ffprobe at ${TARGETPLATFORM}/.
 
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
@@ -11,25 +11,8 @@ ARG BASE_IMAGE=alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86
 
 FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} AS builder
 
-ARG TARGETARCH
-
-RUN apk add --no-cache ca-certificates tzdata wget xz \
-    && adduser -D -u 1000 -g 1000 appuser \
-    && case "${TARGETARCH}" in \
-         amd64) arch=amd64 ;; \
-         arm64) arch=arm64 ;; \
-         *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
-       esac \
-    && wget -q -O /tmp/ffmpeg.tar.xz "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${arch}-static.tar.xz" \
-    && wget -q -O /tmp/ffmpeg.tar.xz.md5 "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${arch}-static.tar.xz.md5" \
-    && expected="$(awk '{print $1}' /tmp/ffmpeg.tar.xz.md5)" \
-    && actual="$(md5sum /tmp/ffmpeg.tar.xz | awk '{print $1}')" \
-    && [ "${expected}" = "${actual}" ] \
-    && mkdir -p /tmp/ffmpeg \
-    && tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/ffmpeg --strip-components=1 \
-    && install -m755 /tmp/ffmpeg/ffmpeg /usr/bin/ffmpeg \
-    && install -m755 /tmp/ffmpeg/ffprobe /usr/bin/ffprobe \
-    && rm -rf /tmp/ffmpeg /tmp/ffmpeg.tar.xz /tmp/ffmpeg.tar.xz.md5
+RUN apk add --no-cache ca-certificates tzdata \
+    && adduser -D -u 1000 -g 1000 appuser
 
 FROM scratch
 
@@ -45,9 +28,9 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
-COPY --from=builder /usr/bin/ffmpeg /usr/bin/ffmpeg
-COPY --from=builder /usr/bin/ffprobe /usr/bin/ffprobe
 
+COPY --chmod=0755 ${TARGETPLATFORM}/ffmpeg /usr/bin/ffmpeg
+COPY --chmod=0755 ${TARGETPLATFORM}/ffprobe /usr/bin/ffprobe
 COPY --chmod=0755 ${TARGETPLATFORM}/outtake /outtake
 
 EXPOSE 8080

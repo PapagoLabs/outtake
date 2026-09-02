@@ -1,0 +1,85 @@
+name: Release Nightly
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Run in test mode without publishing artifacts"
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  check_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      has-changes: ${{ steps.check.outputs.has-changes }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get last successful nightly run commit
+        id: last-run
+        run: |
+          LAST_NIGHTLY_COMMIT=$(gh api repos/"${{ github.repository }}"/actions/runs \
+            --jq '.workflow_runs[] | select(.status=="completed" and .conclusion=="success" and .path==".github/workflows/release-nightly.yaml") | .head_sha' | head -1)
+          echo "last_nightly_commit=$LAST_NIGHTLY_COMMIT" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for changes in watched paths
+        id: check
+        run: |
+          LAST_NIGHTLY_COMMIT="${STEPS_LAST_RUN_OUTPUTS_LAST_NIGHTLY_COMMIT}"
+          if [ -z "$LAST_NIGHTLY_COMMIT" ]; then
+            echo "No previous successful nightly run found, proceeding with build"
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$LAST_NIGHTLY_COMMIT" HEAD -- \
+            internal/ main.go go.mod scripts/ build/docker/ build/goreleaser/ || true)
+
+          if [ -n "$CHANGED" ]; then
+            echo "Detected changes in watched paths:"
+            echo "$CHANGED"
+            echo "has-changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No changes detected in watched paths since last successful nightly run"
+            echo "has-changes=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          STEPS_LAST_RUN_OUTPUTS_LAST_NIGHTLY_COMMIT: ${{ steps.last-run.outputs.last_nightly_commit }}
+
+  test:
+    needs: [check_changes]
+    if: ${{ needs.check_changes.outputs.has-changes == 'true' }}
+    uses: ./.github/workflows/test.yaml
+    permissions:
+      contents: read
+
+  build:
+    needs: [check_changes, test]
+    if: ${{ needs.check_changes.outputs.has-changes == 'true' }}
+    uses: ./.github/workflows/build.yaml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    with:
+      build-type: nightly
+      dry-run: ${{ inputs.dry-run || false }}

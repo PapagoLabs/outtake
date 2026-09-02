@@ -17,7 +17,6 @@ import (
 
 const (
 	releaseBase = "https://johnvansickle.com/ffmpeg/releases/"
-	extractDir  = "/tmp/ffmpeg-extract"
 	defaultDest = "/build"
 )
 
@@ -31,7 +30,7 @@ func main() {
 func run() error {
 	ctx := context.Background()
 
-	archiveURL, checksumURL, filename := releaseURLs(runtime.GOARCH)
+	archiveURL, checksumURL, filename := releaseURLs(targetArch())
 
 	archive, err := download(archiveURL)
 	if err != nil {
@@ -61,12 +60,11 @@ func run() error {
 
 	fmt.Println("checksum verified:", actual)
 
-	if err := os.RemoveAll(extractDir); err != nil {
+	extractDir, err := os.MkdirTemp("", "ffmpeg-extract-*")
+	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(extractDir, 0o755); err != nil {
-		return err
-	}
+	defer os.RemoveAll(extractDir)
 
 	if err := extractTarXz(ctx, archive, extractDir); err != nil {
 		return fmt.Errorf("extract archive: %w", err)
@@ -91,7 +89,6 @@ func run() error {
 		fmt.Println("installed", dst)
 	}
 
-	os.RemoveAll(extractDir)
 	return nil
 }
 
@@ -116,6 +113,13 @@ func download(url string) (string, error) {
 	}
 	f.Close()
 	return f.Name(), nil
+}
+
+func targetArch() string {
+	if arch := os.Getenv("FFMPEG_ARCH"); arch != "" {
+		return arch
+	}
+	return runtime.GOARCH
 }
 
 func releaseURLs(goarch string) (archiveURL, checksumURL, filename string) {
@@ -246,6 +250,10 @@ func findBin(root, name string) (string, error) {
 }
 
 func copyFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
