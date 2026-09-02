@@ -186,6 +186,7 @@ func mountPages(
 	app.Get("/nav/libraries", guard, htmlHandler.NavLibraries)
 	app.Get("/thumbs", guard, thumbHandler.Get)
 	app.Get("/clips/new", guard, htmlHandler.NewClip)
+	app.Get("/clips/:id/file", guard, htmlHandler.ClipFile)
 	app.Get("/clips/:id/row", guard, htmlHandler.ClipRow)
 	app.Get(routeClips, guard, htmlHandler.Clips)
 	app.Get("/servers", guard, htmlHandler.Servers)

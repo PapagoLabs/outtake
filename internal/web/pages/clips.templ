@@ -4,23 +4,30 @@
 package pages
 
 import (
-	"github.com/PapagoLabs/outtake/internal/web/components/badge"
-	"github.com/PapagoLabs/outtake/internal/web/components/button"
-	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"strconv"
+
+	"github.com/PapagoLabs/outtake/internal/web/components/badge"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
 )
 
 type ClipItem struct {
-	ID         string
-	Name       string
-	MediaID    string
-	MediaTitle string
-	ClipType   string
-	Status     string
-	Progress   int
-	CreatedAt  string
-	StartTime  float64
-	Duration   float64
+	ID          string
+	Name        string
+	MediaID     string
+	MediaTitle  string
+	ClipType    string
+	Status      string
+	Progress    int
+	CreatedAt   string
+	StartTime   float64
+	Duration    float64
+	Quality     string
+	ProfileName string
+	Profiles    []ClipProfileOption
+	FileExists  bool
+	AudioIndex  int
+	AudioTracks   []AudioTrackOption
+	CropBlackBars bool
 }
 
 type ClipsProps struct {
@@ -52,6 +59,43 @@ func clipDisplayName(item ClipItem) string {
 	return item.MediaTitle
 }
 
+func clipFileURL(id string) templ.SafeURL {
+	return templ.SafeURL("/clips/" + id + "/file")
+}
+
+func clipCanPlay(item ClipItem) bool {
+	return item.Status == "completed" && item.FileExists
+}
+
+templ clipPlayback(item ClipItem) {
+	if clipCanPlay(item) {
+		<details class="rounded-md border">
+			<summary class="cursor-pointer select-none px-3 py-1.5 text-sm font-medium">Preview</summary>
+			<div class="border-t p-2">
+				if item.ClipType == "gif" || item.ClipType == "screenshot" {
+					<img src={ clipFileURL(item.ID) } alt={ clipDisplayName(item) } loading="lazy" class="w-full max-h-64 rounded-md object-contain bg-black"/>
+				} else {
+					<video controls preload="none" class="w-full max-h-64 rounded-md bg-black" src={ clipFileURL(item.ID) }></video>
+				}
+			</div>
+		</details>
+	}
+}
+
+templ clipFileBadge(item ClipItem) {
+	if !isActiveClip(item.Status) {
+		if item.FileExists {
+			@badge.Badge(badge.Props{Variant: badge.VariantSecondary}) {
+				On disk
+			}
+		} else {
+			@badge.Badge(badge.Props{Variant: badge.VariantOutline}) {
+				Missing file
+			}
+		}
+	}
+}
+
 templ ClipCard(item ClipItem) {
 	<div
 		id={ "clip-" + item.ID }
@@ -63,41 +107,46 @@ templ ClipCard(item ClipItem) {
 	>
 		@card.Card() {
 			@card.Content() {
-				<div class="flex items-center justify-between">
-					<div class="flex flex-col gap-1">
-						<div class="flex items-center gap-2">
-							<span class="font-medium">{ clipDisplayName(item) }</span>
-							@badge.Badge(badge.Props{Variant: statusBadgeVariant(item.Status)}) {
-								{ item.Status }
-							}
-						</div>
-						<div class="flex items-center gap-2 text-sm text-muted-foreground">
-							<span class="capitalize">{ item.ClipType }</span>
-							if item.MediaTitle != "" {
-								<span>&middot;</span>
-								if item.MediaID != "" {
-									<a href={ templ.SafeURL("/media/item/" + item.MediaID) } class="hover:text-foreground">{ item.MediaTitle }</a>
-								} else {
-									<span>{ item.MediaTitle }</span>
+				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4">
+					<input type="hidden" name="mediaId" value={ item.MediaID }/>
+					<input type="hidden" name="name" value={ clipDisplayName(item) }/>
+					<input type="hidden" name="clipType" value={ item.ClipType }/>
+					<input type="hidden" name="startTime" value={ strconv.FormatFloat(item.StartTime, 'f', 1, 64) }/>
+					<input type="hidden" name="duration" value={ strconv.FormatFloat(item.Duration, 'f', 1, 64) }/>
+					<input type="hidden" name="audioIndex" value={ strconv.Itoa(item.AudioIndex) }/>
+					<div class="flex items-center justify-between gap-3">
+						<div class="flex flex-col gap-1">
+							<div class="flex flex-wrap items-center gap-2">
+								<span class="font-medium">{ clipDisplayName(item) }</span>
+								@badge.Badge(badge.Props{Variant: statusBadgeVariant(item.Status)}) {
+									{ item.Status }
 								}
-							}
-							<span>&middot;</span>
-							<span>{ item.CreatedAt }</span>
-							if isActiveClip(item.Status) {
-								<span>&middot;</span>
-								<span>{ strconv.Itoa(item.Progress) }%</span>
-							}
-						</div>
-					</div>
-					<div class="flex items-center gap-2">
-						if item.Status == "completed" {
-							<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download>
-								@button.Button(button.Props{Variant: button.VariantOutline, Size: button.SizeSm}) {
-									Download
+								@clipFileBadge(item)
+							</div>
+							<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+								<span class="capitalize">{ item.ClipType }</span>
+								if item.ProfileName != "" {
+									<span>&middot;</span>
+									<span>{ item.ProfileName }</span>
 								}
-							</a>
-						}
+								if item.MediaTitle != "" {
+									<span>&middot;</span>
+									if item.MediaID != "" {
+										<a href={ templ.SafeURL("/media/item/" + item.MediaID) } class="hover:text-foreground">{ item.MediaTitle }</a>
+									} else {
+										<span>{ item.MediaTitle }</span>
+									}
+								}
+								<span>&middot;</span>
+								<span>{ item.CreatedAt }</span>
+								if isActiveClip(item.Status) {
+									<span>&middot;</span>
+									<span>{ strconv.Itoa(item.Progress) }%</span>
+								}
+							</div>
+						</div>
 						<button
+							type="button"
 							hx-delete={ "/api/clips/" + item.ID }
 							hx-target={ "#clip-" + item.ID }
 							hx-swap="delete"
@@ -106,10 +155,37 @@ templ ClipCard(item ClipItem) {
 							Delete
 						</button>
 					</div>
-				</div>
+					@clipPlayback(item)
+					@CropBlackBarsField(item.CropBlackBars)
+					<div class="flex flex-wrap items-end gap-2">
+						<div class="flex min-w-40 flex-col gap-2">
+							<label for={ "quality-" + item.ID } class="text-sm font-medium leading-none">Profile</label>
+							@QualitySelect("quality-"+item.ID, item.Profiles, item.Quality)
+						</div>
+						<button type="submit" name="regenerate" value="1" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+							Regenerate
+						</button>
+						if clipCanPlay(item) {
+							<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+								Download
+							</a>
+						}
+					</div>
+				</form>
 			}
 		}
 	</div>
+}
+
+templ CropBlackBarsField(checked bool) {
+	<label class="flex items-center gap-2 text-sm">
+		if checked {
+			<input type="checkbox" name="cropBlackBars" value="1" checked class="rounded border-input"/>
+		} else {
+			<input type="checkbox" name="cropBlackBars" value="1" class="rounded border-input"/>
+		}
+		Trim black bars
+	</label>
 }
 
 templ Clips(props ClipsProps) {

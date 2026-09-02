@@ -92,24 +92,24 @@ Plex reports absolute file paths. outtake must be able to read those files, or y
 
 Environment variables prefixed with `OUTTAKE_` override defaults. Viper keys use hyphens (`listen-addr`); env uses underscores (`OUTTAKE_LISTEN_ADDR`).
 
-| Variable                   | Description                       | Default                             |
-|----------------------------|-----------------------------------|-------------------------------------|
-| `OUTTAKE_LISTEN_ADDR`      | Server listen address             | `0.0.0.0:8080`                      |
-| `OUTTAKE_DATABASE_PATH`    | Path to SQLite database           | `~/.local/share/outtake/outtake.db` |
-| `OUTTAKE_STORAGE_PATH`     | Path for output files             | `~/.local/share/outtake/output`     |
-| `OUTTAKE_LOG_LEVEL`        | Log level (debug/info/warn/error) | `info`                              |
-| `OUTTAKE_ENV`              | Environment (production/development) | `production`                     |
-| `OUTTAKE_FFMPEG_PATH`      | Path to ffmpeg binary             | `ffmpeg`                            |
-| `OUTTAKE_FFPROBE_PATH`     | Path to ffprobe binary            | `ffprobe`                           |
-| `OUTTAKE_PUBLIC_BASE_URL`  | Public URL for Plex PIN callbacks | derived from `OUTTAKE_LISTEN_ADDR`  |
-| `OUTTAKE_PLEX_SERVER_URL`  | Optional Plex Media Server URL    | unset                               |
-| `OUTTAKE_PLEX_TOKEN`       | Optional Plex token               | unset                               |
-| `OUTTAKE_PLEX_CLIENT_ID`   | Plex client identifier            | generated if unset                  |
-| `OUTTAKE_PLEX_MEDIA_ROOT`  | Plex filesystem prefix to remap   | unset                               |
-| `OUTTAKE_LOCAL_MEDIA_ROOT` | Local prefix replacing Plex root  | unset                               |
-| `OUTTAKE_SESSION_POLL_SEC` | Plex session poll interval        | `10`                                |
-| `OUTTAKE_NUM_WORKERS`      | Clip job workers                  | `2`                                 |
-| `OUTTAKE_MAX_CLIP_DUR_SEC` | Maximum clip duration             | `600`                               |
+| Variable                   | Description                          | Default                             |
+|----------------------------|--------------------------------------|-------------------------------------|
+| `OUTTAKE_LISTEN_ADDR`      | Server listen address                | `0.0.0.0:8080`                      |
+| `OUTTAKE_DATABASE_PATH`    | Path to SQLite database              | `~/.local/share/outtake/outtake.db` |
+| `OUTTAKE_STORAGE_PATH`     | Path for output files                | `~/.local/share/outtake/output`     |
+| `OUTTAKE_LOG_LEVEL`        | Log level (debug/info/warn/error)    | `info`                              |
+| `OUTTAKE_ENV`              | Environment (production/development) | `production`                        |
+| `OUTTAKE_FFMPEG_PATH`      | Path to ffmpeg binary                | `ffmpeg`                            |
+| `OUTTAKE_FFPROBE_PATH`     | Path to ffprobe binary               | `ffprobe`                           |
+| `OUTTAKE_PUBLIC_BASE_URL`  | Public URL for Plex PIN callbacks    | derived from `OUTTAKE_LISTEN_ADDR`  |
+| `OUTTAKE_PLEX_SERVER_URL`  | Optional Plex Media Server URL       | unset                               |
+| `OUTTAKE_PLEX_TOKEN`       | Optional Plex token                  | unset                               |
+| `OUTTAKE_PLEX_CLIENT_ID`   | Plex client identifier               | generated if unset                  |
+| `OUTTAKE_PLEX_MEDIA_ROOT`  | Plex filesystem prefix to remap      | unset                               |
+| `OUTTAKE_LOCAL_MEDIA_ROOT` | Local prefix replacing Plex root     | unset                               |
+| `OUTTAKE_SESSION_POLL_SEC` | Plex session poll interval           | `10`                                |
+| `OUTTAKE_NUM_WORKERS`      | Clip job workers                     | `2`                                 |
+| `OUTTAKE_MAX_CLIP_DUR_SEC` | Maximum clip duration                | `600`                               |
 
 ## License
 

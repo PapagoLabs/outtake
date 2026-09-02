@@ -10,11 +10,12 @@ package input
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
 import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/icon"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
 )
 
 type Type string

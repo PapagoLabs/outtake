@@ -4,11 +4,13 @@
 package pages
 
 import (
+	"strconv"
+
+	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
-	"strconv"
 )
 
 type MediaItemPageProps struct {
@@ -18,10 +20,13 @@ type MediaItemPageProps struct {
 	Duration  float64
 	MaxDur    int
 	Clips     []ClipItem
-	Error     string
+	Profiles    []ClipProfileOption
+	AudioTracks []AudioTrackOption
+	Error       string
 	PreviewID string
-	StartTime float64
-	EndTime   float64
+	StartTime      float64
+	EndTime        float64
+	CropBlackBars  bool
 }
 
 type PlaybackProps struct {
@@ -33,7 +38,7 @@ type PlaybackProps struct {
 templ PlaybackPanel(props PlaybackProps) {
 	<div>
 		if props.Playing {
-			<p class="text-sm">Plex is at <span class="font-medium">{ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }s</span>.</p>
+			<p class="text-sm">Plex is at <span class="font-medium">{ media.FromSeconds(props.ViewOffset).String() }</span>.</p>
 			<div class="flex gap-3 mt-2">
 				<button type="button" class="js-mark-start text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set start from Plex</button>
 				<button type="button" class="js-mark-end text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set end from Plex</button>
@@ -97,20 +102,20 @@ templ MediaItemPage(props MediaItemPageProps) {
 						</div>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2">
-								@label.Label(label.Props{For: "startTime"}) {
-									Start (seconds)
-								}
-								<input id="startTime" name="startTime" type="number" step="0.1" min="0" value={ strconv.FormatFloat(props.StartTime, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
-							</div>
-							<div class="flex flex-col gap-2">
-								@label.Label(label.Props{For: "endTime"}) {
-									End (seconds)
-								}
-								<input id="endTime" type="number" step="0.1" min="0" value={ strconv.FormatFloat(props.EndTime, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+							@label.Label(label.Props{For: "startTime"}) {
+								Start
+							}
+							<input id="startTime" name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+						</div>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "endTime"}) {
+								End
+							}
+							<input id="endTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.EndTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
 							</div>
 						</div>
 						<input type="hidden" id="duration" name="duration" value="10"/>
-						<p class="text-sm text-muted-foreground">Duration: <span id="duration-label">10</span>s (max { strconv.Itoa(props.MaxDur) }s)</p>
+						<p class="text-sm text-muted-foreground">Duration: <span id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).String() }</span> (max { media.FromSeconds(float64(props.MaxDur)).String() })</p>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2">
 								@label.Label(label.Props{For: "clipType"}) {
@@ -124,15 +129,20 @@ templ MediaItemPage(props MediaItemPageProps) {
 							</div>
 							<div class="flex flex-col gap-2">
 								@label.Label(label.Props{For: "quality"}) {
-									Quality
+									Profile
 								}
-								<select id="quality" name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-									<option value="low">Low</option>
-									<option value="medium" selected>Medium</option>
-									<option value="high">High</option>
-								</select>
+								@QualitySelect("quality", props.Profiles, "")
 							</div>
+							if len(props.AudioTracks) > 0 {
+								<div class="flex flex-col gap-2">
+									@label.Label(label.Props{For: "audioIndex"}) {
+										Audio track
+									}
+									@AudioSelect("audioIndex", props.AudioTracks, 0)
+								</div>
+							}
 						</div>
+						@CropBlackBarsField(props.CropBlackBars)
 						<div class="flex gap-3">
 							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
 								Preview
@@ -162,23 +172,47 @@ templ MediaItemPage(props MediaItemPageProps) {
 				var durEl = document.getElementById('duration');
 				var label = document.getElementById('duration-label');
 				var maxDur = parseInt(document.getElementById('clip-form-config').getAttribute('data-max-dur'), 10) || 600;
+				function pad2(n) { return String(n).padStart(2, '0'); }
+				function formatTimecode(sec) {
+					if (!isFinite(sec) || sec < 0) { sec = 0; }
+					var ms = Math.round(sec * 1000);
+					var whole = Math.floor(ms / 1000);
+					var frac = ms % 1000;
+					var h = Math.floor(whole / 3600);
+					var m = Math.floor((whole % 3600) / 60);
+					var s = whole % 60;
+					return pad2(h) + ':' + pad2(m) + ':' + pad2(s) + '.' + String(frac).padStart(3, '0');
+				}
+				function parseTimecode(value) {
+					var parts = String(value).trim().split(':');
+					if (parts.length === 1) { return parseFloat(parts[0]) || 0; }
+					if (parts.length === 2) { return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0); }
+					return (parseInt(parts[0], 10) || 0) * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseFloat(parts[2]) || 0);
+				}
 				function syncDuration() {
-					var start = parseFloat(startEl.value) || 0;
-					var end = parseFloat(endEl.value) || 0;
+					var start = parseTimecode(startEl.value);
+					var end = parseTimecode(endEl.value);
 					var dur = Math.max(0, end - start);
 					if (dur > maxDur) { dur = maxDur; }
-					durEl.value = dur.toFixed(1);
-					label.textContent = dur.toFixed(1);
+					durEl.value = dur.toFixed(3);
+					label.textContent = formatTimecode(dur);
 				}
 				document.addEventListener('click', function (event) {
 					var startBtn = event.target.closest('.js-mark-start');
 					var endBtn = event.target.closest('.js-mark-end');
 					if (startBtn) {
-						startEl.value = startBtn.getAttribute('data-offset');
+						startEl.value = formatTimecode(parseFloat(startBtn.getAttribute('data-offset')));
+						var start = parseTimecode(startEl.value);
+						var end = parseTimecode(endEl.value);
+						if (end <= start) {
+							var dur = parseFloat(durEl.value) || 0;
+							if (dur <= 0) { dur = 10; }
+							endEl.value = formatTimecode(start + dur);
+						}
 						syncDuration();
 					}
 					if (endBtn) {
-						endEl.value = endBtn.getAttribute('data-offset');
+						endEl.value = formatTimecode(parseFloat(endBtn.getAttribute('data-offset')));
 						syncDuration();
 					}
 				});
@@ -193,42 +227,73 @@ templ MediaItemPage(props MediaItemPageProps) {
 templ clipEditCard(item ClipItem, maxDur int) {
 	@card.Card() {
 		@card.Content() {
-			<form action={ "/api/clips/" + item.ID + "/update" } method="POST" class="flex flex-col gap-3">
-				<div class="flex items-center justify-between">
+			<form action={ "/api/clips/" + item.ID + "/update" } method="POST" class="flex flex-col gap-4">
+				<div class="flex items-center justify-between gap-2">
 					<span class="font-medium">{ clipDisplayName(item) }</span>
-					<span class="text-xs text-muted-foreground capitalize">{ item.Status }</span>
+					<div class="flex items-center gap-2">
+						<span class="text-xs text-muted-foreground capitalize">{ item.Status }</span>
+						@clipFileBadge(item)
+					</div>
 				</div>
+				@clipPlayback(item)
 				<input type="hidden" name="mediaId" value={ item.MediaID }/>
-				<div class="grid gap-3 sm:grid-cols-2">
-					<div class="flex flex-col gap-1">
+				<div class="grid gap-4 sm:grid-cols-2">
+					<div class="flex flex-col gap-2">
 						@label.Label(label.Props{For: "name-" + item.ID}) {
 							Name
 						}
 						<input id={ "name-" + item.ID } name="name" value={ clipDisplayName(item) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
 					</div>
-					<div class="flex flex-col gap-1">
+					<div class="flex flex-col gap-2">
 						@label.Label(label.Props{For: "start-" + item.ID}) {
 							Start
 						}
-						<input id={ "start-" + item.ID } name="startTime" type="number" step="0.1" value={ strconv.FormatFloat(item.StartTime, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+						<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(item.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
 					</div>
-					<div class="flex flex-col gap-1">
+					<div class="flex flex-col gap-2">
 						@label.Label(label.Props{For: "dur-" + item.ID}) {
-							Duration (max { strconv.Itoa(maxDur) })
+							Duration (max { media.FromSeconds(float64(maxDur)).String() })
 						}
-						<input id={ "dur-" + item.ID } name="duration" type="number" step="0.1" value={ strconv.FormatFloat(item.Duration, 'f', 1, 64) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+						<input id={ "dur-" + item.ID } name="duration" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(item.Duration).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
 					</div>
-					<div class="flex flex-col gap-1">
+					<div class="flex flex-col gap-2">
 						@label.Label(label.Props{For: "type-" + item.ID}) {
 							Type
 						}
 						<select id={ "type-" + item.ID } name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-							<option value="clip">Video clip</option>
-							<option value="gif">GIF</option>
-							<option value="screenshot">Screenshot</option>
+							if item.ClipType == "clip" {
+								<option value="clip" selected>Video clip</option>
+							} else {
+								<option value="clip">Video clip</option>
+							}
+							if item.ClipType == "gif" {
+								<option value="gif" selected>GIF</option>
+							} else {
+								<option value="gif">GIF</option>
+							}
+							if item.ClipType == "screenshot" {
+								<option value="screenshot" selected>Screenshot</option>
+							} else {
+								<option value="screenshot">Screenshot</option>
+							}
 						</select>
 					</div>
+					<div class="flex flex-col gap-2">
+						@label.Label(label.Props{For: "quality-" + item.ID}) {
+							Profile
+						}
+						@QualitySelect("quality-"+item.ID, item.Profiles, item.Quality)
+					</div>
+					if len(item.AudioTracks) > 0 {
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "audio-" + item.ID}) {
+								Audio track
+							}
+							@AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
+						</div>
+					}
 				</div>
+				@CropBlackBarsField(item.CropBlackBars)
 				<div class="flex gap-2">
 					@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
 						Save metadata
@@ -236,7 +301,7 @@ templ clipEditCard(item ClipItem, maxDur int) {
 					<button type="submit" name="regenerate" value="1" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
 						Regenerate
 					</button>
-					if item.Status == "completed" {
+					if clipCanPlay(item) {
 						<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
 							Download
 						</a>

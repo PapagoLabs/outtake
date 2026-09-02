@@ -231,15 +231,27 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	output := handler.clipStorage.PreviewPath(previewID)
 	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
 
-	err = ffmpeg.ExtractClip(
+	crop := media.CropRect{}
+	if req.CropBlackBars {
+		detected, detectErr := ffmpeg.DetectCrop(
+			ctx.Context(),
+			inputPath,
+			req.StartTime,
+			req.Duration,
+		)
+		if detectErr == nil {
+			crop = detected
+		}
+	}
+
+	err = ffmpeg.ExtractPreview(
 		ctx.Context(),
 		inputPath,
 		output,
 		req.StartTime,
 		req.Duration,
-		media.QualityPresets[media.ClipQualityLow],
-		0,
-		media.CropRect{},
+		req.AudioIndex,
+		crop,
 	)
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
@@ -384,21 +396,44 @@ func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job)
 
 // resolveInput maps a media id onto a local filesystem path.
 func (handler *ClipHandler) resolveInput(ctx context.Context, mediaID string) (string, error) {
-	if handler.cfg.Env == "e2e" {
+	path, err := resolveMediaPath(
+		ctx,
+		handler.cfg,
+		handler.bind,
+		handler.product,
+		handler.clientID,
+		mediaID,
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve input: %w", err)
+	}
+
+	return path, nil
+}
+
+// resolveMediaPath maps a media id onto a local filesystem path.
+func resolveMediaPath(
+	ctx context.Context,
+	cfg *config.Config,
+	bind *binding.Binding,
+	product, clientID, mediaID string,
+) (string, error) {
+	// E2E tests pass a local file path as the media id.
+	if cfg.Env == "e2e" {
 		info, err := os.Stat(mediaID)
 		if err == nil && !info.IsDir() {
 			return mediaID, nil
 		}
 	}
 
-	server, ok := handler.bind.Get()
+	server, ok := bind.Get()
 	if !ok {
 		return "", errNoPlexServer
 	}
 
 	plexClient := plex.NewClient(plex.ClientConfig{
-		Product:  handler.product,
-		ClientID: handler.clientID,
+		Product:  product,
+		ClientID: clientID,
 		Token:    server.Token,
 		Timeout:  0,
 		BaseURL:  "",
@@ -409,7 +444,7 @@ func (handler *ClipHandler) resolveInput(ctx context.Context, mediaID string) (s
 		return "", fmt.Errorf("resolve media path: %w", err)
 	}
 
-	return handler.cfg.RemapMediaPath(path), nil
+	return cfg.RemapMediaPath(path), nil
 }
 
 // resolveQuality maps an empty or named quality onto a stored profile id.
