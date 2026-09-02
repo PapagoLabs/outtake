@@ -52,6 +52,17 @@ jobs:
           sarif_file: ${{ env.OUTPUT_FILE }}
           category: gosec-sarif
 
+      - name: Run Gosec Security Scanner on download-ffmpeg
+        uses: securego/gosec@deb54465fea23d19a77f037e11e6589021f8501d # v2.29.0
+        with:
+          args: "-exclude-generated -no-fail -fmt sarif -out results-download-ffmpeg.sarif ./scripts/download-ffmpeg/..."
+
+      - name: Upload download-ffmpeg SARIF file
+        uses: github/codeql-action/upload-sarif@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+        with:
+          sarif_file: results-download-ffmpeg.sarif
+          category: gosec-download-ffmpeg-sarif
+
   govulncheck:
     name: Run govulncheck Scanner
     runs-on: ubuntu-latest
