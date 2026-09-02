@@ -23,13 +23,25 @@ type ExecFFmpeg struct {
 	timeout     time.Duration
 }
 
+// h264EncodeRequest is the input for a browser-safe libx264 encode.
+type h264EncodeRequest struct {
+	ffmpegPath string
+	input      string
+	output     string
+	start      float64
+	duration   float64
+	preset     QualityPreset
+	audioIndex int
+	maxWidth   int
+	scaleFlags string
+	crop       CropRect
+}
+
 const (
 	// DefaultFPS is the default frames per second.
 	defaultFPS = 10
 	// DefaultWidth is the default width.
 	defaultWidth = 480
-	// DefaultDuration is the default audio bitrate.
-	defaultDuration = "128k"
 	// ProbeTimeoutSec is the probe timeout in seconds.
 	probeTimeoutSec = 30
 	// OutputFlag is the FFmpeg output flag.
@@ -50,8 +62,26 @@ const (
 	defaultVideoCodec = "libx264"
 	// DefaultAudioCodec is the default audio codec.
 	defaultAudioCodec = "aac"
+	// PixelFormatYUV420P is the browser-safe 8-bit 4:2:0 pixel format.
+	pixelFormatYUV420P = "yuv420p"
+	// PixelFormatFlag is the FFmpeg pixel-format flag.
+	pixelFormatFlag = "-pix_fmt"
 	// VideoFilterFlag is the FFmpeg video-filter flag.
 	videoFilterFlag = "-vf"
+	// ScaleFlagsLanczos is used for saved clip scaling.
+	scaleFlagsLanczos = "lanczos"
+	// ScaleFlagsFast is used for preview scaling.
+	scaleFlagsFast = "fast_bilinear"
+	// PreviewMaxWidth is the maximum width for preview encodes.
+	previewMaxWidth = 1280
+	// PreviewCRF is the libx264 CRF for previews.
+	previewCRF = 30
+	// PreviewPreset is the libx264 preset for previews.
+	previewPreset = "ultrafast"
+	// PreviewAudioKbps is the AAC bitrate for previews.
+	previewAudioKbps = 96
+	// PreviewMaxSecs caps how long a preview encode may run.
+	previewMaxSecs = 30
 )
 
 // NewExecFFmpeg creates a new FFmpeg executor.
@@ -108,31 +138,24 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	ctx context.Context,
 	input, output string,
 	start, duration float64,
-	quality ClipQuality,
+	preset QualityPreset,
+	audioIndex int,
+	crop CropRect,
 ) error {
 	// Build and run the clip ffmpeg command.
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 
-	preset, ok := QualityPresets[quality]
-	if !ok {
-		preset = QualityPresets[ClipQualityMedium]
-	}
-
-	args := []string{
+	args := clipEncodeArgs(
 		execFFmpeg.ffmpegPath,
-		outputFlag,
-		ssFlag, formatDuration(start),
-		inputFlag, cleanInput,
-		durationFlag, formatDuration(duration),
-		"-c:v", defaultVideoCodec,
-		"-crf", strconv.Itoa(preset.CRF),
-		"-preset", preset.Preset,
-		"-c:a", defaultAudioCodec,
-		"-b:a", defaultDuration,
-		"-movflags", overwriteFlag,
+		cleanInput,
 		cleanOutput,
-	}
+		start,
+		duration,
+		preset,
+		audioIndex,
+		crop,
+	)
 
 	err := execFFmpeg.run(ctx, duration, args...)
 	if err != nil {
@@ -140,6 +163,104 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	}
 
 	return nil
+}
+
+// clipEncodeArgs builds the ffmpeg argv for a video clip.
+func clipEncodeArgs(
+	ffmpegPath, input, output string,
+	start, duration float64,
+	preset QualityPreset,
+	audioIndex int,
+	crop CropRect,
+) []string {
+	return h264EncodeArgs(h264EncodeRequest{
+		ffmpegPath: ffmpegPath,
+		input:      input,
+		output:     output,
+		start:      start,
+		duration:   duration,
+		preset:     preset,
+		audioIndex: audioIndex,
+		maxWidth:   NormalizeOutputWidth(preset.MaxWidth),
+		scaleFlags: scaleFlagsLanczos,
+		crop:       crop,
+	})
+}
+
+// previewEncodeArgs builds the ffmpeg argv for an in-browser preview.
+func previewEncodeArgs(
+	ffmpegPath, input, output string,
+	start, duration float64,
+	audioIndex int,
+	crop CropRect,
+) []string {
+	return h264EncodeArgs(h264EncodeRequest{
+		ffmpegPath: ffmpegPath,
+		input:      input,
+		output:     output,
+		start:      start,
+		duration:   duration,
+		preset: QualityPreset{
+			CRF:       previewCRF,
+			Preset:    previewPreset,
+			AudioKbps: previewAudioKbps,
+			MaxWidth:  previewMaxWidth,
+		},
+		audioIndex: audioIndex,
+		maxWidth:   previewMaxWidth,
+		scaleFlags: scaleFlagsFast,
+		crop:       crop,
+	})
+}
+
+// previewDuration caps a preview window so encodes stay cheap.
+func previewDuration(duration float64) float64 {
+	if duration < 0 {
+		return 0
+	}
+
+	return min(duration, previewMaxSecs)
+}
+
+// scaleFilter downscales to maxWidth while keeping even dimensions.
+func scaleFilter(maxWidth int, flags string) string {
+	return fmt.Sprintf("scale=w='min(%d,iw)':h=-2:flags=%s", maxWidth, flags)
+}
+
+// videoFilter applies optional black-bar crop then scale.
+func videoFilter(maxWidth int, flags string, crop CropRect) string {
+	scale := scaleFilter(maxWidth, flags)
+	if !crop.Valid() {
+		return scale
+	}
+
+	return crop.Filter() + "," + scale
+}
+
+// h264EncodeArgs builds a browser-safe libx264 argv.
+func h264EncodeArgs(req h264EncodeRequest) []string {
+	preset := NormalizePreset(req.preset)
+	audioIndex := max(req.audioIndex, 0)
+
+	return []string{
+		req.ffmpegPath,
+		outputFlag,
+		ssFlag, formatDuration(req.start),
+		inputFlag, req.input,
+		durationFlag, formatDuration(req.duration),
+		"-map", "0:v:0",
+		"-map", "0:a:" + strconv.Itoa(audioIndex),
+		"-c:v", defaultVideoCodec,
+		pixelFormatFlag, pixelFormatYUV420P,
+		videoFilterFlag, videoFilter(req.maxWidth, req.scaleFlags, req.crop),
+		"-crf", strconv.Itoa(preset.CRF),
+		"-preset", preset.Preset,
+		"-c:a", defaultAudioCodec,
+		"-b:a", strconv.Itoa(preset.AudioKbps) + "k",
+		"-ac", "2",
+		"-movflags", overwriteFlag,
+		req.output,
+	}
 }
 
 // gifPaletteArgs builds the ffmpeg palettegen command.
@@ -244,6 +365,37 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	err = execFFmpeg.run(ctx, duration, gifArgs...)
 	if err != nil {
 		return fmt.Errorf("extract GIF: %w", err)
+	}
+
+	return nil
+}
+
+// ExtractPreview writes a short, downscaled, browser-safe preview segment.
+func (execFFmpeg *ExecFFmpeg) ExtractPreview(
+	ctx context.Context,
+	input, output string,
+	start, duration float64,
+	audioIndex int,
+	crop CropRect,
+) error {
+	cleanInput := filepath.Clean(input)
+	cleanOutput := filepath.Clean(output)
+
+	duration = previewDuration(duration)
+
+	args := previewEncodeArgs(
+		execFFmpeg.ffmpegPath,
+		cleanInput,
+		cleanOutput,
+		start,
+		duration,
+		audioIndex,
+		crop,
+	)
+
+	err := execFFmpeg.run(ctx, duration, args...)
+	if err != nil {
+		return fmt.Errorf("extract preview: %w", err)
 	}
 
 	return nil
