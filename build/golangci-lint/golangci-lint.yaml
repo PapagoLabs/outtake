@@ -42,7 +42,6 @@ linters:
     - exhaustruct
     - exhaustruct_v5
     - wsl
-    - wsl_v5
 
   # All available settings of specific linters.
   settings:
