@@ -31,6 +31,9 @@ const (
 	// PathServers is the server picker path.
 	pathServers = "/servers"
 
+	// PathSettingsProfiles is the clip profile settings path.
+	pathSettingsProfiles = "/settings/profiles"
+
 	// QueryTitle is the media browse title query parameter.
 	queryTitle = "title"
 

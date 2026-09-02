@@ -39,5 +39,22 @@ CREATE TABLE IF NOT EXISTS selected_server (
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS clip_profiles (
+	id TEXT PRIMARY KEY,
+	name TEXT NOT NULL UNIQUE,
+	crf INTEGER NOT NULL,
+	preset TEXT NOT NULL,
+	audio_kbps INTEGER NOT NULL DEFAULT 192,
+	max_width INTEGER NOT NULL DEFAULT 1920,
+	is_default INTEGER NOT NULL DEFAULT 0,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO clip_profiles (id, name, crf, preset, audio_kbps, max_width, is_default) VALUES
+	('low', 'Low', 28, 'veryfast', 128, 1280, 0),
+	('medium', 'Medium', 23, 'medium', 192, 1920, 1),
+	('high', 'High', 18, 'slow', 320, 3840, 0);
+
 CREATE INDEX IF NOT EXISTS idx_clips_status ON clips(status);
 CREATE INDEX IF NOT EXISTS idx_clips_media_id ON clips(media_id);

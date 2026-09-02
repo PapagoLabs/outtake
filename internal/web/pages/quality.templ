@@ -1,0 +1,53 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import "strconv"
+
+type ClipProfileOption struct {
+	ID        string
+	Name      string
+	IsDefault bool
+}
+
+func qualityOptionSelected(profile ClipProfileOption, selected string) bool {
+	if selected == "" {
+		return profile.IsDefault
+	}
+
+	return profile.ID == selected
+}
+
+type AudioTrackOption struct {
+	Index int
+	Label string
+}
+
+templ AudioSelect(id string, tracks []AudioTrackOption, selected int) {
+	if len(tracks) == 0 {
+		<input type="hidden" name="audioIndex" value="0"/>
+	} else {
+		<select id={ id } name="audioIndex" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+			for _, track := range tracks {
+				if track.Index == selected {
+					<option value={ strconv.Itoa(track.Index) } selected>{ track.Label }</option>
+				} else {
+					<option value={ strconv.Itoa(track.Index) }>{ track.Label }</option>
+				}
+			}
+		</select>
+	}
+}
+
+templ QualitySelect(id string, profiles []ClipProfileOption, selected string) {
+	<select id={ id } name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+		for _, profile := range profiles {
+			if qualityOptionSelected(profile, selected) {
+				<option value={ profile.ID } selected>{ profile.Name }</option>
+			} else {
+				<option value={ profile.ID }>{ profile.Name }</option>
+			}
+		}
+	</select>
+}

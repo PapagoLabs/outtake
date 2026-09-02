@@ -190,6 +190,11 @@ func mountPages(
 	app.Get(routeClips, guard, htmlHandler.Clips)
 	app.Get("/servers", guard, htmlHandler.Servers)
 	app.Post("/servers", guard, htmlHandler.SelectServer)
+	app.Get("/settings/profiles", guard, htmlHandler.ClipProfiles)
+	app.Post("/settings/profiles", guard, htmlHandler.CreateClipProfile)
+	app.Post("/settings/profiles/:id/default", guard, htmlHandler.SetDefaultClipProfile)
+	app.Post("/settings/profiles/:id/delete", guard, htmlHandler.DeleteClipProfile)
+	app.Post("/settings/profiles/:id", guard, htmlHandler.UpdateClipProfile)
 }
 
 // mountAPI registers JSON API routes.
@@ -285,7 +290,7 @@ func startQueue(cfg *config.Config, db *database.DB, ffmpeg media.FFmpeg) *queue
 			}
 		})
 
-		return processJob(progressCtx, job, ffmpeg)
+		return processJob(progressCtx, job, ffmpeg, db)
 	})
 	jobQueue.SetStatusFunc(func(job *queue.Job) {
 		saveErr := db.SaveClip(context.Background(), job)
@@ -341,7 +346,7 @@ func restoreJobs(db *database.DB, jobQueue *queue.Queue) {
 }
 
 // processJob routes a job to the appropriate FFmpeg operation.
-func processJob(ctx context.Context, job *queue.Job, ffmpeg media.FFmpeg) error {
+func processJob(ctx context.Context, job *queue.Job, ffmpeg media.FFmpeg, db *database.DB) error {
 	switch job.Type {
 	case queue.JobTypeClip:
 		err := ffmpeg.ExtractClip(
@@ -350,7 +355,7 @@ func processJob(ctx context.Context, job *queue.Job, ffmpeg media.FFmpeg) error 
 			job.OutputPath,
 			job.StartTime,
 			job.Duration,
-			media.ResolvePreset(job.Quality, nil),
+			clipPreset(ctx, db, job.Quality),
 			job.AudioIndex,
 			detectJobCrop(ctx, ffmpeg, job),
 		)
@@ -394,4 +399,20 @@ func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) med
 	}
 
 	return crop
+}
+
+// clipPreset resolves a stored quality id onto ffmpeg settings.
+func clipPreset(ctx context.Context, db *database.DB, quality string) media.QualityPreset {
+	return media.ResolvePreset(quality, func(id string) (media.QualityPreset, bool) {
+		if db == nil {
+			return media.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
+		}
+
+		profile, err := db.GetClipProfile(ctx, id)
+		if err != nil {
+			return media.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
+		}
+
+		return profile.QualityPreset(), true
+	})
 }

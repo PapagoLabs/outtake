@@ -57,15 +57,29 @@ templ Layout(props LayoutProps) {
 					>
 						Clips
 					</a>
-					<a
-						href="/servers"
-						class={ utils.TwMerge(
-							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
-							utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-						) }
-					>
-						Servers
-					</a>
+					<div class="flex flex-col gap-1">
+						<span class="px-3 py-2 text-sm font-medium text-sidebar-foreground">Settings</span>
+						<div class="flex flex-col gap-1 pl-2">
+							<a
+								href="/servers"
+								class={ utils.TwMerge(
+									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+									utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+								) }
+							>
+								Servers
+							</a>
+							<a
+								href="/settings/profiles"
+								class={ utils.TwMerge(
+									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+									utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+								) }
+							>
+								Clip Profiles
+							</a>
+						</div>
+					</div>
 					@separator.Separator()
 					<a
 						href="/api/auth/logout"
