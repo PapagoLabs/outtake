@@ -3746,7 +3746,8 @@ linters:
       multi-if: true
       # Enforces newlines (or comments) after every multi-line function signature.
       # Default: false
-      multi-func: true
+      # Off: gofumpt forbids the blank line this check requires.
+      multi-func: false
 
     wrapcheck:
       # An array of strings specifying additional substrings of signatures to ignore.
