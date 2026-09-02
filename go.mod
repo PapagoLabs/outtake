@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/templui/templui v1.13.2
 	github.com/tursodatabase/libsql-client-go v0.0.0-20260528064733-9d5d30a29a60
-	modernc.org/sqlite v1.57.0
+	modernc.org/sqlite v1.58.0
 )
 
 require (
