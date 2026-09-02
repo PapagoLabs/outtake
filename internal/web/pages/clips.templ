@@ -113,7 +113,7 @@ templ ClipCard(item ClipItem) {
 					<input type="hidden" name="clipType" value={ item.ClipType }/>
 					<input type="hidden" name="startTime" value={ strconv.FormatFloat(item.StartTime, 'f', 1, 64) }/>
 					<input type="hidden" name="duration" value={ strconv.FormatFloat(item.Duration, 'f', 1, 64) }/>
-					<input type="hidden" name="audioIndex" value={ strconv.Itoa(item.AudioIndex) }/>
+					@AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
 					<div class="flex items-center justify-between gap-3">
 						<div class="flex flex-col gap-1">
 							<div class="flex flex-wrap items-center gap-2">
