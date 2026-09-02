@@ -67,18 +67,27 @@ tasks:
 
   goreleaser:
     desc: Validate and snapshot-build with GoReleaser
+    deps: [templ]
     cmds:
-      - goreleaser build --config build/goreleaser/goreleaser.yaml --snapshot --clean
+      - goreleaser build --config build/goreleaser/stable.yaml --snapshot --clean
 
   goreleaser:check:
     desc: Validate the GoReleaser configuration
     cmds:
-      - goreleaser check --config build/goreleaser/goreleaser.yaml
+      - goreleaser check --config build/goreleaser/stable.yaml
+      - goreleaser check --config build/goreleaser/nightly.yaml
 
   goreleaser:release:
-    desc: Create a release with GoReleaser
+    desc: Create a stable release with GoReleaser
+    deps: [templ]
     cmds:
-      - goreleaser release --config build/goreleaser/goreleaser.yaml
+      - goreleaser release --config build/goreleaser/stable.yaml
+
+  goreleaser:nightly:
+    desc: Snapshot a nightly image build with GoReleaser
+    deps: [templ]
+    cmds:
+      - goreleaser release --config build/goreleaser/nightly.yaml --snapshot --clean --skip=validate,archive
 
   install:
     desc: Install outtake

@@ -3,8 +3,25 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+func TestTargetArch(t *testing.T) {
+	t.Run("override", func(t *testing.T) {
+		t.Setenv("FFMPEG_ARCH", "arm64")
+		if got := targetArch(); got != "arm64" {
+			t.Fatalf("got %q", got)
+		}
+	})
+
+	t.Run("default", func(t *testing.T) {
+		t.Setenv("FFMPEG_ARCH", "")
+		if got := targetArch(); got != runtime.GOARCH {
+			t.Fatalf("got %q want %q", got, runtime.GOARCH)
+		}
+	})
+}
 
 func TestReleaseURLs(t *testing.T) {
 	t.Parallel()

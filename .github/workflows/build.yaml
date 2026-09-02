@@ -1,0 +1,134 @@
+name: Build Release
+
+on:
+  workflow_call:
+    inputs:
+      build-type:
+        description: "Type of build (stable or nightly)"
+        required: true
+        type: string
+      dry-run:
+        description: "Run in test mode without publishing artifacts"
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: true
+      DOCKERHUB_TOKEN:
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.build-type }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ inputs.build-type != 'stable' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_CLI_EXPERIMENTAL: "enabled"
+      CGO_ENABLED: 0
+      TAG: ${{ github.ref_name }}
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Validate build-type input
+        run: |
+          if [[ "${INPUTS_BUILD_TYPE}" != "stable" && "${INPUTS_BUILD_TYPE}" != "nightly" ]]; then
+            echo "Error: build-type must be 'stable' or 'nightly', got '${INPUTS_BUILD_TYPE}'"
+            exit 1
+          fi
+        env:
+          INPUTS_BUILD_TYPE: ${{ inputs.build-type }}
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: "go.mod"
+          cache: false
+
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@09d6b02946f54492f3d3dcb9729f5b792f220b40 #v0.3.1020
+
+      - name: Install goimports
+        run: go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+        with:
+          image: tonistiigi/binfmt@sha256:d3b963f787999e6c0219a48dba02978769286ff61a5f4d26245cb6a6e5567ea3
+          platforms: linux/amd64,linux/arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Install Syft for SBOM generation # Install Syft for GoReleaser SBOM generation
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Login to Docker Hub
+        if: ${{ !inputs.dry-run }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        if: ${{ !inputs.dry-run }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate templates
+        run: |
+          templ generate
+          goimports -local github.com/PapagoLabs/outtake -w ./internal/web
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: >-
+            release
+            --config build/goreleaser/${{ inputs.build-type }}.yaml
+            ${{ inputs.build-type == 'nightly' && '--skip=validate,archive' || '' }}
+            --clean
+            ${{ inputs.dry-run && '--snapshot' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ inputs.dry-run }}
+
+      - name: Generate artifact attestation for digests
+        if: ${{ !inputs.dry-run }}
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: ./dist/digests.txt
+
+      - name: Clean up dist directory
+        if: always()
+        run: rm -rf dist
