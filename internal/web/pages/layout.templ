@@ -20,13 +20,17 @@ templ Layout(props LayoutProps) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ props.Title } - Outtake</title>
+			@IconHead()
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
 		</head>
 		<body class="min-h-screen bg-background text-foreground">
 			<div class="flex min-h-screen">
 				<aside class="w-64 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2">
-					<h1 class="text-xl font-bold text-sidebar-foreground mb-4">Outtake</h1>
+					<a href="/" class="flex items-center gap-2.5 mb-4 text-sidebar-foreground">
+						<img src="/assets/brand/mascot-128.png" width="32" height="32" alt="" class="size-8"/>
+						<h1 class="text-xl font-bold">Outtake</h1>
+					</a>
 					<a
 						href="/"
 						class={ utils.TwMerge(

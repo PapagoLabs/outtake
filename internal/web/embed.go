@@ -9,7 +9,7 @@ import (
 	"embed"
 )
 
-// Assets contains the embedded static assets (CSS, JavaScript).
+// Assets contains the embedded static assets (CSS, JavaScript, brand icons).
 //
 //go:embed assets
 var Assets embed.FS
