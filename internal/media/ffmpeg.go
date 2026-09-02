@@ -17,6 +17,7 @@ type FFmpeg interface {
 		start, duration float64,
 		quality ClipQuality,
 	) error
+	DetectCrop(ctx context.Context, input string, start, duration float64) (CropRect, error)
 	ExtractGIF(
 		ctx context.Context,
 		input, output string,
