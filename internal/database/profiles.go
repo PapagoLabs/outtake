@@ -39,13 +39,6 @@ var ErrLastClipProfile = errors.New("cannot delete the last clip profile")
 
 // SaveClipProfile inserts or replaces a clip profile.
 func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
-	if profile.IsDefault {
-		err := db.clearDefaultClipProfiles(ctx)
-		if err != nil {
-			return fmt.Errorf("clear defaults before save: %w", err)
-		}
-	}
-
 	isDefault := 0
 	if profile.IsDefault {
 		isDefault = 1
@@ -76,6 +69,15 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 	)
 	if err != nil {
 		return fmt.Errorf("save clip profile: %w", err)
+	}
+
+	if profile.IsDefault {
+		err = db.assignDefaultClipProfile(ctx, profile.ID)
+		if err != nil {
+			return fmt.Errorf("save clip profile: %w", err)
+		}
+
+		return nil
 	}
 
 	err = db.ensureDefaultClipProfile(ctx)
@@ -169,18 +171,9 @@ func (db *DB) SetDefaultClipProfile(ctx context.Context, id string) error {
 		return fmt.Errorf("set default clip profile: %w", err)
 	}
 
-	err = db.clearDefaultClipProfiles(ctx)
+	err = db.assignDefaultClipProfile(ctx, id)
 	if err != nil {
-		return fmt.Errorf("clear defaults: %w", err)
-	}
-
-	_, err = db.conn.ExecContext(
-		ctx,
-		`UPDATE clip_profiles SET is_default = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		id,
-	)
-	if err != nil {
-		return fmt.Errorf("mark default clip profile: %w", err)
+		return fmt.Errorf("set default clip profile: %w", err)
 	}
 
 	return nil
@@ -237,11 +230,17 @@ func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-// clearDefaultClipProfiles unsets every default flag.
-func (db *DB) clearDefaultClipProfiles(ctx context.Context) error {
-	_, err := db.conn.ExecContext(ctx, `UPDATE clip_profiles SET is_default = 0`)
+// assignDefaultClipProfile sets one default in a single UPDATE.
+func (db *DB) assignDefaultClipProfile(ctx context.Context, id string) error {
+	_, err := db.conn.ExecContext(
+		ctx,
+		`UPDATE clip_profiles
+			SET is_default = CASE WHEN id = ? THEN 1 ELSE 0 END,
+			    updated_at = CURRENT_TIMESTAMP`,
+		id,
+	)
 	if err != nil {
-		return fmt.Errorf("clear default clip profiles: %w", err)
+		return fmt.Errorf("assign default clip profile: %w", err)
 	}
 
 	return nil

@@ -123,28 +123,6 @@ func (handler *HTMLHandler) storedClipProfiles(ctx fiber.Ctx) []database.ClipPro
 	return profiles
 }
 
-// clipProfileOptions maps stored profiles onto form select options.
-func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []pages.ClipProfileOption {
-	profiles := handler.storedClipProfiles(ctx)
-	options := make([]pages.ClipProfileOption, 0, len(profiles))
-
-	for i := range profiles {
-		profile := profiles[i]
-
-		options = append(options, pages.ClipProfileOption{
-			ID:        profile.ID,
-			Name:      profile.Name,
-			IsDefault: profile.IsDefault,
-		})
-	}
-
-	if len(options) == 0 {
-		return builtinProfileOptions()
-	}
-
-	return options
-}
-
 // builtinProfileOptions is used when the profile table cannot be read.
 func builtinProfileOptions() []pages.ClipProfileOption {
 	return []pages.ClipProfileOption{

@@ -61,7 +61,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 									}
 								</div>
 							</div>
-							@profileFields(profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, props.Presets, props.Widths)
+							@profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, props.Presets, props.Widths)
 							<div class="flex flex-wrap gap-2">
 								@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
 									Save
@@ -104,7 +104,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 							<p class="font-medium">New profile</p>
 							<p class="text-sm text-muted-foreground">CRF 18–28 is typical. Slower presets take longer and compress more efficiently.</p>
 						</div>
-						@profileFields("", 23, "medium", 192, 1920, props.Presets, props.Widths)
+						@profileFields("new-", "", 23, "medium", 192, 1920, props.Presets, props.Widths)
 						<label class="flex items-center gap-2 text-sm">
 							<input type="checkbox" name="isDefault" value="1" class="rounded border-input"/>
 							Set as default
@@ -119,25 +119,25 @@ templ ClipProfiles(props ClipProfilesProps) {
 	}
 }
 
-templ profileFields(name string, crf int, preset string, audioKbps, maxWidth int, presets []string, widths []OutputWidthOption) {
+templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, presets []string, widths []OutputWidthOption) {
 	<div class="flex flex-col gap-2">
-		@label.Label(label.Props{For: ""}) {
+		@label.Label(label.Props{For: idPrefix + "name"}) {
 			Name
 		}
-		@input.Input(input.Props{Name: "name", Type: input.TypeText, Value: name, Placeholder: "Archive"})
+		@input.Input(input.Props{ID: idPrefix + "name", Name: "name", Type: input.TypeText, Value: name, Placeholder: "Archive"})
 	</div>
 	<div class="grid gap-4 sm:grid-cols-2">
 		<div class="flex flex-col gap-2">
-			@label.Label(label.Props{For: ""}) {
+			@label.Label(label.Props{For: idPrefix + "crf"}) {
 				CRF
 			}
-			@input.Input(input.Props{Name: "crf", Type: input.TypeNumber, Value: strconv.Itoa(crf), Attributes: map[string]any{"min": "0", "max": "51"}})
+			@input.Input(input.Props{ID: idPrefix + "crf", Name: "crf", Type: input.TypeNumber, Value: strconv.Itoa(crf), Attributes: map[string]any{"min": "0", "max": "51"}})
 		</div>
 		<div class="flex flex-col gap-2">
-			@label.Label(label.Props{For: ""}) {
+			@label.Label(label.Props{For: idPrefix + "preset"}) {
 				Encoder preset
 			}
-			<select name="preset" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+			<select id={ idPrefix + "preset" } name="preset" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
 				for _, option := range presets {
 					if option == preset {
 						<option value={ option } selected>{ option }</option>
@@ -148,16 +148,16 @@ templ profileFields(name string, crf int, preset string, audioKbps, maxWidth int
 			</select>
 		</div>
 		<div class="flex flex-col gap-2">
-			@label.Label(label.Props{For: ""}) {
+			@label.Label(label.Props{For: idPrefix + "audio"}) {
 				Audio bitrate (kbps)
 			}
-			@input.Input(input.Props{Name: "audioKbps", Type: input.TypeNumber, Value: strconv.Itoa(audioKbps), Attributes: map[string]any{"min": "64", "max": "640"}})
+			@input.Input(input.Props{ID: idPrefix + "audio", Name: "audioKbps", Type: input.TypeNumber, Value: strconv.Itoa(audioKbps), Attributes: map[string]any{"min": "64", "max": "640"}})
 		</div>
 		<div class="flex flex-col gap-2">
-			@label.Label(label.Props{For: ""}) {
+			@label.Label(label.Props{For: idPrefix + "width"}) {
 				Max resolution
 			}
-			<select name="maxWidth" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+			<select id={ idPrefix + "width" } name="maxWidth" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
 				for _, option := range widths {
 					if option.Width == maxWidth {
 						<option value={ strconv.Itoa(option.Width) } selected>{ option.Label }</option>
