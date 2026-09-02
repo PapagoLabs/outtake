@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bind reusable build to github environment by @nicholas-fedor in [#58](https://github.com/PapagoLabs/outtake/pull/58)
 - Wire reusable goreleaser pipelines by @nicholas-fedor in [#52](https://github.com/PapagoLabs/outtake/pull/52)
 - Preview clips and highlight the library browser by @nicholas-fedor in [#46](https://github.com/PapagoLabs/outtake/pull/46)
 - Persist clip audio, crop, and name by @nicholas-fedor in [#44](https://github.com/PapagoLabs/outtake/pull/44)
@@ -32,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module modernc.org/sqlite to v1.58.0 by @renovate[bot] in [#38](https://github.com/PapagoLabs/outtake/pull/38)
+- Update step-security/harden-runner action to v2.21.1 by @renovate[bot] in [#55](https://github.com/PapagoLabs/outtake/pull/55)
 - Update module golang.org/x/crypto to v0.56.0 by @renovate[bot] in [#53](https://github.com/PapagoLabs/outtake/pull/53)
 - Update module github.com/klauspost/compress to v1.20.0 by @renovate[bot] in [#49](https://github.com/PapagoLabs/outtake/pull/49)
 - Update golang:1.27.1-alpine docker digest to cf6fca6 by @renovate[bot] in [#51](https://github.com/PapagoLabs/outtake/pull/51)
@@ -74,8 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#52](https://github.com/PapagoLabs/outtake/pull/52)
-- @renovate[bot] made their first contribution in [#53](https://github.com/PapagoLabs/outtake/pull/53)
+- @nicholas-fedor made their first contribution in [#58](https://github.com/PapagoLabs/outtake/pull/58)
+- @github-actions[bot] made their first contribution in [#54](https://github.com/PapagoLabs/outtake/pull/54)
 
 ## Compare Releases
 
