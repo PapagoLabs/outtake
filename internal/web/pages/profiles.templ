@@ -1,0 +1,171 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"strconv"
+
+	"github.com/PapagoLabs/outtake/internal/web/components/badge"
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/input"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+)
+
+type ClipProfileItem struct {
+	ID        string
+	Name      string
+	CRF       int
+	Preset    string
+	AudioKbps int
+	MaxWidth  int
+	IsDefault bool
+}
+
+type OutputWidthOption struct {
+	Width int
+	Label string
+}
+
+type ClipProfilesProps struct {
+	Profiles []ClipProfileItem
+	Presets  []string
+	Widths   []OutputWidthOption
+	Error    string
+}
+
+templ ClipProfiles(props ClipProfilesProps) {
+	@Layout(LayoutProps{Title: "Clip Profiles", Active: "profiles"}) {
+		<div class="flex flex-col gap-6 max-w-xl">
+			<div>
+				<h2 class="text-2xl font-bold tracking-tight">Clip profiles</h2>
+				<p class="text-muted-foreground">Named encode settings used when creating video clips. Lower CRF is higher quality.</p>
+			</div>
+			if props.Error != "" {
+				<div class="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+					{ props.Error }
+				</div>
+			}
+			for _, profile := range props.Profiles {
+				@card.Card() {
+					@card.Content() {
+						<form action={ templ.SafeURL("/settings/profiles/" + profile.ID) } method="POST" class="flex flex-col gap-4">
+							<div class="flex items-center justify-between gap-3">
+								<div class="flex items-center gap-2">
+									<p class="font-medium">{ profile.Name }</p>
+									if profile.IsDefault {
+										@badge.Badge(badge.Props{Variant: badge.VariantSecondary}) {
+											Default
+										}
+									}
+								</div>
+							</div>
+							@profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, props.Presets, props.Widths)
+							<div class="flex flex-wrap gap-2">
+								@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
+									Save
+								}
+								if !profile.IsDefault {
+									@button.Button(button.Props{
+										Type: button.TypeSubmit,
+										Size: button.SizeSm,
+										Variant: button.VariantOutline,
+										Form: "default-" + profile.ID,
+									}) {
+										Make default
+									}
+								}
+								if len(props.Profiles) > 1 {
+									@button.Button(button.Props{
+										Type: button.TypeSubmit,
+										Size: button.SizeSm,
+										Variant: button.VariantDestructive,
+										Form: "delete-" + profile.ID,
+									}) {
+										Delete
+									}
+								}
+							</div>
+						</form>
+						if !profile.IsDefault {
+							<form id={ "default-" + profile.ID } action={ templ.SafeURL("/settings/profiles/" + profile.ID + "/default") } method="POST"></form>
+						}
+						if len(props.Profiles) > 1 {
+							<form id={ "delete-" + profile.ID } action={ templ.SafeURL("/settings/profiles/" + profile.ID + "/delete") } method="POST"></form>
+						}
+					}
+				}
+			}
+			@card.Card() {
+				@card.Content() {
+					<form action="/settings/profiles" method="POST" class="flex flex-col gap-4">
+						<div>
+							<p class="font-medium">New profile</p>
+							<p class="text-sm text-muted-foreground">CRF 18–28 is typical. Slower presets take longer and compress more efficiently.</p>
+						</div>
+						@profileFields("new-", "", 23, "medium", 192, 1920, props.Presets, props.Widths)
+						<label class="flex items-center gap-2 text-sm">
+							<input type="checkbox" name="isDefault" value="1" class="rounded border-input"/>
+							Set as default
+						</label>
+						@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
+							Add profile
+						}
+					</form>
+				}
+			}
+		</div>
+	}
+}
+
+templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, presets []string, widths []OutputWidthOption) {
+	<div class="flex flex-col gap-2">
+		@label.Label(label.Props{For: idPrefix + "name"}) {
+			Name
+		}
+		@input.Input(input.Props{ID: idPrefix + "name", Name: "name", Type: input.TypeText, Value: name, Placeholder: "Archive"})
+	</div>
+	<div class="grid gap-4 sm:grid-cols-2">
+		<div class="flex flex-col gap-2">
+			@label.Label(label.Props{For: idPrefix + "crf"}) {
+				CRF
+			}
+			@input.Input(input.Props{ID: idPrefix + "crf", Name: "crf", Type: input.TypeNumber, Value: strconv.Itoa(crf), Attributes: map[string]any{"min": "0", "max": "51"}})
+		</div>
+		<div class="flex flex-col gap-2">
+			@label.Label(label.Props{For: idPrefix + "preset"}) {
+				Encoder preset
+			}
+			<select id={ idPrefix + "preset" } name="preset" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+				for _, option := range presets {
+					if option == preset {
+						<option value={ option } selected>{ option }</option>
+					} else {
+						<option value={ option }>{ option }</option>
+					}
+				}
+			</select>
+		</div>
+		<div class="flex flex-col gap-2">
+			@label.Label(label.Props{For: idPrefix + "audio"}) {
+				Audio bitrate (kbps)
+			}
+			@input.Input(input.Props{ID: idPrefix + "audio", Name: "audioKbps", Type: input.TypeNumber, Value: strconv.Itoa(audioKbps), Attributes: map[string]any{"min": "64", "max": "640"}})
+		</div>
+		<div class="flex flex-col gap-2">
+			@label.Label(label.Props{For: idPrefix + "width"}) {
+				Max resolution
+			}
+			<select id={ idPrefix + "width" } name="maxWidth" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+				for _, option := range widths {
+					if option.Width == maxWidth {
+						<option value={ strconv.Itoa(option.Width) } selected>{ option.Label }</option>
+					} else {
+						<option value={ strconv.Itoa(option.Width) }>{ option.Label }</option>
+					}
+				}
+			</select>
+		</div>
+	</div>
+}

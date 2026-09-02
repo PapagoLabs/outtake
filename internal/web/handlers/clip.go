@@ -55,6 +55,9 @@ var (
 
 	// ErrInvalidDuration is returned when a clip duration is out of range.
 	errInvalidDuration = errors.New("invalid duration")
+
+	// ErrUnknownQuality is returned when a clip profile id is not recognized.
+	errUnknownQuality = errors.New("unknown clip profile")
 )
 
 // NewClipHandler creates a new clip handler.
@@ -98,6 +101,11 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 	err = handler.validateDuration(jobType, req.Duration)
 	if err != nil {
 		return writeError(ctx, fiber.StatusBadRequest, "invalid_duration", err.Error())
+	}
+
+	req.Quality, err = handler.resolveQuality(ctx.Context(), req.Quality)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
 	}
 
 	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
@@ -257,6 +265,11 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
 	}
 
+	err = handler.applyRequestQuality(ctx.Context(), &req)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
+	}
+
 	applyClipEdits(job, req)
 
 	err = handler.db.SaveClip(ctx.Context(), job)
@@ -303,6 +316,22 @@ func clipReturnPath(mediaID string) string {
 	}
 
 	return pathClips
+}
+
+// applyRequestQuality resolves a non-empty quality field onto a profile id.
+func (handler *ClipHandler) applyRequestQuality(ctx context.Context, req *api.ClipRequest) error {
+	if req.Quality == "" {
+		return nil
+	}
+
+	quality, err := handler.resolveQuality(ctx, req.Quality)
+	if err != nil {
+		return fmt.Errorf("apply quality: %w", err)
+	}
+
+	req.Quality = quality
+
+	return nil
 }
 
 // listJobs returns in-memory jobs, falling back to persisted clips.
@@ -381,6 +410,33 @@ func (handler *ClipHandler) resolveInput(ctx context.Context, mediaID string) (s
 	}
 
 	return handler.cfg.RemapMediaPath(path), nil
+}
+
+// resolveQuality maps an empty or named quality onto a stored profile id.
+func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) (string, error) {
+	if quality == "" {
+		profile, err := handler.db.DefaultClipProfile(ctx)
+		if err != nil {
+			return "", fmt.Errorf("resolve quality: %w", err)
+		}
+
+		return profile.ID, nil
+	}
+
+	_, err := handler.db.GetClipProfile(ctx, quality)
+	if err == nil {
+		return quality, nil
+	}
+
+	if !errors.Is(err, database.ErrClipProfileNotFound) {
+		return "", fmt.Errorf("resolve quality: %w", err)
+	}
+
+	if _, ok := media.QualityPresets[media.ClipQuality(quality)]; ok {
+		return quality, nil
+	}
+
+	return "", errUnknownQuality
 }
 
 // validateDuration enforces clip duration limits.

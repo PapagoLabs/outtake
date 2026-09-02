@@ -5,7 +5,7 @@ A clip manager for Plex libraries. Create video clips, GIFs, and screenshots fro
 ## Features
 
 - PIN-based Plex authentication (no manual token entry)
-- Video clip extraction with quality presets (Low/Medium/High)
+- Video clip extraction with configurable clip profiles (CRF and encoder preset)
 - GIF generation via ffmpeg palettegen pipeline
 - Screenshot extraction at any timestamp
 - Active Plex session monitoring
