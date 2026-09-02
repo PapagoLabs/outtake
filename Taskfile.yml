@@ -109,6 +109,7 @@ tasks:
     desc: Run templ
     cmds:
       - templ generate
+      - goimports -local github.com/PapagoLabs/outtake -w ./internal/web
 
   templ-watch:
     desc: Run templ with integrated server and hot reload

@@ -39,6 +39,8 @@ linters:
     - sqlclosecheck
     - unqueryvet
     # Deprecated
+    - exhaustruct
+    - exhaustruct_v5
     - wsl
 
   # All available settings of specific linters.
@@ -992,10 +994,6 @@ linters:
           # Whether to skip (*x).method() calls where x is a pointer receiver.
           # Default: true
           skipRecvDeref: false
-        unnamedResult:
-          # Whether to check exported functions.
-          # Default: false
-          checkExported: true
 
     gocyclo:
       # Minimal code complexity to report.
@@ -3748,7 +3746,8 @@ linters:
       multi-if: true
       # Enforces newlines (or comments) after every multi-line function signature.
       # Default: false
-      multi-func: true
+      # Off: gofumpt forbids the blank line this check requires.
+      multi-func: false
 
     wrapcheck:
       # An array of strings specifying additional substrings of signatures to ignore.
@@ -4036,9 +4035,21 @@ formatters:
       # Default: ""
       module-path: github.com/PapagoLabs/outtake
 
+      # Extra formatting rules.
+      extra:
+        # Groups function parameters with repeated types.
+        # Default: false
+        group-params: true
+        # Clothes naked returns in functions with named results.
+        # Default: false
+        clothe-returns: true
+        # Multi-line function calls with the opening parenthesis at the end of a line should place the closing parenthesis at the start of a line.
+        # Default: false
+        balance-calls: true
+      # Deprecated: use `extra` instead.
       # Choose whether to use the extra rules.
       # Default: false
-      extra-rules: true
+      extra-rules: false
 
     goimports:
       # A list of prefixes, which, if set, checks import paths
