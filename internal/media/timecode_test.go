@@ -64,8 +64,11 @@ func TestParseTimecode(t *testing.T) {
 func TestParseTimecodeInvalid(t *testing.T) {
 	t.Parallel()
 
-	_, err := Parse("nope")
-	require.ErrorIs(t, err, ErrInvalidTimecode)
+	invalid := []string{"nope", "1:-30", "--1s", "+10", "NaN", "Inf", "-Inf"}
+	for _, give := range invalid {
+		_, err := Parse(give)
+		require.ErrorIs(t, err, ErrInvalidTimecode, give)
+	}
 }
 
 func TestFFmpegClockRoundTrip(t *testing.T) {

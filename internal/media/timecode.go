@@ -39,6 +39,10 @@ const (
 	timecodeMinSecParts = 2
 	// TimecodeHourMinSecParts is HH:MM:SS[.m...].
 	timecodeHourMinSecParts = 3
+	// SignMinus is the FFmpeg duration sign prefix.
+	signMinus = "-"
+	// SignPlus is a rejected duration sign prefix.
+	signPlus = "+"
 )
 
 // ErrInvalidTimecode is returned when a timestamp string cannot be parsed.
@@ -116,9 +120,13 @@ func (clock FFmpegClock) Parse(value string) (time.Duration, error) {
 		return 0, nil
 	}
 
-	neg := strings.HasPrefix(value, "-")
+	neg := strings.HasPrefix(value, signMinus)
 	if neg {
-		value = strings.TrimPrefix(value, "-")
+		value = strings.TrimPrefix(value, signMinus)
+	}
+
+	if value == "" || hasSignPrefix(value) {
+		return 0, fmt.Errorf("%w: %s", ErrInvalidTimecode, value)
 	}
 
 	duration, err := clock.parseUnsigned(value)
@@ -142,7 +150,11 @@ func (FFmpegClock) parseClock(value string) (time.Duration, error) {
 		return 0, ErrInvalidTimecode
 	}
 
-	sec, err := strconv.ParseFloat(parts[count-1], secondsBitSize)
+	if clockPartsSigned(parts) {
+		return 0, ErrInvalidTimecode
+	}
+
+	sec, err := parseFiniteFloat(parts[count-1])
 	if err != nil {
 		return 0, fmt.Errorf("seconds: %w", err)
 	}
@@ -152,17 +164,44 @@ func (FFmpegClock) parseClock(value string) (time.Duration, error) {
 		return 0, fmt.Errorf("minutes: %w", err)
 	}
 
-	hours := 0
-	if count == timecodeHourMinSecParts {
-		hours, err = strconv.Atoi(parts[0])
-		if err != nil {
-			return 0, fmt.Errorf("hours: %w", err)
-		}
+	hours, err := clockHours(parts)
+	if err != nil {
+		return 0, fmt.Errorf("hours: %w", err)
 	}
 
 	return time.Duration(hours)*time.Hour +
 		time.Duration(minutes)*time.Minute +
 		time.Duration(sec*float64(time.Second)), nil
+}
+
+// clockPartsSigned reports a signed or empty clock field.
+func clockPartsSigned(parts []string) bool {
+	for _, part := range parts {
+		if part == "" || hasSignPrefix(part) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// clockHours reads the HH field, or 0 for MM:SS.
+func clockHours(parts []string) (int, error) {
+	if len(parts) != timecodeHourMinSecParts {
+		return 0, nil
+	}
+
+	hours, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, fmt.Errorf("hours: %w", err)
+	}
+
+	return hours, nil
+}
+
+// hasSignPrefix reports a leading + or - on value.
+func hasSignPrefix(value string) bool {
+	return strings.HasPrefix(value, signMinus) || strings.HasPrefix(value, signPlus)
 }
 
 // parseUnsigned parses a non-negative FFmpeg duration.
@@ -192,10 +231,24 @@ func (clock FFmpegClock) parseUnsigned(value string) (time.Duration, error) {
 
 // parseUnit parses a numeric duration in the given unit.
 func parseUnit(field string, unit time.Duration) (time.Duration, error) {
-	n, err := strconv.ParseFloat(strings.TrimSpace(field), secondsBitSize)
+	quantity, err := parseFiniteFloat(field)
 	if err != nil {
 		return 0, fmt.Errorf("quantity: %w", err)
 	}
 
-	return time.Duration(n * float64(unit)), nil
+	return time.Duration(quantity * float64(unit)), nil
+}
+
+// parseFiniteFloat parses a finite decimal field.
+func parseFiniteFloat(field string) (float64, error) {
+	quantity, err := strconv.ParseFloat(strings.TrimSpace(field), secondsBitSize)
+	if err != nil {
+		return 0, fmt.Errorf("decimal: %w", err)
+	}
+
+	if math.IsNaN(quantity) || math.IsInf(quantity, 0) {
+		return 0, ErrInvalidTimecode
+	}
+
+	return quantity, nil
 }
