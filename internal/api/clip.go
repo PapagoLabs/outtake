@@ -39,5 +39,6 @@ type ClipResponse struct {
 	Error         string    `json:"error,omitempty"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
+	AudioIndex    int       `json:"audioIndex"`
 	CropBlackBars bool      `json:"cropBlackBars"`
 }

@@ -533,6 +533,7 @@ func clipResponse(job *queue.Job) api.ClipResponse {
 		Error:         job.Error,
 		CreatedAt:     job.CreatedAt,
 		UpdatedAt:     job.UpdatedAt,
+		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
 	}
 }
