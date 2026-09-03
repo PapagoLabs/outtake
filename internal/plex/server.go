@@ -15,6 +15,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex/decode/plextv"
+	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
 )
 
 const (
@@ -89,9 +90,10 @@ func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Librar
 	libs := make([]Library, 0, len(container.Directory))
 	for _, section := range container.Directory {
 		libs = append(libs, Library{
-			ID:    section.Key,
-			Title: section.Title,
-			Type:  section.Type,
+			ID:        section.Key,
+			Title:     section.Title,
+			Type:      section.Type,
+			ThumbPath: sectionThumb(section),
 		})
 	}
 
@@ -109,34 +111,34 @@ func (client *Client) GetMedia(
 	server Server,
 	libraryID string,
 ) ([]MediaItem, error) {
-	// List media in a library.
-	scheme := server.Scheme
-	if scheme == "" {
-		scheme = defaultScheme
+	page, err := client.GetMediaPage(ctx, server, libraryID, 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("get media page: %w", err)
 	}
 
-	hostPort := formatHost(server.Address, scheme, server.Port)
-	reqURL := fmt.Sprintf(
-		"%s://%s%s/sections/%s/all",
-		scheme,
-		hostPort,
-		serverAPIBase,
-		libraryID,
-	)
+	return page.Items, nil
+}
 
-	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+// GetMediaPage fetches one page of media items from a library.
+func (client *Client) GetMediaPage(
+	ctx context.Context,
+	server Server,
+	libraryID string,
+	start, size int,
+) (MediaPage, error) {
+	path := serverAPIBase + "/sections/" + url.PathEscape(libraryID) + "/all"
 
-	resp, err := client.httpClient.Get(reqURL, cfg)
+	resp, err := client.getPMS(ctx, server, path, containerQuery(start, size))
 	if err != nil {
-		return nil, fmt.Errorf("get media: %w", err)
+		return MediaPage{}, fmt.Errorf("get media: %w", err)
 	}
 
 	container, decodeErr := decodePMS(resp.Body())
 	if decodeErr != nil {
-		return nil, fmt.Errorf("get media: %w", decodeErr)
+		return MediaPage{}, fmt.Errorf("get media: %w", decodeErr)
 	}
 
-	return metadataItems(container.Metadata, ""), nil
+	return mediaPage(container, start, size), nil
 }
 
 // GetMediaPath fetches the file path for a media item.
@@ -381,6 +383,53 @@ func jsonHeaders(token string) map[string]string {
 	return map[string]string{
 		headerPlexToken: token,
 		headerAccept:    acceptJSON,
+	}
+}
+
+// sectionThumb prefers a section thumb, then the composite image.
+func sectionThumb(section pms.Section) string {
+	if section.Thumb != "" {
+		return section.Thumb
+	}
+
+	return section.Composite
+}
+
+// containerQuery builds PMS pagination query parameters.
+func containerQuery(start, size int) string {
+	if size <= 0 {
+		return ""
+	}
+
+	if start < 0 {
+		start = 0
+	}
+
+	return "X-Plex-Container-Start=" + strconv.Itoa(start) +
+		"&X-Plex-Container-Size=" + strconv.Itoa(size)
+}
+
+// mediaPage maps a PMS container onto a page of media items.
+func mediaPage(container pms.Container, start, size int) MediaPage {
+	if start < 0 {
+		start = 0
+	}
+
+	items := metadataItems(container.Metadata, "")
+	total := container.TotalSize
+	if total == 0 {
+		total = container.Size
+	}
+
+	if total == 0 {
+		total = start + len(items)
+	}
+
+	return MediaPage{
+		Items: items,
+		Total: total,
+		Start: start,
+		Size:  size,
 	}
 }
 

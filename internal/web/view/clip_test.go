@@ -11,6 +11,14 @@ import (
 
 const testMediaTitle = "Movie"
 
+func TestClipTypeLabel(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "Video clip", ClipTypeLabel("clip"))
+	assert.Equal(t, "GIF", ClipTypeLabel("gif"))
+	assert.Equal(t, "Screenshot", ClipTypeLabel("screenshot"))
+}
+
 func TestClipItemDisplayName(t *testing.T) {
 	t.Parallel()
 
@@ -35,7 +43,8 @@ func TestClipItemDisplayName(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, test.give.DisplayName())
+			item := test.give
+			assert.Equal(t, test.want, item.DisplayName())
 		})
 	}
 }
@@ -59,7 +68,8 @@ func TestClipItemIsActive(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, ClipItem{Status: test.give}.IsActive())
+			item := ClipItem{Status: test.give}
+			assert.Equal(t, test.want, item.IsActive())
 		})
 	}
 }
@@ -93,7 +103,8 @@ func TestClipItemCanPlay(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, test.give.CanPlay())
+			item := test.give
+			assert.Equal(t, test.want, item.CanPlay())
 		})
 	}
 }

@@ -3,6 +3,7 @@
 	var endEl = document.getElementById('endTime');
 	var durEl = document.getElementById('duration');
 	var label = document.getElementById('duration-label');
+	var warning = document.getElementById('duration-warning');
 	var maxDur = parseInt(document.getElementById('clip-form-config').getAttribute('data-max-dur'), 10) || 600;
 	function pad2(n) { return String(n).padStart(2, '0'); }
 	function formatTimecode(sec) {
@@ -25,7 +26,12 @@
 		var start = parseTimecode(startEl.value);
 		var end = parseTimecode(endEl.value);
 		var dur = Math.max(0, end - start);
-		if (dur > maxDur) { dur = maxDur; }
+		if (dur > maxDur) {
+			dur = maxDur;
+			if (warning) { warning.classList.remove('hidden'); }
+		} else if (warning) {
+			warning.classList.add('hidden');
+		}
 		durEl.value = dur.toFixed(3);
 		label.textContent = formatTimecode(dur);
 	}

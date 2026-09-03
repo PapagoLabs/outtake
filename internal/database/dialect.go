@@ -70,13 +70,13 @@ func rewritePlaceholders(query string) string {
 
 	for idx := range len(query) {
 		if query[idx] != '?' {
-			builder.WriteByte(query[idx])
+			_ = builder.WriteByte(query[idx])
 
 			continue
 		}
 
-		builder.WriteByte('$')
-		builder.WriteString(strconv.Itoa(index))
+		_ = builder.WriteByte('$')
+		_, _ = builder.WriteString(strconv.Itoa(index))
 
 		index++
 	}

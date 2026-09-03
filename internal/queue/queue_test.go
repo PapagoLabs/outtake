@@ -250,6 +250,35 @@ func TestQueue_DeleteAndRestore(t *testing.T) {
 	assert.Nil(t, q.GetJob("gone"))
 }
 
+func TestQueue_CancelProcessing(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		handler := func(ctx context.Context, _ *Job) error {
+			close(started)
+			<-ctx.Done()
+
+			return ctx.Err()
+		}
+
+		q := NewQueue(1, handler)
+		q.Start()
+		t.Cleanup(q.Stop)
+
+		q.Submit(testJob("cancel-me", JobStatusPending))
+		<-started
+
+		assert.True(t, q.Cancel("cancel-me"))
+		synctest.Wait()
+
+		job := q.GetJob("cancel-me")
+		require.NotNil(t, job)
+		assert.Equal(t, JobStatusCancelled, job.Status)
+		assert.Equal(t, "canceled", job.Error)
+	})
+}
+
 func TestQueue_Stop(t *testing.T) {
 	t.Parallel()
 

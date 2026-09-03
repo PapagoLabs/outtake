@@ -120,7 +120,9 @@ func newRouter(
 	htmlHandler := handlers.NewHTMLHandler(jobQueue, db, bind, cfg, plexProduct, plexClientID)
 	thumbHandler := handlers.NewThumbHandler(store, bind, plexProduct, plexClientID)
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ErrorHandler: handlers.PageError,
+	})
 	app.Use(recover.New())
 	app.Use(middleware.RequestLogger())
 	app.Use(session.New(sessionConfig()))
@@ -181,6 +183,7 @@ func mountPages(
 	// Mount HTML page routes.
 	app.Get("/login", htmlHandler.Login)
 	app.Get("/", guard, htmlHandler.Dashboard)
+	app.Get("/dashboard/sessions", guard, htmlHandler.DashboardSessions)
 	app.Get("/media", guard, htmlHandler.Media)
 	app.Get("/media/item/:id/playback", guard, htmlHandler.Playback)
 	app.Get("/media/item/:id", guard, htmlHandler.MediaItem)
@@ -213,6 +216,7 @@ func mountAPI(
 	api.Post(routeClips, guard, clipHandler.Create)
 	api.Post("/clips/preview", guard, clipHandler.Preview)
 	api.Post("/clips/:id/update", guard, clipHandler.Update)
+	api.Post("/clips/:id/cancel", guard, clipHandler.Cancel)
 	api.Get(routeClips, guard, clipHandler.List)
 	api.Get("/clips/:id/status", guard, clipHandler.GetStatus)
 	api.Get("/clips/:id/download", guard, clipHandler.Download)

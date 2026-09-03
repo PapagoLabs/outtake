@@ -50,6 +50,21 @@ func New(product, clientID string, interval time.Duration) *Binding {
 	}
 }
 
+// Clear drops the selected server and stops session monitoring.
+func (bind *Binding) Clear() {
+	bind.mu.Lock()
+	defer bind.mu.Unlock()
+
+	if bind.monitor != nil {
+		bind.monitor.Stop()
+
+		bind.monitor = nil
+	}
+
+	bind.server = plex.EmptyServer()
+	bind.ok = false
+}
+
 // Get returns the selected server.
 //
 // Returns:
@@ -107,12 +122,5 @@ func (bind *Binding) Set(server plex.Server) {
 
 // Stop ends session monitoring.
 func (bind *Binding) Stop() {
-	bind.mu.Lock()
-	defer bind.mu.Unlock()
-
-	if bind.monitor != nil {
-		bind.monitor.Stop()
-
-		bind.monitor = nil
-	}
+	bind.Clear()
 }

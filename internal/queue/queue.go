@@ -20,6 +20,8 @@ type Queue struct {
 	workers  int
 	jobChan  chan *Job
 	jobs     map[string]*Job
+	cancels  map[string]context.CancelFunc
+	dropped  map[string]struct{}
 	mu       sync.RWMutex
 	wg       sync.WaitGroup
 	handler  JobHandler
@@ -46,6 +48,8 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 		workers:  workers,
 		jobChan:  make(chan *Job, jobChannelSize),
 		jobs:     make(map[string]*Job),
+		cancels:  make(map[string]context.CancelFunc),
+		dropped:  make(map[string]struct{}),
 		mu:       sync.RWMutex{},
 		wg:       sync.WaitGroup{},
 		handler:  handler,
@@ -57,11 +61,43 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 	return queue
 }
 
+// Cancel stops a pending or processing job.
+func (que *Queue) Cancel(id string) bool {
+	que.mu.Lock()
+
+	job, ok := que.jobs[id]
+	if !ok || (job.Status != JobStatusPending && job.Status != JobStatusProcessing) {
+		que.mu.Unlock()
+
+		return false
+	}
+
+	if cancel, exists := que.cancels[id]; exists {
+		cancel()
+	}
+
+	que.dropped[id] = struct{}{}
+	job.Status = JobStatusCancelled
+	job.Error = "canceled"
+	job.UpdatedAt = time.Now()
+	que.mu.Unlock()
+
+	que.notify(job)
+
+	return true
+}
+
 // Delete removes a job from the in-memory map.
 func (que *Queue) Delete(id string) {
 	que.mu.Lock()
 	defer que.mu.Unlock()
 
+	if cancel, exists := que.cancels[id]; exists {
+		cancel()
+		delete(que.cancels, id)
+	}
+
+	delete(que.dropped, id)
 	delete(que.jobs, id)
 }
 
@@ -149,8 +185,23 @@ func (que *Queue) notify(job *Job) {
 
 // processJob processes a single job.
 func (que *Queue) processJob(job *Job) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	que.mu.Lock()
+
+	if _, dropped := que.dropped[job.ID]; dropped {
+		delete(que.dropped, job.ID)
+		que.mu.Unlock()
+
+		return
+	}
+
 	job.Status = JobStatusProcessing
 	job.UpdatedAt = time.Now()
+	que.cancels[job.ID] = cancel
+	que.mu.Unlock()
+
 	que.notify(job)
 
 	logging.Logger.Info().
@@ -158,26 +209,41 @@ func (que *Queue) processJob(job *Job) {
 		Str("type", string(job.Type)).
 		Msg("processing job")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	err := que.handler(ctx, job)
-	if err != nil {
+
+	que.mu.Lock()
+
+	_, canceled := que.dropped[job.ID]
+	delete(que.dropped, job.ID)
+	delete(que.cancels, job.ID)
+
+	if canceled {
+		job.Status = JobStatusCancelled
+		job.Error = "canceled"
+	} else if err != nil {
 		job.Status = JobStatusFailed
 		job.Error = err.Error()
+	} else {
+		job.Status = JobStatusCompleted
+		job.Progress = progressDone
+	}
+
+	job.UpdatedAt = time.Now()
+	que.mu.Unlock()
+
+	if canceled {
+		logging.Logger.Info().Str("job_id", job.ID).Msg("job canceled")
+	} else if err != nil {
 		logging.Logger.Error().
 			Str("job_id", job.ID).
 			Err(err).
 			Msg("job failed")
 	} else {
-		job.Status = JobStatusCompleted
-		job.Progress = progressDone
 		logging.Logger.Info().
 			Str("job_id", job.ID).
 			Msg("job completed")
 	}
 
-	job.UpdatedAt = time.Now()
 	que.notify(job)
 }
 

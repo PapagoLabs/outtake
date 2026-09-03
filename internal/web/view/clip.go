@@ -22,6 +22,7 @@ type ClipItem struct {
 	AudioIndex    int
 	AudioTracks   []AudioTrackOption
 	CropBlackBars bool
+	Error         string
 }
 
 // ClipProfileOption is a named encode profile in a quality select.
@@ -44,13 +45,30 @@ const (
 	ClipStatusProcessing = "processing"
 	// ClipStatusCompleted is a clip that finished encoding.
 	ClipStatusCompleted = "completed"
+	// ClipStatusFailed is a clip that failed to encode.
+	ClipStatusFailed = "failed"
+	// ClipStatusCancelled is a clip stopped by the user.
+	// The persisted job status literal is "canceled".
+	ClipStatusCancelled = "canceled"
 )
+
+// ClipTypeLabel is the user-facing name for a clip type.
+func ClipTypeLabel(clipType string) string {
+	switch clipType {
+	case "gif":
+		return "GIF"
+	case "screenshot":
+		return "Screenshot"
+	default:
+		return "Video clip"
+	}
+}
 
 // CanPlay reports whether a completed clip file is available for preview.
 //
 // Returns:
 //   - playable: True when status is completed and the file exists.
-func (item ClipItem) CanPlay() bool {
+func (item *ClipItem) CanPlay() bool {
 	return item.Status == ClipStatusCompleted && item.FileExists
 }
 
@@ -58,7 +76,7 @@ func (item ClipItem) CanPlay() bool {
 //
 // Returns:
 //   - name: The label shown on clip cards.
-func (item ClipItem) DisplayName() string {
+func (item *ClipItem) DisplayName() string {
 	if item.Name != "" {
 		return item.Name
 	}
@@ -70,6 +88,6 @@ func (item ClipItem) DisplayName() string {
 //
 // Returns:
 //   - active: True when status is pending or processing.
-func (item ClipItem) IsActive() bool {
+func (item *ClipItem) IsActive() bool {
 	return item.Status == ClipStatusPending || item.Status == ClipStatusProcessing
 }

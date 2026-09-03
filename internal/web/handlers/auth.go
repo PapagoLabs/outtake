@@ -128,13 +128,27 @@ func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 	return writeJSON(ctx, fiber.StatusOK, fiber.Map{"authUrl": authURL})
 }
 
-// Logout clears the session.
-func (*AuthHandler) Logout(ctx fiber.Ctx) error {
+// Logout clears the session and persisted Plex credentials.
+func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
+	if sess != nil {
+		err := sess.Reset()
+		if err != nil {
+			return writeError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+		}
+	}
 
-	err := sess.Reset()
-	if err != nil {
-		return writeError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+	if handler.bind != nil {
+		handler.bind.Clear()
+	}
+
+	if handler.db != nil {
+		err := handler.db.ClearAuth(ctx.Context())
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to clear stored plex credentials")
+
+			return writeError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+		}
 	}
 
 	return redirectTo(ctx, pathLogin)

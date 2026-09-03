@@ -62,24 +62,26 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 		})
 	}
 
-	items, err := plexClient.SearchOnServer(ctx.Context(), server, query)
+	items, err := plexClient.SearchOnServer(ctx.Context(), server, query, ctx.Query(queryLibrary))
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "search_failed", err.Error())
 	}
 
 	responses := make([]api.MediaItemResponse, 0, len(items))
-	for _, item := range items {
+	for index := range items {
+		item := items[index]
+
 		responses = append(responses, api.MediaItemResponse{
 			ID:           item.ID,
-			Title:        item.Title,
+			Title:        item.DisplayTitle(),
 			Type:         item.Type,
 			Duration:     item.Duration,
 			ThumbPath:    item.ThumbPath,
 			LibraryTitle: item.LibraryTitle,
-			Year:         0,
-			Season:       0,
-			Episode:      0,
-			ShowTitle:    "",
+			Year:         item.Year,
+			Season:       item.ParentIndex,
+			Episode:      item.Index,
+			ShowTitle:    item.GrandparentTitle,
 		})
 	}
 
@@ -109,7 +111,7 @@ func sessionResponses(sessions []plex.Session) []api.SessionResponse {
 		responses = append(responses, api.SessionResponse{
 			ID:         sess.ID,
 			MediaID:    sess.MediaItem.ID,
-			Title:      sess.Title,
+			Title:      sess.MediaItem.DisplayTitle(),
 			Duration:   sess.Duration,
 			ViewOffset: sess.ViewOffset,
 		})

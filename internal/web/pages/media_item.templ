@@ -14,6 +14,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -31,19 +32,42 @@ type MediaItemPageProps struct {
 	StartTime     float64
 	EndTime       float64
 	CropBlackBars bool
+	Crumbs        []view.Crumb
+	LibraryID     string
 }
 
 templ MediaItemPage(props MediaItemPageProps) {
-	@layout.Layout(layout.Props{Title: props.Title, Active: "media"}) {
+	@layout.Layout(layout.Props{Title: props.Title, Active: mediaNavActive(props.LibraryID), Library: props.LibraryID}) {
 		<div class="flex flex-col gap-8 max-w-5xl">
 			<div>
-				<a href="/media" class="text-sm text-muted-foreground hover:text-foreground">Media Libraries</a>
+				if len(props.Crumbs) > 0 {
+					<nav class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+						for i, crumb := range props.Crumbs {
+							if i > 0 {
+								<span>/</span>
+							}
+							if crumb.URL != "" {
+								<a href={ templ.SafeURL(crumb.URL) } class="hover:text-foreground">{ crumb.Title }</a>
+							} else {
+								<span class="text-foreground">{ crumb.Title }</span>
+							}
+						}
+					</nav>
+				} else {
+					<a href="/media" class="text-sm text-muted-foreground hover:text-foreground">Media Libraries</a>
+				}
 				<h2 class="text-2xl font-bold tracking-tight mt-2">{ props.Title }</h2>
-				<p class="text-muted-foreground capitalize">{ props.Type }</p>
+				<p class="text-muted-foreground capitalize">
+					{ props.Type }
+					if props.Duration > 0 {
+						<span> · { media.FromSeconds(props.Duration).HMS() }</span>
+					}
+				</p>
 			</div>
 			if props.Error != "" {
-				<div class="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-					{ props.Error }
+				<div class="js-flash rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start justify-between gap-3">
+					<span>{ props.Error }</span>
+					<button type="button" class="js-flash-dismiss text-xs underline" aria-label="Dismiss">Dismiss</button>
 				</div>
 			}
 			@card.Card() {
@@ -74,7 +98,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				}
 				@card.Content() {
-					<form id="clip-form" class="flex flex-col gap-4">
+					<form id="clip-form" class="flex flex-col gap-4" data-export-form>
 						<input type="hidden" name="mediaId" value={ props.ID }/>
 						<input type="hidden" name="mediaTitle" value={ props.Title }/>
 						<input type="hidden" name="mediaType" value={ props.Type }/>
@@ -89,49 +113,63 @@ templ MediaItemPage(props MediaItemPageProps) {
 								@label.Label(label.Props{For: "startTime"}) {
 									Start
 								}
-								<input id="startTime" name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+								<input id="startTime" name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.StartTime).String() } class={ utils.ControlClass }/>
 							</div>
-							<div class="flex flex-col gap-2">
+							<div class="flex flex-col gap-2" data-export-for="clip,gif">
 								@label.Label(label.Props{For: "endTime"}) {
 									End
 								}
-								<input id="endTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.EndTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"/>
+								<input id="endTime" name="endTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.EndTime).String() } class={ utils.ControlClass }/>
 							</div>
 						</div>
 						<input type="hidden" id="duration" name="duration" value="10"/>
-						<p class="text-sm text-muted-foreground">Duration: <span id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).String() }</span> (max { media.FromSeconds(float64(props.MaxDur)).String() })</p>
+						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).String() }</span> (max { media.FromSeconds(float64(props.MaxDur)).String() }) <span id="duration-warning" class="hidden text-destructive">Clamped to the maximum duration.</span></p>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2">
 								@label.Label(label.Props{For: "clipType"}) {
 									Export as
 								}
-								<select id="clipType" name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+								<select id="clipType" name="clipType" class={ utils.ControlClass }>
 									<option value="clip">Video clip</option>
 									<option value="gif">GIF</option>
 									<option value="screenshot">Screenshot</option>
 								</select>
 							</div>
-							<div class="flex flex-col gap-2">
+							<div class="flex flex-col gap-2" data-export-for="clip">
 								@label.Label(label.Props{For: "quality"}) {
 									Profile
 								}
 								@quality.QualitySelect("quality", props.Profiles, "")
 							</div>
 							if len(props.AudioTracks) > 0 {
-								<div class="flex flex-col gap-2">
+								<div class="flex flex-col gap-2" data-export-for="clip">
 									@label.Label(label.Props{For: "audioIndex"}) {
 										Audio track
 									}
 									@quality.AudioSelect("audioIndex", props.AudioTracks, 0)
 								</div>
 							}
+							<div class="flex flex-col gap-2" data-export-for="gif">
+								@label.Label(label.Props{For: "width"}) {
+									GIF width (px)
+								}
+								<input id="width" name="width" type="number" min="120" max="1920" value="480" class={ utils.ControlClass }/>
+							</div>
+							<div class="flex flex-col gap-2" data-export-for="gif">
+								@label.Label(label.Props{For: "fps"}) {
+									GIF frames per second
+								}
+								<input id="fps" name="fps" type="number" min="5" max="30" value="10" class={ utils.ControlClass }/>
+							</div>
 						</div>
-						@clip.CropBlackBarsField(props.CropBlackBars)
+						<div data-export-for="clip">
+							@clip.CropBlackBarsField(props.CropBlackBars)
+						</div>
 						<div class="flex gap-3">
-							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
+							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="js-export-submit inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
 								Preview
 							</button>
-							@button.Button(button.Props{Type: button.TypeSubmit, Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}) {
+							@button.Button(button.Props{Type: button.TypeSubmit, Class: "js-export-submit", Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}) {
 								Save clip
 							}
 						</div>

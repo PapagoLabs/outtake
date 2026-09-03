@@ -58,4 +58,7 @@ const (
 
 	// JobStatusFailed represents a failed job.
 	JobStatusFailed JobStatus = "failed"
+
+	// JobStatusCancelled represents a job stopped by the user.
+	JobStatusCancelled JobStatus = "canceled"
 )

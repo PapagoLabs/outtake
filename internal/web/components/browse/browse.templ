@@ -6,11 +6,69 @@ package browse
 
 import (
 	"net/url"
+	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
+
+func thumbAspect(mediaType string) string {
+	switch mediaType {
+	case "episode", "track":
+		return "aspect-video"
+	case "artist", "album":
+		return "aspect-square"
+	default:
+		return "aspect-[2/3]"
+	}
+}
+
+func emptyMediaMessage(props view.MediaProps) string {
+	if !props.HasServer {
+		return "No media found. Connect your Plex server and try again."
+	}
+
+	if props.Query != "" {
+		return `No titles matched "` + props.Query + `".`
+	}
+
+	return "This folder is empty."
+}
+
+func pageURL(props view.MediaProps, start int) string {
+	values := url.Values{}
+	if props.LibraryID != "" {
+		values.Set("library", props.LibraryID)
+	}
+
+	if props.ParentID != "" {
+		values.Set("parent", props.ParentID)
+	}
+
+	if props.ParentTitle != "" {
+		values.Set("title", props.ParentTitle)
+	}
+
+	if props.UpID != "" {
+		values.Set("up", props.UpID)
+	}
+
+	if props.UpTitle != "" {
+		values.Set("upTitle", props.UpTitle)
+	}
+
+	if start > 0 {
+		values.Set("start", strconv.Itoa(start))
+	}
+
+	encoded := values.Encode()
+	if encoded == "" {
+		return "/media"
+	}
+
+	return "/media?" + encoded
+}
 
 func libraryURL(id string) templ.SafeURL {
 	values := url.Values{}
@@ -24,16 +82,28 @@ templ mediaCard(item view.MediaItem) {
 		@card.Content() {
 			<div class="flex flex-col gap-2">
 				if item.ThumbPath != "" {
-					<img src={ item.ThumbPath } alt={ item.Title } class="w-full aspect-[2/3] rounded-md object-cover bg-muted"/>
+					<img src={ item.ThumbPath } alt={ item.Title } class={ "w-full rounded-md object-cover bg-muted " + thumbAspect(item.Type) }/>
 				} else {
-					<div class="w-full aspect-[2/3] rounded-md bg-muted flex items-center justify-center">
+					<div class={ "w-full rounded-md bg-muted flex items-center justify-center " + thumbAspect(item.Type) }>
 						<span class="text-muted-foreground text-sm">No thumbnail</span>
 					</div>
 				}
 				<h3 class="font-medium text-sm line-clamp-1">{ item.Title }</h3>
-				<div class="flex items-center gap-2 text-xs text-muted-foreground">
+				<div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
 					<span class="capitalize">{ item.Type }</span>
-					if item.Duration > 0 {
+					if item.ShowTitle != "" {
+						<span>&middot;</span>
+						<span class="line-clamp-1">{ item.ShowTitle }</span>
+					}
+					if item.EpisodeLabel != "" {
+						<span>&middot;</span>
+						<span>{ item.EpisodeLabel }</span>
+					}
+					if item.Year > 0 {
+						<span>&middot;</span>
+						<span>{ strconv.Itoa(item.Year) }</span>
+					}
+					if item.Duration > 0 && item.Type != "show" && item.Type != "season" && item.Type != "artist" {
 						<span>&middot;</span>
 						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
 					}
@@ -77,6 +147,9 @@ templ MediaResults(props view.MediaProps) {
 				@card.Card() {
 					@card.Content() {
 						<div class="flex flex-col gap-2">
+							if lib.ThumbPath != "" {
+								<img src={ lib.ThumbPath } alt="" class="w-full aspect-[2/3] rounded-md object-cover bg-muted"/>
+							}
 							<h3 class="font-medium">{ lib.Title }</h3>
 							<p class="text-xs text-muted-foreground capitalize">{ lib.Type }</p>
 							<a href={ libraryURL(lib.ID) } class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors">
@@ -90,10 +163,31 @@ templ MediaResults(props view.MediaProps) {
 	}
 	if len(props.Items) == 0 && (props.Query != "" || props.LibraryID != "" || len(props.Libraries) == 0) {
 		<div class="col-span-full text-center py-12 text-muted-foreground">
-			<p>No media found. Connect your Plex server and try again.</p>
+			<p>{ emptyMediaMessage(props) }</p>
 		</div>
 	}
 	for _, item := range props.Items {
 		@mediaCard(item)
+	}
+	@mediaPager(props)
+}
+
+templ mediaPager(props view.MediaProps) {
+	if props.Query == "" && props.PageSize > 0 && props.Total > props.PageSize {
+		<nav class="col-span-full flex items-center justify-between gap-4 pt-2 text-sm">
+			if props.Start > 0 {
+				<a href={ templ.SafeURL(pageURL(props, max(props.Start-props.PageSize, 0))) } class="inline-flex items-center rounded-md border px-3 py-1.5 font-medium hover:bg-accent">Previous</a>
+			} else {
+				<span class="text-muted-foreground">Previous</span>
+			}
+			<span class="text-muted-foreground">
+				{ strconv.Itoa(props.Start + 1) }–{ strconv.Itoa(min(props.Start+len(props.Items), props.Total)) } of { strconv.Itoa(props.Total) }
+			</span>
+			if props.Start+props.PageSize < props.Total {
+				<a href={ templ.SafeURL(pageURL(props, props.Start+props.PageSize)) } class="inline-flex items-center rounded-md border px-3 py-1.5 font-medium hover:bg-accent">Next</a>
+			} else {
+				<span class="text-muted-foreground">Next</span>
+			}
+		</nav>
 	}
 }

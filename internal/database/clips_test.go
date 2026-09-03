@@ -109,6 +109,16 @@ func TestTokenAndServerPersistence(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ok)
 	assert.Equal(t, server, got)
+
+	require.NoError(t, db.ClearAuth(t.Context()))
+
+	token, err = db.LatestToken(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, token)
+
+	_, ok, err = db.SelectedServer(t.Context())
+	require.NoError(t, err)
+	assert.False(t, ok)
 }
 
 func TestMigrateIdempotent(t *testing.T) {

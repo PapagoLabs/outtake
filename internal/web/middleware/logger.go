@@ -4,7 +4,6 @@
 package middleware
 
 import (
-	"fmt"
 	"time"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -27,7 +26,7 @@ func RequestLogger() fiber.Handler {
 			Msg("request")
 
 		if err != nil {
-			return fmt.Errorf("request logger: %w", err)
+			return err //nolint:wrapcheck // Fiber must see the original route error.
 		}
 
 		return nil

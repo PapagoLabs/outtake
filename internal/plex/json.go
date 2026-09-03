@@ -40,12 +40,20 @@ func decodePMS(body []byte) (pms.Container, error) {
 //   - item: The mapped media item.
 func metadataToItem(meta pms.Metadata, libraryTitle string) MediaItem {
 	return MediaItem{
-		ID:           meta.ID(),
-		Title:        meta.Title,
-		Type:         MapPlexType(meta.Type),
-		Duration:     float64(meta.Duration) / scaleMsToS,
-		ThumbPath:    meta.Thumb,
-		LibraryTitle: libraryTitle,
+		ID:               meta.ID(),
+		Title:            meta.Title,
+		Type:             MapPlexType(meta.Type),
+		Duration:         float64(meta.Duration) / scaleMsToS,
+		ThumbPath:        meta.Thumb,
+		LibraryTitle:     libraryTitle,
+		LibraryID:        string(meta.LibrarySectionID),
+		Year:             meta.Year,
+		Index:            meta.Index,
+		ParentIndex:      meta.ParentIndex,
+		ParentID:         string(meta.ParentRatingKey),
+		ParentTitle:      meta.ParentTitle,
+		GrandparentID:    string(meta.GrandparentRatingKey),
+		GrandparentTitle: meta.GrandparentTitle,
 	}
 }
 

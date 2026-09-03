@@ -29,11 +29,12 @@ func TestMediaResultsEmptyLibraryHidesChooser(t *testing.T) {
 		},
 		Query:     "",
 		LibraryID: "1",
+		HasServer: true,
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "No media found")
+	assert.Contains(t, body, "This folder is empty.")
 	assert.NotContains(t, body, ">Browse<")
 }
 
@@ -54,11 +55,12 @@ func TestMediaResultsEmptyFolderHidesChooser(t *testing.T) {
 		},
 		Query:     "",
 		LibraryID: "1",
+		HasServer: true,
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "No media found")
+	assert.Contains(t, body, "This folder is empty.")
 	assert.Contains(t, body, "Show")
 	assert.NotContains(t, body, ">Browse<")
 }

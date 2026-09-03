@@ -54,7 +54,7 @@ func Login(props LoginProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<link href=\"/assets/css/output.css\" rel=\"stylesheet\"><script src=\"/assets/js/htmx.min.js\"></script></head><body class=\"min-h-screen bg-background text-foreground flex items-center justify-center\"><div class=\"w-full max-w-md p-8\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script src=\"/assets/js/theme.js\"></script><link href=\"/assets/css/output.css\" rel=\"stylesheet\"><script src=\"/assets/js/htmx.min.js\"></script><script src=\"/assets/js/app.js\" defer></script><script src=\"/assets/js/input.js\" defer></script></head><body class=\"min-h-screen bg-background text-foreground flex items-center justify-center\"><div class=\"w-full max-w-md p-8\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -164,7 +164,7 @@ func Login(props LoginProps) templ.Component {
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(props.Error)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/login.templ`, Line: 45, Col: 21}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/login.templ`, Line: 48, Col: 21}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
