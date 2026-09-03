@@ -8,13 +8,15 @@ import (
 	"fmt"
 	"time"
 
-	// PGX Postgres-protocol driver.
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // PGX Postgres-protocol driver.
 )
 
 const (
-	postgresMaxOpenConns    = 25
-	postgresMaxIdleConns    = 5
+	// PostgresMaxOpenConns is the maximum open connections for Postgres.
+	postgresMaxOpenConns = 25
+	// PostgresMaxIdleConns is the maximum idle connections for Postgres.
+	postgresMaxIdleConns = 5
+	// PostgresConnMaxLifetime is the maximum connection lifetime for Postgres.
 	postgresConnMaxLifetime = 5 * time.Minute
 )
 
@@ -29,5 +31,10 @@ func newPostgres(dsn string) (*DB, error) {
 	conn.SetMaxIdleConns(postgresMaxIdleConns)
 	conn.SetConnMaxLifetime(postgresConnMaxLifetime)
 
-	return finishOpen(conn, dialectPostgres)
+	db, err := finishOpen(conn, dialectPostgres)
+	if err != nil {
+		return nil, fmt.Errorf("open postgres: %w", err)
+	}
+
+	return db, nil
 }

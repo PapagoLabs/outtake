@@ -34,7 +34,9 @@ func (db *DB) LatestToken(ctx context.Context) (string, error) {
 
 	err := db.conn.QueryRowContext(
 		ctx,
-		db.rewrite(`SELECT access_token FROM plex_tokens ORDER BY updated_at DESC, id DESC LIMIT 1`),
+		db.rewrite(
+			`SELECT access_token FROM plex_tokens ORDER BY updated_at DESC, id DESC LIMIT 1`,
+		),
 	).Scan(&token)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

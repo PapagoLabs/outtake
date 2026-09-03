@@ -39,7 +39,13 @@ type s3Settings struct {
 	usePathStyle bool
 }
 
+const (
+	// GetObjectErrFmt wraps S3 Get failures.
+	getObjectErrFmt = "get object: %w"
+)
+
 var (
+	// ErrPathOutsideScratch is returned when a path is outside the scratch dir.
 	errPathOutsideScratch      = errors.New("path is outside storage scratch directory")
 	_                     Blob = (*S3)(nil)
 )
@@ -59,7 +65,7 @@ func newS3FromConfig(cfg *config.Config) (*S3, error) {
 		region = defaultS3Region
 	}
 
-	return newS3(s3Settings{
+	store, err := newS3(s3Settings{
 		endpoint:     cfg.S3Endpoint,
 		bucket:       cfg.S3Bucket,
 		region:       region,
@@ -68,6 +74,11 @@ func newS3FromConfig(cfg *config.Config) (*S3, error) {
 		scratch:      cfg.StoragePath,
 		usePathStyle: cfg.S3UsePathStyle,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("new s3: %w", err)
+	}
+
+	return store, nil
 }
 
 // newS3 constructs an S3 backend with a filesystem scratch directory.
@@ -149,7 +160,7 @@ func (store *S3) FileExists(path string) bool {
 func (store *S3) Get(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
-		return fmt.Errorf("get object: %w", err)
+		return fmt.Errorf(getObjectErrFmt, err)
 	}
 
 	output, err := store.client.GetObject(ctx, &s3.GetObjectInput{
@@ -157,13 +168,13 @@ func (store *S3) Get(ctx context.Context, path string) error {
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return fmt.Errorf("get object: %w", err)
+		return fmt.Errorf(getObjectErrFmt, err)
 	}
 	defer output.Body.Close()
 
 	err = writeObjectFile(path, output.Body)
 	if err != nil {
-		return fmt.Errorf("get object: %w", err)
+		return fmt.Errorf(getObjectErrFmt, err)
 	}
 
 	return nil
@@ -267,8 +278,8 @@ func (store *S3) objectKey(path string) (string, error) {
 
 // isNotFound reports whether err is an S3 missing-object error.
 func isNotFound(err error) bool {
-	var apiErr smithy.APIError
-	if errors.As(err, &apiErr) {
+	apiErr, ok := errors.AsType[smithy.APIError](err)
+	if ok {
 		switch apiErr.ErrorCode() {
 		case "NotFound", "NoSuchKey", "NoSuchBucket":
 			return true
@@ -276,6 +287,7 @@ func isNotFound(err error) bool {
 	}
 
 	var httpErr interface{ HTTPStatusCode() int }
+
 	if errors.As(err, &httpErr) && httpErr.HTTPStatusCode() == http.StatusNotFound {
 		return true
 	}

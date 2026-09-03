@@ -138,7 +138,24 @@ func Load(configFile string) (*Config, error) {
 		return nil, fmt.Errorf("bind env: %w", err)
 	}
 
-	cfg := &Config{
+	cfg := emptyConfig()
+
+	err = viperInstance.Unmarshal(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal config: %w", err)
+	}
+
+	err = ensureDirs(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("ensure dirs: %w", err)
+	}
+
+	return cfg, nil
+}
+
+// emptyConfig returns a zero Config including S3 and database keys.
+func emptyConfig() *Config {
+	return &Config{
 		ListenAddr:      "",
 		DatabasePath:    "",
 		DatabaseBackend: "",
@@ -166,18 +183,6 @@ func Load(configFile string) (*Config, error) {
 		PlexMediaRoot:   "",
 		LocalMediaRoot:  "",
 	}
-
-	err = viperInstance.Unmarshal(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal config: %w", err)
-	}
-
-	err = ensureDirs(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("ensure dirs: %w", err)
-	}
-
-	return cfg, nil
 }
 
 // setDefaults sets the default configuration values.

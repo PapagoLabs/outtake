@@ -16,12 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/PapagoLabs/outtake/internal/config"
+	_ "github.com/tursodatabase/libsql-client-go/libsql" // LibSQL driver.
+	_ "modernc.org/sqlite"                               // SQLite driver.
 
-	// LibSQL driver.
-	_ "github.com/tursodatabase/libsql-client-go/libsql"
-	// SQLite driver.
-	_ "modernc.org/sqlite"
+	"github.com/PapagoLabs/outtake/internal/config"
 )
 
 // DB represents a database connection.
@@ -39,8 +37,10 @@ const (
 )
 
 var (
+	// ErrUnknownDatabaseBackend is returned when the database backend is unknown.
 	errUnknownDatabaseBackend = errors.New("unknown database backend")
-	errDatabaseURLRequired    = errors.New("database-url is required")
+	// ErrDatabaseURLRequired is returned when postgres is selected without a DSN.
+	errDatabaseURLRequired = errors.New("database-url is required")
 )
 
 // migrationsFS contains the migration files.
@@ -59,7 +59,12 @@ func New(dbPath string) (*DB, error) {
 	conn.SetMaxOpenConns(1)
 	conn.SetMaxIdleConns(1)
 
-	return finishOpen(conn, dialectSQLite)
+	db, err := finishOpen(conn, dialectSQLite)
+	if err != nil {
+		return nil, fmt.Errorf("open sqlite: %w", err)
+	}
+
+	return db, nil
 }
 
 // NewFromConfig constructs the database backend selected by configuration.

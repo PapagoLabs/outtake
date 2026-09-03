@@ -12,7 +12,9 @@ import (
 type dialect int
 
 const (
+	// DialectSQLite is the SQLite SQL dialect.
 	dialectSQLite dialect = iota
+	// DialectPostgres is the Postgres-protocol SQL dialect.
 	dialectPostgres
 )
 
@@ -24,8 +26,15 @@ const (
 	// BackendPgx is an alias for the Postgres-protocol backend.
 	BackendPgx = "pgx"
 
-	collateNocase  = "name COLLATE NOCASE ASC"
+	// CollateNocase is the SQLite case-insensitive name order.
+	collateNocase = "name COLLATE NOCASE ASC"
+	// LowerNameOrder is the Postgres case-insensitive name order.
 	lowerNameOrder = "LOWER(name) ASC"
+)
+
+const (
+	// PlaceholderGrowExtra is extra builder capacity for numbered placeholders.
+	placeholderGrowExtra = 8
 )
 
 // nameOrder returns an ORDER BY expression for case-insensitive names.
@@ -51,14 +60,15 @@ func rewriteCollate(query string) string {
 	return strings.ReplaceAll(query, collateNocase, lowerNameOrder)
 }
 
-// rewritePlaceholders converts ? placeholders into $1, $2, ...
+// rewritePlaceholders converts question-mark placeholders into numbered dollar form.
 func rewritePlaceholders(query string) string {
 	var builder strings.Builder
 
-	builder.Grow(len(query) + 8)
+	builder.Grow(len(query) + placeholderGrowExtra)
 
 	index := 1
-	for idx := 0; idx < len(query); idx++ {
+
+	for idx := range len(query) {
 		if query[idx] != '?' {
 			builder.WriteByte(query[idx])
 
@@ -67,6 +77,7 @@ func rewritePlaceholders(query string) string {
 
 		builder.WriteByte('$')
 		builder.WriteString(strconv.Itoa(index))
+
 		index++
 	}
 
