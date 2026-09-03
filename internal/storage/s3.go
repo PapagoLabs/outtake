@@ -21,7 +21,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/config"
 )
 
-// S3 stores objects on an S3-compatible endpoint such as SeaweedFS or RustFS.
+// S3 stores objects on an S3-compatible endpoint.
 type S3 struct {
 	fs     *Storage
 	client *s3.Client

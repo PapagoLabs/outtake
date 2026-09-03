@@ -45,20 +45,6 @@ func TestNewFromConfig_PgxAlias(t *testing.T) {
 	require.ErrorIs(t, err, errDatabaseURLRequired)
 }
 
-func TestNewFromConfig_CockroachAlias(t *testing.T) {
-	t.Parallel()
-
-	_, err := NewFromConfig(testDatabaseConfig("", "cockroach", ""))
-	require.ErrorIs(t, err, errDatabaseURLRequired)
-}
-
-func TestNewFromConfig_CNPGAlias(t *testing.T) {
-	t.Parallel()
-
-	_, err := NewFromConfig(testDatabaseConfig("", "cnpg", ""))
-	require.ErrorIs(t, err, errDatabaseURLRequired)
-}
-
 func TestPostgres_SkipWithoutURL(t *testing.T) {
 	dsn := os.Getenv("OUTTAKE_TEST_DATABASE_URL")
 	if dsn == "" {

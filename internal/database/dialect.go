@@ -23,10 +23,6 @@ const (
 	BackendPostgres = "postgres"
 	// BackendPgx is an alias for the Postgres-protocol backend.
 	BackendPgx = "pgx"
-	// BackendCockroach is CockroachDB speaking the Postgres protocol.
-	BackendCockroach = "cockroach"
-	// BackendCNPG is CloudNativePG speaking the Postgres protocol.
-	BackendCNPG = "cnpg"
 
 	collateNocase  = "name COLLATE NOCASE ASC"
 	lowerNameOrder = "LOWER(name) ASC"

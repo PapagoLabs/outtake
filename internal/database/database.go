@@ -69,7 +69,7 @@ func NewFromConfig(cfg *config.Config) (*DB, error) {
 		}
 
 		return db, nil
-	case BackendPostgres, BackendPgx, "postgresql", BackendCockroach, BackendCNPG:
+	case BackendPostgres, BackendPgx, "postgresql":
 		if strings.TrimSpace(cfg.DatabaseURL) == "" {
 			return nil, errDatabaseURLRequired
 		}
