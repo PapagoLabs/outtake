@@ -4,6 +4,7 @@
 package database
 
 import (
+	"context"
 	"os"
 	"strconv"
 	"testing"
@@ -59,7 +60,7 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 
 	clipID := t.Name() + strconv.FormatInt(time.Now().UnixNano(), 10)
-	t.Cleanup(func() { _ = db.DeleteClip(t.Context(), clipID) })
+	t.Cleanup(func() { _ = db.DeleteClip(context.WithoutCancel(t.Context()), clipID) })
 
 	job := &queue.Job{
 		ID:            clipID,
