@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Point README at examples/docker and k8s trees by @nicholas-fedor in [#82](https://github.com/PapagoLabs/outtake/pull/82)
 - Nest docker and kubernetes example trees by @nicholas-fedor in [#80](https://github.com/PapagoLabs/outtake/pull/80)
 - Nest ffmpeg helpers by concern by @nicholas-fedor in [#78](https://github.com/PapagoLabs/outtake/pull/78)
 - Install Helm chart from GitHub by @nicholas-fedor in [#77](https://github.com/PapagoLabs/outtake/pull/77)
@@ -91,8 +92,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#80](https://github.com/PapagoLabs/outtake/pull/80)
-- @github-actions[bot] made their first contribution in [#76](https://github.com/PapagoLabs/outtake/pull/76)
+- @nicholas-fedor made their first contribution in [#82](https://github.com/PapagoLabs/outtake/pull/82)
+- @github-actions[bot] made their first contribution in [#79](https://github.com/PapagoLabs/outtake/pull/79)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
