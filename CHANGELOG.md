@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Outtake chart with optional S3 and Postgres backends by @nicholas-fedor in [#68](https://github.com/PapagoLabs/outtake/pull/68)
 - Add S3 and Postgres backends behind config by @nicholas-fedor in [#69](https://github.com/PapagoLabs/outtake/pull/69)
 - Add README badge bar and centered header by @nicholas-fedor in [#65](https://github.com/PapagoLabs/outtake/pull/65)
 - Add editor gopher brand icon set by @nicholas-fedor in [#62](https://github.com/PapagoLabs/outtake/pull/62)
@@ -20,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nest session monitor and accept Fetcher by @nicholas-fedor in [#70](https://github.com/PapagoLabs/outtake/pull/70)
+- Document local compose and Helm deploy by @nicholas-fedor in [#74](https://github.com/PapagoLabs/outtake/pull/74)
 - Rewrite README as a user-facing guide by @nicholas-fedor in [#63](https://github.com/PapagoLabs/outtake/pull/63)
 - Bind reusable build to github environment by @nicholas-fedor in [#58](https://github.com/PapagoLabs/outtake/pull/58)
 - Wire reusable goreleaser pipelines by @nicholas-fedor in [#52](https://github.com/PapagoLabs/outtake/pull/52)
@@ -84,8 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#69](https://github.com/PapagoLabs/outtake/pull/69)
-- @github-actions[bot] made their first contribution in [#67](https://github.com/PapagoLabs/outtake/pull/67)
+- @nicholas-fedor made their first contribution in [#70](https://github.com/PapagoLabs/outtake/pull/70)
+- @github-actions[bot] made their first contribution in [#72](https://github.com/PapagoLabs/outtake/pull/72)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
