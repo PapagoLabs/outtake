@@ -28,7 +28,7 @@ import (
 // ClipHandler handles clip-related requests.
 type ClipHandler struct {
 	clipQueue   *queue.Queue
-	clipStorage *storage.Storage
+	clipStorage storage.Blob
 	db          *database.DB
 	cfg         *config.Config
 	bind        *binding.Binding
@@ -63,7 +63,7 @@ var (
 // NewClipHandler creates a new clip handler.
 func NewClipHandler(
 	jobQueue *queue.Queue,
-	store *storage.Storage,
+	store storage.Blob,
 	db *database.DB,
 	cfg *config.Config,
 	bind *binding.Binding,
@@ -253,6 +253,11 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		req.AudioIndex,
 		crop,
 	)
+	if err != nil {
+		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
+	}
+
+	err = handler.clipStorage.Put(ctx.Context(), output)
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
 	}

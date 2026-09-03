@@ -61,13 +61,15 @@ var errUnknownJobType = errors.New("unknown job type")
 
 // New creates a new App with all dependencies initialized.
 func New(cfg *config.Config) (*App, error) {
-	db, err := database.New(cfg.DatabasePath)
+	db, err := database.NewFromConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("init database: %w", err)
 	}
 
-	store, err := storage.NewStorage(cfg.StoragePath)
+	store, err := storage.NewFromConfig(cfg)
 	if err != nil {
+		_ = db.Close()
+
 		return nil, fmt.Errorf("init storage: %w", err)
 	}
 
@@ -81,7 +83,7 @@ func New(cfg *config.Config) (*App, error) {
 	bind := binding.New(plexProduct, plexClientID, time.Duration(cfg.SessionPollSec)*time.Second)
 	restoreBinding(cfg, db, bind)
 
-	jobQueue := startQueue(cfg, db, ffmpeg)
+	jobQueue := startQueue(cfg, db, ffmpeg, store)
 
 	router := newRouter(cfg, db, jobQueue, store, bind, plexProduct, plexClientID)
 
@@ -99,7 +101,7 @@ func newRouter(
 	cfg *config.Config,
 	db *database.DB,
 	jobQueue *queue.Queue,
-	store *storage.Storage,
+	store storage.Blob,
 	bind *binding.Binding,
 	plexProduct, plexClientID string,
 ) *fiber.App {
@@ -279,7 +281,7 @@ func (app *App) Test(req *http.Request) (*http.Response, error) {
 }
 
 // startQueue creates the worker queue and restores persisted jobs.
-func startQueue(cfg *config.Config, db *database.DB, ffmpeg media.FFmpeg) *queue.Queue {
+func startQueue(cfg *config.Config, db *database.DB, ffmpeg media.FFmpeg, store storage.Blob) *queue.Queue {
 	jobQueue := queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *queue.Job) error {
 		progressCtx := media.WithProgress(ctx, func(percent int) {
 			job.Progress = percent
@@ -291,7 +293,7 @@ func startQueue(cfg *config.Config, db *database.DB, ffmpeg media.FFmpeg) *queue
 			}
 		})
 
-		return processJob(progressCtx, job, ffmpeg, db)
+		return processJob(progressCtx, job, ffmpeg, db, store)
 	})
 	jobQueue.SetStatusFunc(func(job *queue.Job) {
 		saveErr := db.SaveClip(context.Background(), job)
@@ -347,7 +349,13 @@ func restoreJobs(db *database.DB, jobQueue *queue.Queue) {
 }
 
 // processJob routes a job to the appropriate FFmpeg operation.
-func processJob(ctx context.Context, job *queue.Job, ffmpeg media.FFmpeg, db *database.DB) error {
+func processJob(
+	ctx context.Context,
+	job *queue.Job,
+	ffmpeg media.FFmpeg,
+	db *database.DB,
+	store storage.Blob,
+) error {
 	switch job.Type {
 	case queue.JobTypeClip:
 		err := ffmpeg.ExtractClip(
@@ -383,6 +391,15 @@ func processJob(ctx context.Context, job *queue.Job, ffmpeg media.FFmpeg, db *da
 		}
 	default:
 		return fmt.Errorf("%w: %s", errUnknownJobType, job.Type)
+	}
+
+	if job.OutputPath == "" {
+		return nil
+	}
+
+	err := store.Put(ctx, job.OutputPath)
+	if err != nil {
+		return fmt.Errorf("store output: %w", err)
 	}
 
 	return nil

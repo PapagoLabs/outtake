@@ -19,6 +19,11 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, "0.0.0.0:8080", cfg.ListenAddr)
 	assert.Contains(t, cfg.DatabasePath, "outtake/outtake.db")
 	assert.Contains(t, cfg.StoragePath, "outtake/output")
+	assert.Equal(t, "sqlite", cfg.DatabaseBackend)
+	assert.Empty(t, cfg.DatabaseURL)
+	assert.Equal(t, "filesystem", cfg.StorageBackend)
+	assert.Equal(t, "us-east-1", cfg.S3Region)
+	assert.True(t, cfg.S3UsePathStyle)
 }
 
 func TestLoad_LocalMediaRootEnv(t *testing.T) {
@@ -30,6 +35,32 @@ func TestLoad_LocalMediaRootEnv(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "/media", cfg.LocalMediaRoot)
 	assert.Equal(t, "/media/Movies/Example.mkv", cfg.RemapMediaPath("/Movies/Example.mkv"))
+}
+
+func TestLoad_StorageAndDatabaseBackendEnv(t *testing.T) {
+	t.Setenv("OUTTAKE_STORAGE_BACKEND", "s3")
+	t.Setenv("OUTTAKE_S3_ENDPOINT", "http://localhost:8333")
+	t.Setenv("OUTTAKE_S3_BUCKET", "outtake")
+	t.Setenv("OUTTAKE_S3_REGION", "us-west-2")
+	t.Setenv("OUTTAKE_S3_ACCESS_KEY", "key")
+	t.Setenv("OUTTAKE_S3_SECRET_KEY", "secret")
+	t.Setenv("OUTTAKE_S3_USE_PATH_STYLE", "true")
+	t.Setenv("OUTTAKE_DATABASE_BACKEND", "postgres")
+	t.Setenv("OUTTAKE_DATABASE_URL", "postgres://outtake@localhost:5432/outtake")
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	cfg, err := Load("")
+	require.NoError(t, err)
+	assert.Equal(t, "s3", cfg.StorageBackend)
+	assert.Equal(t, "http://localhost:8333", cfg.S3Endpoint)
+	assert.Equal(t, "outtake", cfg.S3Bucket)
+	assert.Equal(t, "us-west-2", cfg.S3Region)
+	assert.Equal(t, "key", cfg.S3AccessKey)
+	assert.Equal(t, "secret", cfg.S3SecretKey)
+	assert.True(t, cfg.S3UsePathStyle)
+	assert.Equal(t, "postgres", cfg.DatabaseBackend)
+	assert.Equal(t, "postgres://outtake@localhost:5432/outtake", cfg.DatabaseURL)
 }
 
 func TestLoad_CustomConfigFile(t *testing.T) {
@@ -69,23 +100,32 @@ func TestLoad_XDGPaths(t *testing.T) {
 
 func testConfig() Config {
 	return Config{
-		ListenAddr:     "",
-		DatabasePath:   "",
-		StoragePath:    "",
-		FFmpegPath:     "",
-		FFprobePath:    "",
-		LogLevel:       "",
-		Env:            "",
-		SessionPollSec: 0,
-		NumWorkers:     0,
-		MaxClipDurSec:  0,
-		CropBlackBars:  false,
-		PlexServerURL:  "",
-		PlexToken:      "",
-		PlexClientID:   "",
-		PublicBaseURL:  "",
-		PlexMediaRoot:  "",
-		LocalMediaRoot: "",
+		ListenAddr:      "",
+		DatabasePath:    "",
+		DatabaseBackend: "",
+		DatabaseURL:     "",
+		StoragePath:     "",
+		StorageBackend:  "",
+		S3Endpoint:      "",
+		S3Bucket:        "",
+		S3Region:        "",
+		S3AccessKey:     "",
+		S3SecretKey:     "",
+		S3UsePathStyle:  false,
+		FFmpegPath:      "",
+		FFprobePath:     "",
+		LogLevel:        "",
+		Env:             "",
+		SessionPollSec:  0,
+		NumWorkers:      0,
+		MaxClipDurSec:   0,
+		CropBlackBars:   false,
+		PlexServerURL:   "",
+		PlexToken:       "",
+		PlexClientID:    "",
+		PublicBaseURL:   "",
+		PlexMediaRoot:   "",
+		LocalMediaRoot:  "",
 	}
 }
 

@@ -14,13 +14,13 @@ import (
 
 // SaveToken stores the Plex access token for a client ID.
 func (db *DB) SaveToken(ctx context.Context, clientID, accessToken string) error {
-	_, err := db.conn.ExecContext(ctx, `
+	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO plex_tokens (client_id, access_token, created_at, updated_at)
 		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		ON CONFLICT(client_id) DO UPDATE SET
 			access_token = excluded.access_token,
 			updated_at = CURRENT_TIMESTAMP
-	`, clientID, accessToken)
+	`), clientID, accessToken)
 	if err != nil {
 		return fmt.Errorf("save token: %w", err)
 	}
@@ -34,7 +34,7 @@ func (db *DB) LatestToken(ctx context.Context) (string, error) {
 
 	err := db.conn.QueryRowContext(
 		ctx,
-		`SELECT access_token FROM plex_tokens ORDER BY updated_at DESC, id DESC LIMIT 1`,
+		db.rewrite(`SELECT access_token FROM plex_tokens ORDER BY updated_at DESC, id DESC LIMIT 1`),
 	).Scan(&token)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -49,7 +49,7 @@ func (db *DB) LatestToken(ctx context.Context) (string, error) {
 
 // SaveSelectedServer upserts the single selected Plex server.
 func (db *DB) SaveSelectedServer(ctx context.Context, server plex.Server) error {
-	_, err := db.conn.ExecContext(ctx, `
+	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO selected_server (id, name, address, port, scheme, token, updated_at)
 		VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(id) DO UPDATE SET
@@ -59,7 +59,7 @@ func (db *DB) SaveSelectedServer(ctx context.Context, server plex.Server) error 
 			scheme = excluded.scheme,
 			token = excluded.token,
 			updated_at = CURRENT_TIMESTAMP
-	`, server.Name, server.Address, server.Port, server.Scheme, server.Token)
+	`), server.Name, server.Address, server.Port, server.Scheme, server.Token)
 	if err != nil {
 		return fmt.Errorf("save selected server: %w", err)
 	}
@@ -73,7 +73,7 @@ func (db *DB) SelectedServer(ctx context.Context) (plex.Server, bool, error) {
 
 	err := db.conn.QueryRowContext(
 		ctx,
-		`SELECT name, address, port, scheme, token FROM selected_server WHERE id = 1`,
+		db.rewrite(`SELECT name, address, port, scheme, token FROM selected_server WHERE id = 1`),
 	).Scan(&server.Name, &server.Address, &server.Port, &server.Scheme, &server.Token)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

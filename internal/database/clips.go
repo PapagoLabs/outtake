@@ -30,7 +30,7 @@ var ErrClipNotFound = errors.New("clip not found")
 
 // SaveClip inserts or replaces a clip job.
 func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
-	_, err := db.conn.ExecContext(ctx, `
+	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO clips (
 			id, media_id, media_title, media_type, clip_type, status, progress,
 			input_path, output_path, start_time, duration, quality, width, fps,
@@ -49,7 +49,7 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 			crop_black_bars = excluded.crop_black_bars,
 			error_message = excluded.error_message,
 			updated_at = excluded.updated_at
-	`,
+	`),
 		job.ID,
 		job.MediaID,
 		job.MediaTitle,
@@ -80,7 +80,7 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 
 // GetClip loads a clip by ID.
 func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
-	row := db.conn.QueryRowContext(ctx, `SELECT `+clipSelectCols+` FROM clips WHERE id = ?`, id)
+	row := db.conn.QueryRowContext(ctx, db.rewrite(`SELECT `+clipSelectCols+` FROM clips WHERE id = ?`), id)
 
 	job, err := scanJob(row)
 	if err != nil {
@@ -98,7 +98,7 @@ func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
-		`SELECT `+clipSelectCols+` FROM clips ORDER BY created_at DESC`,
+		db.rewrite(`SELECT `+clipSelectCols+` FROM clips ORDER BY created_at DESC`),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list clips: %w", err)
@@ -117,7 +117,7 @@ func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
-		`SELECT `+clipSelectCols+` FROM clips WHERE status IN (?, ?) ORDER BY created_at`,
+		db.rewrite(`SELECT `+clipSelectCols+` FROM clips WHERE status IN (?, ?) ORDER BY created_at`),
 		string(queue.JobStatusPending),
 		string(queue.JobStatusProcessing),
 	)
@@ -138,7 +138,7 @@ func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
-		`SELECT `+clipSelectCols+` FROM clips WHERE media_id = ? ORDER BY created_at DESC`,
+		db.rewrite(`SELECT `+clipSelectCols+` FROM clips WHERE media_id = ? ORDER BY created_at DESC`),
 		mediaID,
 	)
 	if err != nil {
@@ -156,7 +156,7 @@ func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.J
 
 // DeleteClip removes a clip row.
 func (db *DB) DeleteClip(ctx context.Context, id string) error {
-	_, err := db.conn.ExecContext(ctx, `DELETE FROM clips WHERE id = ?`, id)
+	_, err := db.conn.ExecContext(ctx, db.rewrite(`DELETE FROM clips WHERE id = ?`), id)
 	if err != nil {
 		return fmt.Errorf("delete clip: %w", err)
 	}

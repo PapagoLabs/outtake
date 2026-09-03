@@ -1,10 +1,11 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package storage provides filesystem storage for media files.
+// Package storage provides blob storage for media files.
 package storage
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -74,6 +75,11 @@ func (*Storage) FileExists(path string) bool {
 	return err == nil
 }
 
+// Get is a no-op on the filesystem backend because objects already live on disk.
+func (*Storage) Get(_ context.Context, _ string) error {
+	return nil
+}
+
 // GifPath returns the path for a GIF file.
 func (s *Storage) GifPath(id string) string {
 	return filepath.Join(s.GifsDir(), id+".gif")
@@ -92,6 +98,11 @@ func (s *Storage) PreviewPath(id string) string {
 // PreviewsDir returns the previews directory.
 func (s *Storage) PreviewsDir() string {
 	return filepath.Join(s.basePath, "previews")
+}
+
+// Put is a no-op on the filesystem backend because objects already live on disk.
+func (*Storage) Put(_ context.Context, _ string) error {
+	return nil
 }
 
 // ScreenshotPath returns the path for a screenshot file.

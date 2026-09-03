@@ -17,7 +17,7 @@ import (
 
 // ThumbHandler proxies and caches Plex thumbnails.
 type ThumbHandler struct {
-	store    *storage.Storage
+	store    storage.Blob
 	bind     *binding.Binding
 	product  string
 	clientID string
@@ -28,7 +28,7 @@ const thumbCacheControl = "public, max-age=604800, immutable"
 
 // NewThumbHandler creates a thumbnail handler.
 func NewThumbHandler(
-	store *storage.Storage,
+	store storage.Blob,
 	bind *binding.Binding,
 	product, clientID string,
 ) *ThumbHandler {
@@ -51,6 +51,11 @@ func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 	cacheID := thumbCacheID(path)
 	cached := handler.store.ThumbnailPath(cacheID)
 	if handler.store.FileExists(cached) {
+		err := handler.store.Get(ctx.Context(), cached)
+		if err != nil {
+			return fmt.Errorf("get cached thumb: %w", err)
+		}
+
 		return sendCachedThumb(ctx, cached)
 	}
 
@@ -81,6 +86,11 @@ func (handler *ThumbHandler) fetchAndCache(
 
 	writeErr := handler.store.WriteThumbnail(cacheID, body)
 	if writeErr != nil {
+		return sendThumbBytes(ctx, body, contentType)
+	}
+
+	err = handler.store.Get(ctx.Context(), cached)
+	if err != nil {
 		return sendThumbBytes(ctx, body, contentType)
 	}
 
