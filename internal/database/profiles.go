@@ -222,7 +222,10 @@ func (profile ClipProfile) QualityPreset() media.QualityPreset {
 func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 	var count int
 
-	err := db.conn.QueryRowContext(ctx, db.rewrite(`SELECT COUNT(*) FROM clip_profiles`)).Scan(&count)
+	err := db.conn.QueryRowContext(
+		ctx,
+		db.rewrite(`SELECT COUNT(*) FROM clip_profiles`),
+	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count clip profiles: %w", err)
 	}

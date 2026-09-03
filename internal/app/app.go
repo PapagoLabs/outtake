@@ -281,7 +281,12 @@ func (app *App) Test(req *http.Request) (*http.Response, error) {
 }
 
 // startQueue creates the worker queue and restores persisted jobs.
-func startQueue(cfg *config.Config, db *database.DB, ffmpeg media.FFmpeg, store storage.Blob) *queue.Queue {
+func startQueue(
+	cfg *config.Config,
+	db *database.DB,
+	ffmpeg media.FFmpeg,
+	store storage.Blob,
+) *queue.Queue {
 	jobQueue := queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *queue.Job) error {
 		progressCtx := media.WithProgress(ctx, func(percent int) {
 			job.Progress = percent
@@ -348,13 +353,12 @@ func restoreJobs(db *database.DB, jobQueue *queue.Queue) {
 	}
 }
 
-// processJob routes a job to the appropriate FFmpeg operation.
-func processJob(
+// extractJob runs the FFmpeg extract for a clip, GIF, or screenshot job.
+func extractJob(
 	ctx context.Context,
 	job *queue.Job,
 	ffmpeg media.FFmpeg,
 	db *database.DB,
-	store storage.Blob,
 ) error {
 	switch job.Type {
 	case queue.JobTypeClip:
@@ -393,11 +397,27 @@ func processJob(
 		return fmt.Errorf("%w: %s", errUnknownJobType, job.Type)
 	}
 
+	return nil
+}
+
+// processJob routes a job to the appropriate FFmpeg operation.
+func processJob(
+	ctx context.Context,
+	job *queue.Job,
+	ffmpeg media.FFmpeg,
+	db *database.DB,
+	store storage.Blob,
+) error {
+	err := extractJob(ctx, job, ffmpeg, db)
+	if err != nil {
+		return fmt.Errorf("extract: %w", err)
+	}
+
 	if job.OutputPath == "" {
 		return nil
 	}
 
-	err := store.Put(ctx, job.OutputPath)
+	err = store.Put(ctx, job.OutputPath)
 	if err != nil {
 		return fmt.Errorf("store output: %w", err)
 	}

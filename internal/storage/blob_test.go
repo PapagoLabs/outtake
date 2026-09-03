@@ -21,6 +21,7 @@ func TestBlob_FilesystemRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	var blob Blob = store
+
 	path := blob.ClipPath("clip-1")
 	require.NoError(t, os.WriteFile(path, []byte("mp4"), filePermissions))
 	require.NoError(t, blob.Put(t.Context(), path))
@@ -51,7 +52,9 @@ func TestNewFromConfig_S3MissingBucket(t *testing.T) {
 	t.Parallel()
 
 	cfg := testStorageConfig(t.TempDir(), "s3")
+
 	cfg.S3Endpoint = "http://localhost:8333"
+
 	_, err := NewFromConfig(cfg)
 	require.ErrorIs(t, err, errS3BucketRequired)
 }

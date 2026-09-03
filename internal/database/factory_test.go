@@ -4,7 +4,6 @@
 package database
 
 import (
-	"context"
 	"os"
 	"strconv"
 	"testing"
@@ -48,6 +47,8 @@ func TestNewFromConfig_PgxAlias(t *testing.T) {
 }
 
 func TestPostgres_SkipWithoutURL(t *testing.T) {
+	t.Parallel()
+
 	dsn := os.Getenv("OUTTAKE_TEST_DATABASE_URL")
 	if dsn == "" {
 		t.Skip("OUTTAKE_TEST_DATABASE_URL not set")
@@ -58,7 +59,7 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 
 	clipID := t.Name() + strconv.FormatInt(time.Now().UnixNano(), 10)
-	t.Cleanup(func() { _ = db.DeleteClip(context.Background(), clipID) })
+	t.Cleanup(func() { _ = db.DeleteClip(t.Context(), clipID) })
 
 	job := &queue.Job{
 		ID:            clipID,
@@ -84,6 +85,7 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 	}
 
 	require.NoError(t, db.SaveClip(t.Context(), job))
+
 	got, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
 	assert.Equal(t, job.MediaTitle, got.MediaTitle)

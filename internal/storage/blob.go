@@ -37,21 +37,29 @@ type Blob interface {
 }
 
 const (
+	// StorageBackendFilesystem is the local filesystem backend.
 	storageBackendFilesystem = "filesystem"
-	storageBackendS3         = "s3"
-	defaultS3Region          = "us-east-1"
+	// StorageBackendS3 is the S3-compatible object backend.
+	storageBackendS3 = "s3"
+	// DefaultS3Region is the region used when none is configured.
+	defaultS3Region = "us-east-1"
 )
 
 var (
+	// ErrUnknownStorageBackend is returned when StorageBackend is not recognized.
 	errUnknownStorageBackend = errors.New("unknown storage backend")
-	errS3BucketRequired      = errors.New("s3-bucket is required")
-	errS3EndpointRequired    = errors.New("s3-endpoint is required")
+	// ErrS3BucketRequired is returned when S3 is selected without a bucket.
+	errS3BucketRequired = errors.New("s3-bucket is required")
+	// ErrS3EndpointRequired is returned when S3 is selected without an endpoint.
+	errS3EndpointRequired = errors.New("s3-endpoint is required")
 )
 
 var _ Blob = (*Storage)(nil)
 
 // NewFromConfig constructs the storage backend selected by configuration.
-func NewFromConfig(cfg *config.Config) (Blob, error) { //nolint:ireturn // Factory selects the configured backend.
+func NewFromConfig( //nolint:ireturn // Factory selects the configured backend.
+	cfg *config.Config,
+) (Blob, error) {
 	backend := strings.ToLower(strings.TrimSpace(cfg.StorageBackend))
 	switch backend {
 	case "", storageBackendFilesystem:

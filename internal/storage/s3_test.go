@@ -17,6 +17,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type fakeS3Server struct {
+	mu      sync.Mutex
+	objects map[string][]byte
+}
+
+const (
+	testS3Bucket    = "outtake"
+	testS3AccessKey = "key"
+	testS3SecretKey = "secret"
+)
+
 func TestS3_PutGetDelete(t *testing.T) {
 	t.Parallel()
 
@@ -26,10 +37,10 @@ func TestS3_PutGetDelete(t *testing.T) {
 
 	store, err := newS3(s3Settings{
 		endpoint:     httpServer.URL,
-		bucket:       "outtake",
+		bucket:       testS3Bucket,
 		region:       defaultS3Region,
-		accessKey:    "key",
-		secretKey:    "secret",
+		accessKey:    testS3AccessKey,
+		secretKey:    testS3SecretKey,
 		scratch:      t.TempDir(),
 		usePathStyle: true,
 	})
@@ -53,6 +64,8 @@ func TestS3_PutGetDelete(t *testing.T) {
 }
 
 func TestS3_SkipWithoutEndpoint(t *testing.T) {
+	t.Parallel()
+
 	endpoint := os.Getenv("OUTTAKE_S3_ENDPOINT")
 	if endpoint == "" {
 		t.Skip("OUTTAKE_S3_ENDPOINT not set")
@@ -89,10 +102,10 @@ func TestS3_WriteThumbnail(t *testing.T) {
 
 	store, err := newS3(s3Settings{
 		endpoint:     httpServer.URL,
-		bucket:       "outtake",
+		bucket:       testS3Bucket,
 		region:       defaultS3Region,
-		accessKey:    "key",
-		secretKey:    "secret",
+		accessKey:    testS3AccessKey,
+		secretKey:    testS3SecretKey,
 		scratch:      t.TempDir(),
 		usePathStyle: true,
 	})
@@ -109,10 +122,11 @@ func TestNewFromConfig_S3(t *testing.T) {
 	t.Cleanup(httpServer.Close)
 
 	cfg := testStorageConfig(t.TempDir(), "s3")
+
 	cfg.S3Endpoint = httpServer.URL
-	cfg.S3Bucket = "outtake"
-	cfg.S3AccessKey = "key"
-	cfg.S3SecretKey = "secret"
+	cfg.S3Bucket = testS3Bucket
+	cfg.S3AccessKey = testS3AccessKey
+	cfg.S3SecretKey = testS3SecretKey
 
 	store, err := NewFromConfig(cfg)
 	require.NoError(t, err)
@@ -123,14 +137,11 @@ func TestNewFromConfig_S3MissingEndpoint(t *testing.T) {
 	t.Parallel()
 
 	cfg := testStorageConfig(t.TempDir(), "s3")
-	cfg.S3Bucket = "outtake"
+
+	cfg.S3Bucket = testS3Bucket
+
 	_, err := NewFromConfig(cfg)
 	require.ErrorIs(t, err, errS3EndpointRequired)
-}
-
-type fakeS3Server struct {
-	mu      sync.Mutex
-	objects map[string][]byte
 }
 
 func newFakeS3Server() *fakeS3Server {
@@ -165,8 +176,11 @@ func (server *fakeS3Server) deleteObject(writer http.ResponseWriter, key string)
 
 func (server *fakeS3Server) getObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
+
 	data, ok := server.objects[key]
+
 	server.mu.Unlock()
+
 	if !ok {
 		writeS3NotFound(writer)
 
@@ -175,13 +189,17 @@ func (server *fakeS3Server) getObject(writer http.ResponseWriter, key string) {
 
 	writer.Header().Set("Content-Length", strconv.Itoa(len(data)))
 	writer.WriteHeader(http.StatusOK)
+
 	_, _ = writer.Write(data)
 }
 
 func (server *fakeS3Server) headObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
+
 	data, ok := server.objects[key]
+
 	server.mu.Unlock()
+
 	if !ok {
 		writeS3NotFound(writer)
 
@@ -192,7 +210,11 @@ func (server *fakeS3Server) headObject(writer http.ResponseWriter, key string) {
 	writer.WriteHeader(http.StatusOK)
 }
 
-func (server *fakeS3Server) putObject(writer http.ResponseWriter, request *http.Request, key string) {
+func (server *fakeS3Server) putObject(
+	writer http.ResponseWriter,
+	request *http.Request,
+	key string,
+) {
 	body, err := io.ReadAll(request.Body)
 	if err != nil {
 		writer.WriteHeader(http.StatusBadRequest)
@@ -201,6 +223,7 @@ func (server *fakeS3Server) putObject(writer http.ResponseWriter, request *http.
 	}
 
 	server.mu.Lock()
+
 	server.objects[key] = body
 	server.mu.Unlock()
 	writer.WriteHeader(http.StatusOK)
@@ -218,5 +241,8 @@ func splitS3Path(urlPath string) (string, string) {
 
 func writeS3NotFound(writer http.ResponseWriter) {
 	writer.WriteHeader(http.StatusNotFound)
-	_, _ = writer.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code></Error>`))
+
+	_, _ = writer.Write([]byte(
+		`<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code></Error>`,
+	))
 }
