@@ -180,14 +180,20 @@ CloudNativePG (`backends.cnpg`, and `backends.cnpgOperator` if you also
 need the operator). Enabling SeaweedFS or RustFS selects S3 storage.
 Enabling Cockroach or CNPG selects postgres. Set those
 `outtake.storageBackend` / `outtake.databaseBackend` values yourself if
-you are not using a chart backend. A working combo is
-[`deploy/helm/outtake/examples/values-distributed.yaml`](deploy/helm/outtake/examples/values-distributed.yaml)
-(SeaweedFS + Cockroach). Point `media.nfs` (or `media.existingClaim`)
-at your Plex library, then install with that file over HTTPS:
+you are not using a chart backend. A working combo is SeaweedFS +
+Cockroach (full example:
+[`values-distributed.yaml`](deploy/helm/outtake/examples/values-distributed.yaml)).
+S3 access keys are still required. Point `media.nfs` (or
+`media.existingClaim`) at your Plex library:
 
 ```bash
 helm install outtake <chart> \
-  -f https://raw.githubusercontent.com/PapagoLabs/outtake/main/deploy/helm/outtake/examples/values-distributed.yaml
+  --set backends.seaweedfs.enabled=true \
+  --set backends.cockroach.enabled=true \
+  --set outtake.s3.accessKey=seaweedfs \
+  --set outtake.s3.secretKey=seaweedfs \
+  --set media.nfs.server=nfs.example.internal \
+  --set media.nfs.path=/export/plex
 ```
 
 Until a packaged chart exists, use Docker or Compose.
