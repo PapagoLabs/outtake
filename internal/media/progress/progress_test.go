@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package media
+package progress
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ func TestProgressWriter(t *testing.T) {
 
 	var last int
 
-	writer := &progressWriter{
+	writer := &Writer{
 		duration: 10,
 		on:       func(percent int) { last = percent },
 		buf:      bytes.Buffer{},
