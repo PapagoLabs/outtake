@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add editor gopher brand icon set by @nicholas-fedor in [#62](https://github.com/PapagoLabs/outtake/pull/62)
 - Add user-managed clip encode profiles by @nicholas-fedor in [#45](https://github.com/PapagoLabs/outtake/pull/45)
 - Add GitHub Actions for templ, vet, lint, and test by @nicholas-fedor in [#3](https://github.com/PapagoLabs/outtake/pull/3)
 - Add PapagoLabs style floor to AGENTS.md by @nicholas-fedor
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Rewrite README as a user-facing guide by @nicholas-fedor in [#63](https://github.com/PapagoLabs/outtake/pull/63)
 - Bind reusable build to github environment by @nicholas-fedor in [#58](https://github.com/PapagoLabs/outtake/pull/58)
 - Wire reusable goreleaser pipelines by @nicholas-fedor in [#52](https://github.com/PapagoLabs/outtake/pull/52)
 - Preview clips and highlight the library browser by @nicholas-fedor in [#46](https://github.com/PapagoLabs/outtake/pull/46)
@@ -33,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update zizmorcore/zizmor-action action to v0.6.3 by @renovate[bot] in [#56](https://github.com/PapagoLabs/outtake/pull/56)
 - Update module modernc.org/sqlite to v1.58.0 by @renovate[bot] in [#38](https://github.com/PapagoLabs/outtake/pull/38)
 - Update step-security/harden-runner action to v2.21.1 by @renovate[bot] in [#55](https://github.com/PapagoLabs/outtake/pull/55)
 - Update module golang.org/x/crypto to v0.56.0 by @renovate[bot] in [#53](https://github.com/PapagoLabs/outtake/pull/53)
@@ -77,8 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#58](https://github.com/PapagoLabs/outtake/pull/58)
-- @github-actions[bot] made their first contribution in [#54](https://github.com/PapagoLabs/outtake/pull/54)
+- @nicholas-fedor made their first contribution in [#63](https://github.com/PapagoLabs/outtake/pull/63)
+- @github-actions[bot] made their first contribution in [#57](https://github.com/PapagoLabs/outtake/pull/57)
+- @renovate[bot] made their first contribution in [#56](https://github.com/PapagoLabs/outtake/pull/56)
 
 ## Compare Releases
 
