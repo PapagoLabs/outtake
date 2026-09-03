@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Extract page widgets, view models, and asset js by @nicholas-fedor in [#87](https://github.com/PapagoLabs/outtake/pull/87)
 - Nest plex.tv XML decode under decode/plextv by @nicholas-fedor in [#85](https://github.com/PapagoLabs/outtake/pull/85)
 - Nest PMS JSON decode under decode/pms by @nicholas-fedor in [#81](https://github.com/PapagoLabs/outtake/pull/81)
 - Point README at examples/docker and k8s trees by @nicholas-fedor in [#82](https://github.com/PapagoLabs/outtake/pull/82)
@@ -94,8 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#85](https://github.com/PapagoLabs/outtake/pull/85)
-- @github-actions[bot] made their first contribution in [#84](https://github.com/PapagoLabs/outtake/pull/84)
+- @nicholas-fedor made their first contribution in [#87](https://github.com/PapagoLabs/outtake/pull/87)
+- @github-actions[bot] made their first contribution in [#86](https://github.com/PapagoLabs/outtake/pull/86)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
