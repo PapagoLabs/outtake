@@ -1,12 +1,33 @@
-<p align="center">
-  <img src="assets/brand/mascot.png" alt="Outtake" width="180"/>
-</p>
+<!-- markdownlint-disable -->
+<div align="center">
+  <a href="https://github.com/PapagoLabs/outtake">
+    <img src="assets/brand/mascot.png" alt="Outtake" width="180" />
+  </a>
 
 # Outtake
 
-Outtake is a web app that cuts video clips, GIFs, and screenshots from
-your Plex libraries. Sign in with Plex, pick a title, mark a range, and
-save the export.
+  A web app that cuts video clips, GIFs, and screenshots from your Plex libraries.<br/><br/>
+
+  [![Go 1.27+](https://img.shields.io/badge/Go-1.27+-00ADD8?style=flat&logo=go)](https://go.dev/)
+  [![Test](https://github.com/PapagoLabs/outtake/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/PapagoLabs/outtake/actions/workflows/test.yaml)
+  [![Lint](https://github.com/PapagoLabs/outtake/actions/workflows/lint-go.yaml/badge.svg?branch=main)](https://github.com/PapagoLabs/outtake/actions/workflows/lint-go.yaml)
+  [![Docker Hub pulls](https://img.shields.io/docker/pulls/papagolabs/outtake.svg)](https://hub.docker.com/r/papagolabs/outtake)
+  [![GHCR](https://img.shields.io/badge/ghcr.io-papagolabs%2Fouttake-blue?logo=github)](https://github.com/PapagoLabs/outtake/pkgs/container/outtake)
+  [![License](https://img.shields.io/github/license/PapagoLabs/outtake.svg)](LICENSE)
+</div>
+<!-- markdownlint-restore -->
+
+## Table of Contents
+
+- [What it does](#what-it-does)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Configuration](#configuration)
+- [First run](#first-run)
+- [Make a clip](#make-a-clip)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+- [Contributing](#contributing)
 
 ## What it does
 
