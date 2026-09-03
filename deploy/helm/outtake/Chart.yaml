@@ -1,0 +1,36 @@
+apiVersion: v2
+name: outtake
+description: Clip manager for Plex libraries. Local FS+SQLite by default; optional S3-compatible blobs and Postgres-protocol DB for Kubernetes.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - plex
+  - clips
+  - seaweedfs
+  - rustfs
+  - cockroachdb
+sources:
+  - https://github.com/PapagoLabs/outtake
+dependencies:
+  - name: seaweedfs
+    version: "4.45.0"
+    repository: "https://seaweedfs.github.io/seaweedfs/helm"
+    condition: backends.seaweedfs.enabled
+  - name: rustfs
+    version: "1.0.0-rc.5"
+    repository: "https://charts.rustfs.com"
+    condition: backends.rustfs.enabled
+  - name: cockroachdb
+    version: "22.0.3"
+    repository: "https://charts.cockroachdb.com/"
+    condition: backends.cockroach.enabled
+  - name: cluster
+    alias: cnpg-cluster
+    version: "0.8.1"
+    repository: "https://cloudnative-pg.io/charts/"
+    condition: backends.cnpg.enabled
+  - name: cloudnative-pg
+    version: "0.29.0"
+    repository: "https://cloudnative-pg.io/charts/"
+    condition: backends.cnpgOperator.enabled

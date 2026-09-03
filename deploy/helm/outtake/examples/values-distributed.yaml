@@ -1,0 +1,24 @@
+# One working k8s combo: SeaweedFS S3 + CockroachDB.
+# Operator input is NFS (or media.existingClaim). Clips stay on S3.
+# Swap seaweedfs for rustfs, or cockroach for cnpg, via backends.*.enabled.
+
+backends:
+  seaweedfs:
+    enabled: true
+  cockroach:
+    enabled: true
+
+outtake:
+  s3:
+    bucket: outtake
+    # Keys still required unless you point existingSecret at SeaweedFS credentials.
+    accessKey: seaweedfs
+    secretKey: seaweedfs
+
+media:
+  nfs:
+    server: nfs.example.internal
+    path: /export/plex
+    readOnly: true
+  plexMediaRoot: /volume1/Media
+  localMediaRoot: /media

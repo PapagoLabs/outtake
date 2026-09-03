@@ -1,0 +1,17 @@
+{{- if .Values.data.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "outtake.fullname" . }}-data
+  labels:
+    {{- include "outtake.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.data.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.data.persistence.size }}
+  {{- if .Values.data.persistence.storageClass }}
+  storageClassName: {{ .Values.data.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

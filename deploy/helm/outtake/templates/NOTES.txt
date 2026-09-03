@@ -1,0 +1,15 @@
+Outtake {{ .Chart.Version }}
+
+Local FS + SQLite is the default (same as docker-compose.yml).
+Clips/metadata stay on storage-path or S3, never on the Plex media NFS.
+
+Media source: media.nfs.server + media.nfs.path, or media.existingClaim.
+
+Storage backend: {{ include "outtake.storageBackend" . }}
+Database backend: {{ include "outtake.databaseBackend" . }}
+
+Distributed example: -f deploy/helm/outtake/examples/values-distributed.yaml
+SeaweedFS or RustFS: set backends.seaweedfs.enabled or backends.rustfs.enabled
+(or outtake.s3.endpoint). Cockroach or CNPG: set backends.cockroach.enabled or
+backends.cnpg.enabled (or outtake.databaseUrl).
+Run `helm dependency update deploy/helm/outtake` before any install.

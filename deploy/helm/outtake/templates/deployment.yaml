@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "outtake.fullname" . }}
+  labels:
+    {{- include "outtake.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "outtake.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "outtake.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: outtake
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ include "outtake.httpPort" . | int }}
+              protocol: TCP
+          env:
+            - name: OUTTAKE_LISTEN_ADDR
+              value: {{ printf "0.0.0.0:%s" (include "outtake.httpPort" .) | quote }}
+            - name: OUTTAKE_LOG_LEVEL
+              value: {{ .Values.outtake.logLevel | quote }}
+            - name: OUTTAKE_ENV
+              value: {{ .Values.outtake.env | quote }}
+            {{- if .Values.outtake.publicBaseUrl }}
+            - name: OUTTAKE_PUBLIC_BASE_URL
+              value: {{ .Values.outtake.publicBaseUrl | quote }}
+            {{- end }}
+            - name: OUTTAKE_STORAGE_BACKEND
+              value: {{ include "outtake.storageBackend" . | quote }}
+            - name: OUTTAKE_STORAGE_PATH
+              value: {{ .Values.outtake.storagePath | quote }}
+            - name: OUTTAKE_DATABASE_BACKEND
+              value: {{ include "outtake.databaseBackend" . | quote }}
+            {{- if eq (include "outtake.databaseBackend" .) "sqlite" }}
+            - name: OUTTAKE_DATABASE_PATH
+              value: {{ .Values.outtake.databasePath | quote }}
+            {{- end }}
+            - name: OUTTAKE_LOCAL_MEDIA_ROOT
+              value: {{ .Values.media.localMediaRoot | quote }}
+            {{- if .Values.media.plexMediaRoot }}
+            - name: OUTTAKE_PLEX_MEDIA_ROOT
+              value: {{ .Values.media.plexMediaRoot | quote }}
+            {{- end }}
+            {{- if eq (include "outtake.storageBackend" .) "s3" }}
+            - name: OUTTAKE_S3_ENDPOINT
+              value: {{ include "outtake.s3Endpoint" . | quote }}
+            - name: OUTTAKE_S3_BUCKET
+              value: {{ .Values.outtake.s3.bucket | quote }}
+            - name: OUTTAKE_S3_REGION
+              value: {{ .Values.outtake.s3.region | quote }}
+            - name: OUTTAKE_S3_USE_PATH_STYLE
+              value: {{ .Values.outtake.s3.usePathStyle | quote }}
+            - name: OUTTAKE_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.outtake.s3.existingSecret | default (include "outtake.fullname" .) }}
+                  key: {{ .Values.outtake.s3.accessKeyKey }}
+            - name: OUTTAKE_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.outtake.s3.existingSecret | default (include "outtake.fullname" .) }}
+                  key: {{ .Values.outtake.s3.secretKeyKey }}
+            {{- end }}
+            {{- if eq (include "outtake.databaseBackend" .) "postgres" }}
+            - name: OUTTAKE_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  {{- if and .Values.backends.cnpg.enabled (not .Values.outtake.existingSecret) (not .Values.outtake.databaseUrl) }}
+                  name: {{ .Release.Name }}-cnpg-cluster-app
+                  key: uri
+                  {{- else }}
+                  name: {{ .Values.outtake.existingSecret | default (include "outtake.fullname" .) }}
+                  key: {{ .Values.outtake.databaseUrlKey }}
+                  {{- end }}
+            {{- end }}
+          volumeMounts:
+            {{- if .Values.data.persistence.enabled }}
+            - name: data
+              mountPath: /data
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+            - name: media
+              mountPath: {{ .Values.media.mountPath }}
+              readOnly: {{ .Values.media.nfs.readOnly }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        {{- if .Values.data.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "outtake.fullname" . }}-data
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.media.existingClaim }}
+        - name: media
+          persistentVolumeClaim:
+            claimName: {{ .Values.media.existingClaim }}
+        {{- else }}
+        - name: media
+          nfs:
+            server: {{ .Values.media.nfs.server | quote }}
+            path: {{ .Values.media.nfs.path | quote }}
+            readOnly: {{ .Values.media.nfs.readOnly }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
