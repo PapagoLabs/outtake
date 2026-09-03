@@ -78,6 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clear storage and database lint-go hits by @nicholas-fedor in [#75](https://github.com/PapagoLabs/outtake/pull/75)
 - Clear gci noctx wsl and whitespace in handlers by @nicholas-fedor in [#17](https://github.com/PapagoLabs/outtake/pull/17)
 - Clear assigned App lint hits by @nicholas-fedor in [#16](https://github.com/PapagoLabs/outtake/pull/16)
 - Drop illegal exhaustruct_v5 exclude by @nicholas-fedor in [#13](https://github.com/PapagoLabs/outtake/pull/13)
@@ -87,8 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#70](https://github.com/PapagoLabs/outtake/pull/70)
-- @github-actions[bot] made their first contribution in [#72](https://github.com/PapagoLabs/outtake/pull/72)
+- @nicholas-fedor made their first contribution in [#75](https://github.com/PapagoLabs/outtake/pull/75)
+- @github-actions[bot] made their first contribution in [#73](https://github.com/PapagoLabs/outtake/pull/73)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
