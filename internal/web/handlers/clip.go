@@ -68,6 +68,9 @@ var (
 	// ErrUnknownQuality is returned when a clip profile id is not recognized.
 	errUnknownQuality = errors.New("unknown clip profile")
 
+	// ErrInvalidClipType is returned when clipType is set but not recognized.
+	errInvalidClipType = errors.New("clip type must be one of: clip, video, screenshot, gif")
+
 	// ErrInvalidGIFWidth is returned when a GIF width is outside the form bounds.
 	errInvalidGIFWidth = fmt.Errorf("gif width must be between %d and %d", gifMinWidth, gifMaxWidth)
 	// ErrInvalidGIFFPS is returned when a GIF fps is outside the form bounds.
@@ -143,7 +146,7 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 			ctx,
 			fiber.StatusBadRequest,
 			"invalid_clip_type",
-			"clip type must be one of: clip, video, screenshot, gif",
+			errInvalidClipType.Error(),
 		)
 	}
 
@@ -336,7 +339,12 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
 	}
 
-	err = handler.validateClipParams(clipJobType(req.ClipType, job.Type), req)
+	jobType, err := clipJobType(req.ClipType, job.Type)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, "invalid_clip_type", err.Error())
+	}
+
+	err = handler.validateClipParams(jobType, req)
 	if err != nil {
 		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
 	}
@@ -585,13 +593,17 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 }
 
 // clipJobType prefers the requested clip type, then the stored job type.
-func clipJobType(clipType string, fallback queue.JobType) queue.JobType {
-	jobType, ok := NormalizeClipType(clipType)
-	if ok {
-		return jobType
+func clipJobType(clipType string, fallback queue.JobType) (queue.JobType, error) {
+	if clipType == "" {
+		return fallback, nil
 	}
 
-	return fallback
+	jobType, ok := NormalizeClipType(clipType)
+	if !ok {
+		return "", errInvalidClipType
+	}
+
+	return jobType, nil
 }
 
 // validateGIFParams enforces the GIF width and fps bounds from the export form.

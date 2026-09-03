@@ -54,6 +54,21 @@ func TestNormalizeClipType(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestClipJobType(t *testing.T) {
+	t.Parallel()
+
+	got, err := clipJobType("", queue.JobTypeClip)
+	require.NoError(t, err)
+	assert.Equal(t, queue.JobTypeClip, got)
+
+	got, err = clipJobType("gif", queue.JobTypeClip)
+	require.NoError(t, err)
+	assert.Equal(t, queue.JobTypeGIF, got)
+
+	_, err = clipJobType("nope", queue.JobTypeClip)
+	require.ErrorIs(t, err, errInvalidClipType)
+}
+
 func TestValidateGIFParams(t *testing.T) {
 	t.Parallel()
 
