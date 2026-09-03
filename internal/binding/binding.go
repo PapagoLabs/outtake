@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/session"
+	"github.com/PapagoLabs/outtake/internal/plex/session"
 )
 
 // Binding holds the process-wide Plex server selection and live sessions.
