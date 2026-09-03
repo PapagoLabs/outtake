@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add README badge bar and centered header by @nicholas-fedor in [#65](https://github.com/PapagoLabs/outtake/pull/65)
 - Add editor gopher brand icon set by @nicholas-fedor in [#62](https://github.com/PapagoLabs/outtake/pull/62)
 - Add user-managed clip encode profiles by @nicholas-fedor in [#45](https://github.com/PapagoLabs/outtake/pull/45)
 - Add GitHub Actions for templ, vet, lint, and test by @nicholas-fedor in [#3](https://github.com/PapagoLabs/outtake/pull/3)
@@ -35,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update orhun/git-cliff-action action to v4.9.0 by @renovate[bot] in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 - Update docker/setup-qemu-action action to v4.3.0 by @renovate[bot] in [#59](https://github.com/PapagoLabs/outtake/pull/59)
 - Update zizmorcore/zizmor-action action to v0.6.3 by @renovate[bot] in [#56](https://github.com/PapagoLabs/outtake/pull/56)
 - Update module modernc.org/sqlite to v1.58.0 by @renovate[bot] in [#38](https://github.com/PapagoLabs/outtake/pull/38)
@@ -81,8 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @github-actions[bot] made their first contribution in [#61](https://github.com/PapagoLabs/outtake/pull/61)
-- @nicholas-fedor made their first contribution in [#63](https://github.com/PapagoLabs/outtake/pull/63)
+- @nicholas-fedor made their first contribution in [#65](https://github.com/PapagoLabs/outtake/pull/65)
+- @github-actions[bot] made their first contribution in [#66](https://github.com/PapagoLabs/outtake/pull/66)
+- @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
 
