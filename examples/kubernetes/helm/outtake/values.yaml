@@ -38,7 +38,8 @@ data:
       - ReadWriteOnce
 
 # Optional in-cluster backends. Disabled by default. Pick at most one blob and one DB.
-# Run `helm dependency update deploy/helm/outtake` before any install. Helm checks Chart.yaml deps even when backends are disabled.
+# Run `helm dependency update examples/kubernetes/helm/outtake` before any install.
+# Helm checks Chart.yaml deps even when backends are disabled. There is no PapagoLabs Helm repo.
 backends:
   seaweedfs:
     enabled: false

@@ -1,0 +1,14 @@
+# Requires the CloudNativePG operator already in the cluster.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: outtake-pg
+  namespace: outtake
+spec:
+  instances: 1
+  bootstrap:
+    initdb:
+      database: outtake
+      owner: outtake
+  storage:
+    size: 8Gi

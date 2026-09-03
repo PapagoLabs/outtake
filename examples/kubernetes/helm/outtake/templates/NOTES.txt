@@ -8,8 +8,7 @@ Media source: media.nfs.server + media.nfs.path, or media.existingClaim.
 Storage backend: {{ include "outtake.storageBackend" . }}
 Database backend: {{ include "outtake.databaseBackend" . }}
 
-Distributed example: -f deploy/helm/outtake/examples/values-distributed.yaml
-SeaweedFS or RustFS: set backends.seaweedfs.enabled or backends.rustfs.enabled
-(or outtake.s3.endpoint). Cockroach or CNPG: set backends.cockroach.enabled or
-backends.cnpg.enabled (or outtake.databaseUrl).
-Run `helm dependency update deploy/helm/outtake` before any install.
+This chart lives at examples/kubernetes/helm/outtake (no PapagoLabs Helm repo).
+Distributed overlay: -f examples/kubernetes/helm/outtake/examples/values-distributed.yaml
+Suggested manifests: examples/kubernetes/seaweedfs-cnpg/ and seaweedfs-cockroach/.
+Run `helm dependency update examples/kubernetes/helm/outtake` before any install.

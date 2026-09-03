@@ -1,12 +1,14 @@
 # Outtake Helm chart
 
-Packages Outtake for Kubernetes. `docker-compose.yml` remains the local FS + SQLite path.
+Example chart under `examples/kubernetes/helm/outtake`. PapagoLabs has no Helm repo; install from this tree after a checkout, not via `helm repo add`.
 
-The operator site input is Plex media: set `media.nfs.server` and `media.nfs.path`, or `media.existingClaim`. Clips stay on `storage-path` or S3.
+`docker-compose.yml` remains the local FS + SQLite path. Suggested plain manifests live in `examples/kubernetes/seaweedfs-cnpg/` and `examples/kubernetes/seaweedfs-cockroach/`.
+
+The site input is Plex media: set `media.nfs.server` and `media.nfs.path`, or `media.existingClaim`. Clips stay on `storage-path` or S3.
 
 ## Values (App config knobs)
 
-Env is `OUTTAKE_*`. Defaults stay local. Runtime selection lands in App PR #69.
+Env is `OUTTAKE_*`. Defaults stay local.
 
 | Value | Env | Default |
 | --- | --- | --- |
@@ -22,7 +24,14 @@ Env is `OUTTAKE_*`. Defaults stay local. Runtime selection lands in App PR #69.
 
 ## Optional backends
 
-Run `helm dependency update deploy/helm/outtake` before any install (Helm checks Chart.yaml deps even when backends are disabled). Then enable at most one blob and one DB:
+From a repo checkout:
+
+```
+helm dependency update examples/kubernetes/helm/outtake
+helm install outtake examples/kubernetes/helm/outtake
+```
+
+Helm checks Chart.yaml deps even when backends are disabled. Enable at most one blob and one DB:
 
 | Value | Stands up |
 | --- | --- |
