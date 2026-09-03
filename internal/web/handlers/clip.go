@@ -47,6 +47,15 @@ const (
 	messageNotFound = "clip not found"
 	// ParamID is the parameter name for ID.
 	paramID = "id"
+
+	// GIFMinWidth is the lowest GIF export width accepted from the form.
+	gifMinWidth = 120
+	// GIFMaxWidth is the highest GIF export width accepted from the form.
+	gifMaxWidth = 1920
+	// GIFMinFPS is the lowest GIF frame rate accepted from the form.
+	gifMinFPS = 5
+	// GIFMaxFPS is the highest GIF frame rate accepted from the form.
+	gifMaxFPS = 30
 )
 
 var (
@@ -58,6 +67,11 @@ var (
 
 	// ErrUnknownQuality is returned when a clip profile id is not recognized.
 	errUnknownQuality = errors.New("unknown clip profile")
+
+	// ErrInvalidGIFWidth is returned when a GIF width is outside the form bounds.
+	errInvalidGIFWidth = fmt.Errorf("gif width must be between %d and %d", gifMinWidth, gifMaxWidth)
+	// ErrInvalidGIFFPS is returned when a GIF fps is outside the form bounds.
+	errInvalidGIFFPS = fmt.Errorf("gif fps must be between %d and %d", gifMinFPS, gifMaxFPS)
 )
 
 // NewClipHandler creates a new clip handler.
@@ -133,9 +147,9 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 		)
 	}
 
-	err = handler.validateDuration(jobType, req.Duration)
+	err = handler.validateClipParams(jobType, req)
 	if err != nil {
-		return writeError(ctx, fiber.StatusBadRequest, "invalid_duration", err.Error())
+		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
 	}
 
 	req.Quality, err = handler.resolveQuality(ctx.Context(), req.Quality)
@@ -322,6 +336,11 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
 	}
 
+	err = handler.validateClipParams(clipJobType(req.ClipType, job.Type), req)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
+	}
+
 	applyClipEdits(job, req)
 
 	err = handler.db.SaveClip(ctx.Context(), job)
@@ -329,11 +348,9 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
 	}
 
-	if ctx.FormValue("regenerate") == "1" {
-		err = handler.queueRegenerate(ctx.Context(), job)
-		if err != nil {
-			return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
-		}
+	err = handler.maybeRegenerate(ctx, job)
+	if err != nil {
+		return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
 	}
 
 	return redirectTo(ctx, clipReturnPath(job.MediaID))
@@ -416,6 +433,20 @@ func (handler *ClipHandler) lookupJob(ctx context.Context, id string) *queue.Job
 	}
 
 	return stored
+}
+
+// maybeRegenerate re-queues a clip when the regenerate form flag is set.
+func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error {
+	if ctx.FormValue("regenerate") != "1" {
+		return nil
+	}
+
+	err := handler.queueRegenerate(ctx.Context(), job)
+	if err != nil {
+		return fmt.Errorf("regenerate: %w", err)
+	}
+
+	return nil
 }
 
 // queueRegenerate re-queues a clip after metadata changes.
@@ -516,6 +547,21 @@ func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) 
 	return "", errUnknownQuality
 }
 
+// validateClipParams enforces duration and GIF encoder bounds.
+func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req api.ClipRequest) error {
+	err := handler.validateDuration(jobType, req.Duration)
+	if err != nil {
+		return fmt.Errorf("validate duration: %w", err)
+	}
+
+	err = validateGIFParams(jobType, req.Width, req.FPS)
+	if err != nil {
+		return fmt.Errorf("validate gif: %w", err)
+	}
+
+	return nil
+}
+
 // validateDuration enforces clip duration limits.
 func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration float64) error {
 	if jobType == queue.JobTypeScreenshot {
@@ -533,6 +579,33 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 
 	if duration <= 0 || duration > float64(maxDur) {
 		return fmt.Errorf("%w: must be between 0 and %d seconds", errInvalidDuration, maxDur)
+	}
+
+	return nil
+}
+
+// clipJobType prefers the requested clip type, then the stored job type.
+func clipJobType(clipType string, fallback queue.JobType) queue.JobType {
+	jobType, ok := NormalizeClipType(clipType)
+	if ok {
+		return jobType
+	}
+
+	return fallback
+}
+
+// validateGIFParams enforces the GIF width and fps bounds from the export form.
+func validateGIFParams(jobType queue.JobType, width, fps int) error {
+	if jobType != queue.JobTypeGIF {
+		return nil
+	}
+
+	if width != 0 && (width < gifMinWidth || width > gifMaxWidth) {
+		return errInvalidGIFWidth
+	}
+
+	if fps != 0 && (fps < gifMinFPS || fps > gifMaxFPS) {
+		return errInvalidGIFFPS
 	}
 
 	return nil

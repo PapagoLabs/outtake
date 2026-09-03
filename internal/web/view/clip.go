@@ -48,6 +48,7 @@ const (
 	// ClipStatusFailed is a clip that failed to encode.
 	ClipStatusFailed = "failed"
 	// ClipStatusCancelled is a clip stopped by the user.
+	// The persisted job status literal is "canceled".
 	ClipStatusCancelled = "canceled"
 )
 

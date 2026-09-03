@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,13 +18,15 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+const testTVShows = "TV Shows"
+
 func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
 	t.Parallel()
 
-	libs := []view.LibraryItem{{ID: "2", Title: "TV Shows", Type: "show"}}
+	libs := []view.LibraryItem{{ID: "2", Title: testTVShows, Type: "show"}}
 	crumbs := mediaCrumbs(libs, "2", "", "", "")
 	require.Len(t, crumbs, 2)
-	assert.Equal(t, "TV Shows", crumbs[1].Title)
+	assert.Equal(t, testTVShows, crumbs[1].Title)
 	assert.Equal(t, "/media?library=2", crumbs[1].URL)
 }
 
@@ -65,7 +68,7 @@ func TestItemCrumbsEpisodeTrail(t *testing.T) {
 		Title:            "Episode 3",
 		Type:             plex.TypeEpisode,
 		LibraryID:        "2",
-		LibraryTitle:     "TV Shows",
+		LibraryTitle:     testTVShows,
 		ParentID:         "10",
 		ParentTitle:      "Season 2",
 		GrandparentID:    "9",
@@ -74,11 +77,42 @@ func TestItemCrumbsEpisodeTrail(t *testing.T) {
 
 	require.Len(t, crumbs, 5)
 	assert.Equal(t, "Libraries", crumbs[0].Title)
-	assert.Equal(t, "TV Shows", crumbs[1].Title)
+	assert.Equal(t, testTVShows, crumbs[1].Title)
 	assert.Equal(t, "Better Call Saul", crumbs[2].Title)
 	assert.Equal(t, "Season 2", crumbs[3].Title)
 	assert.Equal(t, "Episode 3", crumbs[4].Title)
 	assert.Empty(t, crumbs[4].URL)
+}
+
+func TestItemCrumbsSeasonUsesParentShow(t *testing.T) {
+	t.Parallel()
+
+	crumbs := itemCrumbs(plex.MediaItem{
+		Title:        "Season 2",
+		Type:         plex.TypeSeason,
+		LibraryID:    "2",
+		LibraryTitle: testTVShows,
+		ParentID:     "9",
+		ParentTitle:  "Better Call Saul",
+	}, nil)
+
+	require.Len(t, crumbs, 4)
+	assert.Equal(t, "Libraries", crumbs[0].Title)
+	assert.Equal(t, testTVShows, crumbs[1].Title)
+	assert.Equal(t, "Better Call Saul", crumbs[2].Title)
+	assert.Equal(t, "Season 2", crumbs[3].Title)
+	assert.Contains(t, crumbs[2].URL, "parent=9")
+}
+
+func TestMediaItemLocationEscapesID(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "/media/item/148392", mediaItemLocation("148392", url.Values{}))
+	assert.Equal(
+		t,
+		"/media/item/a%2Fb",
+		mediaItemLocation("a/b", url.Values{}),
+	)
 }
 
 func TestChooserLibraries(t *testing.T) {

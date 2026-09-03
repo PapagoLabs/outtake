@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
+
+	"github.com/PapagoLabs/outtake/internal/database"
 )
 
 func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
@@ -59,4 +61,24 @@ func TestAuthLogoutRedirectsToLogin(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
 	assert.Equal(t, pathLogin, resp.Header.Get("Location"))
+}
+
+func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/logout.db")
+	require.NoError(t, err)
+	require.NoError(t, db.Close())
+
+	handler := NewAuthHandler("outtake", "test-client", "http://localhost", db, nil)
+	app := fiber.New()
+	app.Get("/api/auth/logout", handler.Logout)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/logout", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
 }

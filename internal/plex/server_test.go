@@ -13,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
 )
 
 const (
@@ -165,6 +167,15 @@ func TestGetMediaPageSendsContainerQuery(t *testing.T) {
 	assert.Equal(t, 200, page.Total)
 	assert.Equal(t, 1999, page.Items[0].Year)
 	assert.Equal(t, "Paged (1999)", page.Items[0].DisplayTitle())
+}
+
+func TestMediaPageNormalizesNegativeStart(t *testing.T) {
+	t.Parallel()
+
+	page := mediaPage(pms.Container{}, -5, 48)
+	assert.Equal(t, 0, page.Start)
+	assert.Equal(t, 0, page.Total)
+	assert.Equal(t, 48, page.Size)
 }
 
 func TestGetMediaPath(t *testing.T) {

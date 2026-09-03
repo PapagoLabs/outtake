@@ -298,12 +298,17 @@ func (*HTMLHandler) NewClip(ctx fiber.Ctx) error {
 		values.Set(queryStart, start)
 	}
 
-	location := "/media/item/" + mediaID
+	return redirectTo(ctx, mediaItemLocation(mediaID, values))
+}
+
+// mediaItemLocation builds /media/item/:id with a path-escaped id.
+func mediaItemLocation(mediaID string, values url.Values) string {
+	location := "/media/item/" + url.PathEscape(mediaID)
 	if encoded := values.Encode(); encoded != "" {
 		location += "?" + encoded
 	}
 
-	return redirectTo(ctx, location)
+	return location
 }
 
 // Playback renders live Plex playback for a media item.
@@ -1052,7 +1057,7 @@ func appendShowCrumbs(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
 	}
 
 	if item.Type != plex.TypeEpisode || item.ParentID == "" {
-		return crumbs
+		return appendSeasonShowCrumb(crumbs, item)
 	}
 
 	seasonTitle := item.ParentTitle
@@ -1069,5 +1074,17 @@ func appendShowCrumbs(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
 			item.GrandparentID,
 			item.GrandparentTitle,
 		),
+	})
+}
+
+// appendSeasonShowCrumb adds the parent show for a season item.
+func appendSeasonShowCrumb(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
+	if item.Type != plex.TypeSeason || item.ParentID == "" || item.ParentTitle == "" {
+		return crumbs
+	}
+
+	return append(crumbs, view.Crumb{
+		Title: item.ParentTitle,
+		URL:   browseURL(item.LibraryID, item.ParentID, item.ParentTitle, "", ""),
 	})
 }

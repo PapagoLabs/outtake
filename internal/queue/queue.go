@@ -216,28 +216,34 @@ func (que *Queue) processJob(job *Job) {
 	_, canceled := que.dropped[job.ID]
 	delete(que.dropped, job.ID)
 	delete(que.cancels, job.ID)
-	que.mu.Unlock()
 
 	if canceled {
 		job.Status = JobStatusCancelled
 		job.Error = "canceled"
-		logging.Logger.Info().Str("job_id", job.ID).Msg("job canceled")
 	} else if err != nil {
 		job.Status = JobStatusFailed
 		job.Error = err.Error()
+	} else {
+		job.Status = JobStatusCompleted
+		job.Progress = progressDone
+	}
+
+	job.UpdatedAt = time.Now()
+	que.mu.Unlock()
+
+	if canceled {
+		logging.Logger.Info().Str("job_id", job.ID).Msg("job canceled")
+	} else if err != nil {
 		logging.Logger.Error().
 			Str("job_id", job.ID).
 			Err(err).
 			Msg("job failed")
 	} else {
-		job.Status = JobStatusCompleted
-		job.Progress = progressDone
 		logging.Logger.Info().
 			Str("job_id", job.ID).
 			Msg("job completed")
 	}
 
-	job.UpdatedAt = time.Now()
 	que.notify(job)
 }
 

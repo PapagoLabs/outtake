@@ -92,6 +92,19 @@ func TestClipCard(t *testing.T) {
 			notContains: []string{"On disk", "hx-trigger"},
 		},
 		{
+			name: "canceled status",
+			tweak: func(item *view.ClipItem) {
+				item.Status = view.ClipStatusCancelled
+				item.FileExists = false
+			},
+			contains: []string{view.ClipStatusCancelled},
+			notContains: []string{
+				"Missing file",
+				"On disk",
+				"hx-trigger",
+			},
+		},
+		{
 			name: "gif preview",
 			tweak: func(item *view.ClipItem) {
 				item.ClipType = "gif"

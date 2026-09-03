@@ -138,15 +138,17 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 		}
 	}
 
+	if handler.bind != nil {
+		handler.bind.Clear()
+	}
+
 	if handler.db != nil {
 		err := handler.db.ClearAuth(ctx.Context())
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to clear stored plex credentials")
-		}
-	}
 
-	if handler.bind != nil {
-		handler.bind.Clear()
+			return writeError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+		}
 	}
 
 	return redirectTo(ctx, pathLogin)

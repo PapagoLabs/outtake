@@ -411,6 +411,10 @@ func containerQuery(start, size int) string {
 
 // mediaPage maps a PMS container onto a page of media items.
 func mediaPage(container pms.Container, start, size int) MediaPage {
+	if start < 0 {
+		start = 0
+	}
+
 	items := metadataItems(container.Metadata, "")
 	total := container.TotalSize
 	if total == 0 {

@@ -1,11 +1,5 @@
 (function () {
 	var root = document.documentElement;
-	var stored = window.localStorage.getItem('outtake-theme');
-	if (stored === 'light') {
-		root.classList.remove('dark');
-	} else if (stored === 'dark') {
-		root.classList.add('dark');
-	}
 
 	function syncThemeIcons() {
 		var dark = root.classList.contains('dark');
