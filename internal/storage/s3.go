@@ -285,24 +285,38 @@ func isNotFound(err error) bool {
 
 // writeObjectFile writes downloaded object bytes to path.
 func writeObjectFile(path string, body io.Reader) error {
-	err := os.MkdirAll(filepath.Dir(path), dirPermissions)
+	dir := filepath.Dir(path)
+	err := os.MkdirAll(dir, dirPermissions)
 	if err != nil {
 		return fmt.Errorf("create object dir: %w", err)
 	}
 
-	file, err := os.Create(path)
+	file, err := os.CreateTemp(dir, ".download-*")
 	if err != nil {
-		return fmt.Errorf("create local file: %w", err)
+		return fmt.Errorf("create temp file: %w", err)
 	}
+
+	tmpPath := file.Name()
 
 	_, copyErr := io.Copy(file, body)
 	closeErr := file.Close()
 	if copyErr != nil {
+		_ = os.Remove(tmpPath)
+
 		return fmt.Errorf("write local file: %w", copyErr)
 	}
 
 	if closeErr != nil {
+		_ = os.Remove(tmpPath)
+
 		return fmt.Errorf("close local file: %w", closeErr)
+	}
+
+	err = os.Rename(tmpPath, path)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+
+		return fmt.Errorf("rename local file: %w", err)
 	}
 
 	return nil

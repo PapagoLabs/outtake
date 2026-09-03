@@ -4,7 +4,9 @@
 package database
 
 import (
+	"context"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -55,8 +57,11 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
+	clipID := t.Name() + strconv.FormatInt(time.Now().UnixNano(), 10)
+	t.Cleanup(func() { _ = db.DeleteClip(context.Background(), clipID) })
+
 	job := &queue.Job{
-		ID:            "pg-clip-1",
+		ID:            clipID,
 		Type:          queue.JobTypeClip,
 		Name:          "Intro",
 		MediaID:       "100",
@@ -82,7 +87,6 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 	got, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
 	assert.Equal(t, job.MediaTitle, got.MediaTitle)
-	require.NoError(t, db.DeleteClip(t.Context(), job.ID))
 }
 
 func testDatabaseConfig(path, backend, url string) *config.Config {

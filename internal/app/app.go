@@ -68,6 +68,8 @@ func New(cfg *config.Config) (*App, error) {
 
 	store, err := storage.NewFromConfig(cfg)
 	if err != nil {
+		_ = db.Close()
+
 		return nil, fmt.Errorf("init storage: %w", err)
 	}
 

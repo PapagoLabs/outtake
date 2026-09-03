@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/PapagoLabs/outtake/internal/config"
 
@@ -32,6 +33,9 @@ type DB struct {
 const (
 	// SQLFileExtensionLen is the length of the SQL file extension.
 	sqlFileExtensionLen = 4
+
+	// MigrateTimeout is the maximum time allowed to ping and apply migrations.
+	migrateTimeout = 30 * time.Second
 )
 
 var (
@@ -186,7 +190,7 @@ func (db *DB) execMigration(ctx context.Context, name string) error {
 
 // finishOpen pings and migrates a newly opened connection.
 func finishOpen(conn *sql.DB, sqlDialect dialect) (*DB, error) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), migrateTimeout)
 	defer cancel()
 
 	err := conn.PingContext(ctx)
@@ -198,7 +202,7 @@ func finishOpen(conn *sql.DB, sqlDialect dialect) (*DB, error) {
 
 	db := &DB{conn: conn, dialect: sqlDialect}
 
-	err = db.migrate()
+	err = db.migrate(ctx)
 	if err != nil {
 		_ = conn.Close()
 
@@ -209,10 +213,7 @@ func finishOpen(conn *sql.DB, sqlDialect dialect) (*DB, error) {
 }
 
 // migrate runs the database migrations.
-func (db *DB) migrate() error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+func (db *DB) migrate(ctx context.Context) error {
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			name TEXT PRIMARY KEY
