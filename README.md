@@ -22,6 +22,8 @@
 - [What it does](#what-it-does)
 - [Requirements](#requirements)
 - [Install](#install)
+  - [Docker Compose](#docker-compose)
+  - [Kubernetes / Helm](#kubernetes--helm)
 - [Configuration](#configuration)
 - [First run](#first-run)
 - [Make a clip](#make-a-clip)
@@ -50,6 +52,11 @@ The server listens on port 8080 by default.
   `OUTTAKE_FFMPEG_PATH` and `OUTTAKE_FFPROBE_PATH`).
 
 ## Install
+
+Two deploy modes: **Docker Compose** is the local filesystem + SQLite
+path. **Kubernetes / Helm** is for clusters — you point NFS (or an
+existing claim) at Plex media; clips and metadata do not live on that
+share.
 
 ### Docker Compose
 
@@ -87,6 +94,11 @@ docker compose up -d
 ```
 
 Then open [http://localhost:8080](http://localhost:8080).
+
+Compose defaults to filesystem blobs and SQLite. Clips land on
+`OUTTAKE_STORAGE_PATH` (the `/data` volume), not on the media bind.
+[`docker-compose.yml`](docker-compose.yml) is the same local path when you
+build from source.
 
 If Plex reports a different filesystem prefix than that mount, also set
 `OUTTAKE_PLEX_MEDIA_ROOT` (see [Configuration](#configuration)).
@@ -135,24 +147,83 @@ docker compose up --build
 This uses `build/docker/Dockerfile.dev` and also bundles ffmpeg and
 ffprobe.
 
+### Kubernetes / Helm
+
+Use the chart at [`deploy/helm/outtake`](deploy/helm/outtake). Values and
+optional backends are documented in that chart's
+[README](deploy/helm/outtake/README.md).
+
+The operator site input is Plex media: set `media.nfs.server` and
+`media.nfs.path`, or `media.existingClaim`. Clips stay on `storage-path`
+or S3 — they do **not** live on the media NFS share.
+
+Defaults match Compose: `outtake.storageBackend` is `filesystem` and
+`outtake.databaseBackend` is `sqlite`. The image is
+`ghcr.io/papagolabs/outtake:latest` (no tagged release yet).
+
+Run `helm dependency update` **before any install**. Helm checks
+Chart.yaml dependencies even when backends are disabled:
+
+```bash
+helm dependency update deploy/helm/outtake
+```
+
+Minimal install (NFS for Plex media; filesystem + SQLite for clips):
+
+```bash
+helm install outtake deploy/helm/outtake \
+  --set media.nfs.server=nfs.example.internal \
+  --set media.nfs.path=/export/plex
+```
+
+Optional in-cluster backends (at most one blob store and one database):
+SeaweedFS or RustFS, and CockroachDB or CloudNativePG (`backends.cnpg`;
+`backends.cnpgOperator` if you also need the operator). Enabling
+SeaweedFS or RustFS selects S3 storage; enabling Cockroach or CNPG
+selects postgres. Set those `outtake.storageBackend` /
+`outtake.databaseBackend` values yourself if you are not using a chart
+backend. A working combo is
+[`deploy/helm/outtake/examples/values-distributed.yaml`](deploy/helm/outtake/examples/values-distributed.yaml)
+(SeaweedFS + Cockroach; NFS remains a site input):
+
+```bash
+helm install outtake deploy/helm/outtake \
+  -f deploy/helm/outtake/examples/values-distributed.yaml
+```
+
+Edit the example's `media.nfs` (or `media.existingClaim`) to your Plex
+library before applying it.
+
 ## Configuration
 
 Outtake reads `OUTTAKE_*` environment variables. Compose files also use
 `OUTTAKE_MEDIA_PATH` for the host library bind (that name is not an
 application setting).
 
-Docker images store the database and exports under `/data` (`outtake.db`
-and `output/`). The example compose file keeps that volume as
-`outtake-data`.
+Docker images store the SQLite database and filesystem exports under
+`/data` (`outtake.db` and `output/`). The example compose file keeps that
+volume as `outtake-data`. Clips and metadata use `OUTTAKE_STORAGE_PATH`
+(or S3 when `OUTTAKE_STORAGE_BACKEND=s3`). `OUTTAKE_LOCAL_MEDIA_ROOT` /
+`OUTTAKE_PLEX_MEDIA_ROOT` are **source media only** — not the clip store,
+and not Kubernetes media NFS.
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
 | `OUTTAKE_LISTEN_ADDR` | Address the web server binds | `0.0.0.0:8080` (images use `:8080`) |
 | `OUTTAKE_PUBLIC_BASE_URL` | URL Plex should return to after sign-in | derived from the listen address, or `http://localhost:8080` in images |
+| `OUTTAKE_DATABASE_BACKEND` | `sqlite` or `postgres` | `sqlite` |
 | `OUTTAKE_DATABASE_PATH` | SQLite database file | `~/.local/share/outtake/outtake.db` (images use `/data/outtake.db`) |
-| `OUTTAKE_STORAGE_PATH` | Directory for exported files | `~/.local/share/outtake/output` (images use `/data/output`) |
-| `OUTTAKE_LOCAL_MEDIA_ROOT` | Local directory that should contain Plex files (container mount is usually `/media`) | unset (compose examples set `/media`) |
-| `OUTTAKE_PLEX_MEDIA_ROOT` | Prefix Plex reports for those files; replaced by `OUTTAKE_LOCAL_MEDIA_ROOT` | unset |
+| `OUTTAKE_DATABASE_URL` | Postgres/pgx DSN (when backend is `postgres`) | unset |
+| `OUTTAKE_STORAGE_BACKEND` | `filesystem` or `s3` | `filesystem` |
+| `OUTTAKE_STORAGE_PATH` | Filesystem blobs, or S3 scratch — not Plex media / NFS | `~/.local/share/outtake/output` (images use `/data/output`) |
+| `OUTTAKE_S3_ENDPOINT` | S3-compatible API endpoint | unset |
+| `OUTTAKE_S3_BUCKET` | S3 bucket | unset |
+| `OUTTAKE_S3_REGION` | S3 region | `us-east-1` |
+| `OUTTAKE_S3_ACCESS_KEY` | S3 access key | unset |
+| `OUTTAKE_S3_SECRET_KEY` | S3 secret key | unset |
+| `OUTTAKE_S3_USE_PATH_STYLE` | Path-style S3 URLs (typical for SeaweedFS / RustFS) | `true` |
+| `OUTTAKE_LOCAL_MEDIA_ROOT` | Local directory that should contain Plex files (container mount is usually `/media`); source media only | unset (compose examples set `/media`) |
+| `OUTTAKE_PLEX_MEDIA_ROOT` | Prefix Plex reports for those files; replaced by `OUTTAKE_LOCAL_MEDIA_ROOT`; source media only | unset |
 | `OUTTAKE_FFMPEG_PATH` | `ffmpeg` binary | `ffmpeg` (images use `/usr/bin/ffmpeg`) |
 | `OUTTAKE_FFPROBE_PATH` | `ffprobe` binary | `ffprobe` (images use `/usr/bin/ffprobe`) |
 | `OUTTAKE_MAX_CLIP_DUR_SEC` | Maximum export duration in seconds | `600` |
@@ -221,7 +292,19 @@ is higher quality.
 - **Clips fail or files are missing.** The path Plex reports must be
   readable. In Docker, mount the library and set
   `OUTTAKE_PLEX_MEDIA_ROOT` / `OUTTAKE_LOCAL_MEDIA_ROOT` so that path
-  lands on `/media`.
+  lands on `/media`. On Kubernetes, that mount is `media.nfs` or
+  `media.existingClaim` — source media only. Clips stay on
+  `OUTTAKE_STORAGE_PATH` or S3, not on the media NFS share.
+- **Helm install fails on chart dependencies.** Run
+  `helm dependency update deploy/helm/outtake` before any install. Helm
+  checks Chart.yaml deps even when backends are disabled.
+- **Wrong storage or database backend.** Defaults are `filesystem` and
+  `sqlite`. For S3, set `OUTTAKE_STORAGE_BACKEND=s3` plus the `OUTTAKE_S3_*`
+  keys. For postgres, set `OUTTAKE_DATABASE_BACKEND=postgres` and
+  `OUTTAKE_DATABASE_URL`. On Helm, enable at most one blob backend
+  (`backends.seaweedfs` or `backends.rustfs`) and one database backend
+  (`backends.cockroach` or `backends.cnpg`), or use
+  `deploy/helm/outtake/examples/values-distributed.yaml`.
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and
   keep them on `PATH`, or set the path variables above. Docker images
   already include them.
