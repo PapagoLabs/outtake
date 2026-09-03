@@ -5,7 +5,9 @@
 
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package pages
+// Package quality renders clip profile and audio track selects.
+
+package quality
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
@@ -14,15 +16,11 @@ import (
 
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
+
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-type ClipProfileOption struct {
-	ID        string
-	Name      string
-	IsDefault bool
-}
-
-func qualityOptionSelected(profile ClipProfileOption, selected string) bool {
+func qualityOptionSelected(profile view.ClipProfileOption, selected string) bool {
 	if selected == "" {
 		return profile.IsDefault
 	}
@@ -30,12 +28,7 @@ func qualityOptionSelected(profile ClipProfileOption, selected string) bool {
 	return profile.ID == selected
 }
 
-type AudioTrackOption struct {
-	Index int
-	Label string
-}
-
-func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Component {
+func AudioSelect(id string, tracks []view.AudioTrackOption, selected int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -64,7 +57,7 @@ func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Compo
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(selected))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 29, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 23, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 			if templ_7745c5c3_Err != nil {
@@ -82,7 +75,7 @@ func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Compo
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 31, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 25, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -101,7 +94,7 @@ func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Compo
 					var templ_7745c5c3_Var4 string
 					templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(track.Index))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 34, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 28, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 					if templ_7745c5c3_Err != nil {
@@ -114,7 +107,7 @@ func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Compo
 					var templ_7745c5c3_Var5 string
 					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(track.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 34, Col: 71}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 28, Col: 71}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 					if templ_7745c5c3_Err != nil {
@@ -132,7 +125,7 @@ func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Compo
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(track.Index))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 36, Col: 46}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 30, Col: 46}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 					if templ_7745c5c3_Err != nil {
@@ -145,7 +138,7 @@ func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Compo
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(track.Label)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 36, Col: 62}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 30, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -166,7 +159,7 @@ func AudioSelect(id string, tracks []AudioTrackOption, selected int) templ.Compo
 	})
 }
 
-func QualitySelect(id string, profiles []ClipProfileOption, selected string) templ.Component {
+func QualitySelect(id string, profiles []view.ClipProfileOption, selected string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -194,7 +187,7 @@ func QualitySelect(id string, profiles []ClipProfileOption, selected string) tem
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 44, Col: 16}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 38, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
@@ -213,7 +206,7 @@ func QualitySelect(id string, profiles []ClipProfileOption, selected string) tem
 				var templ_7745c5c3_Var10 string
 				templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(profile.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 47, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 41, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 				if templ_7745c5c3_Err != nil {
@@ -226,7 +219,7 @@ func QualitySelect(id string, profiles []ClipProfileOption, selected string) tem
 				var templ_7745c5c3_Var11 string
 				templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(profile.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 47, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 41, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 				if templ_7745c5c3_Err != nil {
@@ -244,7 +237,7 @@ func QualitySelect(id string, profiles []ClipProfileOption, selected string) tem
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(profile.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 49, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 43, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 				if templ_7745c5c3_Err != nil {
@@ -257,7 +250,7 @@ func QualitySelect(id string, profiles []ClipProfileOption, selected string) tem
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(profile.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/quality.templ`, Line: 49, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/quality/quality.templ`, Line: 43, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 				if templ_7745c5c3_Err != nil {

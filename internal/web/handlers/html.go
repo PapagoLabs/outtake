@@ -24,8 +24,13 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/web/components/browse"
+	"github.com/PapagoLabs/outtake/internal/web/components/clip"
+	"github.com/PapagoLabs/outtake/internal/web/components/nav"
+	"github.com/PapagoLabs/outtake/internal/web/components/playback"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // HTMLHandler handles HTML page requests.
@@ -92,7 +97,7 @@ func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.ClipCard(toClipItem(job, handler.clipProfileOptions(ctx))).Render(
+		return clip.ClipCard(toClipItem(job, handler.clipProfileOptions(ctx))).Render(
 			ctx.Context(),
 			writer,
 		)
@@ -145,9 +150,9 @@ func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 	libraryID := ctx.Query(queryLibrary)
 	parentID := ctx.Query("parent")
 	items, libraries := handler.mediaContent(ctx, query, libraryID, parentID)
-	props := pages.MediaProps{
+	props := view.MediaProps{
 		Items:     items,
-		Libraries: libraries,
+		Libraries: chooserLibraries(libraries, query, libraryID),
 		Crumbs: mediaCrumbs(
 			libraries,
 			libraryID,
@@ -161,7 +166,7 @@ func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 
 	if ctx.Get("HX-Request") == "true" {
 		return renderHTML(ctx, func(writer io.Writer) error {
-			return pages.MediaResults(props).Render(ctx.Context(), writer)
+			return browse.MediaResults(props).Render(ctx.Context(), writer)
 		})
 	}
 
@@ -227,7 +232,7 @@ func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
 	selected := selectedLibraryID(ctx.Get("HX-Current-URL"), ctx.Query(queryLibrary))
 
 	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.NavLibraries(handler.sidebarLibraries(ctx), selected).
+		return nav.NavLibraries(handler.sidebarLibraries(ctx), selected).
 			Render(ctx.Context(), writer)
 	})
 }
@@ -285,7 +290,7 @@ func (handler *HTMLHandler) NewClip(ctx fiber.Ctx) error {
 // Playback renders live Plex playback for a media item.
 func (handler *HTMLHandler) Playback(ctx fiber.Ctx) error {
 	mediaID := ctx.Params(paramID)
-	props := pages.PlaybackProps{
+	props := view.Playback{
 		Playing:    false,
 		ViewOffset: 0,
 		Title:      "",
@@ -305,7 +310,7 @@ func (handler *HTMLHandler) Playback(ctx fiber.Ctx) error {
 	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.PlaybackPanel(props).Render(ctx.Context(), writer)
+		return playback.PlaybackPanel(props).Render(ctx.Context(), writer)
 	})
 }
 
@@ -379,9 +384,9 @@ func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error 
 }
 
 // clipItems converts stored jobs into page models.
-func (handler *HTMLHandler) clipItems(ctx fiber.Ctx) []pages.ClipItem {
+func (handler *HTMLHandler) clipItems(ctx fiber.Ctx) []view.ClipItem {
 	jobs := handler.listJobs(ctx)
-	items := make([]pages.ClipItem, 0, len(jobs))
+	items := make([]view.ClipItem, 0, len(jobs))
 
 	for _, job := range jobs {
 		items = append(items, toClipItem(job, handler.clipProfileOptions(ctx)))
@@ -391,13 +396,13 @@ func (handler *HTMLHandler) clipItems(ctx fiber.Ctx) []pages.ClipItem {
 }
 
 // clipsForMedia returns clip cards for one media id.
-func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []pages.ClipItem {
+func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []view.ClipItem {
 	jobs, err := handler.db.ListClipsForMedia(ctx.Context(), mediaID)
 	if err != nil {
 		return nil
 	}
 
-	items := make([]pages.ClipItem, 0, len(jobs))
+	items := make([]view.ClipItem, 0, len(jobs))
 	for _, job := range jobs {
 		items = append(items, toClipItem(job, handler.clipProfileOptions(ctx)))
 	}
@@ -473,7 +478,7 @@ func (handler *HTMLHandler) lookupClip(ctx fiber.Ctx, id string) *queue.Job {
 func (handler *HTMLHandler) mediaAudioTracks(
 	ctx fiber.Ctx,
 	mediaID string,
-) []pages.AudioTrackOption {
+) []view.AudioTrackOption {
 	// Skip probing when the media id is missing.
 	if mediaID == "" {
 		return nil
@@ -502,11 +507,11 @@ func (handler *HTMLHandler) mediaAudioTracks(
 }
 
 // audioTrackOptions maps probed streams onto select options.
-func audioTrackOptions(tracks []media.AudioTrack) []pages.AudioTrackOption {
-	options := make([]pages.AudioTrackOption, 0, len(tracks))
+func audioTrackOptions(tracks []media.AudioTrack) []view.AudioTrackOption {
+	options := make([]view.AudioTrackOption, 0, len(tracks))
 
 	for _, track := range tracks {
-		options = append(options, pages.AudioTrackOption{
+		options = append(options, view.AudioTrackOption{
 			Index: track.Index,
 			Label: audioTrackLabel(track),
 		})
@@ -542,11 +547,20 @@ func audioTrackLabel(track media.AudioTrack) string {
 	return strings.Join(parts, " · ")
 }
 
+// chooserLibraries returns library cards only for the root media view.
+func chooserLibraries(libraries []view.LibraryItem, query, libraryID string) []view.LibraryItem {
+	if query != "" || libraryID != "" {
+		return nil
+	}
+
+	return libraries
+}
+
 // mediaContent loads libraries or media for the media page.
 func (handler *HTMLHandler) mediaContent(
 	ctx fiber.Ctx,
 	query, libraryID, parentID string,
-) ([]pages.MediaItem, []pages.LibraryItem) {
+) ([]view.MediaItem, []view.LibraryItem) {
 	// Resolve the bound Plex client before listing media.
 	plexClient, server, ok := handler.plexPair()
 	if !ok {
@@ -616,7 +630,7 @@ func (handler *HTMLHandler) sessionItems() []pages.SessionItem {
 }
 
 // sidebarLibraries lists libraries for the sidebar.
-func (handler *HTMLHandler) sidebarLibraries(ctx fiber.Ctx) []pages.LibraryItem {
+func (handler *HTMLHandler) sidebarLibraries(ctx fiber.Ctx) []view.LibraryItem {
 	plexClient, server, ok := handler.plexPair()
 	if !ok {
 		return nil
@@ -695,7 +709,7 @@ func clipFileExists(path string) bool {
 }
 
 // clipProfileName returns a stored profile's display name.
-func clipProfileName(quality string, profiles []pages.ClipProfileOption) string {
+func clipProfileName(quality string, profiles []view.ClipProfileOption) string {
 	for _, profile := range profiles {
 		if profile.ID == quality {
 			return profile.Name
@@ -706,8 +720,8 @@ func clipProfileName(quality string, profiles []pages.ClipProfileOption) string 
 }
 
 // toClipItem maps a job onto a clips-page card.
-func toClipItem(job *queue.Job, profiles []pages.ClipProfileOption) pages.ClipItem {
-	return pages.ClipItem{
+func toClipItem(job *queue.Job, profiles []view.ClipProfileOption) view.ClipItem {
+	return view.ClipItem{
 		ID:            job.ID,
 		Name:          job.Name,
 		MediaID:       job.MediaID,
@@ -729,10 +743,10 @@ func toClipItem(job *queue.Job, profiles []pages.ClipProfileOption) pages.ClipIt
 }
 
 // toLibraryItems maps Plex libraries onto page models.
-func toLibraryItems(libs []plex.Library) []pages.LibraryItem {
-	out := make([]pages.LibraryItem, 0, len(libs))
+func toLibraryItems(libs []plex.Library) []view.LibraryItem {
+	out := make([]view.LibraryItem, 0, len(libs))
 	for _, lib := range libs {
-		out = append(out, pages.LibraryItem{
+		out = append(out, view.LibraryItem{
 			ID:    lib.ID,
 			Title: lib.Title,
 			Type:  lib.Type,
@@ -768,8 +782,8 @@ func listMedia(
 }
 
 // mediaCrumbs builds the library / show / season trail.
-func mediaCrumbs(libs []pages.LibraryItem, libraryID, upID, upTitle, title string) []pages.Crumb {
-	crumbs := []pages.Crumb{{Title: "Libraries", URL: "/media"}}
+func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string) []view.Crumb {
+	crumbs := []view.Crumb{{Title: "Libraries", URL: "/media"}}
 	if libraryID == "" {
 		return crumbs
 	}
@@ -785,7 +799,7 @@ func mediaCrumbs(libs []pages.LibraryItem, libraryID, upID, upTitle, title strin
 
 	libURL := "/media?library=" + url.QueryEscape(libraryID)
 
-	crumbs = append(crumbs, pages.Crumb{Title: libTitle, URL: libURL})
+	crumbs = append(crumbs, view.Crumb{Title: libTitle, URL: libURL})
 
 	if upID != "" {
 		upURL := libURL + "&parent=" + url.QueryEscape(
@@ -794,11 +808,11 @@ func mediaCrumbs(libs []pages.LibraryItem, libraryID, upID, upTitle, title strin
 			upTitle,
 		)
 
-		crumbs = append(crumbs, pages.Crumb{Title: upTitle, URL: upURL})
+		crumbs = append(crumbs, view.Crumb{Title: upTitle, URL: upURL})
 	}
 
 	if title != "" {
-		crumbs = append(crumbs, pages.Crumb{Title: title, URL: ""})
+		crumbs = append(crumbs, view.Crumb{Title: title, URL: ""})
 	}
 
 	return crumbs
@@ -832,11 +846,11 @@ func thumbSrc(path string) string {
 func toMediaItems(
 	items []plex.MediaItem,
 	libraryID, parentID, parentTitle string,
-) []pages.MediaItem {
+) []view.MediaItem {
 	// Preserve input order while mapping onto page models.
-	out := make([]pages.MediaItem, 0, len(items))
+	out := make([]view.MediaItem, 0, len(items))
 	for _, item := range items {
-		out = append(out, pages.MediaItem{
+		out = append(out, view.MediaItem{
 			ID:        item.ID,
 			Title:     item.Title,
 			Type:      item.Type,

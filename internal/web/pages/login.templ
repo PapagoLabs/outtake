@@ -4,6 +4,7 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
@@ -22,7 +23,7 @@ templ Login(props LoginProps) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>Login - Outtake</title>
-			@IconHead()
+			@brand.IconHead()
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
 		</head>
@@ -69,31 +70,7 @@ templ Login(props LoginProps) {
 					}
 				}
 			</div>
-			<script>
-				document.getElementById('plex-login').addEventListener('click', async function () {
-					var errorEl = document.getElementById('plex-error');
-					var statusEl = document.getElementById('auth-status');
-					errorEl.classList.add('hidden');
-					errorEl.textContent = '';
-					try {
-						var res = await fetch('/api/auth/login', {
-							method: 'POST',
-							headers: { 'Accept': 'application/json' }
-						});
-						var data = await res.json();
-						if (!res.ok || !data.authUrl) {
-							errorEl.textContent = data.message || 'Failed to start Plex sign-in.';
-							errorEl.classList.remove('hidden');
-							return;
-						}
-						window.open(data.authUrl, 'plex-auth', 'popup=yes,width=800,height=740');
-						statusEl.classList.remove('hidden');
-					} catch (err) {
-						errorEl.textContent = 'Failed to start Plex sign-in.';
-						errorEl.classList.remove('hidden');
-					}
-				});
-			</script>
+			<script src="/assets/js/login.js"></script>
 		</body>
 	</html>
 }

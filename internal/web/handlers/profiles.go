@@ -17,6 +17,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 const (
@@ -124,14 +125,14 @@ func (handler *HTMLHandler) storedClipProfiles(ctx fiber.Ctx) []database.ClipPro
 }
 
 // clipProfileOptions maps stored profiles onto form select options.
-func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []pages.ClipProfileOption {
+func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []view.ClipProfileOption {
 	profiles := handler.storedClipProfiles(ctx)
-	options := make([]pages.ClipProfileOption, 0, len(profiles))
+	options := make([]view.ClipProfileOption, 0, len(profiles))
 
 	for i := range profiles {
 		profile := profiles[i]
 
-		options = append(options, pages.ClipProfileOption{
+		options = append(options, view.ClipProfileOption{
 			ID:        profile.ID,
 			Name:      profile.Name,
 			IsDefault: profile.IsDefault,
@@ -146,8 +147,8 @@ func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []pages.ClipProfil
 }
 
 // builtinProfileOptions is used when the profile table cannot be read.
-func builtinProfileOptions() []pages.ClipProfileOption {
-	return []pages.ClipProfileOption{
+func builtinProfileOptions() []view.ClipProfileOption {
+	return []view.ClipProfileOption{
 		{ID: string(media.ClipQualityLow), Name: "Low", IsDefault: false},
 		{ID: string(media.ClipQualityMedium), Name: "Medium", IsDefault: true},
 		{ID: string(media.ClipQualityHigh), Name: "High", IsDefault: false},

@@ -1,11 +1,15 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package pages
+// Package nav renders sidebar library links.
+package nav
 
-import "github.com/PapagoLabs/outtake/internal/web/utils"
+import (
+	"github.com/PapagoLabs/outtake/internal/web/utils"
+	"github.com/PapagoLabs/outtake/internal/web/view"
+)
 
-templ NavLibraries(libs []LibraryItem, selected string) {
+templ NavLibraries(libs []view.LibraryItem, selected string) {
 	for _, lib := range libs {
 		<a
 			href={ templ.SafeURL("/media?library=" + lib.ID) }

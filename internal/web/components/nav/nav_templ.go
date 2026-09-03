@@ -5,7 +5,9 @@
 
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package pages
+// Package nav renders sidebar library links.
+
+package nav
 
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
@@ -14,9 +16,10 @@ import (
 	templruntime "github.com/a-h/templ/runtime"
 
 	"github.com/PapagoLabs/outtake/internal/web/utils"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-func NavLibraries(libs []LibraryItem, selected string) templ.Component {
+func NavLibraries(libs []view.LibraryItem, selected string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -53,7 +56,7 @@ func NavLibraries(libs []LibraryItem, selected string) templ.Component {
 			var templ_7745c5c3_Var3 templ.SafeURL
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/media?library=" + lib.ID))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/nav_libraries.templ`, Line: 11, Col: 51}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/nav/nav.templ`, Line: 15, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -66,7 +69,7 @@ func NavLibraries(libs []LibraryItem, selected string) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var2).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/nav_libraries.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/nav/nav.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -79,7 +82,7 @@ func NavLibraries(libs []LibraryItem, selected string) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(lib.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/nav_libraries.templ`, Line: 17, Col: 14}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/nav/nav.templ`, Line: 21, Col: 14}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {

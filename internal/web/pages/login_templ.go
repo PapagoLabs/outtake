@@ -13,6 +13,7 @@ import (
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
 
+	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
@@ -49,7 +50,7 @@ func Login(props LoginProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = IconHead().Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = brand.IconHead().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -163,7 +164,7 @@ func Login(props LoginProps) templ.Component {
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(props.Error)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/login.templ`, Line: 44, Col: 21}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/login.templ`, Line: 45, Col: 21}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -272,7 +273,7 @@ func Login(props LoginProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div><script>\n\t\t\t\tdocument.getElementById('plex-login').addEventListener('click', async function () {\n\t\t\t\t\tvar errorEl = document.getElementById('plex-error');\n\t\t\t\t\tvar statusEl = document.getElementById('auth-status');\n\t\t\t\t\terrorEl.classList.add('hidden');\n\t\t\t\t\terrorEl.textContent = '';\n\t\t\t\t\ttry {\n\t\t\t\t\t\tvar res = await fetch('/api/auth/login', {\n\t\t\t\t\t\t\tmethod: 'POST',\n\t\t\t\t\t\t\theaders: { 'Accept': 'application/json' }\n\t\t\t\t\t\t});\n\t\t\t\t\t\tvar data = await res.json();\n\t\t\t\t\t\tif (!res.ok || !data.authUrl) {\n\t\t\t\t\t\t\terrorEl.textContent = data.message || 'Failed to start Plex sign-in.';\n\t\t\t\t\t\t\terrorEl.classList.remove('hidden');\n\t\t\t\t\t\t\treturn;\n\t\t\t\t\t\t}\n\t\t\t\t\t\twindow.open(data.authUrl, 'plex-auth', 'popup=yes,width=800,height=740');\n\t\t\t\t\t\tstatusEl.classList.remove('hidden');\n\t\t\t\t\t} catch (err) {\n\t\t\t\t\t\terrorEl.textContent = 'Failed to start Plex sign-in.';\n\t\t\t\t\t\terrorEl.classList.remove('hidden');\n\t\t\t\t\t}\n\t\t\t\t});\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</div><script src=\"/assets/js/login.js\"></script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

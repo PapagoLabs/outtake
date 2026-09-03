@@ -11,6 +11,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 )
 
 type ClipProfileItem struct {
@@ -36,7 +37,7 @@ type ClipProfilesProps struct {
 }
 
 templ ClipProfiles(props ClipProfilesProps) {
-	@Layout(LayoutProps{Title: "Clip Profiles", Active: "profiles"}) {
+	@layout.Layout(layout.Props{Title: "Clip Profiles", Active: "profiles"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
 			<div>
 				<h2 class="text-2xl font-bold tracking-tight">Clip profiles</h2>
@@ -68,20 +69,20 @@ templ ClipProfiles(props ClipProfilesProps) {
 								}
 								if !profile.IsDefault {
 									@button.Button(button.Props{
-										Type: button.TypeSubmit,
-										Size: button.SizeSm,
+										Type:    button.TypeSubmit,
+										Size:    button.SizeSm,
 										Variant: button.VariantOutline,
-										Form: "default-" + profile.ID,
+										Form:    "default-" + profile.ID,
 									}) {
 										Make default
 									}
 								}
 								if len(props.Profiles) > 1 {
 									@button.Button(button.Props{
-										Type: button.TypeSubmit,
-										Size: button.SizeSm,
+										Type:    button.TypeSubmit,
+										Size:    button.SizeSm,
 										Variant: button.VariantDestructive,
-										Form: "delete-" + profile.ID,
+										Form:    "delete-" + profile.ID,
 									}) {
 										Delete
 									}

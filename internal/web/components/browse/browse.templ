@@ -1,0 +1,99 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// Package browse renders the media library grid and breadcrumbs.
+package browse
+
+import (
+	"net/url"
+
+	"github.com/PapagoLabs/outtake/internal/media"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/view"
+)
+
+func libraryURL(id string) templ.SafeURL {
+	values := url.Values{}
+	values.Set("library", id)
+
+	return templ.SafeURL("/media?" + values.Encode())
+}
+
+templ mediaCard(item view.MediaItem) {
+	@card.Card() {
+		@card.Content() {
+			<div class="flex flex-col gap-2">
+				if item.ThumbPath != "" {
+					<img src={ item.ThumbPath } alt={ item.Title } class="w-full aspect-[2/3] rounded-md object-cover bg-muted"/>
+				} else {
+					<div class="w-full aspect-[2/3] rounded-md bg-muted flex items-center justify-center">
+						<span class="text-muted-foreground text-sm">No thumbnail</span>
+					</div>
+				}
+				<h3 class="font-medium text-sm line-clamp-1">{ item.Title }</h3>
+				<div class="flex items-center gap-2 text-xs text-muted-foreground">
+					<span class="capitalize">{ item.Type }</span>
+					if item.Duration > 0 {
+						<span>&middot;</span>
+						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
+					}
+				</div>
+				if item.Browsable {
+					<a href={ templ.SafeURL(item.BrowseURL) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
+						Browse
+					</a>
+				} else {
+					<a href={ templ.SafeURL("/media/item/" + item.ID) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
+						Open
+					</a>
+				}
+			</div>
+		}
+	}
+}
+
+templ mediaCrumbs(crumbs []view.Crumb) {
+	if len(crumbs) > 0 {
+		<nav class="col-span-full flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+			for i, crumb := range crumbs {
+				if i > 0 {
+					<span>/</span>
+				}
+				if crumb.URL != "" {
+					<a href={ templ.SafeURL(crumb.URL) } class="hover:text-foreground">{ crumb.Title }</a>
+				} else {
+					<span class="text-foreground">{ crumb.Title }</span>
+				}
+			}
+		</nav>
+	}
+}
+
+templ MediaResults(props view.MediaProps) {
+	@mediaCrumbs(props.Crumbs)
+	if props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == "" {
+		<div class="col-span-full grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+			for _, lib := range props.Libraries {
+				@card.Card() {
+					@card.Content() {
+						<div class="flex flex-col gap-2">
+							<h3 class="font-medium">{ lib.Title }</h3>
+							<p class="text-xs text-muted-foreground capitalize">{ lib.Type }</p>
+							<a href={ libraryURL(lib.ID) } class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors">
+								Browse
+							</a>
+						</div>
+					}
+				}
+			}
+		</div>
+	}
+	if len(props.Items) == 0 && (props.Query != "" || props.LibraryID != "" || len(props.Libraries) == 0) {
+		<div class="col-span-full text-center py-12 text-muted-foreground">
+			<p>No media found. Connect your Plex server and try again.</p>
+		</div>
+	}
+	for _, item := range props.Items {
+		@mediaCard(item)
+	}
+}

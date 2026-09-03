@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package pages
+package nav
 
 import (
 	"strings"
@@ -9,12 +9,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestNavLibrariesHighlightsSelected(t *testing.T) {
 	t.Parallel()
 
-	libs := []LibraryItem{
+	libs := []view.LibraryItem{
 		{ID: "1", Title: "Movies", Type: "movie"},
 		{ID: "2", Title: "TV Shows", Type: "show"},
 	}

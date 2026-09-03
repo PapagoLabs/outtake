@@ -16,8 +16,12 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/components/quality"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type NewClipProps struct {
@@ -27,8 +31,8 @@ type NewClipProps struct {
 	StartTime     float64
 	Duration      float64
 	MaxDur        int
-	Profiles      []ClipProfileOption
-	AudioTracks   []AudioTrackOption
+	Profiles      []view.ClipProfileOption
+	AudioTracks   []view.AudioTrackOption
 	CropBlackBars bool
 }
 
@@ -72,7 +76,7 @@ func NewClip(props NewClipProps) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.MediaTitle)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 31, Col: 55}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 35, Col: 55}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -113,7 +117,7 @@ func NewClip(props NewClipProps) templ.Component {
 					var templ_7745c5c3_Var6 string
 					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.MediaID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 36, Col: 63}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 40, Col: 63}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 					if templ_7745c5c3_Err != nil {
@@ -126,7 +130,7 @@ func NewClip(props NewClipProps) templ.Component {
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.MediaTitle)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 37, Col: 69}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 41, Col: 69}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 					if templ_7745c5c3_Err != nil {
@@ -139,7 +143,7 @@ func NewClip(props NewClipProps) templ.Component {
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.MediaType)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 38, Col: 67}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 42, Col: 67}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 					if templ_7745c5c3_Err != nil {
@@ -198,7 +202,7 @@ func NewClip(props NewClipProps) templ.Component {
 						var templ_7745c5c3_Var11 string
 						templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(float64(props.MaxDur)).String())
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 47, Col: 73}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clip_new.templ`, Line: 51, Col: 73}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 						if templ_7745c5c3_Err != nil {
@@ -270,7 +274,7 @@ func NewClip(props NewClipProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = QualitySelect("quality", props.Profiles, "").Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = quality.QualitySelect("quality", props.Profiles, "").Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -305,7 +309,7 @@ func NewClip(props NewClipProps) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = AudioSelect("audioIndex", props.AudioTracks, 0).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = quality.AudioSelect("audioIndex", props.AudioTracks, 0).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -314,7 +318,7 @@ func NewClip(props NewClipProps) templ.Component {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = CropBlackBarsField(props.CropBlackBars).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = clip.CropBlackBarsField(props.CropBlackBars).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -362,7 +366,7 @@ func NewClip(props NewClipProps) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout(LayoutProps{Title: "New Clip", Active: "clips"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout.Layout(layout.Props{Title: "New Clip", Active: "clips"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
