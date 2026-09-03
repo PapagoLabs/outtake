@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nest PMS JSON decode under decode/pms by @nicholas-fedor in [#81](https://github.com/PapagoLabs/outtake/pull/81)
 - Point README at examples/docker and k8s trees by @nicholas-fedor in [#82](https://github.com/PapagoLabs/outtake/pull/82)
 - Nest docker and kubernetes example trees by @nicholas-fedor in [#80](https://github.com/PapagoLabs/outtake/pull/80)
 - Nest ffmpeg helpers by concern by @nicholas-fedor in [#78](https://github.com/PapagoLabs/outtake/pull/78)
@@ -92,8 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#82](https://github.com/PapagoLabs/outtake/pull/82)
-- @github-actions[bot] made their first contribution in [#79](https://github.com/PapagoLabs/outtake/pull/79)
+- @nicholas-fedor made their first contribution in [#81](https://github.com/PapagoLabs/outtake/pull/81)
+- @github-actions[bot] made their first contribution in [#83](https://github.com/PapagoLabs/outtake/pull/83)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
