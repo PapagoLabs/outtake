@@ -47,3 +47,18 @@ func TestMediaID(t *testing.T) {
 		Type:      "",
 	}.ID())
 }
+
+func TestSessionsThumb(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`<MediaContainer>
+		<Video title="Now Playing" duration="3600000" thumb="/library/metadata/1/thumb/2">
+			<Session id="sess-123"/>
+		</Video>
+	</MediaContainer>`)
+	sessions, err := Sessions(body)
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	assert.Equal(t, "/library/metadata/1/thumb/2", sessions[0].Thumb)
+	assert.Equal(t, "/library/metadata/1/thumb/2", sessions[0].Media().Thumb)
+}

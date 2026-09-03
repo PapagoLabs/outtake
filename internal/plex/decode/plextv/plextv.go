@@ -29,6 +29,7 @@ type Session struct {
 	Type       string      `xml:"type,attr"`
 	Duration   int64       `xml:"duration,attr"`
 	ViewOffset int64       `xml:"viewOffset,attr"`
+	Thumb      string      `xml:"thumb,attr"`
 }
 
 // sessionInfo is the nested Session element.
@@ -173,7 +174,7 @@ func (entry Session) Media() Media {
 		Key:       entry.Key,
 		Title:     entry.Title,
 		Duration:  entry.Duration,
-		Thumb:     "",
+		Thumb:     entry.Thumb,
 		Type:      entry.Type,
 	}
 }
