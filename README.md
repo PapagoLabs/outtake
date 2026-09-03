@@ -149,14 +149,31 @@ ffprobe.
 
 ### Kubernetes / Helm
 
-Chart values and optional backends are in
-[`deploy/helm/outtake`](deploy/helm/outtake) and that chart's
-[README](deploy/helm/outtake/README.md).
+The chart lives at
+[`deploy/helm/outtake`](https://github.com/PapagoLabs/outtake/tree/main/deploy/helm/outtake).
+There is no Helm repo or OCI chart. Install it from that GitHub tree.
+Do **not** clone the repository. Helm pulls Git with
+[helm-git](https://github.com/aslafy-z/helm-git):
 
-A packaged Helm chart (OCI registry or Helm repo) is not published yet.
-When one is, install it like any other chart. You do not need a
-repository checkout. Replace `<chart>` with the packaged chart
-reference (an OCI URL, `repo/name`, or a `.tgz`).
+```bash
+helm plugin install https://github.com/aslafy-z/helm-git
+helm repo add papagolabs \
+  --username "$GITHUB_USERNAME" \
+  --password "$GITHUB_TOKEN" \
+  git+https://github.com/PapagoLabs/outtake@deploy/helm?ref=main
+```
+
+The GitHub repository is private. On Helm 3.14+, `--username` is your
+GitHub username and `--password` is a token that can read the repo. Or
+use SSH:
+
+```bash
+helm repo add papagolabs \
+  git+ssh://git@github.com/PapagoLabs/outtake@deploy/helm?ref=main
+```
+
+Values and optional backends are in the chart
+[README](https://github.com/PapagoLabs/outtake/blob/main/deploy/helm/outtake/README.md).
 
 The only site input is Plex media: set `media.nfs.server` and
 `media.nfs.path`, or `media.existingClaim`. Clip blobs stay on
@@ -169,7 +186,7 @@ Defaults match Compose: `outtake.storageBackend` is `filesystem` and
 Minimal install (NFS for Plex media, filesystem and SQLite for clips):
 
 ```bash
-helm install outtake <chart> \
+helm install outtake papagolabs/outtake \
   --set media.nfs.server=nfs.example.internal \
   --set media.nfs.path=/export/plex
 ```
@@ -182,12 +199,12 @@ Enabling Cockroach or CNPG selects postgres. Set those
 `outtake.storageBackend` / `outtake.databaseBackend` values yourself if
 you are not using a chart backend. A working combo is SeaweedFS +
 Cockroach (full example:
-[`values-distributed.yaml`](deploy/helm/outtake/examples/values-distributed.yaml)).
+[`values-distributed.yaml`](https://github.com/PapagoLabs/outtake/blob/main/deploy/helm/outtake/examples/values-distributed.yaml)).
 S3 access keys are still required. Point `media.nfs` (or
 `media.existingClaim`) at your Plex library:
 
 ```bash
-helm install outtake <chart> \
+helm install outtake papagolabs/outtake \
   --set backends.seaweedfs.enabled=true \
   --set backends.cockroach.enabled=true \
   --set outtake.s3.accessKey=seaweedfs \
@@ -195,8 +212,6 @@ helm install outtake <chart> \
   --set media.nfs.server=nfs.example.internal \
   --set media.nfs.path=/export/plex
 ```
-
-Until a packaged chart exists, use Docker or Compose.
 
 ## Configuration
 
@@ -301,15 +316,15 @@ is higher quality.
   `media.existingClaim` (source media only). Clip blobs stay on
   `OUTTAKE_STORAGE_PATH` or S3, not on the media NFS share. Clip metadata
   is in the database.
-- **Helm has no packaged chart yet.** A Helm repo or OCI chart is not
-  published. Until one exists, use Docker or Compose.
+- **Helm cannot fetch the chart.** The GitHub repo is private. Install
+  helm-git. Re-add `papagolabs` with `--username` and `--password` (Helm
+  3.14+) or `git+ssh`.
 - **Wrong storage or database backend.** Defaults are `filesystem` and
   `sqlite`. For S3, set `OUTTAKE_STORAGE_BACKEND=s3` plus the `OUTTAKE_S3_*`
   keys. For postgres, set `OUTTAKE_DATABASE_BACKEND=postgres` and
   `OUTTAKE_DATABASE_URL`. On Helm, enable at most one blob backend
   (`backends.seaweedfs` or `backends.rustfs`) and one database backend
-  (`backends.cockroach` or `backends.cnpg`), or use
-  [`values-distributed.yaml`](deploy/helm/outtake/examples/values-distributed.yaml).
+  (`backends.cockroach` or `backends.cnpg`).
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and
   keep them on `PATH`, or set the path variables above. Docker images
   already include them.
