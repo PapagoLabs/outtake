@@ -7,24 +7,28 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/components/quality"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type NewClipProps struct {
-	MediaID     string
-	MediaTitle  string
-	MediaType   string
-	StartTime   float64
-	Duration    float64
-	MaxDur      int
-	Profiles    []ClipProfileOption
-	AudioTracks   []AudioTrackOption
+	MediaID       string
+	MediaTitle    string
+	MediaType     string
+	StartTime     float64
+	Duration      float64
+	MaxDur        int
+	Profiles      []view.ClipProfileOption
+	AudioTracks   []view.AudioTrackOption
 	CropBlackBars bool
 }
 
 templ NewClip(props NewClipProps) {
-	@Layout(LayoutProps{Title: "New Clip", Active: "clips"}) {
+	@layout.Layout(layout.Props{Title: "New Clip", Active: "clips"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
 			<div>
 				<h2 class="text-2xl font-bold tracking-tight">Create Clip</h2>
@@ -62,17 +66,17 @@ templ NewClip(props NewClipProps) {
 							@label.Label(label.Props{For: "quality"}) {
 								Profile
 							}
-							@QualitySelect("quality", props.Profiles, "")
+							@quality.QualitySelect("quality", props.Profiles, "")
 						</div>
 						if len(props.AudioTracks) > 0 {
 							<div class="flex flex-col gap-2">
 								@label.Label(label.Props{For: "audioIndex"}) {
 									Audio track
 								}
-								@AudioSelect("audioIndex", props.AudioTracks, 0)
+								@quality.AudioSelect("audioIndex", props.AudioTracks, 0)
 							</div>
 						}
-						@CropBlackBarsField(props.CropBlackBars)
+						@clip.CropBlackBarsField(props.CropBlackBars)
 						@button.Button(button.Props{Type: button.TypeSubmit}) {
 							Create
 						}

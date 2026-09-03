@@ -1,0 +1,26 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// Package playback renders the live Plex position panel.
+package playback
+
+import (
+	"strconv"
+
+	"github.com/PapagoLabs/outtake/internal/media"
+	"github.com/PapagoLabs/outtake/internal/web/view"
+)
+
+templ PlaybackPanel(props view.Playback) {
+	<div>
+		if props.Playing {
+			<p class="text-sm">Plex is at <span class="font-medium">{ media.FromSeconds(props.ViewOffset).String() }</span>.</p>
+			<div class="flex gap-3 mt-2">
+				<button type="button" class="js-mark-start text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set start from Plex</button>
+				<button type="button" class="js-mark-end text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set end from Plex</button>
+			</div>
+		} else {
+			<p class="text-sm text-muted-foreground">Play this item in Plex, then mark start and end from the live playback position.</p>
+		}
+	</div>
+}

@@ -1,26 +1,28 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package pages
+// Package layout renders the authenticated document shell and sidebar.
+package layout
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/components/separator"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
 
-type LayoutProps struct {
+type Props struct {
 	Title  string
 	Active string
 }
 
-templ Layout(props LayoutProps) {
+templ Layout(props Props) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ props.Title } - Outtake</title>
-			@IconHead()
+			@brand.IconHead()
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
 		</head>

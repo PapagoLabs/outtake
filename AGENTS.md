@@ -16,7 +16,7 @@ Viper/mapstructure keys are kebab-case (`listen-addr`). Env is `OUTTAKE_` with u
 
 ## Fiber
 
-Web and API use Fiber v3. HTML is Templ + HTMX. Pages live in `internal/web/pages/`; handlers in `internal/web/handlers/`; routes are mounted in `internal/app/app.go`.
+Web and API use Fiber v3. HTML is Templ + HTMX. Pages live in `internal/web/pages/`; reusable widgets in `internal/web/components/` (templui primitives plus Outtake widgets); shared view models in `internal/web/view/`; handlers in `internal/web/handlers/`; routes are mounted in `internal/app/app.go`. Outtake page JS lives in `internal/web/assets/js/` and is loaded with `<script src="/assets/js/…">`; do not inline scripts in templ (templui component scripts excluded).
 
 ## Validate
 

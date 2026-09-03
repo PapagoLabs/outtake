@@ -4,133 +4,15 @@
 package pages
 
 import (
-	"net/url"
-
-	"github.com/PapagoLabs/outtake/internal/media"
-	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/browse"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-type MediaItem struct {
-	ID        string
-	Title     string
-	Type      string
-	Duration  float64
-	ThumbPath string
-	Browsable bool
-	BrowseURL string
-}
-
-type LibraryItem struct {
-	ID    string
-	Title string
-	Type  string
-}
-
-type Crumb struct {
-	Title string
-	URL   string
-}
-
-type MediaProps struct {
-	Items     []MediaItem
-	Libraries []LibraryItem
-	Crumbs    []Crumb
-	Query     string
-	LibraryID string
-}
-
-func clipNewURL(item MediaItem) string {
-	values := url.Values{}
-	values.Set("mediaId", item.ID)
-	values.Set("title", item.Title)
-	values.Set("type", item.Type)
-
-	return "/clips/new?" + values.Encode()
-}
-
-templ mediaCard(item MediaItem) {
-	@card.Card() {
-		@card.Content() {
-			<div class="flex flex-col gap-2">
-				if item.ThumbPath != "" {
-					<img src={ item.ThumbPath } alt={ item.Title } class="w-full aspect-[2/3] rounded-md object-cover bg-muted"/>
-				} else {
-					<div class="w-full aspect-[2/3] rounded-md bg-muted flex items-center justify-center">
-						<span class="text-muted-foreground text-sm">No thumbnail</span>
-					</div>
-				}
-				<h3 class="font-medium text-sm line-clamp-1">{ item.Title }</h3>
-				<div class="flex items-center gap-2 text-xs text-muted-foreground">
-					<span class="capitalize">{ item.Type }</span>
-					if item.Duration > 0 {
-						<span>&middot;</span>
-						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
-					}
-				</div>
-				if item.Browsable {
-					<a href={ templ.SafeURL(item.BrowseURL) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
-						Browse
-					</a>
-				} else {
-					<a href={ templ.SafeURL("/media/item/" + item.ID) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
-						Open
-					</a>
-				}
-			</div>
-		}
-	}
-}
-
-templ mediaCrumbs(crumbs []Crumb) {
-	if len(crumbs) > 0 {
-		<nav class="col-span-full flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-			for i, crumb := range crumbs {
-				if i > 0 {
-					<span>/</span>
-				}
-				if crumb.URL != "" {
-					<a href={ templ.SafeURL(crumb.URL) } class="hover:text-foreground">{ crumb.Title }</a>
-				} else {
-					<span class="text-foreground">{ crumb.Title }</span>
-				}
-			}
-		</nav>
-	}
-}
-
-templ MediaResults(props MediaProps) {
-	@mediaCrumbs(props.Crumbs)
-	if len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == "" {
-		<div class="col-span-full grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			for _, lib := range props.Libraries {
-				@card.Card() {
-					@card.Content() {
-						<div class="flex flex-col gap-2">
-							<h3 class="font-medium">{ lib.Title }</h3>
-							<p class="text-xs text-muted-foreground capitalize">{ lib.Type }</p>
-							<a href={ templ.SafeURL("/media?library=" + lib.ID) } class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors">
-								Browse
-							</a>
-						</div>
-					}
-				}
-			}
-		</div>
-	}
-	if len(props.Items) == 0 && (props.Query != "" || len(props.Libraries) == 0) {
-		<div class="col-span-full text-center py-12 text-muted-foreground">
-			<p>No media found. Connect your Plex server and try again.</p>
-		</div>
-	}
-	for _, item := range props.Items {
-		@mediaCard(item)
-	}
-}
-
-templ Media(props MediaProps) {
-	@Layout(LayoutProps{Title: "Media Library", Active: "media"}) {
+templ Media(props view.MediaProps) {
+	@layout.Layout(layout.Props{Title: "Media Library", Active: "media"}) {
 		<div class="flex flex-col gap-6">
 			<div>
 				<h2 class="text-2xl font-bold tracking-tight">Media Library</h2>
@@ -139,7 +21,7 @@ templ Media(props MediaProps) {
 			<form hx-get="/media" hx-target="#media-results" hx-swap="innerHTML" class="flex gap-2">
 				<div class="flex-1">
 					@label.Label(label.Props{For: "search", Class: "sr-only"}) {
-						Search 
+						Search
 					}
 					@input.Input(input.Props{ID: "search", Name: "q", Placeholder: "Search media...", Value: props.Query})
 				</div>
@@ -148,7 +30,7 @@ templ Media(props MediaProps) {
 				</button>
 			</form>
 			<div id="media-results" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-				@MediaResults(props)
+				@browse.MediaResults(props)
 			</div>
 		</div>
 	}

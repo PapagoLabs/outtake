@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/media"
-	"github.com/PapagoLabs/outtake/internal/web/pages"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestSelectedLibraryID(t *testing.T) {
@@ -49,7 +49,7 @@ func TestMediaItemError(t *testing.T) {
 func TestClipProfileName(t *testing.T) {
 	t.Parallel()
 
-	profiles := []pages.ClipProfileOption{
+	profiles := []view.ClipProfileOption{
 		{ID: "medium", Name: "Medium", IsDefault: true},
 		{ID: "archive", Name: "Archive", IsDefault: false},
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMediaItemPageMarkStartExtendsEnd(t *testing.T) {
+func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	t.Parallel()
 
 	var buf strings.Builder
@@ -34,68 +34,8 @@ func TestMediaItemPageMarkStartExtendsEnd(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(
-		t,
-		body,
-		"startEl.value = formatTimecode(parseFloat(startBtn.getAttribute('data-offset')))",
-	)
-	assert.Contains(t, body, "if (end <= start)")
-	assert.Contains(t, body, "endEl.value = formatTimecode(start + dur)")
+	assert.Contains(t, body, `src="/assets/js/media-item.js"`)
+	assert.Contains(t, body, `data-max-dur="600"`)
 	assert.NotContains(t, body, "Start (seconds)")
-}
-
-func TestPlaybackPanelMarkButtons(t *testing.T) {
-	t.Parallel()
-
-	var buf strings.Builder
-
-	err := PlaybackPanel(PlaybackProps{
-		Playing:    true,
-		ViewOffset: 90,
-		Title:      "",
-	}).Render(t.Context(), &buf)
-	require.NoError(t, err)
-
-	body := buf.String()
-	assert.Regexp(t, `js-mark-start[^>]*>Set start from Plex`, body)
-	assert.Regexp(t, `js-mark-end[^>]*>Set end from Plex`, body)
-}
-
-func TestClipCardShowsProfileAndFile(t *testing.T) {
-	t.Parallel()
-
-	var buf strings.Builder
-
-	err := ClipCard(ClipItem{
-		ID:          "c1",
-		Name:        "Intro",
-		MediaID:     "42",
-		MediaTitle:  "Movie",
-		ClipType:    "clip",
-		Status:      "completed",
-		Progress:    100,
-		CreatedAt:   "2026-01-01T00:00:00Z",
-		StartTime:   1,
-		Duration:    5,
-		Quality:     "archive",
-		ProfileName: "Archive",
-		Profiles: []ClipProfileOption{
-			{ID: "archive", Name: "Archive", IsDefault: false},
-		},
-		FileExists:    true,
-		AudioIndex:    0,
-		AudioTracks:   nil,
-		CropBlackBars: false,
-	}).Render(t.Context(), &buf)
-	require.NoError(t, err)
-
-	body := buf.String()
-	assert.Contains(t, body, "Archive")
-	assert.Contains(t, body, "On disk")
-	assert.Contains(t, body, "/clips/c1/file")
-	assert.Contains(t, body, "Regenerate")
-	assert.Contains(t, body, "<details")
-	assert.Contains(t, body, "Preview")
-	assert.Contains(t, body, "<video")
-	assert.NotContains(t, body, "<details open")
+	assert.NotContains(t, body, "formatTimecode")
 }

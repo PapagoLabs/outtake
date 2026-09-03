@@ -20,6 +20,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 )
 
 type ClipProfileItem struct {
@@ -89,7 +90,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.Error)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 47, Col: 18}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 48, Col: 18}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -132,7 +133,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 						var templ_7745c5c3_Var6 templ.SafeURL
 						templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/settings/profiles/" + profile.ID))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 53, Col: 70}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 54, Col: 70}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 						if templ_7745c5c3_Err != nil {
@@ -145,7 +146,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 						var templ_7745c5c3_Var7 string
 						templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(profile.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 56, Col: 46}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 57, Col: 46}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 						if templ_7745c5c3_Err != nil {
@@ -283,7 +284,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 							var templ_7745c5c3_Var12 string
 							templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("default-" + profile.ID)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 92, Col: 41}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 93, Col: 41}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 							if templ_7745c5c3_Err != nil {
@@ -296,7 +297,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 							var templ_7745c5c3_Var13 templ.SafeURL
 							templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/settings/profiles/" + profile.ID + "/default"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 92, Col: 115}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 93, Col: 115}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 							if templ_7745c5c3_Err != nil {
@@ -319,7 +320,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 							var templ_7745c5c3_Var14 string
 							templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("delete-" + profile.ID)
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 95, Col: 40}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 96, Col: 40}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 							if templ_7745c5c3_Err != nil {
@@ -332,7 +333,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 							var templ_7745c5c3_Var15 templ.SafeURL
 							templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/settings/profiles/" + profile.ID + "/delete"))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 95, Col: 113}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 96, Col: 113}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 							if templ_7745c5c3_Err != nil {
@@ -436,7 +437,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout(LayoutProps{Title: "Clip Profiles", Active: "profiles"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout.Layout(layout.Props{Title: "Clip Profiles", Active: "profiles"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -558,7 +559,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(idPrefix + "preset")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 140, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 141, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 		if templ_7745c5c3_Err != nil {
@@ -577,7 +578,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 143, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 144, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 				if templ_7745c5c3_Err != nil {
@@ -590,7 +591,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 143, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 144, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -608,7 +609,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 145, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 146, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 				if templ_7745c5c3_Err != nil {
@@ -621,7 +622,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 145, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 146, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -696,7 +697,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(idPrefix + "width")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 160, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 161, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -715,7 +716,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(option.Width))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 163, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 164, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 				if templ_7745c5c3_Err != nil {
@@ -728,7 +729,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 163, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 164, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 				if templ_7745c5c3_Err != nil {
@@ -746,7 +747,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(option.Width))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 165, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 166, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 				if templ_7745c5c3_Err != nil {
@@ -759,7 +760,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 165, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 166, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
