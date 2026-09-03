@@ -28,6 +28,13 @@ type FFmpeg interface {
 		start, duration float64,
 		width, fps int,
 	) error
+	ExtractPreview(
+		ctx context.Context,
+		input, output string,
+		start, duration float64,
+		audioIndex int,
+		crop CropRect,
+	) error
 	ExtractScreenshot(ctx context.Context, input, output string, timestamp float64) error
 }
 

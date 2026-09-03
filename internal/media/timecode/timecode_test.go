@@ -1,9 +1,10 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package media
+package timecode
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -52,6 +53,7 @@ func TestParseTimecode(t *testing.T) {
 		{give: "1:30", want: 90 * time.Second},
 		{give: "1:30.250", want: 90250 * time.Millisecond},
 		{give: "01:02:03.123", want: time.Hour + 2*time.Minute + 3123*time.Millisecond},
+		{give: "-1s", want: -time.Second},
 	}
 
 	for _, tt := range tests {
@@ -79,4 +81,26 @@ func TestFFmpegClockRoundTrip(t *testing.T) {
 	parsed, err := clock.Parse(clock.Format(original))
 	require.NoError(t, err)
 	assert.Equal(t, original, parsed)
+}
+
+func TestFromSecondsOverflow(t *testing.T) {
+	t.Parallel()
+
+	maxSeconds := float64(math.MaxInt64) / float64(time.Second)
+	safe := math.Nextafter(maxSeconds, 0)
+	assert.Positive(t, FromSeconds(safe).Duration())
+	assert.Equal(t, time.Duration(0), FromSeconds(maxSeconds).Duration())
+
+	over := math.Nextafter(maxSeconds, math.Inf(1))
+	assert.Equal(t, time.Duration(0), FromSeconds(over).Duration())
+}
+
+func TestParseOverflow(t *testing.T) {
+	t.Parallel()
+
+	_, err := Parse("1e20s")
+	require.ErrorIs(t, err, ErrInvalidTimecode)
+
+	_, err = Parse("2562048:00:00")
+	require.ErrorIs(t, err, ErrInvalidTimecode)
 }

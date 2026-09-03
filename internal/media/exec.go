@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
+	"github.com/PapagoLabs/outtake/internal/media/crop"
+	"github.com/PapagoLabs/outtake/internal/media/progress"
 )
 
 // ExecFFmpeg provides FFmpeg execution capabilities.
@@ -84,6 +86,9 @@ const (
 	previewMaxSecs = 30
 )
 
+// Type check.
+var _ FFmpeg = (*ExecFFmpeg)(nil)
+
 // NewExecFFmpeg creates a new FFmpeg executor.
 func NewExecFFmpeg(ffmpegPath, ffprobePath string) *ExecFFmpeg {
 	return &ExecFFmpeg{
@@ -100,7 +105,7 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 	start, duration float64,
 ) (CropRect, error) {
 	cleanInput := filepath.Clean(input)
-	args := cropdetectArgs(execFFmpeg.ffmpegPath, cleanInput, start, duration)
+	args := crop.DetectArgs(execFFmpeg.ffmpegPath, cleanInput, start, duration)
 
 	detectCtx, cancel := context.WithTimeout(ctx, execFFmpeg.timeout)
 	defer cancel()
@@ -120,9 +125,8 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 	}
 
 	log := stderr.String()
-	crop, ok := ParseCropdetect(log)
-	size := parseStreamSize(log)
-	if !ok || !crop.Trims(size.width, size.height) {
+	detected, ok := ParseCropdetect(log)
+	if !ok || !detected.TrimsLog(log) {
 		if err != nil && !ok {
 			return CropRect{}, fmt.Errorf("cropdetect: %w", err)
 		}
@@ -130,7 +134,7 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 		return CropRect{}, nil
 	}
 
-	return crop, nil
+	return detected, nil
 }
 
 // ExtractClip extracts a clip from a video.
@@ -140,7 +144,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	start, duration float64,
 	preset QualityPreset,
 	audioIndex int,
-	crop CropRect,
+	rect CropRect,
 ) error {
 	// Build and run the clip ffmpeg command.
 	cleanInput := filepath.Clean(input)
@@ -154,7 +158,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		duration,
 		preset,
 		audioIndex,
-		crop,
+		rect,
 	)
 
 	err := execFFmpeg.run(ctx, duration, args...)
@@ -171,7 +175,7 @@ func clipEncodeArgs(
 	start, duration float64,
 	preset QualityPreset,
 	audioIndex int,
-	crop CropRect,
+	rect CropRect,
 ) []string {
 	return h264EncodeArgs(h264EncodeRequest{
 		ffmpegPath: ffmpegPath,
@@ -183,7 +187,7 @@ func clipEncodeArgs(
 		audioIndex: audioIndex,
 		maxWidth:   NormalizeOutputWidth(preset.MaxWidth),
 		scaleFlags: scaleFlagsLanczos,
-		crop:       crop,
+		crop:       rect,
 	})
 }
 
@@ -192,7 +196,7 @@ func previewEncodeArgs(
 	ffmpegPath, input, output string,
 	start, duration float64,
 	audioIndex int,
-	crop CropRect,
+	rect CropRect,
 ) []string {
 	return h264EncodeArgs(h264EncodeRequest{
 		ffmpegPath: ffmpegPath,
@@ -209,7 +213,7 @@ func previewEncodeArgs(
 		audioIndex: audioIndex,
 		maxWidth:   previewMaxWidth,
 		scaleFlags: scaleFlagsFast,
-		crop:       crop,
+		crop:       rect,
 	})
 }
 
@@ -228,13 +232,13 @@ func scaleFilter(maxWidth int, flags string) string {
 }
 
 // videoFilter applies optional black-bar crop then scale.
-func videoFilter(maxWidth int, flags string, crop CropRect) string {
+func videoFilter(maxWidth int, flags string, rect CropRect) string {
 	scale := scaleFilter(maxWidth, flags)
-	if !crop.Valid() {
+	if !rect.Valid() {
 		return scale
 	}
 
-	return crop.Filter() + "," + scale
+	return rect.Filter() + "," + scale
 }
 
 // h264EncodeArgs builds a browser-safe libx264 argv.
@@ -376,7 +380,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 	input, output string,
 	start, duration float64,
 	audioIndex int,
-	crop CropRect,
+	rect CropRect,
 ) error {
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
@@ -390,7 +394,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 		start,
 		duration,
 		audioIndex,
-		crop,
+		rect,
 	)
 
 	err := execFFmpeg.run(ctx, duration, args...)
@@ -479,11 +483,8 @@ func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ..
 
 	cmd.Dir = "/"
 
-	stderr := &progressWriter{
-		duration: duration,
-		on:       progressFrom(ctx),
-		buf:      bytes.Buffer{},
-	}
+	stderr := progress.NewWriter(duration, progress.From(ctx))
+
 	var stdout bytes.Buffer
 
 	cmd.Stdout = &stdout
@@ -493,7 +494,7 @@ func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ..
 	if err != nil {
 		logging.Logger.Error().
 			Err(err).
-			Str("output", stderr.buf.String()+stdout.String()).
+			Str("output", stderr.String()+stdout.String()).
 			Msg("ffmpeg command failed")
 
 		return fmt.Errorf("ffmpeg: %w", err)
@@ -501,7 +502,7 @@ func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ..
 
 	logging.Logger.Debug().
 		Int("exit_code", cmd.ProcessState.ExitCode()).
-		Int("output_len", stderr.buf.Len()+stdout.Len()).
+		Int("output_len", stderr.Len()+stdout.Len()).
 		Msg("ffmpeg command completed")
 
 	return nil
