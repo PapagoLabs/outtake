@@ -347,7 +347,7 @@ func MediaResults(props view.MediaProps) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == "" {
+		if props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == "" {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<div class=\"col-span-full grid gap-4 sm:grid-cols-2 lg:grid-cols-3\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -438,7 +438,7 @@ func MediaResults(props view.MediaProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		if len(props.Items) == 0 && (props.Query != "" || len(props.Libraries) == 0) {
+		if len(props.Items) == 0 && (props.Query != "" || props.LibraryID != "" || len(props.Libraries) == 0) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<div class=\"col-span-full text-center py-12 text-muted-foreground\"><p>No media found. Connect your Plex server and try again.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

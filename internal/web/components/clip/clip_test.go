@@ -13,12 +13,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-func TestClipCardShowsProfileAndFile(t *testing.T) {
+func TestClipCard(t *testing.T) {
 	t.Parallel()
 
-	var buf strings.Builder
-
-	err := ClipCard(view.ClipItem{
+	base := view.ClipItem{
 		ID:          "c1",
 		Name:        "Intro",
 		MediaID:     "42",
@@ -38,51 +36,135 @@ func TestClipCardShowsProfileAndFile(t *testing.T) {
 		AudioIndex:    0,
 		AudioTracks:   nil,
 		CropBlackBars: false,
-	}).Render(t.Context(), &buf)
-	require.NoError(t, err)
+	}
 
-	body := buf.String()
-	assert.Contains(t, body, "Archive")
-	assert.Contains(t, body, "On disk")
-	assert.Contains(t, body, "/clips/c1/file")
-	assert.Contains(t, body, "Regenerate")
-	assert.Contains(t, body, "<details")
-	assert.Contains(t, body, "Preview")
-	assert.Contains(t, body, "<video")
-	assert.NotContains(t, body, "<details open")
-	assert.NotContains(t, body, `name="audioIndex"`)
-}
-
-func TestClipCardFallsBackToMediaTitle(t *testing.T) {
-	t.Parallel()
-
-	var buf strings.Builder
-
-	err := ClipCard(view.ClipItem{
-		ID:          "c1",
-		Name:        "",
-		MediaID:     "42",
-		MediaTitle:  "Movie",
-		ClipType:    "clip",
-		Status:      view.ClipStatusCompleted,
-		Progress:    100,
-		CreatedAt:   "2026-01-01T00:00:00Z",
-		StartTime:   1,
-		Duration:    5,
-		Quality:     "archive",
-		ProfileName: "Archive",
-		Profiles: []view.ClipProfileOption{
-			{ID: "archive", Name: "Archive", IsDefault: false},
+	tests := []struct {
+		name        string
+		tweak       func(*view.ClipItem)
+		contains    []string
+		notContains []string
+	}{
+		{
+			name: "completed with file",
+			contains: []string{
+				"Archive",
+				"On disk",
+				"/clips/c1/file",
+				"Regenerate",
+				"<details",
+				"Preview",
+				"<video",
+			},
+			notContains: []string{"<details open", `name="audioIndex"`},
 		},
-		FileExists:    true,
-		AudioIndex:    0,
-		AudioTracks:   nil,
-		CropBlackBars: false,
-	}).Render(t.Context(), &buf)
-	require.NoError(t, err)
+		{
+			name: "falls back to media title",
+			tweak: func(item *view.ClipItem) {
+				item.Name = ""
+			},
+			contains: []string{
+				"Movie",
+				`name="name"`,
+				`value="Movie"`,
+			},
+		},
+		{
+			name: "missing file",
+			tweak: func(item *view.ClipItem) {
+				item.FileExists = false
+			},
+			contains: []string{"Missing file"},
+			notContains: []string{
+				"On disk",
+				"<video",
+				"<details",
+			},
+		},
+		{
+			name: "failed status",
+			tweak: func(item *view.ClipItem) {
+				item.Status = "failed"
+				item.FileExists = false
+			},
+			contains:    []string{"failed", "Missing file"},
+			notContains: []string{"On disk", "hx-trigger"},
+		},
+		{
+			name: "gif preview",
+			tweak: func(item *view.ClipItem) {
+				item.ClipType = "gif"
+			},
+			contains: []string{
+				"<img",
+				"/clips/c1/file",
+				"Preview",
+			},
+			notContains: []string{"<video"},
+		},
+		{
+			name: "screenshot preview",
+			tweak: func(item *view.ClipItem) {
+				item.ClipType = "screenshot"
+			},
+			contains: []string{
+				"<img",
+				"/clips/c1/file",
+			},
+			notContains: []string{"<video"},
+		},
+		{
+			name: "active polling hides preview",
+			tweak: func(item *view.ClipItem) {
+				item.Status = view.ClipStatusProcessing
+				item.Progress = 40
+				item.FileExists = false
+			},
+			contains: []string{
+				`hx-get="/clips/c1/row"`,
+				`hx-trigger="every 2s"`,
+				"40%",
+			},
+			notContains: []string{
+				"Preview",
+				"<video",
+				"<img",
+				"On disk",
+				"Missing file",
+			},
+		},
+		{
+			name: "audio tracks",
+			tweak: func(item *view.ClipItem) {
+				item.AudioTracks = []view.AudioTrackOption{
+					{Index: 0, Label: "eng · aac"},
+				}
+			},
+			contains: []string{`name="audioIndex"`, "eng · aac"},
+		},
+	}
 
-	body := buf.String()
-	assert.Contains(t, body, "Movie")
-	assert.Contains(t, body, `name="name"`)
-	assert.Contains(t, body, `value="Movie"`)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			item := base
+			if test.tweak != nil {
+				test.tweak(&item)
+			}
+
+			var buf strings.Builder
+
+			err := ClipCard(item).Render(t.Context(), &buf)
+			require.NoError(t, err)
+
+			body := buf.String()
+			for _, want := range test.contains {
+				assert.Contains(t, body, want)
+			}
+
+			for _, hide := range test.notContains {
+				assert.NotContains(t, body, hide)
+			}
+		})
+	}
 }

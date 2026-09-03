@@ -152,7 +152,7 @@ func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 	items, libraries := handler.mediaContent(ctx, query, libraryID, parentID)
 	props := view.MediaProps{
 		Items:     items,
-		Libraries: libraries,
+		Libraries: chooserLibraries(libraries, query, libraryID),
 		Crumbs: mediaCrumbs(
 			libraries,
 			libraryID,
@@ -545,6 +545,15 @@ func audioTrackLabel(track media.AudioTrack) string {
 	}
 
 	return strings.Join(parts, " · ")
+}
+
+// chooserLibraries returns library cards only for the root media view.
+func chooserLibraries(libraries []view.LibraryItem, query, libraryID string) []view.LibraryItem {
+	if query != "" || libraryID != "" {
+		return nil
+	}
+
+	return libraries
 }
 
 // mediaContent loads libraries or media for the media page.

@@ -19,6 +19,9 @@ templ Media(props view.MediaProps) {
 				<p class="text-muted-foreground">Browse and clip media from your Plex library.</p>
 			</div>
 			<form hx-get="/media" hx-target="#media-results" hx-swap="innerHTML" class="flex gap-2">
+				if props.LibraryID != "" {
+					<input type="hidden" name="library" value={ props.LibraryID }/>
+				}
 				<div class="flex-1">
 					@label.Label(label.Props{For: "search", Class: "sr-only"}) {
 						Search

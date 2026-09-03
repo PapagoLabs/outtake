@@ -15,6 +15,17 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+func TestChooserLibraries(t *testing.T) {
+	t.Parallel()
+
+	libs := []view.LibraryItem{{ID: "1", Title: "Movies", Type: "movie"}}
+
+	assert.Equal(t, libs, chooserLibraries(libs, "", ""))
+	assert.Nil(t, chooserLibraries(libs, "", "1"))
+	assert.Nil(t, chooserLibraries(libs, "query", ""))
+	assert.Nil(t, chooserLibraries(libs, "query", "1"))
+}
+
 func TestSelectedLibraryID(t *testing.T) {
 	t.Parallel()
 

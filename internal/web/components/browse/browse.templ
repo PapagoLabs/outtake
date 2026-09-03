@@ -71,7 +71,7 @@ templ mediaCrumbs(crumbs []view.Crumb) {
 
 templ MediaResults(props view.MediaProps) {
 	@mediaCrumbs(props.Crumbs)
-	if len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == "" {
+	if props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == "" {
 		<div class="col-span-full grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 			for _, lib := range props.Libraries {
 				@card.Card() {
@@ -88,7 +88,7 @@ templ MediaResults(props view.MediaProps) {
 			}
 		</div>
 	}
-	if len(props.Items) == 0 && (props.Query != "" || len(props.Libraries) == 0) {
+	if len(props.Items) == 0 && (props.Query != "" || props.LibraryID != "" || len(props.Libraries) == 0) {
 		<div class="col-span-full text-center py-12 text-muted-foreground">
 			<p>No media found. Connect your Plex server and try again.</p>
 		</div>
