@@ -24,6 +24,13 @@ spec:
       labels:
         app: cockroachdb
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: cockroachdb
           image: cockroachdb/cockroach:v26.3.1
@@ -32,16 +39,25 @@ spec:
             - --insecure
             - --listen-addr=0.0.0.0:26257
             - --http-addr=0.0.0.0:8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: sql
               containerPort: 26257
           volumeMounts:
             - name: data
               mountPath: /cockroach/cockroach-data
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: cockroach-data
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
@@ -55,3 +71,22 @@ spec:
     - name: sql
       port: 26257
       targetPort: sql
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cockroachdb
+  namespace: outtake
+spec:
+  podSelector:
+    matchLabels:
+      app: cockroachdb
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: outtake
+      ports:
+        - protocol: TCP
+          port: 26257

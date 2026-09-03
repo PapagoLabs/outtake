@@ -10,5 +10,5 @@ Database backend: {{ include "outtake.databaseBackend" . }}
 
 This chart lives at examples/kubernetes/helm/outtake (no PapagoLabs Helm repo).
 Distributed overlay: -f examples/kubernetes/helm/outtake/examples/values-distributed.yaml
-Suggested manifests: examples/kubernetes/seaweedfs-cnpg/ and seaweedfs-cockroach/.
+Suggested manifests: examples/kubernetes/seaweedfs-cnpg/ and examples/kubernetes/seaweedfs-cockroach/.
 Run `helm dependency update examples/kubernetes/helm/outtake` before any install.

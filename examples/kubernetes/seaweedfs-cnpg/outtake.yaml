@@ -10,8 +10,21 @@ metadata:
   namespace: outtake
 type: Opaque
 stringData:
-  s3-access-key: seaweedfs
-  s3-secret-key: seaweedfs
+  # Replace both keys and the matching identity in config.json before apply.
+  s3-access-key: outtake
+  s3-secret-key: change-me
+  config.json: |
+    {
+      "identities": [
+        {
+          "name": "outtake",
+          "credentials": [
+            {"accessKey": "outtake", "secretKey": "change-me"}
+          ],
+          "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+        }
+      ]
+    }
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -44,6 +57,8 @@ spec:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: outtake
           image: ghcr.io/papagolabs/outtake:latest

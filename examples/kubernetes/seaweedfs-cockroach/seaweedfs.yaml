@@ -24,6 +24,13 @@ spec:
       labels:
         app: seaweedfs
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: seaweedfs
           image: chrislusf/seaweedfs:4.45
@@ -32,16 +39,35 @@ spec:
             - -dir=/data
             - -s3
             - -s3.port=8333
+            - -s3.config=/etc/seaweedfs/config.json
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - name: s3
               containerPort: 8333
           volumeMounts:
             - name: data
               mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: s3-config
+              mountPath: /etc/seaweedfs
+              readOnly: true
       volumes:
         - name: data
           persistentVolumeClaim:
             claimName: seaweedfs-data
+        - name: tmp
+          emptyDir: {}
+        - name: s3-config
+          secret:
+            secretName: outtake-s3
+            items:
+              - key: config.json
+                path: config.json
 ---
 apiVersion: v1
 kind: Service
@@ -55,3 +81,22 @@ spec:
     - name: s3
       port: 8333
       targetPort: s3
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: seaweedfs
+  namespace: outtake
+spec:
+  podSelector:
+    matchLabels:
+      app: seaweedfs
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: outtake
+      ports:
+        - protocol: TCP
+          port: 8333
