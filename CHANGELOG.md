@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update docker/setup-qemu-action action to v4.3.0 by @renovate[bot] in [#59](https://github.com/PapagoLabs/outtake/pull/59)
 - Update zizmorcore/zizmor-action action to v0.6.3 by @renovate[bot] in [#56](https://github.com/PapagoLabs/outtake/pull/56)
 - Update module modernc.org/sqlite to v1.58.0 by @renovate[bot] in [#38](https://github.com/PapagoLabs/outtake/pull/38)
 - Update step-security/harden-runner action to v2.21.1 by @renovate[bot] in [#55](https://github.com/PapagoLabs/outtake/pull/55)
@@ -80,9 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
+- @github-actions[bot] made their first contribution in [#61](https://github.com/PapagoLabs/outtake/pull/61)
 - @nicholas-fedor made their first contribution in [#63](https://github.com/PapagoLabs/outtake/pull/63)
-- @github-actions[bot] made their first contribution in [#57](https://github.com/PapagoLabs/outtake/pull/57)
-- @renovate[bot] made their first contribution in [#56](https://github.com/PapagoLabs/outtake/pull/56)
 
 ## Compare Releases
 
