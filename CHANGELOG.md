@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add S3 and Postgres backends behind config by @nicholas-fedor in [#69](https://github.com/PapagoLabs/outtake/pull/69)
 - Add README badge bar and centered header by @nicholas-fedor in [#65](https://github.com/PapagoLabs/outtake/pull/65)
 - Add editor gopher brand icon set by @nicholas-fedor in [#62](https://github.com/PapagoLabs/outtake/pull/62)
 - Add user-managed clip encode profiles by @nicholas-fedor in [#45](https://github.com/PapagoLabs/outtake/pull/45)
@@ -83,8 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#65](https://github.com/PapagoLabs/outtake/pull/65)
-- @github-actions[bot] made their first contribution in [#66](https://github.com/PapagoLabs/outtake/pull/66)
+- @nicholas-fedor made their first contribution in [#69](https://github.com/PapagoLabs/outtake/pull/69)
+- @github-actions[bot] made their first contribution in [#67](https://github.com/PapagoLabs/outtake/pull/67)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
