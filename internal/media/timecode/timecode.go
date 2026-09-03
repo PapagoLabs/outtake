@@ -64,15 +64,11 @@ func FromSeconds(seconds float64) Timecode {
 // FromDuration builds a timecode from a duration.
 //
 // Parameters:
-//   - d: Backing duration. Negative values become zero.
+//   - d: Backing duration. Signed values are kept.
 //
 // Returns:
 //   - timecode: The timestamp.
 func FromDuration(d time.Duration) Timecode {
-	if d < 0 {
-		return Timecode{}
-	}
-
 	return Timecode{d: d}
 }
 

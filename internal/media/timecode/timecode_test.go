@@ -53,6 +53,7 @@ func TestParseTimecode(t *testing.T) {
 		{give: "1:30", want: 90 * time.Second},
 		{give: "1:30.250", want: 90250 * time.Millisecond},
 		{give: "01:02:03.123", want: time.Hour + 2*time.Minute + 3123*time.Millisecond},
+		{give: "-1s", want: -time.Second},
 	}
 
 	for _, tt := range tests {

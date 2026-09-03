@@ -33,3 +33,11 @@ func TestParseUsesDefaultClock(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 42*time.Second, got.Duration())
 }
+
+func TestParseNegativeDuration(t *testing.T) {
+	t.Parallel()
+
+	got, err := Parse("-1s")
+	require.NoError(t, err)
+	assert.Equal(t, -time.Second, got.Duration())
+}
