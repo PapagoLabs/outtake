@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nest docker and kubernetes example trees by @nicholas-fedor in [#80](https://github.com/PapagoLabs/outtake/pull/80)
+- Nest ffmpeg helpers by concern by @nicholas-fedor in [#78](https://github.com/PapagoLabs/outtake/pull/78)
+- Install Helm chart from GitHub by @nicholas-fedor in [#77](https://github.com/PapagoLabs/outtake/pull/77)
 - Nest session monitor and accept Fetcher by @nicholas-fedor in [#70](https://github.com/PapagoLabs/outtake/pull/70)
 - Document local compose and Helm deploy by @nicholas-fedor in [#74](https://github.com/PapagoLabs/outtake/pull/74)
 - Rewrite README as a user-facing guide by @nicholas-fedor in [#63](https://github.com/PapagoLabs/outtake/pull/63)
@@ -88,8 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#75](https://github.com/PapagoLabs/outtake/pull/75)
-- @github-actions[bot] made their first contribution in [#73](https://github.com/PapagoLabs/outtake/pull/73)
+- @nicholas-fedor made their first contribution in [#80](https://github.com/PapagoLabs/outtake/pull/80)
+- @github-actions[bot] made their first contribution in [#76](https://github.com/PapagoLabs/outtake/pull/76)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
