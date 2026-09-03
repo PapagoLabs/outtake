@@ -1,0 +1,23 @@
+{{- if and .Values.backends.seaweedfs.enabled .Values.backends.rustfs.enabled }}
+{{- fail "enable only one blob backend: backends.seaweedfs or backends.rustfs" }}
+{{- end }}
+{{- if and .Values.backends.cockroach.enabled .Values.backends.cnpg.enabled }}
+{{- fail "enable only one database backend: backends.cockroach or backends.cnpg" }}
+{{- end }}
+{{- if not (or .Values.media.existingClaim (and .Values.media.nfs.server .Values.media.nfs.path)) }}
+{{- fail "set media.existingClaim or both media.nfs.server and media.nfs.path" }}
+{{- end }}
+{{- $storage := include "outtake.storageBackend" . }}
+{{- $database := include "outtake.databaseBackend" . }}
+{{- if and (eq $storage "s3") (not (or .Values.backends.seaweedfs.enabled .Values.backends.rustfs.enabled)) }}
+{{- if not .Values.outtake.s3.existingSecret }}
+{{- if or (not (include "outtake.s3Endpoint" .)) (not .Values.outtake.s3.bucket) (not .Values.outtake.s3.accessKey) (not .Values.outtake.s3.secretKey) }}
+{{- fail "s3 mode needs outtake.s3.endpoint, bucket, accessKey, and secretKey (or s3.existingSecret)" }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if and (eq $database "postgres") (not (or .Values.backends.cockroach.enabled .Values.backends.cnpg.enabled)) }}
+{{- if and (not .Values.outtake.existingSecret) (not .Values.outtake.databaseUrl) }}
+{{- fail "postgres mode needs outtake.existingSecret or outtake.databaseUrl" }}
+{{- end }}
+{{- end }}

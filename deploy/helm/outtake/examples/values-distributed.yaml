@@ -1,18 +1,19 @@
-# One working k8s combo: generic S3 (SeaweedFS or RustFS) + pgx (Cockroach or CNPG).
-# NFS is the required site input for Plex source media. Clips stay on S3.
+# One working k8s combo: SeaweedFS S3 + CockroachDB.
+# Operator input is NFS (or media.existingClaim). Clips stay on S3.
+# Swap seaweedfs for rustfs, or cockroach for cnpg, via backends.*.enabled.
+
+backends:
+  seaweedfs:
+    enabled: true
+  cockroach:
+    enabled: true
 
 outtake:
-  storageBackend: s3
-  storagePath: /data/scratch
   s3:
-    endpoint: http://seaweedfs-s3:8333
     bucket: outtake
-    region: us-east-1
-    usePathStyle: true
-    # accessKey / secretKey or existingSecret
-  databaseBackend: postgres
-  # databaseUrl: postgres://user:pass@cockroachdb-public:26257/outtake?sslmode=require
-  # or CNPG: postgres://user:pass@outtake-pg-rw:5432/outtake
+    # Keys still required unless you point existingSecret at SeaweedFS credentials.
+    accessKey: seaweedfs
+    secretKey: seaweedfs
 
 media:
   nfs:

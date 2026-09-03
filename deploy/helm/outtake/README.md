@@ -2,9 +2,11 @@
 
 Packages Outtake for Kubernetes. `docker-compose.yml` remains the local FS + SQLite path.
 
+The operator site input is Plex media: set `media.nfs.server` and `media.nfs.path`, or `media.existingClaim`. Clips stay on `storage-path` or S3.
+
 ## Values (App config knobs)
 
-Env is `OUTTAKE_*`. Defaults stay local:
+Env is `OUTTAKE_*`. Defaults stay local. Runtime selection lands in App PR #69.
 
 | Value | Env | Default |
 | --- | --- | --- |
@@ -16,8 +18,18 @@ Env is `OUTTAKE_*`. Defaults stay local:
 | `outtake.databaseUrl` | `OUTTAKE_DATABASE_URL` | pgx DSN |
 | `media.localMediaRoot` | `OUTTAKE_LOCAL_MEDIA_ROOT` | `/media` |
 | `media.plexMediaRoot` | `OUTTAKE_PLEX_MEDIA_ROOT` | empty |
-| `media.nfs.server` / `path` | — | required site input for Plex media |
+| `media.nfs.server` / `path` or `media.existingClaim` | — | required site input for Plex media |
 
-Blob store is generic S3 (SeaweedFS or RustFS). Database is generic Postgres-protocol (CockroachDB or CNPG). Point `s3.endpoint` and `databaseUrl` at whichever you run.
+## Optional backends
 
-See `examples/values-distributed.yaml`.
+`helm dependency update deploy/helm/outtake` then enable at most one blob and one DB:
+
+| Value | Stands up |
+| --- | --- |
+| `backends.seaweedfs.enabled` | SeaweedFS S3 (`4.45.0`) |
+| `backends.rustfs.enabled` | RustFS S3 (`1.0.0-rc.5`) |
+| `backends.cockroach.enabled` | CockroachDB (`22.0.3`) |
+| `backends.cnpg.enabled` | CloudNativePG cluster (`0.8.1`) |
+| `backends.cnpgOperator.enabled` | CloudNativePG operator (`0.29.0`) |
+
+See `examples/values-distributed.yaml` (SeaweedFS + Cockroach; NFS is the remaining site input).

@@ -1,11 +1,12 @@
 # Default values keep Outtake on local FS + SQLite (same as docker-compose.yml).
-# For k8s, set media.nfs and switch storage/database backends (see examples/).
+# For k8s, set media.nfs (or media.existingClaim) and optionally enable backends.
 
 replicaCount: 1
 
 image:
   repository: ghcr.io/papagolabs/outtake
   pullPolicy: IfNotPresent
+  # No tagged Outtake release yet; override when goreleaser cuts one.
   tag: latest
 
 imagePullSecrets: []
@@ -16,8 +17,7 @@ service:
   type: ClusterIP
   port: 8080
 
-# Required site input for k8s: NFS (or set media.existingClaim) with Plex media.
-# Clips and metadata do not live here.
+# Plex source media. Required: NFS (server+path) or existingClaim. Clips stay off this share.
 media:
   mountPath: /media
   plexMediaRoot: ""
@@ -37,6 +37,65 @@ data:
     accessModes:
       - ReadWriteOnce
 
+# Optional in-cluster backends. Disabled by default. Pick at most one blob and one DB.
+# helm dependency update is required before install when any is enabled.
+backends:
+  seaweedfs:
+    enabled: false
+  rustfs:
+    enabled: false
+  cockroach:
+    enabled: false
+  cnpg:
+    enabled: false
+  cnpgOperator:
+    enabled: false
+
+# Passed through to the seaweedfs subchart when backends.seaweedfs.enabled.
+seaweedfs:
+  s3:
+    enabled: true
+    port: 8333
+  filer:
+    s3:
+      enabled: true
+      port: 8333
+
+# Passed through to the rustfs subchart when backends.rustfs.enabled.
+rustfs:
+  mode:
+    standalone:
+      enabled: true
+    distributed:
+      enabled: false
+
+# Passed through to the cockroachdb subchart when backends.cockroach.enabled.
+cockroachdb:
+  tls:
+    enabled: false
+  conf:
+    single-node: true
+  statefulset:
+    replicas: 1
+  storage:
+    persistentVolume:
+      size: 10Gi
+
+# Passed through to the CNPG cluster subchart when backends.cnpg.enabled.
+# Install the operator first (backends.cnpgOperator.enabled, or cluster-wide).
+cnpg-cluster:
+  type: postgresql
+  mode: standalone
+  cluster:
+    instances: 1
+    enableSuperuserAccess: true
+    storage:
+      size: 8Gi
+
+cloudnative-pg:
+  crds:
+    create: true
+
 outtake:
   listenAddr: "0.0.0.0:8080"
   publicBaseUrl: ""
@@ -47,7 +106,7 @@ outtake:
   storagePath: /data/output
   s3:
     endpoint: ""
-    bucket: ""
+    bucket: outtake
     region: us-east-1
     accessKey: ""
     secretKey: ""
@@ -61,6 +120,19 @@ outtake:
   databaseUrl: ""
   existingSecret: ""
   databaseUrlKey: database-url
+
+# Dockerfile.dev runs USER 1000:1000 (scratch).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
 
 resources: {}
 

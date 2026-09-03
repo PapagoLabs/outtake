@@ -18,17 +18,21 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: outtake
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: {{ include "outtake.httpPort" . | int }}
               protocol: TCP
           env:
             - name: OUTTAKE_LISTEN_ADDR
-              value: {{ .Values.outtake.listenAddr | quote }}
+              value: {{ printf "0.0.0.0:%s" (include "outtake.httpPort" .) | quote }}
             - name: OUTTAKE_LOG_LEVEL
               value: {{ .Values.outtake.logLevel | quote }}
             - name: OUTTAKE_ENV
@@ -38,12 +42,12 @@ spec:
               value: {{ .Values.outtake.publicBaseUrl | quote }}
             {{- end }}
             - name: OUTTAKE_STORAGE_BACKEND
-              value: {{ .Values.outtake.storageBackend | quote }}
+              value: {{ include "outtake.storageBackend" . | quote }}
             - name: OUTTAKE_STORAGE_PATH
               value: {{ .Values.outtake.storagePath | quote }}
             - name: OUTTAKE_DATABASE_BACKEND
-              value: {{ .Values.outtake.databaseBackend | quote }}
-            {{- if eq .Values.outtake.databaseBackend "sqlite" }}
+              value: {{ include "outtake.databaseBackend" . | quote }}
+            {{- if eq (include "outtake.databaseBackend" .) "sqlite" }}
             - name: OUTTAKE_DATABASE_PATH
               value: {{ .Values.outtake.databasePath | quote }}
             {{- end }}
@@ -53,9 +57,9 @@ spec:
             - name: OUTTAKE_PLEX_MEDIA_ROOT
               value: {{ .Values.media.plexMediaRoot | quote }}
             {{- end }}
-            {{- if eq .Values.outtake.storageBackend "s3" }}
+            {{- if eq (include "outtake.storageBackend" .) "s3" }}
             - name: OUTTAKE_S3_ENDPOINT
-              value: {{ .Values.outtake.s3.endpoint | quote }}
+              value: {{ include "outtake.s3Endpoint" . | quote }}
             - name: OUTTAKE_S3_BUCKET
               value: {{ .Values.outtake.s3.bucket | quote }}
             - name: OUTTAKE_S3_REGION
@@ -73,23 +77,28 @@ spec:
                   name: {{ .Values.outtake.s3.existingSecret | default (include "outtake.fullname" .) }}
                   key: {{ .Values.outtake.s3.secretKeyKey }}
             {{- end }}
-            {{- if eq .Values.outtake.databaseBackend "postgres" }}
+            {{- if eq (include "outtake.databaseBackend" .) "postgres" }}
             - name: OUTTAKE_DATABASE_URL
               valueFrom:
                 secretKeyRef:
+                  {{- if and .Values.backends.cnpg.enabled (not .Values.outtake.existingSecret) (not .Values.outtake.databaseUrl) }}
+                  name: {{ .Release.Name }}-cnpg-cluster-app
+                  key: uri
+                  {{- else }}
                   name: {{ .Values.outtake.existingSecret | default (include "outtake.fullname" .) }}
                   key: {{ .Values.outtake.databaseUrlKey }}
+                  {{- end }}
             {{- end }}
           volumeMounts:
             {{- if .Values.data.persistence.enabled }}
             - name: data
               mountPath: /data
             {{- end }}
-            {{- if or .Values.media.nfs.server .Values.media.existingClaim }}
+            - name: tmp
+              mountPath: /tmp
             - name: media
               mountPath: {{ .Values.media.mountPath }}
               readOnly: {{ .Values.media.nfs.readOnly }}
-            {{- end }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -100,11 +109,13 @@ spec:
           persistentVolumeClaim:
             claimName: {{ include "outtake.fullname" . }}-data
         {{- end }}
+        - name: tmp
+          emptyDir: {}
         {{- if .Values.media.existingClaim }}
         - name: media
           persistentVolumeClaim:
             claimName: {{ .Values.media.existingClaim }}
-        {{- else if .Values.media.nfs.server }}
+        {{- else }}
         - name: media
           nfs:
             server: {{ .Values.media.nfs.server | quote }}
