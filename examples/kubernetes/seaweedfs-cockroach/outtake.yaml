@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: outtake
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: outtake-s3
+  namespace: outtake
+type: Opaque
+stringData:
+  # Replace both keys and the matching identity in config.json before apply.
+  s3-access-key: outtake
+  s3-secret-key: change-me
+  config.json: |
+    {
+      "identities": [
+        {
+          "name": "outtake",
+          "credentials": [
+            {"accessKey": "outtake", "secretKey": "change-me"}
+          ],
+          "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+        }
+      ]
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: outtake-data
+  namespace: outtake
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outtake
+  namespace: outtake
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: outtake
+  template:
+    metadata:
+      labels:
+        app: outtake
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: outtake
+          image: ghcr.io/papagolabs/outtake:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: OUTTAKE_LISTEN_ADDR
+              value: "0.0.0.0:8080"
+            - name: OUTTAKE_LOG_LEVEL
+              value: info
+            - name: OUTTAKE_STORAGE_BACKEND
+              value: s3
+            - name: OUTTAKE_STORAGE_PATH
+              value: /data/scratch
+            - name: OUTTAKE_S3_ENDPOINT
+              value: http://seaweedfs:8333
+            - name: OUTTAKE_S3_BUCKET
+              value: outtake
+            - name: OUTTAKE_S3_REGION
+              value: us-east-1
+            - name: OUTTAKE_S3_USE_PATH_STYLE
+              value: "true"
+            - name: OUTTAKE_S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: outtake-s3
+                  key: s3-access-key
+            - name: OUTTAKE_S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: outtake-s3
+                  key: s3-secret-key
+            - name: OUTTAKE_DATABASE_BACKEND
+              value: postgres
+            - name: OUTTAKE_DATABASE_URL
+              value: postgres://root@cockroachdb:26257/defaultdb?sslmode=disable
+            - name: OUTTAKE_LOCAL_MEDIA_ROOT
+              value: /media
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: media
+              mountPath: /media
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: outtake-data
+        - name: tmp
+          emptyDir: {}
+        - name: media
+          nfs:
+            server: nfs.example.internal
+            path: /export/plex
+            readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: outtake
+  namespace: outtake
+spec:
+  selector:
+    app: outtake
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
