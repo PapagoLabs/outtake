@@ -6,16 +6,15 @@ package plex
 
 import (
 	"context"
-	"encoding/xml"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
+	"github.com/PapagoLabs/outtake/internal/plex/decode/plextv"
 )
 
 const (
@@ -183,19 +182,17 @@ func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 		return nil, fmt.Errorf("discover servers: %w", err)
 	}
 
-	var data deviceResponse
-
 	body := resp.Body()
 	if len(body) == 0 {
 		return nil, errEmptyBody
 	}
 
-	err = xml.Unmarshal(body, &data)
+	devices, err := plextv.Devices(body)
 	if err != nil {
 		return nil, fmt.Errorf("decode servers: %w", err)
 	}
 
-	servers := serversFromDevices(data.Device)
+	servers := serversFromDevices(devices)
 
 	logging.Logger.Debug().
 		Int("count", len(servers)).
@@ -273,20 +270,18 @@ func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaIte
 		return nil, fmt.Errorf("search media: %w", err)
 	}
 
-	var data searchResponse
-
 	body := resp.Body()
 	if len(body) == 0 {
 		return nil, errEmptyBody
 	}
 
-	err = xml.Unmarshal(body, &data)
+	videos, _, err := plextv.Search(body)
 	if err != nil {
 		return nil, fmt.Errorf("decode search: %w", err)
 	}
 
-	items := make([]MediaItem, 0, len(data.Video))
-	for _, entry := range data.Video {
+	items := make([]MediaItem, 0, len(videos))
+	for _, entry := range videos {
 		items = append(items, mediaItemFromEntry(entry, ""))
 	}
 
@@ -300,33 +295,21 @@ func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 		return nil, fmt.Errorf("get sessions: %w", err)
 	}
 
-	var data sessionResponse
-
 	body := resp.Body()
 	if len(body) == 0 {
 		return nil, nil
 	}
 
-	err = xml.Unmarshal(body, &data)
+	entries, err := plextv.Sessions(body)
 	if err != nil {
 		return nil, fmt.Errorf("decode sessions: %w", err)
 	}
 
-	sessions := make([]Session, 0, len(data.Video))
-	for _, entry := range data.Video {
+	sessions := make([]Session, 0, len(entries))
+	for _, entry := range entries {
 		sessions = append(sessions, Session{
-			ID: entry.Session.ID,
-			MediaItem: mediaItemFromEntry(
-				mediaEntry{
-					RatingKey: entry.RatingKey,
-					Key:       entry.Key,
-					Title:     entry.Title,
-					Duration:  entry.Duration,
-					Thumb:     "",
-					Type:      entry.Type,
-				},
-				"",
-			),
+			ID:         entry.PlaybackID(),
+			MediaItem:  mediaItemFromEntry(entry.Media(), ""),
 			Title:      entry.Title,
 			Duration:   float64(entry.Duration) / scaleMsToS,
 			ViewOffset: float64(entry.ViewOffset) / scaleMsToS,
@@ -347,7 +330,7 @@ func MapPlexType(plexType string) string {
 }
 
 // serversFromDevices flattens discovered devices into server connections.
-func serversFromDevices(devices []deviceEntry) []Server {
+func serversFromDevices(devices []plextv.Device) []Server {
 	servers := make([]Server, 0, len(devices))
 
 	for _, device := range devices {
@@ -362,7 +345,7 @@ func serversFromDevices(devices []deviceEntry) []Server {
 }
 
 // serverFromConnection maps a Plex Connection element onto a Server.
-func serverFromConnection(name, token string, conn deviceConnection) Server {
+func serverFromConnection(name, token string, conn plextv.Connection) Server {
 	if conn.URI != "" {
 		parsed, ok := ServerFromURL(conn.URI, token)
 		if ok {
@@ -402,29 +385,13 @@ func jsonHeaders(token string) map[string]string {
 }
 
 // mediaItemFromEntry converts a Plex media listing entry.
-func mediaItemFromEntry(entry mediaEntry, libraryTitle string) MediaItem {
+func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
 	return MediaItem{
-		ID:           mediaEntryID(entry),
+		ID:           entry.ID(),
 		Title:        entry.Title,
 		Type:         MapPlexType(entry.Type),
 		Duration:     float64(entry.Duration) / scaleMsToS,
 		ThumbPath:    entry.Thumb,
 		LibraryTitle: libraryTitle,
 	}
-}
-
-// mediaEntryID prefers ratingKey, then the metadata id in key.
-func mediaEntryID(entry mediaEntry) string {
-	if entry.RatingKey != "" {
-		return entry.RatingKey
-	}
-
-	id := strings.TrimPrefix(entry.Key, "/library/metadata/")
-
-	id = strings.TrimSuffix(id, "/")
-	if slash := strings.Index(id, "/"); slash >= 0 {
-		id = id[:slash]
-	}
-
-	return id
 }

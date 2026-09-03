@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/plex/decode/plextv"
 )
 
 func TestPreferUniqueServers(t *testing.T) {
@@ -29,13 +31,13 @@ func TestPreferUniqueServers(t *testing.T) {
 func TestServersFromDevices_AccessTokenAndURI(t *testing.T) {
 	t.Parallel()
 
-	devices := []deviceEntry{
+	devices := []plextv.Device{
 		{
 			Name:        "Home",
 			Address:     "",
 			Port:        0,
 			AccessToken: "camel-token",
-			Connection: []deviceConnection{
+			Connection: []plextv.Connection{
 				{
 					URI:      "https://plex.example.com",
 					Address:  "plex.example.com",
