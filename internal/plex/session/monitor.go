@@ -1,11 +1,11 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package session provides session monitoring for Plex servers.
 package session
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -13,9 +13,23 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// Monitor monitors Plex sessions.
+// Fetcher loads live playback sessions from a Plex Media Server.
+type Fetcher interface {
+	// GetSessionsOnServer returns the sessions currently playing on server.
+	//
+	// Parameters:
+	//   - ctx: Cancellation and deadline for the fetch.
+	//   - server: The Plex Media Server to query.
+	//
+	// Returns:
+	//   - sessions: The active playback sessions.
+	//   - err: Non-nil when the server cannot be queried.
+	GetSessionsOnServer(ctx context.Context, server plex.Server) ([]plex.Session, error)
+}
+
+// Monitor polls a Plex Media Server for live playback sessions.
 type Monitor struct {
-	client   *plex.Client
+	client   Fetcher
 	server   plex.Server
 	interval time.Duration
 
@@ -28,8 +42,21 @@ type Monitor struct {
 	cancel context.CancelFunc
 }
 
-// NewMonitor creates a new session monitor.
-func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration) *Monitor {
+// *plex.Client satisfies Fetcher.
+var _ Fetcher = (*plex.Client)(nil)
+
+// NewMonitor creates a session monitor that polls client at interval.
+//
+// The returned monitor is not started. Call [Monitor.Start] to begin polling.
+//
+// Parameters:
+//   - client: Session fetcher, typically a [*plex.Client].
+//   - server: Plex Media Server to poll.
+//   - interval: Time between session refreshes.
+//
+// Returns:
+//   - monitor: A monitor that has not been started.
+func NewMonitor(client Fetcher, server plex.Server, interval time.Duration) *Monitor {
 	return &Monitor{
 		client:   client,
 		server:   server,
@@ -43,19 +70,18 @@ func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration)
 	}
 }
 
-// GetSessions returns the current sessions.
+// GetSessions returns a copy of the cached playback sessions.
+//
+// Returns:
+//   - sessions: A clone of the current session list.
 func (mon *Monitor) GetSessions() []plex.Session {
 	mon.mu.RLock()
 	defer mon.mu.RUnlock()
 
-	result := make([]plex.Session, 0, len(mon.sessions))
-
-	result = append(result, mon.sessions...)
-
-	return result
+	return slices.Clone(mon.sessions)
 }
 
-// Start starts the session monitor.
+// Start begins polling for session updates.
 func (mon *Monitor) Start() {
 	logging.Logger.Info().
 		Str("server", mon.server.Name).
@@ -70,7 +96,7 @@ func (mon *Monitor) Start() {
 	})
 }
 
-// Stop stops the session monitor.
+// Stop ends polling and waits for the poll goroutine to exit.
 func (mon *Monitor) Stop() {
 	mon.once.Do(func() {
 		close(mon.stop)
@@ -79,7 +105,7 @@ func (mon *Monitor) Stop() {
 	mon.wg.Wait()
 }
 
-// poll polls for session updates.
+// poll polls for session updates until the monitor is stopped.
 //
 // Parameters:
 //   - ctx: Parent context canceled when the monitor stops.
@@ -99,7 +125,9 @@ func (mon *Monitor) poll(ctx context.Context) {
 	}
 }
 
-// refresh refreshes the session list.
+// refresh fetches sessions and replaces the cache on success.
+//
+// A fetch error leaves the cache unchanged.
 //
 // Parameters:
 //   - ctx: Parent context for the session fetch timeout.
@@ -119,7 +147,7 @@ func (mon *Monitor) refresh(ctx context.Context) {
 
 	mon.mu.Lock()
 
-	mon.sessions = sessions
+	mon.sessions = slices.Clone(sessions)
 	mon.mu.Unlock()
 
 	logging.Logger.Debug().
