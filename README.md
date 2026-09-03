@@ -23,7 +23,7 @@
 - [Requirements](#requirements)
 - [Install](#install)
   - [Docker Compose](#docker-compose)
-  - [Kubernetes / Helm](#kubernetes--helm)
+  - [Kubernetes](#kubernetes)
 - [Configuration](#configuration)
 - [First run](#first-run)
 - [Make a clip](#make-a-clip)
@@ -54,14 +54,13 @@ The server listens on port 8080 by default.
 ## Install
 
 Two deploy modes: **Docker Compose** is the local filesystem + SQLite
-path. **Kubernetes / Helm** is for clusters. You point NFS (or an
-existing claim) at Plex media. Clips and metadata do not live on that
-share.
+path. **Kubernetes** is for clusters. You point NFS (or an existing
+claim) at Plex media. Clips and metadata do not live on that share.
 
 ### Docker Compose
 
 Images are published as `ghcr.io/papagolabs/outtake` and
-`papagolabs/outtake`. This matches [`examples/docker-compose.yaml`](examples/docker-compose.yaml):
+`papagolabs/outtake`. This matches [`examples/docker/docker-compose.yaml`](examples/docker/docker-compose.yaml):
 
 ```yaml
 services:
@@ -147,71 +146,45 @@ docker compose up --build
 This uses `build/docker/Dockerfile.dev` and also bundles ffmpeg and
 ffprobe.
 
-### Kubernetes / Helm
+### Kubernetes
 
-The chart lives at
-[`deploy/helm/outtake`](https://github.com/PapagoLabs/outtake/tree/main/deploy/helm/outtake).
-There is no Helm repo or OCI chart. Install it from that GitHub tree.
-Do **not** clone the repository. Helm pulls Git with
-[helm-git](https://github.com/aslafy-z/helm-git):
+There is no Helm repo or OCI chart. Cluster examples live under
+[`examples/kubernetes/`](examples/kubernetes/).
+
+Suggested stacks (Outtake + SeaweedFS + a database, NFS for Plex media
+only):
+
+- [`examples/kubernetes/seaweedfs-cnpg/`](examples/kubernetes/seaweedfs-cnpg/)
+  SeaweedFS + CloudNativePG. Install the CloudNativePG operator first.
+- [`examples/kubernetes/seaweedfs-cockroach/`](examples/kubernetes/seaweedfs-cockroach/)
+  SeaweedFS + a development-only single-node Cockroach (`--insecure`).
+  Do not use that Cockroach topology in production.
+
+Set `nfs.example.internal` and `/export/plex` to your Plex media NFS.
+Clip blobs stay on S3. They do **not** live on the media NFS share.
+Replace the `outtake-s3` keys (and the matching `config.json` identity)
+before apply:
 
 ```bash
-helm plugin install https://github.com/aslafy-z/helm-git
-helm repo add papagolabs \
-  --username "$GITHUB_USERNAME" \
-  --password "$GITHUB_TOKEN" \
-  git+https://github.com/PapagoLabs/outtake@deploy/helm?ref=main
+kubectl apply -k examples/kubernetes/seaweedfs-cnpg
 ```
 
-The GitHub repository is private. On Helm 3.14+, `--username` is your
-GitHub username and `--password` is a token that can read the repo. Or
-use SSH:
+or
 
 ```bash
-helm repo add papagolabs \
-  git+ssh://git@github.com/PapagoLabs/outtake@deploy/helm?ref=main
+kubectl apply -k examples/kubernetes/seaweedfs-cockroach
 ```
 
-Values and optional backends are in the chart
-[README](https://github.com/PapagoLabs/outtake/blob/main/deploy/helm/outtake/README.md).
+An example Helm chart is in
+[`examples/kubernetes/helm/outtake`](examples/kubernetes/helm/outtake).
+Values and optional chart backends are in that chart
+[README](examples/kubernetes/helm/outtake/README.md). Do not
+`helm repo add`.
 
-The only site input is Plex media: set `media.nfs.server` and
-`media.nfs.path`, or `media.existingClaim`. Clip blobs stay on
-`storage-path` or S3. They do **not** live on the media NFS share.
-
-Defaults match Compose: `outtake.storageBackend` is `filesystem` and
-`outtake.databaseBackend` is `sqlite`. The image is
+The only site input is Plex media: NFS in the suggested manifests, or
+`media.nfs` / `media.existingClaim` on the chart. Defaults match Compose
+(`filesystem` and `sqlite`) unless you enable a backend. The image is
 `ghcr.io/papagolabs/outtake:latest` (no tagged release yet).
-
-Minimal install (NFS for Plex media, filesystem and SQLite for clips):
-
-```bash
-helm install outtake papagolabs/outtake \
-  --set media.nfs.server=nfs.example.internal \
-  --set media.nfs.path=/export/plex
-```
-
-Optional in-cluster backends (at most one blob store and one database):
-SeaweedFS or RustFS, and CockroachDB (`backends.cockroach`) or
-CloudNativePG (`backends.cnpg`, and `backends.cnpgOperator` if you also
-need the operator). Enabling SeaweedFS or RustFS selects S3 storage.
-Enabling Cockroach or CNPG selects postgres. Set those
-`outtake.storageBackend` / `outtake.databaseBackend` values yourself if
-you are not using a chart backend. A working combo is SeaweedFS +
-Cockroach (full example:
-[`values-distributed.yaml`](https://github.com/PapagoLabs/outtake/blob/main/deploy/helm/outtake/examples/values-distributed.yaml)).
-S3 access keys are still required. Point `media.nfs` (or
-`media.existingClaim`) at your Plex library:
-
-```bash
-helm install outtake papagolabs/outtake \
-  --set backends.seaweedfs.enabled=true \
-  --set backends.cockroach.enabled=true \
-  --set outtake.s3.accessKey=seaweedfs \
-  --set outtake.s3.secretKey=seaweedfs \
-  --set media.nfs.server=nfs.example.internal \
-  --set media.nfs.path=/export/plex
-```
 
 ## Configuration
 
@@ -312,17 +285,19 @@ is higher quality.
 - **Clips fail or files are missing.** The path Plex reports must be
   readable. In Docker, mount the library and set
   `OUTTAKE_PLEX_MEDIA_ROOT` / `OUTTAKE_LOCAL_MEDIA_ROOT` so that path
-  lands on `/media`. On Kubernetes, that mount is `media.nfs` or
-  `media.existingClaim` (source media only). Clip blobs stay on
+  lands on `/media`. On Kubernetes, that mount is the NFS volume in the
+  suggested manifests (or `media.nfs` / `media.existingClaim` on the
+  example chart). Source media only. Clip blobs stay on
   `OUTTAKE_STORAGE_PATH` or S3, not on the media NFS share. Clip metadata
   is in the database.
-- **Helm cannot fetch the chart.** The GitHub repo is private. Install
-  helm-git. Re-add `papagolabs` with `--username` and `--password` (Helm
-  3.14+) or `git+ssh`.
+- **Kubernetes apply fails.** Set the NFS server and path to your Plex
+  library. Replace the `outtake-s3` keys before apply. For
+  `seaweedfs-cnpg`, install the CloudNativePG operator first.
 - **Wrong storage or database backend.** Defaults are `filesystem` and
   `sqlite`. For S3, set `OUTTAKE_STORAGE_BACKEND=s3` plus the `OUTTAKE_S3_*`
   keys. For postgres, set `OUTTAKE_DATABASE_BACKEND=postgres` and
-  `OUTTAKE_DATABASE_URL`. On Helm, enable at most one blob backend
+  `OUTTAKE_DATABASE_URL`. The suggested Kubernetes stacks use S3 and
+  postgres. On the example chart, enable at most one blob backend
   (`backends.seaweedfs` or `backends.rustfs`) and one database backend
   (`backends.cockroach` or `backends.cnpg`).
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and
