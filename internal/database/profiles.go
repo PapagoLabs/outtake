@@ -44,7 +44,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 		isDefault = 1
 	}
 
-	_, err := db.conn.ExecContext(ctx, `
+	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO clip_profiles (
 			id, name, crf, preset, audio_kbps, max_width, is_default, created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -56,7 +56,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 			max_width = excluded.max_width,
 			is_default = excluded.is_default,
 			updated_at = excluded.updated_at
-	`,
+	`),
 		profile.ID,
 		profile.Name,
 		profile.CRF,
@@ -92,7 +92,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
-		`SELECT `+clipProfileSelectCols+` FROM clip_profiles WHERE id = ?`,
+		db.rewrite(`SELECT `+clipProfileSelectCols+` FROM clip_profiles WHERE id = ?`),
 		id,
 	)
 
@@ -112,8 +112,8 @@ func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error
 func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
-		`SELECT `+clipProfileSelectCols+` FROM clip_profiles
-			ORDER BY is_default DESC, name COLLATE NOCASE ASC`,
+		db.rewrite(`SELECT `+clipProfileSelectCols+` FROM clip_profiles
+			ORDER BY is_default DESC, `+db.nameOrder()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list clip profiles: %w", err)
@@ -143,8 +143,8 @@ func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
-		`SELECT `+clipProfileSelectCols+` FROM clip_profiles
-			WHERE is_default = 1 LIMIT 1`,
+		db.rewrite(`SELECT `+clipProfileSelectCols+` FROM clip_profiles
+			WHERE is_default = 1 LIMIT 1`),
 	)
 
 	profile, err := scanClipProfile(row)
@@ -195,7 +195,7 @@ func (db *DB) DeleteClipProfile(ctx context.Context, id string) error {
 		return fmt.Errorf("lookup clip profile: %w", err)
 	}
 
-	_, err = db.conn.ExecContext(ctx, `DELETE FROM clip_profiles WHERE id = ?`, id)
+	_, err = db.conn.ExecContext(ctx, db.rewrite(`DELETE FROM clip_profiles WHERE id = ?`), id)
 	if err != nil {
 		return fmt.Errorf("exec delete clip profile: %w", err)
 	}
@@ -222,7 +222,7 @@ func (profile ClipProfile) QualityPreset() media.QualityPreset {
 func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 	var count int
 
-	err := db.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM clip_profiles`).Scan(&count)
+	err := db.conn.QueryRowContext(ctx, db.rewrite(`SELECT COUNT(*) FROM clip_profiles`)).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count clip profiles: %w", err)
 	}
@@ -234,9 +234,9 @@ func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 func (db *DB) assignDefaultClipProfile(ctx context.Context, id string) error {
 	_, err := db.conn.ExecContext(
 		ctx,
-		`UPDATE clip_profiles
+		db.rewrite(`UPDATE clip_profiles
 			SET is_default = CASE WHEN id = ? THEN 1 ELSE 0 END,
-			    updated_at = CURRENT_TIMESTAMP`,
+			    updated_at = CURRENT_TIMESTAMP`),
 		id,
 	)
 	if err != nil {
@@ -252,7 +252,7 @@ func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 
 	err := db.conn.QueryRowContext(
 		ctx,
-		`SELECT COUNT(*) FROM clip_profiles WHERE is_default = 1`,
+		db.rewrite(`SELECT COUNT(*) FROM clip_profiles WHERE is_default = 1`),
 	).Scan(&defaults)
 	if err != nil {
 		return fmt.Errorf("count default clip profiles: %w", err)
@@ -264,10 +264,10 @@ func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 
 	_, err = db.conn.ExecContext(
 		ctx,
-		`UPDATE clip_profiles SET is_default = 1
+		db.rewrite(`UPDATE clip_profiles SET is_default = 1
 			WHERE id = (
-				SELECT id FROM clip_profiles ORDER BY name COLLATE NOCASE ASC LIMIT 1
-			)`,
+				SELECT id FROM clip_profiles ORDER BY `+db.nameOrder()+` LIMIT 1
+			)`),
 	)
 	if err != nil {
 		return fmt.Errorf("ensure default clip profile: %w", err)

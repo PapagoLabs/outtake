@@ -20,8 +20,26 @@ type Config struct {
 	ListenAddr string `mapstructure:"listen-addr"`
 	// DatabasePath is the path to the database file.
 	DatabasePath string `mapstructure:"database-path"`
+	// DatabaseBackend selects sqlite (default) or postgres/pgx.
+	DatabaseBackend string `mapstructure:"database-backend"`
+	// DatabaseURL is the Postgres DSN when DatabaseBackend is postgres.
+	DatabaseURL string `mapstructure:"database-url"`
 	// StoragePath is the path to the storage directory.
 	StoragePath string `mapstructure:"storage-path"`
+	// StorageBackend selects filesystem (default) or s3.
+	StorageBackend string `mapstructure:"storage-backend"`
+	// S3Endpoint is the S3-compatible API endpoint.
+	S3Endpoint string `mapstructure:"s3-endpoint"`
+	// S3Bucket is the target bucket.
+	S3Bucket string `mapstructure:"s3-bucket"`
+	// S3Region is the S3 region.
+	S3Region string `mapstructure:"s3-region"`
+	// S3AccessKey is the static access key.
+	S3AccessKey string `mapstructure:"s3-access-key"`
+	// S3SecretKey is the static secret key.
+	S3SecretKey string `mapstructure:"s3-secret-key"`
+	// S3UsePathStyle forces path-style URLs for S3-compatible stores.
+	S3UsePathStyle bool `mapstructure:"s3-use-path-style"`
 	// FFmpegPath is the path to FFmpeg.
 	FFmpegPath string `mapstructure:"ffmpeg-path"`
 	// FFprobePath is the path to FFprobe.
@@ -73,6 +91,12 @@ const (
 	defaultMaxClipDur = 600
 	// DefaultDirPerms is the default directory permissions.
 	defaultDirPerms = 0o755
+	// DefaultDatabaseBackend is the default database backend.
+	defaultDatabaseBackend = "sqlite"
+	// DefaultStorageBackend is the default storage backend.
+	defaultStorageBackend = "filesystem"
+	// DefaultS3Region is the default S3 region.
+	defaultS3Region = "us-east-1"
 )
 
 // ConfigPath returns the configuration file path.
@@ -115,23 +139,32 @@ func Load(configFile string) (*Config, error) {
 	}
 
 	cfg := &Config{
-		ListenAddr:     "",
-		DatabasePath:   "",
-		StoragePath:    "",
-		FFmpegPath:     "",
-		FFprobePath:    "",
-		LogLevel:       "",
-		Env:            "",
-		SessionPollSec: 0,
-		NumWorkers:     0,
-		MaxClipDurSec:  0,
-		CropBlackBars:  false,
-		PlexServerURL:  "",
-		PlexToken:      "",
-		PlexClientID:   "",
-		PublicBaseURL:  "",
-		PlexMediaRoot:  "",
-		LocalMediaRoot: "",
+		ListenAddr:      "",
+		DatabasePath:    "",
+		DatabaseBackend: "",
+		DatabaseURL:     "",
+		StoragePath:     "",
+		StorageBackend:  "",
+		S3Endpoint:      "",
+		S3Bucket:        "",
+		S3Region:        "",
+		S3AccessKey:     "",
+		S3SecretKey:     "",
+		S3UsePathStyle:  false,
+		FFmpegPath:      "",
+		FFprobePath:     "",
+		LogLevel:        "",
+		Env:             "",
+		SessionPollSec:  0,
+		NumWorkers:      0,
+		MaxClipDurSec:   0,
+		CropBlackBars:   false,
+		PlexServerURL:   "",
+		PlexToken:       "",
+		PlexClientID:    "",
+		PublicBaseURL:   "",
+		PlexMediaRoot:   "",
+		LocalMediaRoot:  "",
 	}
 
 	err = viperInstance.Unmarshal(cfg)
@@ -151,7 +184,16 @@ func Load(configFile string) (*Config, error) {
 func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("listen-addr", defaultListenAddr)
 	viperInstance.SetDefault("database-path", DatabasePath())
+	viperInstance.SetDefault("database-backend", defaultDatabaseBackend)
+	viperInstance.SetDefault("database-url", "")
 	viperInstance.SetDefault("storage-path", StoragePath())
+	viperInstance.SetDefault("storage-backend", defaultStorageBackend)
+	viperInstance.SetDefault("s3-endpoint", "")
+	viperInstance.SetDefault("s3-bucket", "")
+	viperInstance.SetDefault("s3-region", defaultS3Region)
+	viperInstance.SetDefault("s3-access-key", "")
+	viperInstance.SetDefault("s3-secret-key", "")
+	viperInstance.SetDefault("s3-use-path-style", true)
 	viperInstance.SetDefault("ffmpeg-path", defaultFFmpegPath)
 	viperInstance.SetDefault("ffprobe-path", defaultFFprobePath)
 	viperInstance.SetDefault("log-level", defaultLogLevel)
@@ -169,7 +211,16 @@ func bindEnv(viperInstance *viper.Viper) error {
 	keys := []string{
 		"listen-addr",
 		"database-path",
+		"database-backend",
+		"database-url",
 		"storage-path",
+		"storage-backend",
+		"s3-endpoint",
+		"s3-bucket",
+		"s3-region",
+		"s3-access-key",
+		"s3-secret-key",
+		"s3-use-path-style",
 		"ffmpeg-path",
 		"ffprobe-path",
 		"log-level",

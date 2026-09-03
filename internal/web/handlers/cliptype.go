@@ -30,7 +30,7 @@ func NormalizeClipType(clipType string) (queue.JobType, bool) {
 }
 
 // assignOutputPaths sets the on-disk destination for a job.
-func assignOutputPaths(job *queue.Job, store *storage.Storage) {
+func assignOutputPaths(job *queue.Job, store storage.Blob) {
 	switch job.Type {
 	case queue.JobTypeClip:
 		job.OutputPath = store.ClipPath(job.ID)

@@ -17,7 +17,7 @@ import (
 
 // ThumbHandler proxies and caches Plex thumbnails.
 type ThumbHandler struct {
-	store    *storage.Storage
+	store    storage.Blob
 	bind     *binding.Binding
 	product  string
 	clientID string
@@ -28,7 +28,7 @@ const thumbCacheControl = "public, max-age=604800, immutable"
 
 // NewThumbHandler creates a thumbnail handler.
 func NewThumbHandler(
-	store *storage.Storage,
+	store storage.Blob,
 	bind *binding.Binding,
 	product, clientID string,
 ) *ThumbHandler {
