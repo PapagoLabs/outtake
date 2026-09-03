@@ -116,7 +116,7 @@ docker run -d \
   ghcr.io/papagolabs/outtake:latest
 ```
 
-The image entrypoint is `/outtake`; the default command is `server start`.
+The image entrypoint is `/outtake`. The default command is `server start`.
 
 ### Binary
 
@@ -149,50 +149,48 @@ ffprobe.
 
 ### Kubernetes / Helm
 
-Use the chart at [`deploy/helm/outtake`](deploy/helm/outtake). Values and
-optional backends are documented in that chart's
+Chart values and optional backends are in
+[`deploy/helm/outtake`](deploy/helm/outtake) and that chart's
 [README](deploy/helm/outtake/README.md).
 
-The operator site input is Plex media: set `media.nfs.server` and
-`media.nfs.path`, or `media.existingClaim`. Clips stay on `storage-path`
-or S3. They do **not** live on the media NFS share.
+A packaged Helm chart (OCI registry or Helm repo) is not published yet.
+When one is, install it like any other chart. You do not need a
+repository checkout. Replace `<chart>` with the packaged chart
+reference (an OCI URL, `repo/name`, or a `.tgz`).
+
+The only site input is Plex media: set `media.nfs.server` and
+`media.nfs.path`, or `media.existingClaim`. Clip blobs stay on
+`storage-path` or S3. They do **not** live on the media NFS share.
 
 Defaults match Compose: `outtake.storageBackend` is `filesystem` and
 `outtake.databaseBackend` is `sqlite`. The image is
 `ghcr.io/papagolabs/outtake:latest` (no tagged release yet).
 
-Run `helm dependency update` **before any install**. Helm checks
-Chart.yaml dependencies even when backends are disabled:
-
-```bash
-helm dependency update deploy/helm/outtake
-```
-
 Minimal install (NFS for Plex media, filesystem and SQLite for clips):
 
 ```bash
-helm install outtake deploy/helm/outtake \
+helm install outtake <chart> \
   --set media.nfs.server=nfs.example.internal \
   --set media.nfs.path=/export/plex
 ```
 
 Optional in-cluster backends (at most one blob store and one database):
-SeaweedFS or RustFS, and CockroachDB or CloudNativePG (`backends.cnpg`,
-and `backends.cnpgOperator` if you also need the operator). Enabling
-SeaweedFS or RustFS selects S3 storage. Enabling Cockroach or CNPG
-selects postgres. Set those `outtake.storageBackend` /
-`outtake.databaseBackend` values yourself if you are not using a chart
-backend. A working combo is
+SeaweedFS or RustFS, and CockroachDB (`backends.cockroach`) or
+CloudNativePG (`backends.cnpg`, and `backends.cnpgOperator` if you also
+need the operator). Enabling SeaweedFS or RustFS selects S3 storage.
+Enabling Cockroach or CNPG selects postgres. Set those
+`outtake.storageBackend` / `outtake.databaseBackend` values yourself if
+you are not using a chart backend. A working combo is
 [`deploy/helm/outtake/examples/values-distributed.yaml`](deploy/helm/outtake/examples/values-distributed.yaml)
-(SeaweedFS + Cockroach, with NFS as a site input):
+(SeaweedFS + Cockroach). Point `media.nfs` (or `media.existingClaim`)
+at your Plex library, then install with that file over HTTPS:
 
 ```bash
-helm install outtake deploy/helm/outtake \
-  -f deploy/helm/outtake/examples/values-distributed.yaml
+helm install outtake <chart> \
+  -f https://raw.githubusercontent.com/PapagoLabs/outtake/main/deploy/helm/outtake/examples/values-distributed.yaml
 ```
 
-Edit the example's `media.nfs` (or `media.existingClaim`) to your Plex
-library before applying it.
+Until a packaged chart exists, use Docker or Compose.
 
 ## Configuration
 
@@ -202,10 +200,11 @@ application setting).
 
 Docker images store the SQLite database and filesystem exports under
 `/data` (`outtake.db` and `output/`). The example compose file keeps that
-volume as `outtake-data`. Clips and metadata use `OUTTAKE_STORAGE_PATH`
-(or S3 when `OUTTAKE_STORAGE_BACKEND=s3`). `OUTTAKE_LOCAL_MEDIA_ROOT` /
-`OUTTAKE_PLEX_MEDIA_ROOT` are **source media only**, not the clip store,
-and not Kubernetes media NFS.
+volume as `outtake-data`. Clip blobs use `OUTTAKE_STORAGE_PATH` (or S3
+when `OUTTAKE_STORAGE_BACKEND=s3`). Clip metadata lives in the database
+(`OUTTAKE_DATABASE_PATH` or `OUTTAKE_DATABASE_URL`).
+`OUTTAKE_LOCAL_MEDIA_ROOT` and `OUTTAKE_PLEX_MEDIA_ROOT` are **source
+media only**, not the clip store, and not Kubernetes media NFS.
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
@@ -293,18 +292,18 @@ is higher quality.
   readable. In Docker, mount the library and set
   `OUTTAKE_PLEX_MEDIA_ROOT` / `OUTTAKE_LOCAL_MEDIA_ROOT` so that path
   lands on `/media`. On Kubernetes, that mount is `media.nfs` or
-  `media.existingClaim` (source media only). Clips stay on
-  `OUTTAKE_STORAGE_PATH` or S3, not on the media NFS share.
-- **Helm install fails on chart dependencies.** Run
-  `helm dependency update deploy/helm/outtake` before any install. Helm
-  checks Chart.yaml deps even when backends are disabled.
+  `media.existingClaim` (source media only). Clip blobs stay on
+  `OUTTAKE_STORAGE_PATH` or S3, not on the media NFS share. Clip metadata
+  is in the database.
+- **Helm has no packaged chart yet.** A Helm repo or OCI chart is not
+  published. Until one exists, use Docker or Compose.
 - **Wrong storage or database backend.** Defaults are `filesystem` and
   `sqlite`. For S3, set `OUTTAKE_STORAGE_BACKEND=s3` plus the `OUTTAKE_S3_*`
   keys. For postgres, set `OUTTAKE_DATABASE_BACKEND=postgres` and
   `OUTTAKE_DATABASE_URL`. On Helm, enable at most one blob backend
   (`backends.seaweedfs` or `backends.rustfs`) and one database backend
   (`backends.cockroach` or `backends.cnpg`), or use
-  `deploy/helm/outtake/examples/values-distributed.yaml`.
+  [`values-distributed.yaml`](deploy/helm/outtake/examples/values-distributed.yaml).
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and
   keep them on `PATH`, or set the path variables above. Docker images
   already include them.
