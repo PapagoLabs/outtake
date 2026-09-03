@@ -162,7 +162,9 @@ func (meta Metadata) File() string {
 // Returns:
 //   - ok: True when the item can map onto a MediaItem.
 func (meta Metadata) HasMetadata() bool {
-	return meta.RatingKey != "" || strings.Contains(meta.Key, "/metadata/")
+	_, hasPrefix := strings.CutPrefix(meta.Key, metadataKeyPrefix)
+
+	return meta.RatingKey != "" || hasPrefix
 }
 
 // ID prefers ratingKey, then the metadata id in key.
@@ -174,7 +176,10 @@ func (meta Metadata) ID() string {
 		return string(meta.RatingKey)
 	}
 
-	id, _ := strings.CutPrefix(meta.Key, metadataKeyPrefix)
+	id, ok := strings.CutPrefix(meta.Key, metadataKeyPrefix)
+	if !ok {
+		return ""
+	}
 
 	id = strings.TrimSuffix(id, "/")
 	if slash := strings.Index(id, "/"); slash >= 0 {

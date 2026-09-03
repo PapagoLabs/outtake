@@ -80,3 +80,21 @@ func TestMetadataFile(t *testing.T) {
 	}
 	assert.Empty(t, empty.File())
 }
+
+func TestHasMetadataRejectsHubsPath(t *testing.T) {
+	t.Parallel()
+
+	meta := Metadata{
+		RatingKey:  "",
+		Key:        "/hubs/metadata/42",
+		Title:      "",
+		Type:       "",
+		Duration:   0,
+		ViewOffset: 0,
+		Thumb:      "",
+		Media:      nil,
+		Session:    session{ID: ""},
+	}
+	assert.False(t, meta.HasMetadata())
+	assert.Empty(t, meta.ID())
+}
