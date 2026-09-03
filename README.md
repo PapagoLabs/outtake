@@ -13,7 +13,7 @@
   [![Lint](https://github.com/PapagoLabs/outtake/actions/workflows/lint-go.yaml/badge.svg?branch=main)](https://github.com/PapagoLabs/outtake/actions/workflows/lint-go.yaml)
   [![Docker Hub pulls](https://img.shields.io/docker/pulls/papagolabs/outtake.svg)](https://hub.docker.com/r/papagolabs/outtake)
   [![GHCR](https://img.shields.io/badge/ghcr.io-papagolabs%2Fouttake-blue?logo=github)](https://github.com/PapagoLabs/outtake/pkgs/container/outtake)
-  [![License](https://img.shields.io/github/license/PapagoLabs/outtake.svg)](LICENSE)
+  [![License](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 </div>
 <!-- markdownlint-restore -->
 
