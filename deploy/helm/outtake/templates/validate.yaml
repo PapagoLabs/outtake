@@ -10,10 +10,11 @@
 {{- $storage := include "outtake.storageBackend" . }}
 {{- $database := include "outtake.databaseBackend" . }}
 {{- if and (eq $storage "s3") (not (or .Values.backends.seaweedfs.enabled .Values.backends.rustfs.enabled)) }}
-{{- if not .Values.outtake.s3.existingSecret }}
-{{- if or (not (include "outtake.s3Endpoint" .)) (not .Values.outtake.s3.bucket) (not .Values.outtake.s3.accessKey) (not .Values.outtake.s3.secretKey) }}
-{{- fail "s3 mode needs outtake.s3.endpoint, bucket, accessKey, and secretKey (or s3.existingSecret)" }}
+{{- if or (not (include "outtake.s3Endpoint" .)) (not .Values.outtake.s3.bucket) }}
+{{- fail "s3 mode needs outtake.s3.endpoint and bucket" }}
 {{- end }}
+{{- if and (not .Values.outtake.s3.existingSecret) (or (not .Values.outtake.s3.accessKey) (not .Values.outtake.s3.secretKey)) }}
+{{- fail "s3 mode needs accessKey and secretKey (or s3.existingSecret)" }}
 {{- end }}
 {{- end }}
 {{- if and (eq $database "postgres") (not (or .Values.backends.cockroach.enabled .Values.backends.cnpg.enabled)) }}

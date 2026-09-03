@@ -22,7 +22,7 @@ Env is `OUTTAKE_*`. Defaults stay local. Runtime selection lands in App PR #69.
 
 ## Optional backends
 
-`helm dependency update deploy/helm/outtake` then enable at most one blob and one DB:
+Run `helm dependency update deploy/helm/outtake` before any install (Helm checks Chart.yaml deps even when backends are disabled). Then enable at most one blob and one DB:
 
 | Value | Stands up |
 | --- | --- |
