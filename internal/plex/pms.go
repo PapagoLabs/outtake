@@ -104,10 +104,14 @@ func (client *Client) GetThumb(
 func (client *Client) SearchOnServer(
 	ctx context.Context,
 	server Server,
-	query string,
+	query, sectionID string,
 ) ([]MediaItem, error) {
-	// Search hubs on the PMS.
-	resp, err := client.getPMS(ctx, server, "/hubs/search", "query="+url.QueryEscape(query))
+	rawQuery := "query=" + url.QueryEscape(query)
+	if sectionID != "" {
+		rawQuery += "&sectionId=" + url.QueryEscape(sectionID)
+	}
+
+	resp, err := client.getPMS(ctx, server, "/hubs/search", rawQuery)
 	if err != nil {
 		return nil, fmt.Errorf("search hubs: %w", err)
 	}
@@ -153,6 +157,36 @@ func (client *Client) GetChildren(
 	}
 
 	return metadataItems(container.Metadata, ""), nil
+}
+
+// GetChildrenPage fetches one page of children for a container.
+func (client *Client) GetChildrenPage(
+	ctx context.Context,
+	server Server,
+	mediaID string,
+	start, size int,
+) (MediaPage, error) {
+	path := "/library/metadata/" + url.PathEscape(mediaID) + "/children"
+
+	resp, err := client.getPMS(ctx, server, path, containerQuery(start, size))
+	if err != nil {
+		resp, err = client.getPMS(
+			ctx,
+			server,
+			"/library/metadata/"+url.PathEscape(mediaID)+"/allLeaves",
+			containerQuery(start, size),
+		)
+		if err != nil {
+			return MediaPage{}, fmt.Errorf("get children: %w", err)
+		}
+	}
+
+	container, decodeErr := decodePMS(resp.Body())
+	if decodeErr != nil {
+		return MediaPage{}, fmt.Errorf("decode children: %w", decodeErr)
+	}
+
+	return mediaPage(container, start, size), nil
 }
 
 // GetMediaItem fetches a single media item from a Plex Media Server.
@@ -203,7 +237,7 @@ func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([
 		sessions = append(sessions, Session{
 			ID:         meta.Session.ID,
 			MediaItem:  item,
-			Title:      meta.Title,
+			Title:      item.DisplayTitle(),
 			Duration:   item.Duration,
 			ViewOffset: float64(meta.ViewOffset) / scaleMsToS,
 		})

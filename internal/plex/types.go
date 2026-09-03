@@ -15,19 +15,28 @@ type Server struct {
 
 // Library represents a Plex library.
 type Library struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-	Type  string `json:"type"`
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Type      string `json:"type"`
+	ThumbPath string `json:"thumbPath,omitempty"`
 }
 
 // MediaItem represents a media item in Plex.
 type MediaItem struct {
-	ID           string  `json:"id"`
-	Title        string  `json:"title"`
-	Type         string  `json:"type"`
-	Duration     float64 `json:"duration"`
-	ThumbPath    string  `json:"thumbPath"`
-	LibraryTitle string  `json:"libraryTitle"`
+	ID               string  `json:"id"`
+	Title            string  `json:"title"`
+	Type             string  `json:"type"`
+	Duration         float64 `json:"duration"`
+	ThumbPath        string  `json:"thumbPath"`
+	LibraryTitle     string  `json:"libraryTitle"`
+	LibraryID        string  `json:"libraryId,omitempty"`
+	Year             int     `json:"year,omitempty"`
+	Index            int     `json:"index,omitempty"`
+	ParentIndex      int     `json:"parentIndex,omitempty"`
+	ParentID         string  `json:"parentId,omitempty"`
+	ParentTitle      string  `json:"parentTitle,omitempty"`
+	GrandparentID    string  `json:"grandparentId,omitempty"`
+	GrandparentTitle string  `json:"grandparentTitle,omitempty"`
 }
 
 // Session represents a playback session.
@@ -48,6 +57,9 @@ type ServerIdentity struct {
 const (
 	// TypeShow is a TV show container.
 	TypeShow = "show"
+
+	// TypeEpisode is a TV episode.
+	TypeEpisode = "episode"
 
 	// TypeSeason is a season container.
 	TypeSeason = "season"

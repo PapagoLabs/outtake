@@ -81,6 +81,41 @@ func NewClipHandler(
 	}
 }
 
+// Cancel stops a pending or processing clip.
+func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
+	id := ctx.Params(paramID)
+	job := handler.lookupJob(ctx.Context(), id)
+	if job == nil {
+		return writeError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+	}
+
+	if !handler.clipQueue.Cancel(id) {
+		return writeError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
+	}
+
+	updated := handler.clipQueue.GetJob(id)
+	if updated != nil {
+		err := handler.db.SaveClip(ctx.Context(), updated)
+		if err != nil {
+			return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
+		}
+
+		job = updated
+	}
+
+	if ctx.Get("HX-Request") == "true" {
+		ctx.Set("HX-Refresh", "true")
+
+		return sendStatusCode(ctx, fiber.StatusOK)
+	}
+
+	if isFormRequest(ctx) {
+		return redirectTo(ctx, clipReturnPath(job.MediaID))
+	}
+
+	return writeJSON(ctx, fiber.StatusOK, clipResponse(job))
+}
+
 // Create handles the create clip request.
 func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
@@ -321,6 +356,8 @@ func applyClipEdits(job *queue.Job, req api.ClipRequest) {
 
 	job.StartTime = req.StartTime
 	job.Duration = req.Duration
+	job.Width = req.Width
+	job.FPS = req.FPS
 	job.AudioIndex = req.AudioIndex
 	job.CropBlackBars = req.CropBlackBars
 	job.UpdatedAt = time.Now()
@@ -514,13 +551,22 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		return req, nil
 	}
 
+	start := formSeconds(ctx, "startTime")
+	duration := formSeconds(ctx, "duration")
+	if duration == 0 {
+		end := formSeconds(ctx, "endTime")
+		if end > start {
+			duration = end - start
+		}
+	}
+
 	return api.ClipRequest{
 		Name:          ctx.FormValue("name"),
 		MediaID:       ctx.FormValue("mediaId"),
 		MediaTitle:    ctx.FormValue("mediaTitle"),
 		MediaType:     ctx.FormValue("mediaType"),
-		StartTime:     formSeconds(ctx, "startTime"),
-		Duration:      formSeconds(ctx, "duration"),
+		StartTime:     start,
+		Duration:      duration,
 		Quality:       ctx.FormValue("quality"),
 		ClipType:      ctx.FormValue("clipType"),
 		Width:         formInt(ctx, "width"),

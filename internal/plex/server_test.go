@@ -127,6 +127,46 @@ func TestGetMedia(t *testing.T) {
 	assert.Equal(t, "show", items[1].Type)
 }
 
+func TestGetMediaPageSendsContainerQuery(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "48", r.URL.Query().Get("X-Plex-Container-Start"))
+		assert.Equal(t, "48", r.URL.Query().Get("X-Plex-Container-Size"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		_, _ = w.Write([]byte(`{"MediaContainer":{"size":1,"totalSize":200,"offset":48,"Metadata":[
+			{"ratingKey":"100","title":"Paged","type":"movie","year":1999}
+		]}}`))
+	}))
+	defer ts.Close()
+
+	host, port := extractAddrPort(t, ts)
+	c := NewClient(ClientConfig{
+		Product:  productName,
+		ClientID: testServerClient,
+		Token:    testSrvToken,
+		Timeout:  5 * time.Second,
+		BaseURL:  "",
+	})
+	server := Server{
+		Name:    testServerName,
+		Address: host,
+		Port:    port,
+		Token:   testSrvToken,
+		Scheme:  httpScheme,
+		Local:   false,
+	}
+
+	page, err := c.GetMediaPage(t.Context(), server, "1", 48, 48)
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	assert.Equal(t, 200, page.Total)
+	assert.Equal(t, 1999, page.Items[0].Year)
+	assert.Equal(t, "Paged (1999)", page.Items[0].DisplayTitle())
+}
+
 func TestGetMediaPath(t *testing.T) {
 	t.Parallel()
 
@@ -341,6 +381,7 @@ func TestSearchOnServer(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/hubs/search", r.URL.Path)
 		assert.Equal(t, "alpha", r.URL.Query().Get("query"))
+		assert.Equal(t, "5", r.URL.Query().Get("sectionId"))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
@@ -371,7 +412,7 @@ func TestSearchOnServer(t *testing.T) {
 		Local:   false,
 	}
 
-	items, err := c.SearchOnServer(t.Context(), server, "alpha")
+	items, err := c.SearchOnServer(t.Context(), server, "alpha", "5")
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	assert.Equal(t, "Alpha Movie", items[0].Title)

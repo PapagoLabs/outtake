@@ -21,6 +21,9 @@ import (
 	twmerge "github.com/Oudwins/tailwind-merge-go"
 )
 
+// ControlClass is the shared class list for text inputs and native selects.
+const ControlClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
+
 // TwMerge combines Tailwind classes and resolves conflicts.
 // Example: "bg-red-500 hover:bg-blue-500", "bg-green-500" → "hover:bg-blue-500 bg-green-500".
 func TwMerge(classes ...string) string {

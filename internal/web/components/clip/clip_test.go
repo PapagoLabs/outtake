@@ -48,14 +48,15 @@ func TestClipCard(t *testing.T) {
 			name: "completed with file",
 			contains: []string{
 				"Archive",
-				"On disk",
+				"Video clip",
 				"/clips/c1/file",
 				"Regenerate",
 				"<details",
 				"Preview",
 				"<video",
+				"hx-confirm",
 			},
-			notContains: []string{"<details open", `name="audioIndex"`},
+			notContains: []string{"<details open", "On disk"},
 		},
 		{
 			name: "falls back to media title",
@@ -85,8 +86,9 @@ func TestClipCard(t *testing.T) {
 			tweak: func(item *view.ClipItem) {
 				item.Status = "failed"
 				item.FileExists = false
+				item.Error = "ffmpeg exited 1"
 			},
-			contains:    []string{"failed", "Missing file"},
+			contains:    []string{"failed", "Missing file", "ffmpeg exited 1"},
 			notContains: []string{"On disk", "hx-trigger"},
 		},
 		{
@@ -123,6 +125,7 @@ func TestClipCard(t *testing.T) {
 				`hx-get="/clips/c1/row"`,
 				`hx-trigger="every 2s"`,
 				"40%",
+				"Cancel",
 			},
 			notContains: []string{
 				"Preview",

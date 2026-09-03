@@ -6,6 +6,7 @@ package pages
 import (
 	"strconv"
 
+	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 )
@@ -34,66 +35,48 @@ templ Dashboard(props DashboardProps) {
 				<p class="text-muted-foreground">Overview of your media clipping activity.</p>
 			</div>
 			<div class="grid gap-4 md:grid-cols-4">
-				@card.Card() {
-					@card.Content() {
-						<div class="flex flex-col gap-1">
-							<p class="text-sm text-muted-foreground">Total Clips</p>
-							<p class="text-3xl font-bold">{ strconv.Itoa(props.TotalClips) }</p>
-						</div>
-					}
-				}
-				@card.Card() {
-					@card.Content() {
-						<div class="flex flex-col gap-1">
-							<p class="text-sm text-muted-foreground">Pending</p>
-							<p class="text-3xl font-bold text-yellow-500">{ strconv.Itoa(props.PendingClips) }</p>
-						</div>
-					}
-				}
-				@card.Card() {
-					@card.Content() {
-						<div class="flex flex-col gap-1">
-							<p class="text-sm text-muted-foreground">Completed</p>
-							<p class="text-3xl font-bold text-green-500">{ strconv.Itoa(props.Completed) }</p>
-						</div>
-					}
-				}
-				@card.Card() {
-					@card.Content() {
-						<div class="flex flex-col gap-1">
-							<p class="text-sm text-muted-foreground">Failed</p>
-							<p class="text-3xl font-bold text-destructive">{ strconv.Itoa(props.Failed) }</p>
-						</div>
-					}
-				}
-			</div>
-			if len(props.Sessions) > 0 {
-				<div class="flex flex-col gap-3">
-					<h3 class="text-lg font-semibold">Live Sessions</h3>
-					for _, sess := range props.Sessions {
-						@card.Card() {
-							@card.Content() {
-								<div class="flex items-center justify-between gap-4">
-									<div>
-										<p class="font-medium">{ sess.Title }</p>
-										<p class="text-sm text-muted-foreground">
-											{ strconv.Itoa(int(sess.ViewOffset)) }s / { strconv.Itoa(int(sess.Duration)) }s
-										</p>
-									</div>
-									if sess.MediaID != "" {
-										<a
-											href={ templ.SafeURL("/clips/new?mediaId=" + sess.MediaID + "&title=" + sess.Title + "&start=" + strconv.FormatFloat(sess.ViewOffset, 'f', 1, 64)) }
-											class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
-										>
-											Clip now
-										</a>
-									}
-								</div>
-							}
+				<a href="/clips" class="block">
+					@card.Card() {
+						@card.Content() {
+							<div class="flex flex-col gap-1">
+								<p class="text-sm text-muted-foreground">Total Clips</p>
+								<p class="text-3xl font-bold">{ strconv.Itoa(props.TotalClips) }</p>
+							</div>
 						}
 					}
-				</div>
-			}
+				</a>
+				<a href="/clips?status=pending" class="block">
+					@card.Card() {
+						@card.Content() {
+							<div class="flex flex-col gap-1">
+								<p class="text-sm text-muted-foreground">Pending</p>
+								<p class="text-3xl font-bold text-yellow-500">{ strconv.Itoa(props.PendingClips) }</p>
+							</div>
+						}
+					}
+				</a>
+				<a href="/clips?status=completed" class="block">
+					@card.Card() {
+						@card.Content() {
+							<div class="flex flex-col gap-1">
+								<p class="text-sm text-muted-foreground">Completed</p>
+								<p class="text-3xl font-bold text-green-500">{ strconv.Itoa(props.Completed) }</p>
+							</div>
+						}
+					}
+				</a>
+				<a href="/clips?status=failed" class="block">
+					@card.Card() {
+						@card.Content() {
+							<div class="flex flex-col gap-1">
+								<p class="text-sm text-muted-foreground">Failed</p>
+								<p class="text-3xl font-bold text-destructive">{ strconv.Itoa(props.Failed) }</p>
+							</div>
+						}
+					}
+				</a>
+			</div>
+			@LiveSessions(props.Sessions)
 			<div class="flex gap-4">
 				<a href="/media" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
 					Browse Media
@@ -104,4 +87,35 @@ templ Dashboard(props DashboardProps) {
 			</div>
 		</div>
 	}
+}
+
+templ LiveSessions(sessions []SessionItem) {
+	<div id="live-sessions" class="flex flex-col gap-3" hx-get="/dashboard/sessions" hx-trigger="every 10s" hx-swap="outerHTML">
+		<h3 class="text-lg font-semibold">Live Sessions</h3>
+		if len(sessions) == 0 {
+			<p class="text-sm text-muted-foreground">No one is playing anything in Plex right now.</p>
+		}
+		for _, sess := range sessions {
+			@card.Card() {
+				@card.Content() {
+					<div class="flex items-center justify-between gap-4">
+						<div>
+							<p class="font-medium">{ sess.Title }</p>
+							<p class="text-sm text-muted-foreground">
+								{ media.FromSeconds(sess.ViewOffset).HMS() } / { media.FromSeconds(sess.Duration).HMS() }
+							</p>
+						</div>
+						if sess.MediaID != "" {
+							<a
+								href={ templ.SafeURL("/media/item/" + sess.MediaID + "?start=" + strconv.FormatFloat(sess.ViewOffset, 'f', 1, 64)) }
+								class="inline-flex shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
+							>
+								Clip now
+							</a>
+						}
+					</div>
+				}
+			}
+		}
+	</div>
 }

@@ -22,7 +22,7 @@ templ AudioSelect(id string, tracks []view.AudioTrackOption, selected int) {
 	if len(tracks) == 0 {
 		<input type="hidden" name="audioIndex" value={ strconv.Itoa(selected) }/>
 	} else {
-		<select id={ id } name="audioIndex" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+		<select id={ id } name="audioIndex" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30">
 			for _, track := range tracks {
 				if track.Index == selected {
 					<option value={ strconv.Itoa(track.Index) } selected>{ track.Label }</option>
@@ -35,7 +35,7 @@ templ AudioSelect(id string, tracks []view.AudioTrackOption, selected int) {
 }
 
 templ QualitySelect(id string, profiles []view.ClipProfileOption, selected string) {
-	<select id={ id } name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm">
+	<select id={ id } name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30">
 		for _, profile := range profiles {
 			if qualityOptionSelected(profile, selected) {
 				<option value={ profile.ID } selected>{ profile.Name }</option>

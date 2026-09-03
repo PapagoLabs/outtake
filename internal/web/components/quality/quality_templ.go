@@ -81,7 +81,7 @@ func AudioSelect(id string, tracks []view.AudioTrackOption, selected int) templ.
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" name=\"audioIndex\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" name=\"audioIndex\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -193,7 +193,7 @@ func QualitySelect(id string, profiles []view.ClipProfileOption, selected string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" name=\"quality\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" name=\"quality\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

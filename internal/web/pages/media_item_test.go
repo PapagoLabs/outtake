@@ -36,6 +36,7 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	body := buf.String()
 	assert.Contains(t, body, `src="/assets/js/media-item.js"`)
 	assert.Contains(t, body, `data-max-dur="600"`)
+	assert.Contains(t, body, `name="endTime"`)
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")
 }

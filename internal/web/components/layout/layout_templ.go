@@ -21,8 +21,9 @@ import (
 )
 
 type Props struct {
-	Title  string
-	Active string
+	Title   string
+	Active  string
+	Library string
 }
 
 func Layout(props Props) templ.Component {
@@ -53,7 +54,7 @@ func Layout(props Props) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(props.Title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 24, Col: 23}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 25, Col: 23}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -67,7 +68,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<link href=\"/assets/css/output.css\" rel=\"stylesheet\"><script src=\"/assets/js/htmx.min.js\"></script></head><body class=\"min-h-screen bg-background text-foreground\"><div class=\"flex min-h-screen\"><aside class=\"w-64 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2\"><a href=\"/\" class=\"flex items-center gap-2.5 mb-4 text-sidebar-foreground\"><img src=\"/assets/brand/mascot-128.png\" width=\"32\" height=\"32\" alt=\"\" class=\"size-8\"><h1 class=\"text-xl font-bold\">Outtake</h1></a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<link href=\"/assets/css/output.css\" rel=\"stylesheet\"><script src=\"/assets/js/htmx.min.js\"></script><script src=\"/assets/js/app.js\" defer></script></head><body class=\"min-h-screen bg-background text-foreground\"><div class=\"flex min-h-screen\"><button type=\"button\" class=\"js-sidebar-open md:hidden fixed z-30 top-3 left-3 inline-flex size-9 items-center justify-center rounded-md border bg-card text-foreground shadow-xs\" aria-label=\"Open menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 5h16\"></path><path d=\"M4 12h16\"></path><path d=\"M4 19h16\"></path></svg></button><div class=\"js-sidebar-overlay hidden md:hidden fixed inset-0 z-40 bg-black/50\"></div><aside class=\"js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform\"><div class=\"flex items-center justify-between gap-2 mb-4\"><a href=\"/\" class=\"flex items-center gap-2.5 text-sidebar-foreground\"><img src=\"/assets/brand/mascot-128.png\" width=\"32\" height=\"32\" alt=\"\" class=\"size-8\"><h1 class=\"text-xl font-bold\">Outtake</h1></a><div class=\"flex items-center gap-1\"><button type=\"button\" class=\"js-theme-toggle inline-flex size-8 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent\" aria-label=\"Toggle theme\"><svg class=\"js-theme-icon-dark size-4\" xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2\"></path><path d=\"M12 20v2\"></path><path d=\"m4.93 4.93 1.41 1.41\"></path><path d=\"m17.66 17.66 1.41 1.41\"></path><path d=\"M2 12h2\"></path><path d=\"M20 12h2\"></path><path d=\"m6.34 17.66-1.41 1.41\"></path><path d=\"m19.07 4.93-1.41 1.41\"></path></svg> <svg class=\"js-theme-icon-light size-4 hidden\" xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"></path></svg></button> <button type=\"button\" class=\"js-sidebar-close md:hidden inline-flex size-8 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent\" aria-label=\"Close menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path></svg></button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -117,82 +118,110 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">Media Libraries</a><div id=\"nav-libraries\" class=\"flex flex-col gap-1 pl-2\" hx-get=\"/nav/libraries\" hx-trigger=\"load\" hx-swap=\"innerHTML\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\">Media Libraries</a><div id=\"nav-libraries\" class=\"flex flex-col gap-1 pl-2\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var7 = []any{utils.TwMerge(
+		if props.Library != "" {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, " hx-get=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 string
+			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("/nav/libraries?library=" + props.Library)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 80, Col: 58}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " hx-get=\"/nav/libraries\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " hx-trigger=\"load\" hx-swap=\"innerHTML\"></div></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 = []any{utils.TwMerge(
 			"px-3 py-2 rounded-md text-sm font-medium transition-colors",
 			utils.IfElse(props.Active == "clips", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
 		)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var7...)
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var8...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/clips\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a href=\"/clips\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var8 string
-		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var7).String())
+		var templ_7745c5c3_Var9 string
+		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var8).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Clips</a><div class=\"flex flex-col gap-1\"><span class=\"px-3 py-2 text-sm font-medium text-sidebar-foreground\">Settings</span><div class=\"flex flex-col gap-1 pl-2\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">Clips</a><div class=\"flex flex-col gap-1\"><span class=\"px-3 py-2 text-sm font-medium text-sidebar-foreground\">Settings</span><div class=\"flex flex-col gap-1 pl-2\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var9 = []any{utils.TwMerge(
+		var templ_7745c5c3_Var10 = []any{utils.TwMerge(
 			"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
 			utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
 		)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var9...)
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var10...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a href=\"/servers\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<a href=\"/servers\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var10 string
-		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var9).String())
+		var templ_7745c5c3_Var11 string
+		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var10).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\">Servers</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">Servers</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var11 = []any{utils.TwMerge(
+		var templ_7745c5c3_Var12 = []any{utils.TwMerge(
 			"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
 			utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
 		)}
-		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var11...)
+		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var12...)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a href=\"/settings/profiles\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<a href=\"/settings/profiles\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var12 string
-		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var11).String())
+		var templ_7745c5c3_Var13 string
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var12).String())
 		if templ_7745c5c3_Err != nil {
 			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 1, Col: 0}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\">Clip Profiles</a></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\">Clip Profiles</a></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -200,7 +229,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<a href=\"/api/auth/logout\" class=\"px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-destructive hover:text-white transition-colors mt-auto\">Logout</a></aside><main class=\"flex-1 p-8 overflow-auto\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<a href=\"/api/auth/logout\" class=\"px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-destructive hover:text-white transition-colors mt-auto\">Logout</a></aside><main class=\"flex-1 p-8 pt-16 md:pt-8 overflow-auto\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -208,7 +237,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</main></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</main></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

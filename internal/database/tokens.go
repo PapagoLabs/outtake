@@ -28,6 +28,21 @@ func (db *DB) SaveToken(ctx context.Context, clientID, accessToken string) error
 	return nil
 }
 
+// ClearAuth deletes stored Plex tokens and the selected server.
+func (db *DB) ClearAuth(ctx context.Context) error {
+	_, err := db.conn.ExecContext(ctx, db.rewrite(`DELETE FROM plex_tokens`))
+	if err != nil {
+		return fmt.Errorf("clear tokens: %w", err)
+	}
+
+	_, err = db.conn.ExecContext(ctx, db.rewrite(`DELETE FROM selected_server`))
+	if err != nil {
+		return fmt.Errorf("clear selected server: %w", err)
+	}
+
+	return nil
+}
+
 // LatestToken returns the most recently stored Plex token.
 func (db *DB) LatestToken(ctx context.Context) (string, error) {
 	var token string

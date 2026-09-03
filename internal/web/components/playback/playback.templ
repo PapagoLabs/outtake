@@ -15,9 +15,9 @@ templ PlaybackPanel(props view.Playback) {
 	<div>
 		if props.Playing {
 			<p class="text-sm">Plex is at <span class="font-medium">{ media.FromSeconds(props.ViewOffset).String() }</span>.</p>
-			<div class="flex gap-3 mt-2">
-				<button type="button" class="js-mark-start text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set start from Plex</button>
-				<button type="button" class="js-mark-end text-xs underline" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set end from Plex</button>
+			<div class="flex flex-wrap gap-2 mt-3">
+				<button type="button" class="js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set start from Plex</button>
+				<button type="button" class="js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ strconv.FormatFloat(props.ViewOffset, 'f', 1, 64) }>Set end from Plex</button>
 			</div>
 		} else {
 			<p class="text-sm text-muted-foreground">Play this item in Plex, then mark start and end from the live playback position.</p>

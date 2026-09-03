@@ -60,27 +60,27 @@ func PlaybackPanel(props view.Playback) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span>.</p><div class=\"flex gap-3 mt-2\"><button type=\"button\" class=\"js-mark-start text-xs underline\" data-offset=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span>.</p><div class=\"flex flex-wrap gap-2 mt-3\"><button type=\"button\" class=\"js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\" data-offset=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatFloat(props.ViewOffset, 'f', 1, 64))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 19, Col: 129}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 19, Col: 202}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">Set start from Plex</button> <button type=\"button\" class=\"js-mark-end text-xs underline\" data-offset=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\">Set start from Plex</button> <button type=\"button\" class=\"js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\" data-offset=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatFloat(props.ViewOffset, 'f', 1, 64))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 20, Col: 127}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 20, Col: 200}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {

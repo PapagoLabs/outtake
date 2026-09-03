@@ -34,11 +34,26 @@ const (
 	// PathSettingsProfiles is the clip profile settings path.
 	pathSettingsProfiles = "/settings/profiles"
 
+	// PathMedia is the media library path.
+	pathMedia = "/media"
+
 	// QueryTitle is the media browse title query parameter.
 	queryTitle = "title"
 
 	// QueryLibrary is the media library id query parameter.
 	queryLibrary = "library"
+
+	// QueryStart is the media pagination offset.
+	queryStart = "start"
+
+	// QueryParent is the media container parent id.
+	queryParent = "parent"
+
+	// QueryUp is the media breadcrumb parent id.
+	queryUp = "up"
+
+	// QueryUpTitle is the media breadcrumb parent title.
+	queryUpTitle = "upTitle"
 
 	// QueryError is the flash-error query parameter on HTML pages.
 	queryError = "error"
@@ -57,6 +72,9 @@ const (
 
 	// DefaultMaxClipDur is the fallback maximum clip duration in seconds.
 	defaultMaxClipDur = 600
+
+	// MediaPageSize is the number of posters shown per media library page.
+	mediaPageSize = 48
 
 	// ContentTypeHTML is the HTML content type written by page handlers.
 	contentTypeHTML = "text/html; charset=utf-8"

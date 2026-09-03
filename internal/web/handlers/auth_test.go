@@ -43,3 +43,20 @@ func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 	assert.Equal(t, pathLogin, parsed.Path)
 	assert.Equal(t, msgPlexTokenRequired, parsed.Query().Get(queryError))
 }
+
+func TestAuthLogoutRedirectsToLogin(t *testing.T) {
+	t.Parallel()
+
+	handler := NewAuthHandler("outtake", "test-client", "http://localhost", nil, nil)
+	app := fiber.New()
+	app.Get("/api/auth/logout", handler.Logout)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/auth/logout", nil)
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
+	assert.Equal(t, pathLogin, resp.Header.Get("Location"))
+}

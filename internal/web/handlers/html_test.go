@@ -7,13 +7,79 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/media"
+	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
+
+func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
+	t.Parallel()
+
+	libs := []view.LibraryItem{{ID: "2", Title: "TV Shows", Type: "show"}}
+	crumbs := mediaCrumbs(libs, "2", "", "", "")
+	require.Len(t, crumbs, 2)
+	assert.Equal(t, "TV Shows", crumbs[1].Title)
+	assert.Equal(t, "/media?library=2", crumbs[1].URL)
+}
+
+func TestFilterClipItemsPendingIncludesProcessing(t *testing.T) {
+	t.Parallel()
+
+	items := []view.ClipItem{
+		{ID: "1", Status: view.ClipStatusPending},
+		{ID: "2", Status: view.ClipStatusProcessing},
+		{ID: "3", Status: view.ClipStatusCompleted},
+		{ID: "4", Status: view.ClipStatusFailed},
+	}
+
+	pending := filterClipItems(items, view.ClipStatusPending)
+	require.Len(t, pending, 2)
+	assert.Equal(t, "1", pending[0].ID)
+	assert.Equal(t, "2", pending[1].ID)
+
+	failed := filterClipItems(items, view.ClipStatusFailed)
+	require.Len(t, failed, 1)
+	assert.Equal(t, "4", failed[0].ID)
+}
+
+func TestFormatClipCreated(t *testing.T) {
+	t.Parallel()
+
+	assert.Empty(t, formatClipCreated(time.Time{}))
+	assert.Equal(
+		t,
+		"Sep 3, 2026 4:32 AM",
+		formatClipCreated(time.Date(2026, time.September, 3, 4, 32, 20, 0, time.UTC)),
+	)
+}
+
+func TestItemCrumbsEpisodeTrail(t *testing.T) {
+	t.Parallel()
+
+	crumbs := itemCrumbs(plex.MediaItem{
+		Title:            "Episode 3",
+		Type:             plex.TypeEpisode,
+		LibraryID:        "2",
+		LibraryTitle:     "TV Shows",
+		ParentID:         "10",
+		ParentTitle:      "Season 2",
+		GrandparentID:    "9",
+		GrandparentTitle: "Better Call Saul",
+	}, nil)
+
+	require.Len(t, crumbs, 5)
+	assert.Equal(t, "Libraries", crumbs[0].Title)
+	assert.Equal(t, "TV Shows", crumbs[1].Title)
+	assert.Equal(t, "Better Call Saul", crumbs[2].Title)
+	assert.Equal(t, "Season 2", crumbs[3].Title)
+	assert.Equal(t, "Episode 3", crumbs[4].Title)
+	assert.Empty(t, crumbs[4].URL)
+}
 
 func TestChooserLibraries(t *testing.T) {
 	t.Parallel()

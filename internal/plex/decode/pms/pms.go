@@ -26,13 +26,18 @@ type Container struct {
 	Hub               []Hub      `json:"Hub"`
 	MachineIdentifier string     `json:"machineIdentifier"`
 	Version           string     `json:"version"`
+	Size              int        `json:"size"`
+	TotalSize         int        `json:"totalSize"`
+	Offset            int        `json:"offset"`
 }
 
 // Section is a library section from GET /library/sections/all.
 type Section struct {
-	Key   string `json:"key"`
-	Title string `json:"title"`
-	Type  string `json:"type"`
+	Key       string `json:"key"`
+	Title     string `json:"title"`
+	Type      string `json:"type"`
+	Thumb     string `json:"thumb"`
+	Composite string `json:"composite"`
 }
 
 // Hub is a search hub from GET /hubs/search.
@@ -48,15 +53,23 @@ type Hub struct {
 //
 //nolint:tagliatelle // PMS JSON uses PascalCase Media/Session keys.
 type Metadata struct {
-	RatingKey  flexString `json:"ratingKey"`
-	Key        string     `json:"key"`
-	Title      string     `json:"title"`
-	Type       string     `json:"type"`
-	Duration   int64      `json:"duration"`
-	ViewOffset int64      `json:"viewOffset"`
-	Thumb      string     `json:"thumb"`
-	Media      []media    `json:"Media"`
-	Session    session    `json:"Session"`
+	RatingKey            flexString `json:"ratingKey"`
+	Key                  string     `json:"key"`
+	Title                string     `json:"title"`
+	Type                 string     `json:"type"`
+	Duration             int64      `json:"duration"`
+	ViewOffset           int64      `json:"viewOffset"`
+	Thumb                string     `json:"thumb"`
+	Year                 int        `json:"year"`
+	Index                int        `json:"index"`
+	ParentIndex          int        `json:"parentIndex"`
+	ParentRatingKey      flexString `json:"parentRatingKey"`
+	ParentTitle          string     `json:"parentTitle"`
+	GrandparentRatingKey flexString `json:"grandparentRatingKey"`
+	GrandparentTitle     string     `json:"grandparentTitle"`
+	LibrarySectionID     flexString `json:"librarySectionID"`
+	Media                []media    `json:"Media"`
+	Session              session    `json:"Session"`
 }
 
 // media is a media version on a metadata item.

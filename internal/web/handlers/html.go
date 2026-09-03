@@ -106,9 +106,12 @@ func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 
 // Clips handles the clips list page request.
 func (handler *HTMLHandler) Clips(ctx fiber.Ctx) error {
+	status := ctx.Query("status")
+
 	return renderHTML(ctx, func(writer io.Writer) error {
 		return pages.Clips(pages.ClipsProps{
-			Items: handler.clipItems(ctx),
+			Items:  filterClipItems(handler.clipItems(ctx), status),
+			Status: status,
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -126,6 +129,13 @@ func (handler *HTMLHandler) Dashboard(ctx fiber.Ctx) error {
 			Failed:       stats.failed,
 			Sessions:     handler.sessionItems(),
 		}).Render(ctx.Context(), writer)
+	})
+}
+
+// DashboardSessions renders the live-sessions fragment for HTMX polling.
+func (handler *HTMLHandler) DashboardSessions(ctx fiber.Ctx) error {
+	return renderHTML(ctx, func(writer io.Writer) error {
+		return pages.LiveSessions(handler.sessionItems()).Render(ctx.Context(), writer)
 	})
 }
 
@@ -148,20 +158,37 @@ func (*HTMLHandler) Login(ctx fiber.Ctx) error {
 func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 	query := ctx.Query("q")
 	libraryID := ctx.Query(queryLibrary)
-	parentID := ctx.Query("parent")
-	items, libraries := handler.mediaContent(ctx, query, libraryID, parentID)
+	parentID := ctx.Query(queryParent)
+	start := pageStart(ctx.Query(queryStart))
+	_, _, hasServer := handler.plexPair()
+	items, libraries, total := handler.mediaContent(
+		ctx,
+		query,
+		libraryID,
+		parentID,
+		start,
+		mediaPageSize,
+	)
 	props := view.MediaProps{
 		Items:     items,
 		Libraries: chooserLibraries(libraries, query, libraryID),
 		Crumbs: mediaCrumbs(
 			libraries,
 			libraryID,
-			ctx.Query("up"),
-			ctx.Query("upTitle"),
+			ctx.Query(queryUp),
+			ctx.Query(queryUpTitle),
 			ctx.Query(queryTitle),
 		),
-		Query:     query,
-		LibraryID: libraryID,
+		Query:       query,
+		LibraryID:   libraryID,
+		ParentID:    parentID,
+		ParentTitle: ctx.Query(queryTitle),
+		UpID:        ctx.Query(queryUp),
+		UpTitle:     ctx.Query(queryUpTitle),
+		Start:       start,
+		Total:       total,
+		PageSize:    mediaPageSize,
+		HasServer:   hasServer,
 	}
 
 	if ctx.Get("HX-Request") == "true" {
@@ -215,11 +242,15 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		StartTime:     start,
 		EndTime:       end,
 		CropBlackBars: handler.cfg.CropBlackBars,
+		Crumbs:        nil,
+		LibraryID:     "",
 	}
 	if itemErr == nil {
-		props.Title = item.Title
+		props.Title = item.DisplayTitle()
 		props.Type = item.Type
 		props.Duration = item.Duration
+		props.LibraryID = item.LibraryID
+		props.Crumbs = itemCrumbs(item, handler.sidebarLibraries(ctx))
 	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
@@ -255,36 +286,24 @@ func selectedLibraryID(currentURL, fromQuery string) string {
 	return parsed.Query().Get(queryLibrary)
 }
 
-// NewClip handles the create-clip form.
-func (handler *HTMLHandler) NewClip(ctx fiber.Ctx) error {
-	start, err := strconv.ParseFloat(ctx.Query("start"), floatBitSize)
-	if err != nil {
-		start = 0
+// NewClip sends clip-now links to the media item editor.
+func (*HTMLHandler) NewClip(ctx fiber.Ctx) error {
+	mediaID := ctx.Query("mediaId")
+	if mediaID == "" {
+		return redirectTo(ctx, pathMedia)
 	}
 
-	duration, err := strconv.ParseFloat(ctx.Query("duration"), floatBitSize)
-	if err != nil {
-		duration = 0
+	values := url.Values{}
+	if start := ctx.Query(queryStart); start != "" {
+		values.Set(queryStart, start)
 	}
 
-	maxDur := handler.cfg.MaxClipDurSec
-	if maxDur <= 0 {
-		maxDur = defaultMaxClipDur
+	location := "/media/item/" + mediaID
+	if encoded := values.Encode(); encoded != "" {
+		location += "?" + encoded
 	}
 
-	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.NewClip(pages.NewClipProps{
-			MediaID:       ctx.Query("mediaId"),
-			MediaTitle:    ctx.Query("title"),
-			MediaType:     ctx.Query("type"),
-			StartTime:     start,
-			Duration:      duration,
-			MaxDur:        maxDur,
-			Profiles:      handler.clipProfileOptions(ctx),
-			AudioTracks:   handler.mediaAudioTracks(ctx, ctx.Query("mediaId")),
-			CropBlackBars: handler.cfg.CropBlackBars,
-		}).Render(ctx.Context(), writer)
-	})
+	return redirectTo(ctx, location)
 }
 
 // Playback renders live Plex playback for a media item.
@@ -348,9 +367,11 @@ func (handler *HTMLHandler) SelectServer(ctx fiber.Ctx) error {
 
 // Servers lists discovered Plex servers.
 func (handler *HTMLHandler) Servers(ctx fiber.Ctx) error {
+	current, _ := handler.bind.Get()
+
 	return renderHTML(ctx, func(writer io.Writer) error {
 		return pages.Servers(pages.ServersProps{
-			Servers: toServerItems(handler.discoverServers(ctx)),
+			Servers: toServerItems(handler.discoverServers(ctx), current),
 			Error:   ctx.Query(queryError),
 		}).Render(ctx.Context(), writer)
 	})
@@ -560,43 +581,78 @@ func chooserLibraries(libraries []view.LibraryItem, query, libraryID string) []v
 func (handler *HTMLHandler) mediaContent(
 	ctx fiber.Ctx,
 	query, libraryID, parentID string,
-) ([]view.MediaItem, []view.LibraryItem) {
-	// Resolve the bound Plex client before listing media.
+	start, size int,
+) ([]view.MediaItem, []view.LibraryItem, int) {
 	plexClient, server, ok := handler.plexPair()
 	if !ok {
-		return nil, nil
+		return nil, nil, 0
 	}
 
 	if query != "" {
-		found, err := plexClient.SearchOnServer(ctx.Context(), server, query)
-		if err != nil {
-			log.Warn().Err(err).Msg("media search failed")
-
-			return nil, nil
-		}
-
-		return toMediaItems(found, libraryID, "", ""), nil
+		return searchMediaContent(ctx, plexClient, server, query, libraryID)
 	}
 
+	return listMediaContent(ctx, plexClient, server, libraryID, parentID, start, size)
+}
+
+// searchMediaContent runs a Plex hub search and keeps library names for crumbs.
+func searchMediaContent(
+	ctx fiber.Ctx,
+	plexClient *plex.Client,
+	server plex.Server,
+	query, libraryID string,
+) ([]view.MediaItem, []view.LibraryItem, int) {
+	found, err := plexClient.SearchOnServer(ctx.Context(), server, query, libraryID)
+	if err != nil {
+		log.Warn().Err(err).Msg("media search failed")
+
+		return nil, nil, 0
+	}
+
+	libs, libErr := plexClient.GetLibraries(ctx.Context(), server)
+	if libErr != nil {
+		log.Warn().Err(libErr).Msg("list libraries failed")
+
+		return toMediaItems(found, libraryID, "", ""), nil, len(found)
+	}
+
+	return toMediaItems(found, libraryID, "", ""), toLibraryItems(libs), len(found)
+}
+
+// listMediaContent lists a library, a container, or the library chooser.
+func listMediaContent(
+	ctx fiber.Ctx,
+	plexClient *plex.Client,
+	server plex.Server,
+	libraryID, parentID string,
+	start, size int,
+) ([]view.MediaItem, []view.LibraryItem, int) {
 	libs, err := plexClient.GetLibraries(ctx.Context(), server)
 	if err != nil {
 		log.Warn().Err(err).Msg("list libraries failed")
 
-		return nil, nil
+		return nil, nil, 0
 	}
 
 	if libraryID == "" {
-		return nil, toLibraryItems(libs)
+		return nil, toLibraryItems(libs), 0
 	}
 
-	items, listErr := listMedia(ctx, plexClient, server, libraryID, parentID)
+	page, listErr := listMediaPage(ctx, plexClient, server, libraryID, parentID, start, size)
 	if listErr != nil {
 		log.Warn().Err(listErr).Msg("list media failed")
 
-		return nil, toLibraryItems(libs)
+		return nil, toLibraryItems(libs), 0
 	}
 
-	return toMediaItems(items, libraryID, parentID, ctx.Query(queryTitle)), toLibraryItems(libs)
+	return toMediaItems(
+			page.Items,
+			libraryID,
+			parentID,
+			ctx.Query(queryTitle),
+		), toLibraryItems(
+			libs,
+		), page.Total
 }
 
 // plexPair returns a client for the currently selected server.
@@ -620,7 +676,7 @@ func (handler *HTMLHandler) sessionItems() []pages.SessionItem {
 		items = append(items, pages.SessionItem{
 			ID:         sess.ID,
 			MediaID:    sess.MediaItem.ID,
-			Title:      sess.Title,
+			Title:      sess.MediaItem.DisplayTitle(),
 			ViewOffset: sess.ViewOffset,
 			Duration:   sess.Duration,
 		})
@@ -729,7 +785,8 @@ func toClipItem(job *queue.Job, profiles []view.ClipProfileOption) view.ClipItem
 		ClipType:      string(job.Type),
 		Status:        string(job.Status),
 		Progress:      job.Progress,
-		CreatedAt:     job.CreatedAt.Format(time.RFC3339),
+		CreatedAt:     formatClipCreated(job.CreatedAt),
+		Error:         job.Error,
 		StartTime:     job.StartTime,
 		Duration:      job.Duration,
 		Quality:       job.Quality,
@@ -747,43 +804,44 @@ func toLibraryItems(libs []plex.Library) []view.LibraryItem {
 	out := make([]view.LibraryItem, 0, len(libs))
 	for _, lib := range libs {
 		out = append(out, view.LibraryItem{
-			ID:    lib.ID,
-			Title: lib.Title,
-			Type:  lib.Type,
+			ID:        lib.ID,
+			Title:     lib.Title,
+			Type:      lib.Type,
+			ThumbPath: thumbSrc(lib.ThumbPath),
 		})
 	}
 
 	return out
 }
 
-// listMedia loads a library section or the children of a show/season.
-func listMedia(
+// listMediaPage loads one page of a library section or container children.
+func listMediaPage(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
 	server plex.Server,
 	libraryID, parentID string,
-) ([]plex.MediaItem, error) {
-	// Prefer children of a container when parentID is set.
+	start, size int,
+) (plex.MediaPage, error) {
 	if parentID != "" {
-		items, err := plexClient.GetChildren(ctx.Context(), server, parentID)
+		page, err := plexClient.GetChildrenPage(ctx.Context(), server, parentID, start, size)
 		if err != nil {
-			return nil, fmt.Errorf("list children: %w", err)
+			return plex.MediaPage{}, fmt.Errorf("list children: %w", err)
 		}
 
-		return items, nil
+		return page, nil
 	}
 
-	items, err := plexClient.GetMedia(ctx.Context(), server, libraryID)
+	page, err := plexClient.GetMediaPage(ctx.Context(), server, libraryID, start, size)
 	if err != nil {
-		return nil, fmt.Errorf("list section: %w", err)
+		return plex.MediaPage{}, fmt.Errorf("list section: %w", err)
 	}
 
-	return items, nil
+	return page, nil
 }
 
 // mediaCrumbs builds the library / show / season trail.
 func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string) []view.Crumb {
-	crumbs := []view.Crumb{{Title: "Libraries", URL: "/media"}}
+	crumbs := []view.Crumb{{Title: "Libraries", URL: pathMedia}}
 	if libraryID == "" {
 		return crumbs
 	}
@@ -797,7 +855,7 @@ func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string
 		}
 	}
 
-	libURL := "/media?library=" + url.QueryEscape(libraryID)
+	libURL := pathMedia + "?library=" + url.QueryEscape(libraryID)
 
 	crumbs = append(crumbs, view.Crumb{Title: libTitle, URL: libURL})
 
@@ -822,15 +880,15 @@ func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string
 func browseURL(libraryID, itemID, itemTitle, parentID, parentTitle string) string {
 	values := url.Values{}
 	values.Set(queryLibrary, libraryID)
-	values.Set("parent", itemID)
+	values.Set(queryParent, itemID)
 	values.Set(queryTitle, itemTitle)
 
 	if parentID != "" {
-		values.Set("up", parentID)
-		values.Set("upTitle", parentTitle)
+		values.Set(queryUp, parentID)
+		values.Set(queryUpTitle, parentTitle)
 	}
 
-	return "/media?" + values.Encode()
+	return pathMedia + "?" + values.Encode()
 }
 
 // thumbSrc rewrites a Plex thumb path onto the local cache proxy.
@@ -849,15 +907,31 @@ func toMediaItems(
 ) []view.MediaItem {
 	// Preserve input order while mapping onto page models.
 	out := make([]view.MediaItem, 0, len(items))
-	for _, item := range items {
+	for index := range items {
+		item := items[index]
+		libID := libraryID
+		if libID == "" {
+			libID = item.LibraryID
+		}
+
+		episodeLabel := ""
+		if item.Type == plex.TypeEpisode {
+			episodeLabel = plex.EpisodeCode(item.ParentIndex, item.Index)
+		}
+
 		out = append(out, view.MediaItem{
-			ID:        item.ID,
-			Title:     item.Title,
-			Type:      item.Type,
-			Duration:  item.Duration,
-			ThumbPath: thumbSrc(item.ThumbPath),
-			Browsable: plex.IsContainerType(item.Type),
-			BrowseURL: browseURL(libraryID, item.ID, item.Title, parentID, parentTitle),
+			ID:           item.ID,
+			Title:        item.Title,
+			Type:         item.Type,
+			Duration:     item.Duration,
+			ThumbPath:    thumbSrc(item.ThumbPath),
+			Browsable:    plex.IsContainerType(item.Type),
+			BrowseURL:    browseURL(libID, item.ID, item.Title, parentID, parentTitle),
+			Year:         item.Year,
+			Index:        item.Index,
+			ParentIndex:  item.ParentIndex,
+			ShowTitle:    item.GrandparentTitle,
+			EpisodeLabel: episodeLabel,
 		})
 	}
 
@@ -865,18 +939,135 @@ func toMediaItems(
 }
 
 // toServerItems maps discovered servers onto page models.
-func toServerItems(servers []plex.Server) []pages.ServerItem {
+func toServerItems(servers []plex.Server, current plex.Server) []pages.ServerItem {
 	out := make([]pages.ServerItem, 0, len(servers))
 	for _, server := range servers {
 		out = append(out, pages.ServerItem{
-			Name:    server.Name,
-			Address: server.Address,
-			Port:    server.Port,
-			Scheme:  server.Scheme,
-			Token:   server.Token,
-			Local:   server.Local,
+			Name:     server.Name,
+			Address:  server.Address,
+			Port:     server.Port,
+			Scheme:   server.Scheme,
+			Token:    server.Token,
+			Local:    server.Local,
+			Selected: plex.SameConnection(server, current),
 		})
 	}
 
 	return out
+}
+
+// filterClipItems keeps clips matching a dashboard status filter.
+func filterClipItems(items []view.ClipItem, status string) []view.ClipItem {
+	if status == "" {
+		return items
+	}
+
+	filtered := make([]view.ClipItem, 0, len(items))
+	for index := range items {
+		item := items[index]
+		if clipMatchesStatus(item.Status, status) {
+			filtered = append(filtered, item)
+		}
+	}
+
+	return filtered
+}
+
+// clipMatchesStatus reports whether a clip belongs to a status filter.
+func clipMatchesStatus(itemStatus, want string) bool {
+	switch want {
+	case view.ClipStatusPending:
+		return itemStatus == view.ClipStatusPending || itemStatus == view.ClipStatusProcessing
+	default:
+		return itemStatus == want
+	}
+}
+
+// formatClipCreated renders a clip timestamp for display.
+func formatClipCreated(created time.Time) string {
+	if created.IsZero() {
+		return ""
+	}
+
+	return created.UTC().Format("Jan 2, 2006 3:04 PM")
+}
+
+// pageStart parses a non-negative pagination offset.
+func pageStart(raw string) int {
+	start, err := strconv.Atoi(raw)
+	if err != nil || start < 0 {
+		return 0
+	}
+
+	return start
+}
+
+// itemCrumbs builds Libraries / library / show / season / title for a media item.
+func itemCrumbs(item plex.MediaItem, libs []view.LibraryItem) []view.Crumb {
+	crumbs := []view.Crumb{{Title: "Libraries", URL: pathMedia}}
+
+	crumbs = appendLibraryCrumb(crumbs, item, libs)
+	crumbs = appendShowCrumbs(crumbs, item)
+	crumbs = append(crumbs, view.Crumb{Title: item.Title, URL: ""})
+
+	return crumbs
+}
+
+// appendLibraryCrumb adds the owning library when its id is known.
+func appendLibraryCrumb(
+	crumbs []view.Crumb,
+	item plex.MediaItem,
+	libs []view.LibraryItem,
+) []view.Crumb {
+	if item.LibraryID == "" {
+		return crumbs
+	}
+
+	title := item.LibraryTitle
+	for _, lib := range libs {
+		if lib.ID == item.LibraryID {
+			title = lib.Title
+
+			break
+		}
+	}
+
+	if title == "" {
+		title = item.LibraryID
+	}
+
+	return append(crumbs, view.Crumb{
+		Title: title,
+		URL:   pathMedia + "?library=" + url.QueryEscape(item.LibraryID),
+	})
+}
+
+// appendShowCrumbs adds show and season links for episodes.
+func appendShowCrumbs(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
+	if item.GrandparentID != "" && item.GrandparentTitle != "" {
+		crumbs = append(crumbs, view.Crumb{
+			Title: item.GrandparentTitle,
+			URL:   browseURL(item.LibraryID, item.GrandparentID, item.GrandparentTitle, "", ""),
+		})
+	}
+
+	if item.Type != plex.TypeEpisode || item.ParentID == "" {
+		return crumbs
+	}
+
+	seasonTitle := item.ParentTitle
+	if seasonTitle == "" {
+		seasonTitle = "Season"
+	}
+
+	return append(crumbs, view.Crumb{
+		Title: seasonTitle,
+		URL: browseURL(
+			item.LibraryID,
+			item.ParentID,
+			seasonTitle,
+			item.GrandparentID,
+			item.GrandparentTitle,
+		),
+	})
 }
