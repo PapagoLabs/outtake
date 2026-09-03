@@ -4,6 +4,7 @@
 package timecode
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -79,4 +80,26 @@ func TestFFmpegClockRoundTrip(t *testing.T) {
 	parsed, err := clock.Parse(clock.Format(original))
 	require.NoError(t, err)
 	assert.Equal(t, original, parsed)
+}
+
+func TestFromSecondsOverflow(t *testing.T) {
+	t.Parallel()
+
+	maxSeconds := float64(math.MaxInt64) / float64(time.Second)
+	safe := math.Nextafter(maxSeconds, 0)
+	assert.Positive(t, FromSeconds(safe).Duration())
+	assert.Equal(t, time.Duration(0), FromSeconds(maxSeconds).Duration())
+
+	over := math.Nextafter(maxSeconds, math.Inf(1))
+	assert.Equal(t, time.Duration(0), FromSeconds(over).Duration())
+}
+
+func TestParseOverflow(t *testing.T) {
+	t.Parallel()
+
+	_, err := Parse("1e20s")
+	require.ErrorIs(t, err, ErrInvalidTimecode)
+
+	_, err = Parse("2562048:00:00")
+	require.ErrorIs(t, err, ErrInvalidTimecode)
 }

@@ -53,11 +53,27 @@ var DefaultClock = FFmpegClock{}
 // Returns:
 //   - timecode: The timestamp, or a zero value when seconds is not finite.
 func FromSeconds(seconds float64) Timecode {
-	if seconds < 0 || math.IsNaN(seconds) || math.IsInf(seconds, 0) {
+	d, err := durationFromFloat(seconds, time.Second)
+	if err != nil {
 		return Timecode{}
 	}
 
-	return Timecode{d: time.Duration(seconds * float64(time.Second))}
+	return Timecode{d: d}
+}
+
+// FromDuration builds a timecode from a duration.
+//
+// Parameters:
+//   - d: Backing duration. Negative values become zero.
+//
+// Returns:
+//   - timecode: The timestamp.
+func FromDuration(d time.Duration) Timecode {
+	if d < 0 {
+		return Timecode{}
+	}
+
+	return Timecode{d: d}
 }
 
 // Parse builds a timecode from an FFmpeg time-duration string.
@@ -179,9 +195,42 @@ func (FFmpegClock) parseClock(value string) (time.Duration, error) {
 		return 0, fmt.Errorf("hours: %w", err)
 	}
 
-	return time.Duration(hours)*time.Hour +
-		time.Duration(minutes)*time.Minute +
-		time.Duration(sec*float64(time.Second)), nil
+	converted, err := clockToDuration(hours, minutes, sec)
+	if err != nil {
+		return 0, fmt.Errorf("clock: %w", err)
+	}
+
+	return converted, nil
+}
+
+// clockToDuration converts HH, MM, SS fields to a duration.
+func clockToDuration(hours, minutes int, sec float64) (time.Duration, error) {
+	hourDur, err := scaleDuration(hours, time.Hour)
+	if err != nil {
+		return 0, fmt.Errorf("hour scale: %w", err)
+	}
+
+	minDur, err := scaleDuration(minutes, time.Minute)
+	if err != nil {
+		return 0, fmt.Errorf("minute scale: %w", err)
+	}
+
+	secDur, err := durationFromFloat(sec, time.Second)
+	if err != nil {
+		return 0, fmt.Errorf("second scale: %w", err)
+	}
+
+	sum, err := addDuration(hourDur, minDur)
+	if err != nil {
+		return 0, fmt.Errorf("hour plus minute: %w", err)
+	}
+
+	total, err := addDuration(sum, secDur)
+	if err != nil {
+		return 0, fmt.Errorf("clock sum: %w", err)
+	}
+
+	return total, nil
 }
 
 // clockPartsSigned reports a signed or empty clock field.
@@ -203,7 +252,7 @@ func clockHours(parts []string) (int, error) {
 
 	hours, err := strconv.Atoi(parts[0])
 	if err != nil {
-		return 0, fmt.Errorf("hours: %w", err)
+		return 0, fmt.Errorf("hour field: %w", err)
 	}
 
 	return hours, nil
@@ -246,7 +295,53 @@ func parseUnit(field string, unit time.Duration) (time.Duration, error) {
 		return 0, fmt.Errorf("quantity: %w", err)
 	}
 
-	return time.Duration(quantity * float64(unit)), nil
+	converted, err := durationFromFloat(quantity, unit)
+	if err != nil {
+		return 0, fmt.Errorf("unit: %w", err)
+	}
+
+	return converted, nil
+}
+
+// durationFromFloat converts quantity*unit to a Duration, rejecting overflow.
+func durationFromFloat(quantity float64, unit time.Duration) (time.Duration, error) {
+	if quantity < 0 || math.IsNaN(quantity) || math.IsInf(quantity, 0) || unit <= 0 {
+		return 0, ErrInvalidTimecode
+	}
+
+	maxQuantity := float64(math.MaxInt64) / float64(unit)
+	if quantity >= maxQuantity {
+		return 0, ErrInvalidTimecode
+	}
+
+	converted := time.Duration(quantity * float64(unit))
+	if converted < 0 {
+		return 0, ErrInvalidTimecode
+	}
+
+	return converted, nil
+}
+
+// scaleDuration converts n*unit to a Duration, rejecting overflow.
+func scaleDuration(count int, unit time.Duration) (time.Duration, error) {
+	if count < 0 || unit <= 0 {
+		return 0, ErrInvalidTimecode
+	}
+
+	if count != 0 && int64(unit) > math.MaxInt64/int64(count) {
+		return 0, ErrInvalidTimecode
+	}
+
+	return time.Duration(count) * unit, nil
+}
+
+// addDuration adds two durations, rejecting overflow.
+func addDuration(left, right time.Duration) (time.Duration, error) {
+	if right > 0 && left > time.Duration(math.MaxInt64)-right {
+		return 0, ErrInvalidTimecode
+	}
+
+	return left + right, nil
 }
 
 // parseFiniteFloat parses a finite decimal field.

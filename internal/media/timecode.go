@@ -35,7 +35,8 @@ var _ Clock = FFmpegClock{}
 // FromSeconds builds a timecode from a floating-point second count.
 //
 // Parameters:
-//   - seconds: Timestamp in seconds. Negative, NaN, and Inf become zero.
+//   - seconds: Timestamp in seconds. Negative, NaN, Inf, and values outside
+//     the [time.Duration] range become zero.
 //
 // Returns:
 //   - timecode: The timestamp, or a zero value when seconds is not finite.
@@ -52,10 +53,10 @@ func FromSeconds(seconds float64) Timecode {
 //   - parsed: The parsed timestamp.
 //   - err: Non-nil when value is not a valid duration.
 func Parse(value string) (Timecode, error) {
-	parsed, err := timecode.Parse(value)
+	d, err := DefaultClock.Parse(value)
 	if err != nil {
 		return Timecode{}, fmt.Errorf("parse: %w", err)
 	}
 
-	return parsed, nil
+	return timecode.FromDuration(d), nil
 }
