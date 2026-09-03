@@ -1,0 +1,13 @@
+Outtake {{ .Chart.Version }}
+
+Local FS + SQLite is the default (same as docker-compose.yml).
+Clips/metadata stay on storage-path or S3, never on the Plex media NFS.
+
+Set media.nfs.server and media.nfs.path (or media.existingClaim) so Plex source
+files are mounted at {{ .Values.media.mountPath }}.
+
+Storage backend: {{ .Values.outtake.storageBackend }}
+Database backend: {{ .Values.outtake.databaseBackend }}
+
+Distributed example: -f deploy/helm/outtake/examples/values-distributed.yaml
+SeaweedFS or RustFS: set s3.endpoint (path-style). Cockroach or CNPG: set databaseUrl.
