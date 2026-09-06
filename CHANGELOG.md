@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#94](https://github.com/PapagoLabs/outtake/pull/94)
+- Update github.com/google/pprof digest to d6c3cb2 by @renovate[bot] in [#93](https://github.com/PapagoLabs/outtake/pull/93)
 - Update orhun/git-cliff-action action to v4.9.0 by @renovate[bot] in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 - Update docker/setup-qemu-action action to v4.3.0 by @renovate[bot] in [#59](https://github.com/PapagoLabs/outtake/pull/59)
 - Update zizmorcore/zizmor-action action to v0.6.3 by @renovate[bot] in [#56](https://github.com/PapagoLabs/outtake/pull/56)
@@ -97,9 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
+- @renovate[bot] made their first contribution in [#94](https://github.com/PapagoLabs/outtake/pull/94)
+- @github-actions[bot] made their first contribution in [#92](https://github.com/PapagoLabs/outtake/pull/92)
 - @nicholas-fedor made their first contribution in [#91](https://github.com/PapagoLabs/outtake/pull/91)
-- @github-actions[bot] made their first contribution in [#90](https://github.com/PapagoLabs/outtake/pull/90)
-- @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
 
