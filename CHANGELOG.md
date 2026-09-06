@@ -85,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Overhaul library browse, clips, and shell by @nicholas-fedor in [#91](https://github.com/PapagoLabs/outtake/pull/91)
 - Fix license badge by @nicholas-fedor in [#89](https://github.com/PapagoLabs/outtake/pull/89)
 - Clear storage and database lint-go hits by @nicholas-fedor in [#75](https://github.com/PapagoLabs/outtake/pull/75)
 - Clear gci noctx wsl and whitespace in handlers by @nicholas-fedor in [#17](https://github.com/PapagoLabs/outtake/pull/17)
@@ -96,8 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#89](https://github.com/PapagoLabs/outtake/pull/89)
-- @github-actions[bot] made their first contribution in [#88](https://github.com/PapagoLabs/outtake/pull/88)
+- @nicholas-fedor made their first contribution in [#91](https://github.com/PapagoLabs/outtake/pull/91)
+- @github-actions[bot] made their first contribution in [#90](https://github.com/PapagoLabs/outtake/pull/90)
 - @renovate[bot] made their first contribution in [#60](https://github.com/PapagoLabs/outtake/pull/60)
 
 ## Compare Releases
