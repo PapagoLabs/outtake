@@ -93,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Align clip cards with the new export form by @nicholas-fedor in [#110](https://github.com/PapagoLabs/outtake/pull/110)
 - Persist sidebar across navigation by @nicholas-fedor in [#104](https://github.com/PapagoLabs/outtake/pull/104)
 - Overhaul library browse, clips, and shell by @nicholas-fedor in [#91](https://github.com/PapagoLabs/outtake/pull/91)
 - Fix license badge by @nicholas-fedor in [#89](https://github.com/PapagoLabs/outtake/pull/89)
@@ -106,8 +107,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#108](https://github.com/PapagoLabs/outtake/pull/108)
-- @github-actions[bot] made their first contribution in [#107](https://github.com/PapagoLabs/outtake/pull/107)
+- @nicholas-fedor made their first contribution in [#110](https://github.com/PapagoLabs/outtake/pull/110)
+- @github-actions[bot] made their first contribution in [#109](https://github.com/PapagoLabs/outtake/pull/109)
 - @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 
 ## Compare Releases
