@@ -245,6 +245,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		Duration:      0,
 		MaxDur:        maxDur,
 		Clips:         clips,
+		ClipStatus:    query.Status,
 		ClipType:      query.Type,
 		ClipQuery:     query.Query,
 		ClipSort:      query.Sort,

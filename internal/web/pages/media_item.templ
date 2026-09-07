@@ -27,6 +27,7 @@ type MediaItemPageProps struct {
 	Duration      float64
 	MaxDur        int
 	Clips         []view.ClipItem
+	ClipStatus    string
 	ClipType      string
 	ClipQuery     string
 	ClipSort      string
@@ -190,12 +191,13 @@ templ MediaItemPage(props MediaItemPageProps) {
 					Action:  "/media/item/" + props.ID + "/clips",
 					Target:  "item-clip-list",
 					PushURL: false,
+					Status:  props.ClipStatus,
 					Type:    props.ClipType,
 					Query:   props.ClipQuery,
 					Sort:    props.ClipSort,
 				})
 				<div id="item-clip-list" class="flex flex-col gap-4">
-					@ItemClipList(props.Clips, props.ClipType != "" || props.ClipQuery != "")
+					@ItemClipList(props.Clips, props.ClipStatus != "" || props.ClipType != "" || props.ClipQuery != "")
 				</div>
 			</div>
 		</div>

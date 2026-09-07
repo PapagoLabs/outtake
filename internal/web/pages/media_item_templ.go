@@ -36,6 +36,7 @@ type MediaItemPageProps struct {
 	Duration      float64
 	MaxDur        int
 	Clips         []view.ClipItem
+	ClipStatus    string
 	ClipType      string
 	ClipQuery     string
 	ClipSort      string
@@ -111,7 +112,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						var templ_7745c5c3_Var3 templ.SafeURL
 						templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(crumb.URL))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 55, Col: 42}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 56, Col: 42}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 						if templ_7745c5c3_Err != nil {
@@ -124,7 +125,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						var templ_7745c5c3_Var4 string
 						templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(crumb.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 55, Col: 88}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 56, Col: 88}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 						if templ_7745c5c3_Err != nil {
@@ -142,7 +143,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						var templ_7745c5c3_Var5 string
 						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(crumb.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 57, Col: 51}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 58, Col: 51}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 						if templ_7745c5c3_Err != nil {
@@ -171,7 +172,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(props.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 64, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 65, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -184,7 +185,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(props.Type)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 66, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 67, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -202,7 +203,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(props.Duration).HMS())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 68, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 69, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -322,7 +323,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var14 string
 					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("/media/item/" + props.ID + "/playback")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 83, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 84, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 					if templ_7745c5c3_Err != nil {
@@ -352,7 +353,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 				var templ_7745c5c3_Var15 string
 				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("/previews/" + props.PreviewID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 88, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 89, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 				if templ_7745c5c3_Err != nil {
@@ -464,7 +465,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(props.MaxDur))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 101, Col: 112}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 102, Col: 112}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 					if templ_7745c5c3_Err != nil {
@@ -485,7 +486,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var22 string
 					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 103, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 104, Col: 58}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 					if templ_7745c5c3_Err != nil {
@@ -498,7 +499,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var23 string
 					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 104, Col: 64}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 105, Col: 64}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 					if templ_7745c5c3_Err != nil {
@@ -511,7 +512,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Type)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 105, Col: 62}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 106, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 					if templ_7745c5c3_Err != nil {
@@ -659,7 +660,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(props.StartTime).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 136, Col: 157}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 137, Col: 157}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 					if templ_7745c5c3_Err != nil {
@@ -716,7 +717,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var36 string
 					templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(props.EndTime).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 142, Col: 151}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 143, Col: 151}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 					if templ_7745c5c3_Err != nil {
@@ -742,7 +743,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var38 string
 					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(props.EndTime - props.StartTime).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 146, Col: 191}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 147, Col: 191}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 					if templ_7745c5c3_Err != nil {
@@ -755,7 +756,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var39 string
 					templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(float64(props.MaxDur)).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 146, Col: 257}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 147, Col: 257}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 					if templ_7745c5c3_Err != nil {
@@ -977,6 +978,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 				Action:  "/media/item/" + props.ID + "/clips",
 				Target:  "item-clip-list",
 				PushURL: false,
+				Status:  props.ClipStatus,
 				Type:    props.ClipType,
 				Query:   props.ClipQuery,
 				Sort:    props.ClipSort,
@@ -988,7 +990,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ItemClipList(props.Clips, props.ClipType != "" || props.ClipQuery != "").Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ItemClipList(props.Clips, props.ClipStatus != "" || props.ClipType != "" || props.ClipQuery != "").Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -999,7 +1001,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			var templ_7745c5c3_Var49 string
 			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(props.MaxDur))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 202, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 204, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var49)
 			if templ_7745c5c3_Err != nil {
