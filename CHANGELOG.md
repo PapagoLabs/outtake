@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add media library sort, jump rail, and infinite scroll by @nicholas-fedor in [#114](https://github.com/PapagoLabs/outtake/pull/114)
 - Add clip list filters and stable sort by @nicholas-fedor in [#112](https://github.com/PapagoLabs/outtake/pull/112)
 - Add selectable ui color palettes by @nicholas-fedor in [#102](https://github.com/PapagoLabs/outtake/pull/102)
 - Add Outtake chart with optional S3 and Postgres backends by @nicholas-fedor in [#68](https://github.com/PapagoLabs/outtake/pull/68)
@@ -52,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/valyala/fasthttp to v1.74.0 by @renovate[bot] in [#117](https://github.com/PapagoLabs/outtake/pull/117)
+- Update module github.com/gofiber/utils/v2 to v2.5.1 by @renovate[bot] in [#116](https://github.com/PapagoLabs/outtake/pull/116)
 - Update github.com/google/pprof digest to 6331bc6 by @renovate[bot] in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 - Update module github.com/gofiber/utils/v2 to v2.5.0 by @renovate[bot] in [#96](https://github.com/PapagoLabs/outtake/pull/96)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#94](https://github.com/PapagoLabs/outtake/pull/94)
@@ -108,9 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#112](https://github.com/PapagoLabs/outtake/pull/112)
-- @github-actions[bot] made their first contribution in [#111](https://github.com/PapagoLabs/outtake/pull/111)
-- @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
+- @renovate[bot] made their first contribution in [#117](https://github.com/PapagoLabs/outtake/pull/117)
+- @nicholas-fedor made their first contribution in [#114](https://github.com/PapagoLabs/outtake/pull/114)
+- @github-actions[bot] made their first contribution in [#113](https://github.com/PapagoLabs/outtake/pull/113)
 
 ## Compare Releases
 
