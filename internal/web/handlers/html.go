@@ -97,10 +97,9 @@ func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
-		return clip.ClipCard(toClipItem(job, handler.clipProfileOptions(ctx))).Render(
-			ctx.Context(),
-			writer,
-		)
+		item := toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur())
+
+		return clip.ClipCard(item).Render(ctx.Context(), writer)
 	})
 }
 
@@ -426,10 +425,22 @@ func (handler *HTMLHandler) clipItems(ctx fiber.Ctx) []view.ClipItem {
 	items := make([]view.ClipItem, 0, len(jobs))
 
 	for _, job := range jobs {
-		items = append(items, toClipItem(job, handler.clipProfileOptions(ctx)))
+		items = append(
+			items,
+			toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur()),
+		)
 	}
 
 	return items
+}
+
+// clipMaxDur is the configured clip duration cap, or the default when unset.
+func (handler *HTMLHandler) clipMaxDur() int {
+	if handler.cfg != nil && handler.cfg.MaxClipDurSec > 0 {
+		return handler.cfg.MaxClipDurSec
+	}
+
+	return defaultMaxClipDur
 }
 
 // clipsForMedia returns clip cards for one media id.
@@ -441,7 +452,10 @@ func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []view.
 
 	items := make([]view.ClipItem, 0, len(jobs))
 	for _, job := range jobs {
-		items = append(items, toClipItem(job, handler.clipProfileOptions(ctx)))
+		items = append(
+			items,
+			toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur()),
+		)
 	}
 
 	return items
@@ -795,7 +809,7 @@ func clipProfileName(quality string, profiles []view.ClipProfileOption) string {
 }
 
 // toClipItem maps a job onto a clips-page card.
-func toClipItem(job *queue.Job, profiles []view.ClipProfileOption) view.ClipItem {
+func toClipItem(job *queue.Job, profiles []view.ClipProfileOption, maxDur int) view.ClipItem {
 	return view.ClipItem{
 		ID:            job.ID,
 		Name:          job.Name,
@@ -815,6 +829,9 @@ func toClipItem(job *queue.Job, profiles []view.ClipProfileOption) view.ClipItem
 		AudioIndex:    job.AudioIndex,
 		AudioTracks:   nil,
 		CropBlackBars: job.CropBlackBars,
+		Width:         job.Width,
+		FPS:           job.FPS,
+		MaxDur:        maxDur,
 	}
 }
 

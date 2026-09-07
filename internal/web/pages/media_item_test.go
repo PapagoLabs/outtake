@@ -37,6 +37,9 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Contains(t, body, `src="/assets/js/media-item.js"`)
 	assert.Contains(t, body, `data-max-dur="600"`)
 	assert.Contains(t, body, `name="endTime"`)
+	assert.Contains(t, body, "Time")
+	assert.Contains(t, body, `name="cropBlackBars"`)
+	assert.Less(t, strings.Index(body, `id="clipType"`), strings.Index(body, `id="name"`))
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")
 }

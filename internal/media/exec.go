@@ -231,14 +231,18 @@ func scaleFilter(maxWidth int, flags string) string {
 	return fmt.Sprintf("scale=w='trunc(min(%d,iw)/2)*2':h=-2:flags=%s", maxWidth, flags)
 }
 
-// videoFilter applies optional black-bar crop then scale.
-func videoFilter(maxWidth int, flags string, rect CropRect) string {
-	scale := scaleFilter(maxWidth, flags)
+// prependCrop puts a valid crop filter in front of an ffmpeg filter chain.
+func prependCrop(rect CropRect, chain string) string {
 	if !rect.Valid() {
-		return scale
+		return chain
 	}
 
-	return rect.Filter() + "," + scale
+	return rect.Filter() + "," + chain
+}
+
+// videoFilter applies optional black-bar crop then scale.
+func videoFilter(maxWidth int, flags string, rect CropRect) string {
+	return prependCrop(rect, scaleFilter(maxWidth, flags))
 }
 
 // h264EncodeArgs builds a browser-safe libx264 argv.
@@ -267,13 +271,30 @@ func h264EncodeArgs(req h264EncodeRequest) []string {
 	}
 }
 
+// gifScaleFilter is the shared fps+scale chain for GIF palette and encode.
+func gifScaleFilter(width, fps int) string {
+	return fmt.Sprintf("fps=%d,scale=%d:-1:flags=lanczos", fps, width)
+}
+
+// gifPaletteFilter builds the palettegen -vf chain, with optional crop first.
+func gifPaletteFilter(width, fps int, rect CropRect) string {
+	return prependCrop(rect, gifScaleFilter(width, fps)+",palettegen=stats_mode=diff")
+}
+
+// gifEncodeFilter builds the paletteuse -filter_complex chain, with optional crop first.
+func gifEncodeFilter(width, fps int, rect CropRect) string {
+	return prependCrop(
+		rect,
+		gifScaleFilter(width, fps)+" [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5",
+	)
+}
+
 // gifPaletteArgs builds the ffmpeg palettegen command.
 func gifPaletteArgs(
 	ffmpegPath, input, palette string,
 	start, duration float64,
-	width, fps int,
+	vf string,
 ) []string {
-	// Palettegen arguments for the GIF pass.
 	return []string{
 		ffmpegPath,
 		outputFlag,
@@ -284,7 +305,7 @@ func gifPaletteArgs(
 		durationFlag,
 		formatDuration(duration),
 		"-vf",
-		fmt.Sprintf("fps=%d,scale=%d:-1:flags=lanczos,palettegen=stats_mode=diff", fps, width),
+		vf,
 		palette,
 	}
 }
@@ -293,9 +314,8 @@ func gifPaletteArgs(
 func gifEncodeArgs(
 	ffmpegPath, input, palette, output string,
 	start, duration float64,
-	width, fps int,
+	filter string,
 ) []string {
-	// Paletteuse arguments for the GIF pass.
 	return []string{
 		ffmpegPath,
 		outputFlag,
@@ -308,11 +328,7 @@ func gifEncodeArgs(
 		durationFlag,
 		formatDuration(duration),
 		"-filter_complex",
-		fmt.Sprintf(
-			"fps=%d,scale=%d:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5",
-			fps,
-			width,
-		),
+		filter,
 		output,
 	}
 }
@@ -323,6 +339,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	input, output string,
 	start, duration float64,
 	width, fps int,
+	rect CropRect,
 ) error {
 	// Build and run the two-pass GIF ffmpeg command.
 	cleanInput := filepath.Clean(input)
@@ -345,8 +362,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 			palettePath,
 			start,
 			duration,
-			width,
-			fps,
+			gifPaletteFilter(width, fps, rect),
 		)...,
 	)
 	if err != nil {
@@ -362,8 +378,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 		cleanOutput,
 		start,
 		duration,
-		width,
-		fps,
+		gifEncodeFilter(width, fps, rect),
 	)
 
 	err = execFFmpeg.run(ctx, duration, gifArgs...)
@@ -405,27 +420,43 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 	return nil
 }
 
+// screenshotEncodeArgs builds the ffmpeg argv for a still frame.
+func screenshotEncodeArgs(
+	ffmpegPath, input, output string,
+	timestamp float64,
+	rect CropRect,
+) []string {
+	args := []string{
+		ffmpegPath,
+		outputFlag,
+		ssFlag, formatDuration(timestamp),
+		inputFlag, input,
+		framesFlag, "1",
+		qualityFlag, "2",
+	}
+	if rect.Valid() {
+		args = append(args, videoFilterFlag, rect.Filter())
+	}
+
+	return append(args, output)
+}
+
 // ExtractScreenshot extracts a screenshot from a video.
 func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 	ctx context.Context,
 	input, output string,
 	timestamp float64,
+	rect CropRect,
 ) error {
 	// Build and run the screenshot ffmpeg command.
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 
-	args := []string{
-		execFFmpeg.ffmpegPath,
-		outputFlag,
-		ssFlag, formatDuration(timestamp),
-		inputFlag, cleanInput,
-		framesFlag, "1",
-		qualityFlag, "2",
-		cleanOutput,
-	}
-
-	err := execFFmpeg.run(ctx, 0, args...)
+	err := execFFmpeg.run(
+		ctx,
+		0,
+		screenshotEncodeArgs(execFFmpeg.ffmpegPath, cleanInput, cleanOutput, timestamp, rect)...,
+	)
 	if err != nil {
 		return fmt.Errorf("extract screenshot: %w", err)
 	}

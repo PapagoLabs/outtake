@@ -137,6 +137,53 @@ func TestExecFFmpeg_ExtractScreenshot_Args(t *testing.T) {
 	ff := NewExecFFmpeg("echo", "echo")
 	ctx := t.Context()
 
-	err := ff.ExtractScreenshot(ctx, "/tmp/input.mp4", "/tmp/screenshot.jpg", 120.0)
+	err := ff.ExtractScreenshot(ctx, "/tmp/input.mp4", "/tmp/screenshot.jpg", 120.0, CropRect{})
 	require.NoError(t, err)
+}
+
+func TestGIFPaletteFilterCropsBlackBars(t *testing.T) {
+	t.Parallel()
+
+	crop := CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
+	want := crop.Filter() + ",fps=10,scale=480:-1:flags=lanczos,palettegen=stats_mode=diff"
+
+	assert.Equal(t, want, gifPaletteFilter(480, 10, crop))
+}
+
+func TestGIFEncodeFilterCropsBlackBars(t *testing.T) {
+	t.Parallel()
+
+	crop := CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
+	want := crop.Filter() +
+		",fps=10,scale=480:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5"
+
+	assert.Equal(t, want, gifEncodeFilter(480, 10, crop))
+}
+
+func TestGIFPaletteFilterOmitsCropWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	got := gifPaletteFilter(480, 10, CropRect{})
+
+	assert.Equal(t, "fps=10,scale=480:-1:flags=lanczos,palettegen=stats_mode=diff", got)
+	assert.NotContains(t, got, "crop=")
+}
+
+func TestScreenshotEncodeArgsCropsBlackBars(t *testing.T) {
+	t.Parallel()
+
+	crop := CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
+	args := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", 12, crop)
+
+	assert.Contains(t, args, "-vf")
+	assert.Contains(t, args, crop.Filter())
+}
+
+func TestScreenshotEncodeArgsOmitsCropWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	args := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", 12, CropRect{})
+
+	assert.NotContains(t, args, "-vf")
+	assert.NotContains(t, args, "crop=")
 }

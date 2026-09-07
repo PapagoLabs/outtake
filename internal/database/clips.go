@@ -13,8 +13,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/queue"
 )
 
-// scannable is implemented by [sql.Row] and [sql.Rows].
-type scannable interface {
+// Scannable is implemented by [sql.Row] and [sql.Rows].
+type Scannable interface {
 	Scan(dest ...any) error
 }
 
@@ -178,7 +178,7 @@ func (db *DB) DeleteClip(ctx context.Context, id string) error {
 }
 
 // scanJob reads one clip row into a job.
-func scanJob(row scannable) (*queue.Job, error) {
+func scanJob(row Scannable) (*queue.Job, error) {
 	job := &queue.Job{}
 	var output sql.NullString
 	var errMsg sql.NullString

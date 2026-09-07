@@ -280,7 +280,7 @@ func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 }
 
 // scanClipProfile reads one clip profile row.
-func scanClipProfile(row scannable) (ClipProfile, error) {
+func scanClipProfile(row Scannable) (ClipProfile, error) {
 	var profile ClipProfile
 	var isDefault int
 

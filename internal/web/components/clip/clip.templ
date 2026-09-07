@@ -9,7 +9,6 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/badge"
-	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
@@ -70,7 +69,7 @@ templ ClipCard(item view.ClipItem) {
 	>
 		@card.Card() {
 			@card.Content() {
-				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4" data-export-form>
+				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(item.MaxDur) }>
 					@csrf.Field()
 					<input type="hidden" name="mediaId" value={ item.MediaID }/>
 					<div class="flex items-center justify-between gap-3">
@@ -132,24 +131,6 @@ templ ClipCard(item view.ClipItem) {
 					@clipPlayback(item)
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div class="flex flex-col gap-2">
-							@label.Label(label.Props{For: "name-" + item.ID}) {
-								Name
-							}
-							<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
-						</div>
-						<div class="flex flex-col gap-2">
-							@label.Label(label.Props{For: "start-" + item.ID}) {
-								Start
-							}
-							<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" value={ media.FromSeconds(item.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
-						</div>
-						<div class="flex flex-col gap-2" data-export-for="clip,gif">
-							@label.Label(label.Props{For: "dur-" + item.ID}) {
-								Duration
-							}
-							<input id={ "dur-" + item.ID } name="duration" type="text" inputmode="decimal" value={ media.FromSeconds(item.Duration).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
-						</div>
-						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "type-" + item.ID}) {
 								Type
 							}
@@ -159,6 +140,34 @@ templ ClipCard(item view.ClipItem) {
 								<option value="screenshot" selected?={ item.ClipType == "screenshot" }>Screenshot</option>
 							</select>
 						</div>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "name-" + item.ID}) {
+								Name
+							}
+							<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+						</div>
+						<div class="flex flex-col gap-2">
+							<div class="grid">
+								<div class="col-start-1 row-start-1 flex" data-export-for="clip,gif">
+									@label.Label(label.Props{For: "start-" + item.ID}) {
+										Start
+									}
+								</div>
+								<div class="col-start-1 row-start-1 flex" data-export-for="screenshot">
+									@label.Label(label.Props{For: "start-" + item.ID}) {
+										Time
+									}
+								</div>
+							</div>
+							<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" value={ media.FromSeconds(item.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+						</div>
+						<div class="flex flex-col gap-2" data-export-for="clip,gif">
+							@label.Label(label.Props{For: "end-" + item.ID}) {
+								End
+							}
+							<input id={ "end-" + item.ID } name="endTime" type="text" inputmode="decimal" value={ media.FromSeconds(item.EndTime()).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+						</div>
+						<input type="hidden" id={ "dur-" + item.ID } name="duration" value={ media.FromSeconds(item.Duration).String() }/>
 						<div class="flex min-w-40 flex-col gap-2" data-export-for="clip">
 							@label.Label(label.Props{For: "quality-" + item.ID}) {
 								Profile
@@ -173,10 +182,21 @@ templ ClipCard(item view.ClipItem) {
 								@quality.AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
 							</div>
 						}
+						<div class="flex flex-col gap-2" data-export-for="gif">
+							@label.Label(label.Props{For: "width-" + item.ID}) {
+								GIF width (px)
+							}
+							<input id={ "width-" + item.ID } name="width" type="number" min="120" max="1920" value={ strconv.Itoa(item.GIFWidth()) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+						</div>
+						<div class="flex flex-col gap-2" data-export-for="gif">
+							@label.Label(label.Props{For: "fps-" + item.ID}) {
+								GIF frames per second
+							}
+							<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+						</div>
 					</div>
-					<div data-export-for="clip">
-						@CropBlackBarsField(item.CropBlackBars)
-					</div>
+					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).String() }</span> (max { media.FromSeconds(float64(item.MaxDur)).String() }) <span data-duration-warning class="hidden text-destructive">Clamped to the maximum duration.</span></p>
+					@CropBlackBarsField(item.CropBlackBars)
 					<div class="flex flex-wrap items-end gap-2">
 						if item.IsActive() {
 							<button
@@ -218,107 +238,4 @@ templ CropBlackBarsField(checked bool) {
 		}
 		Trim black bars
 	</label>
-}
-
-templ EditCard(item view.ClipItem, maxDur int) {
-	@card.Card() {
-		@card.Content() {
-			<form action={ "/api/clips/" + item.ID + "/update" } method="POST" class="flex flex-col gap-4">
-				@csrf.Field()
-				<div class="flex items-center justify-between gap-2">
-					<span class="font-medium">{ item.DisplayName() }</span>
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-muted-foreground capitalize">{ item.Status }</span>
-						@clipFileBadge(item)
-					</div>
-				</div>
-				if item.Error != "" {
-					<p class="text-sm text-destructive">{ item.Error }</p>
-				}
-				@clipPlayback(item)
-				<input type="hidden" name="mediaId" value={ item.MediaID }/>
-				<div class="grid gap-4 sm:grid-cols-2">
-					<div class="flex flex-col gap-2">
-						@label.Label(label.Props{For: "name-" + item.ID}) {
-							Name
-						}
-						<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
-					</div>
-					<div class="flex flex-col gap-2">
-						@label.Label(label.Props{For: "start-" + item.ID}) {
-							Start
-						}
-						<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(item.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
-					</div>
-					<div class="flex flex-col gap-2">
-						@label.Label(label.Props{For: "dur-" + item.ID}) {
-							Duration (max { media.FromSeconds(float64(maxDur)).String() })
-						}
-						<input id={ "dur-" + item.ID } name="duration" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(item.Duration).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
-					</div>
-					<div class="flex flex-col gap-2">
-						@label.Label(label.Props{For: "type-" + item.ID}) {
-							Type
-						}
-						<select id={ "type-" + item.ID } name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30">
-							if item.ClipType == "clip" {
-								<option value="clip" selected>Video clip</option>
-							} else {
-								<option value="clip">Video clip</option>
-							}
-							if item.ClipType == "gif" {
-								<option value="gif" selected>GIF</option>
-							} else {
-								<option value="gif">GIF</option>
-							}
-							if item.ClipType == "screenshot" {
-								<option value="screenshot" selected>Screenshot</option>
-							} else {
-								<option value="screenshot">Screenshot</option>
-							}
-						</select>
-					</div>
-					<div class="flex flex-col gap-2">
-						@label.Label(label.Props{For: "quality-" + item.ID}) {
-							Profile
-						}
-						@quality.QualitySelect("quality-"+item.ID, item.Profiles, item.Quality)
-					</div>
-					if len(item.AudioTracks) > 0 {
-						<div class="flex flex-col gap-2">
-							@label.Label(label.Props{For: "audio-" + item.ID}) {
-								Audio track
-							}
-							@quality.AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
-						</div>
-					}
-				</div>
-				@CropBlackBarsField(item.CropBlackBars)
-				<div class="flex gap-2">
-					if item.IsActive() {
-						<button
-							type="button"
-							hx-post={ "/api/clips/" + item.ID + "/cancel" }
-							hx-disable="this"
-							class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-						>
-							Cancel
-						</button>
-					} else {
-						@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Class: "self-start"}) {
-							Save metadata
-						}
-						<button type="submit" name="regenerate" value="1" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
-							Regenerate
-						</button>
-					}
-					if item.CanPlay() {
-						<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
-							Download
-						</a>
-					}
-				</div>
-			</form>
-		}
-	}
 }

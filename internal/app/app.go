@@ -482,12 +482,19 @@ func extractJob(
 			job.Duration,
 			job.Width,
 			job.FPS,
+			detectJobCrop(ctx, ffmpeg, job),
 		)
 		if err != nil {
 			return fmt.Errorf("extract gif: %w", err)
 		}
 	case queue.JobTypeScreenshot:
-		err := ffmpeg.ExtractScreenshot(ctx, job.InputPath, job.OutputPath, job.StartTime)
+		err := ffmpeg.ExtractScreenshot(
+			ctx,
+			job.InputPath,
+			job.OutputPath,
+			job.StartTime,
+			detectJobCrop(ctx, ffmpeg, job),
+		)
 		if err != nil {
 			return fmt.Errorf("extract screenshot: %w", err)
 		}

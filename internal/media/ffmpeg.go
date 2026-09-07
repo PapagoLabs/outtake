@@ -27,6 +27,7 @@ type FFmpeg interface {
 		input, output string,
 		start, duration float64,
 		width, fps int,
+		crop CropRect,
 	) error
 	ExtractPreview(
 		ctx context.Context,
@@ -35,7 +36,12 @@ type FFmpeg interface {
 		audioIndex int,
 		crop CropRect,
 	) error
-	ExtractScreenshot(ctx context.Context, input, output string, timestamp float64) error
+	ExtractScreenshot(
+		ctx context.Context,
+		input, output string,
+		timestamp float64,
+		crop CropRect,
+	) error
 }
 
 // ClipQuality represents a built-in clip quality identifier.

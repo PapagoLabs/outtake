@@ -36,6 +36,7 @@ func TestClipCard(t *testing.T) {
 		AudioIndex:    0,
 		AudioTracks:   nil,
 		CropBlackBars: false,
+		MaxDur:        600,
 	}
 
 	tests := []struct {
@@ -56,6 +57,9 @@ func TestClipCard(t *testing.T) {
 				"<video",
 				"hx-confirm",
 				`hx-disable="this"`,
+				`name="endTime"`,
+				`name="cropBlackBars"`,
+				`data-max-dur=`,
 			},
 			notContains: []string{"<details open", "On disk"},
 		},
@@ -109,11 +113,20 @@ func TestClipCard(t *testing.T) {
 			name: "gif preview",
 			tweak: func(item *view.ClipItem) {
 				item.ClipType = "gif"
+				item.Width = 640
+				item.FPS = 12
 			},
 			contains: []string{
 				"<img",
 				"/clips/c1/file",
 				"Preview",
+				`name="width"`,
+				`name="fps"`,
+				`name="endTime"`,
+				`value="640"`,
+				`value="12"`,
+				"GIF width (px)",
+				`name="cropBlackBars"`,
 			},
 			notContains: []string{"<video"},
 		},
@@ -125,6 +138,11 @@ func TestClipCard(t *testing.T) {
 			contains: []string{
 				"<img",
 				"/clips/c1/file",
+				"Time",
+				`name="startTime"`,
+				`name="cropBlackBars"`,
+				`data-export-for="screenshot"`,
+				`col-start-1 row-start-1`,
 			},
 			notContains: []string{"<video"},
 		},
@@ -182,6 +200,12 @@ func TestClipCard(t *testing.T) {
 
 			for _, hide := range test.notContains {
 				assert.NotContains(t, body, hide)
+			}
+
+			typeIdx := strings.Index(body, `name="clipType"`)
+			nameIdx := strings.Index(body, `id="name-c1"`)
+			if typeIdx >= 0 && nameIdx >= 0 {
+				assert.Less(t, typeIdx, nameIdx)
 			}
 		})
 	}
