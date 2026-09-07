@@ -279,6 +279,7 @@ func mountPages(
 	app.Get("/dashboard/sessions", guard, htmlHandler.DashboardSessions)
 	app.Get("/media", guard, htmlHandler.Media)
 	app.Get("/media/item/:id/playback", guard, htmlHandler.Playback)
+	app.Get("/media/item/:id/clips", guard, htmlHandler.MediaItemClips)
 	app.Get("/media/item/:id", guard, htmlHandler.MediaItem)
 	app.Get("/previews/:id", guard, htmlHandler.PreviewFile)
 	app.Get("/nav/libraries", guard, htmlHandler.NavLibraries)

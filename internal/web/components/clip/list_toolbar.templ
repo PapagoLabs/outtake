@@ -1,0 +1,79 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package clip
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/input"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
+)
+
+// ListToolbarProps is the clip list filter and sort form.
+type ListToolbarProps struct {
+	Action  string
+	Target  string
+	PushURL bool
+	Status  string
+	Type    string
+	Query   string
+	Sort    string
+}
+
+func sortSelected(current, value string) bool {
+	if current == "" {
+		return value == "created_desc"
+	}
+
+	return current == value
+}
+
+templ ListToolbar(props ListToolbarProps) {
+	<form
+		hx-get={ props.Action }
+		hx-target={ "#" + props.Target }
+		hx-swap="innerHTML"
+		hx-trigger="change from:select, submit"
+		if props.PushURL {
+			hx-push-url="true"
+		}
+		class="flex flex-wrap items-end gap-3"
+	>
+		if props.Status != "" {
+			<input type="hidden" name="status" value={ props.Status }/>
+		}
+		<div class="w-40">
+			@label.Label(label.Props{For: "clip-list-type"}) {
+				Type
+			}
+			<select id="clip-list-type" name="type" class={ utils.ControlClass }>
+				<option value="" selected?={ props.Type == "" }>All</option>
+				<option value="clip" selected?={ props.Type == "clip" }>Video clip</option>
+				<option value="gif" selected?={ props.Type == "gif" }>GIF</option>
+				<option value="screenshot" selected?={ props.Type == "screenshot" }>Screenshot</option>
+			</select>
+		</div>
+		<div class="min-w-48 flex-1">
+			@label.Label(label.Props{For: "clip-list-q", Class: "sr-only"}) {
+				Filter by name
+			}
+			@input.Input(input.Props{ID: "clip-list-q", Name: "q", Type: input.TypeSearch, Placeholder: "Filter by name", Value: props.Query})
+		</div>
+		<div class="w-52">
+			@label.Label(label.Props{For: "clip-list-sort"}) {
+				Sort
+			}
+			<select id="clip-list-sort" name="sort" class={ utils.ControlClass }>
+				<option value="created_desc" selected?={ sortSelected(props.Sort, "created_desc") }>Newest created</option>
+				<option value="created_asc" selected?={ sortSelected(props.Sort, "created_asc") }>Oldest created</option>
+				<option value="updated_desc" selected?={ sortSelected(props.Sort, "updated_desc") }>Recently modified</option>
+				<option value="updated_asc" selected?={ sortSelected(props.Sort, "updated_asc") }>Oldest modified</option>
+				<option value="name_asc" selected?={ sortSelected(props.Sort, "name_asc") }>Name A-Z</option>
+				<option value="name_desc" selected?={ sortSelected(props.Sort, "name_desc") }>Name Z-A</option>
+			</select>
+		</div>
+		<button type="submit" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
+			Filter
+		</button>
+	</form>
+}

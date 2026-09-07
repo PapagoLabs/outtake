@@ -43,26 +43,6 @@ func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
 	assert.Equal(t, "/media?library=2", crumbs[1].URL)
 }
 
-func TestFilterClipItemsPendingIncludesProcessing(t *testing.T) {
-	t.Parallel()
-
-	items := []view.ClipItem{
-		{ID: "1", Status: view.ClipStatusPending},
-		{ID: "2", Status: view.ClipStatusProcessing},
-		{ID: "3", Status: view.ClipStatusCompleted},
-		{ID: "4", Status: view.ClipStatusFailed},
-	}
-
-	pending := filterClipItems(items, view.ClipStatusPending)
-	require.Len(t, pending, 2)
-	assert.Equal(t, "1", pending[0].ID)
-	assert.Equal(t, "2", pending[1].ID)
-
-	failed := filterClipItems(items, view.ClipStatusFailed)
-	require.Len(t, failed, 1)
-	assert.Equal(t, "4", failed[0].ID)
-}
-
 func TestFormatClipCreated(t *testing.T) {
 	t.Parallel()
 
@@ -297,6 +277,15 @@ func TestWantsMediaResults(t *testing.T) {
 	}
 }
 
+func TestWantsClipList(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "page", clipListKind(t, ""))
+	assert.Equal(t, "page", clipListKind(t, "main-content"))
+	assert.Equal(t, "fragment", clipListKind(t, "clip-list"))
+	assert.Equal(t, "fragment", clipListKind(t, "div#clip-list"))
+}
+
 func mediaResultsKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
@@ -310,6 +299,36 @@ func mediaResultsKind(t *testing.T, hxTarget string) string {
 	})
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media", nil)
+	req.Header.Set("Hx-Request", "true")
+
+	if hxTarget != "" {
+		req.Header.Set("Hx-Target", hxTarget)
+	}
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return string(body)
+}
+
+func clipListKind(t *testing.T, hxTarget string) string {
+	t.Helper()
+
+	app := fiber.New()
+	app.Get("/clips", func(ctx fiber.Ctx) error {
+		if wantsClipList(ctx) {
+			return ctx.SendString("fragment")
+		}
+
+		return ctx.SendString("page")
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/clips", nil)
 	req.Header.Set("Hx-Request", "true")
 
 	if hxTarget != "" {

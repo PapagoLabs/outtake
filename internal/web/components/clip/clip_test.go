@@ -210,3 +210,33 @@ func TestClipCard(t *testing.T) {
 		})
 	}
 }
+
+func TestListToolbar(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := ListToolbar(ListToolbarProps{
+		Action:  "/clips",
+		Target:  "clip-list",
+		PushURL: true,
+		Status:  view.ClipStatusCompleted,
+		Type:    "gif",
+		Query:   "intro",
+		Sort:    "name_asc",
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, `hx-get="/clips"`)
+	assert.Contains(t, body, `hx-target="#clip-list"`)
+	assert.Contains(t, body, `hx-push-url="true"`)
+	assert.Contains(t, body, `hx-trigger="change from:select, submit"`)
+	assert.Contains(t, body, `name="status"`)
+	assert.Contains(t, body, `value="completed"`)
+	assert.Contains(t, body, `name="type"`)
+	assert.Contains(t, body, `name="q"`)
+	assert.Contains(t, body, `name="sort"`)
+	assert.Contains(t, body, `value="intro"`)
+	assert.Contains(t, body, "Filter")
+}

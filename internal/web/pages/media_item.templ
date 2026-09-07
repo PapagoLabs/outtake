@@ -27,6 +27,9 @@ type MediaItemPageProps struct {
 	Duration      float64
 	MaxDur        int
 	Clips         []view.ClipItem
+	ClipType      string
+	ClipQuery     string
+	ClipSort      string
 	Profiles      []view.ClipProfileOption
 	AudioTracks   []view.AudioTrackOption
 	Error         string
@@ -183,15 +186,33 @@ templ MediaItemPage(props MediaItemPageProps) {
 			}
 			<div class="flex flex-col gap-4">
 				<h3 class="text-lg font-semibold">Clips from this item</h3>
-				if len(props.Clips) == 0 {
-					<p class="text-sm text-muted-foreground">No clips yet.</p>
-				}
-				for _, item := range props.Clips {
-					@clip.ClipCard(item)
-				}
+				@clip.ListToolbar(clip.ListToolbarProps{
+					Action:  "/media/item/" + props.ID + "/clips",
+					Target:  "item-clip-list",
+					PushURL: false,
+					Type:    props.ClipType,
+					Query:   props.ClipQuery,
+					Sort:    props.ClipSort,
+				})
+				<div id="item-clip-list" class="flex flex-col gap-4">
+					@ItemClipList(props.Clips, props.ClipType != "" || props.ClipQuery != "")
+				</div>
 			</div>
 		</div>
 		<div id="clip-form-config" data-max-dur={ strconv.Itoa(props.MaxDur) } class="hidden"></div>
 		<script src="/assets/js/media-item.js"></script>
+	}
+}
+
+templ ItemClipList(items []view.ClipItem, filtered bool) {
+	if len(items) == 0 {
+		if filtered {
+			<p class="text-sm text-muted-foreground">No clips match these filters.</p>
+		} else {
+			<p class="text-sm text-muted-foreground">No clips yet.</p>
+		}
+	}
+	for _, item := range items {
+		@clip.ClipCard(item)
 	}
 }

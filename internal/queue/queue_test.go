@@ -14,6 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func datedJob(id string, created time.Time) *Job {
+	job := testJob(id, JobStatusCompleted)
+
+	job.CreatedAt = created
+
+	return job
+}
+
 func testJob(id string, status JobStatus) *Job {
 	return &Job{
 		ID:            id,
@@ -86,54 +94,20 @@ func TestQueue_GetAllJobs(t *testing.T) {
 	t.Parallel()
 
 	q := NewQueue(1, nil)
+	older := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	newer := older.Add(time.Minute)
 
-	q.Submit(&Job{
-		ID:            "j1",
-		Type:          JobTypeClip,
-		Name:          "",
-		Status:        JobStatusPending,
-		MediaID:       "",
-		MediaTitle:    "",
-		MediaType:     "",
-		InputPath:     "",
-		OutputPath:    "",
-		StartTime:     0,
-		Duration:      0,
-		Quality:       "",
-		Width:         0,
-		FPS:           0,
-		AudioIndex:    0,
-		CropBlackBars: false,
-		Progress:      0,
-		Error:         "",
-		CreatedAt:     time.Time{},
-		UpdatedAt:     time.Time{},
-	})
-	q.Submit(&Job{
-		ID:            "j2",
-		Type:          JobTypeGIF,
-		Name:          "",
-		Status:        JobStatusPending,
-		MediaID:       "",
-		MediaTitle:    "",
-		MediaType:     "",
-		InputPath:     "",
-		OutputPath:    "",
-		StartTime:     0,
-		Duration:      0,
-		Quality:       "",
-		Width:         0,
-		FPS:           0,
-		AudioIndex:    0,
-		CropBlackBars: false,
-		Progress:      0,
-		Error:         "",
-		CreatedAt:     time.Time{},
-		UpdatedAt:     time.Time{},
-	})
+	q.Restore(datedJob("old", older))
+	q.Restore(datedJob("tie-a", newer))
+	q.Restore(datedJob("tie-z", newer))
 
-	jobs := q.GetAllJobs()
-	assert.Len(t, jobs, 2)
+	want := []string{"tie-z", "tie-a", "old"}
+
+	for range 8 {
+		jobs := q.GetAllJobs()
+		require.Len(t, jobs, 3)
+		assert.Equal(t, want, []string{jobs[0].ID, jobs[1].ID, jobs[2].ID})
+	}
 }
 
 func TestQueue_ProcessJob_Success(t *testing.T) {
