@@ -9,12 +9,14 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type SessionItem struct {
 	ID         string
 	MediaID    string
-	Title      string
+	Parts      []view.Crumb
+	Year       int
 	ViewOffset float64
 	Duration   float64
 }
@@ -100,7 +102,21 @@ templ LiveSessions(sessions []SessionItem) {
 				@card.Content() {
 					<div class="flex items-center justify-between gap-4">
 						<div>
-							<p class="font-medium">{ sess.Title }</p>
+							<p class="font-medium">
+								for i, part := range sess.Parts {
+									if i > 0 {
+										{ " · " }
+									}
+									if part.URL != "" {
+										<a href={ templ.SafeURL(part.URL) } class="underline hover:text-foreground">{ part.Title }</a>
+									} else {
+										{ part.Title }
+									}
+								}
+								if sess.Year > 0 {
+									{ " (" + strconv.Itoa(sess.Year) + ")" }
+								}
+							</p>
 							<p class="text-sm text-muted-foreground">
 								{ media.FromSeconds(sess.ViewOffset).HMS() } / { media.FromSeconds(sess.Duration).HMS() }
 							</p>
