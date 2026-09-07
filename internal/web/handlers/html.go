@@ -41,6 +41,7 @@ type HTMLHandler struct {
 	cfg      *config.Config
 	product  string
 	clientID string
+	addedAt  addedAtIndexCache
 }
 
 // dashStats holds dashboard clip counters.
@@ -764,8 +765,13 @@ func (handler *HTMLHandler) mediaLetters(
 
 	switch query.Sort {
 	case mediaSortAddedDesc, mediaSortAddedAsc:
-		return addedAtIndexes(
-			collectAddedAtItems(ctx.Context(), plexClient, server, query.LibraryID, query.Sort),
+		return loadAddedAtIndexes(
+			ctx.Context(),
+			&handler.addedAt,
+			plexClient,
+			server,
+			query.LibraryID,
+			query.Sort,
 		)
 	case mediaSortYearDesc, mediaSortYearAsc:
 		index, err := plexClient.GetYears(ctx.Context(), server, query.LibraryID)

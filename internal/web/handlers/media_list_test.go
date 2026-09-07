@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"testing"
 	"time"
@@ -342,4 +343,77 @@ func parseMediaListQueryFrom(t *testing.T, target string) mediaListQuery {
 	_, _ = io.Copy(io.Discard, resp.Body)
 
 	return parsed
+}
+
+func TestCollectAddedAtItemsStopsAtPageCap(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	client, server := addedAtPlexClient(t, func(http.ResponseWriter, *http.Request) {
+		calls++
+	})
+
+	items := collectAddedAtItems(t.Context(), client, server, "1", mediaSortAddedDesc)
+
+	assert.Equal(t, maxAddedIndexPages, calls)
+	assert.Len(t, items, maxAddedIndexPages)
+}
+
+func TestLoadAddedAtIndexesCaches(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	client, server := addedAtPlexClient(t, func(http.ResponseWriter, *http.Request) {
+		calls++
+	})
+	cache := &addedAtIndexCache{}
+
+	first := loadAddedAtIndexes(t.Context(), cache, client, server, "1", mediaSortAddedDesc)
+	second := loadAddedAtIndexes(t.Context(), cache, client, server, "1", mediaSortAddedDesc)
+
+	assert.Equal(t, first, second)
+	assert.Equal(t, maxAddedIndexPages, calls)
+}
+
+func addedAtPlexClient(
+	t *testing.T,
+	onRequest func(http.ResponseWriter, *http.Request),
+) (*plex.Client, plex.Server) {
+	t.Helper()
+
+	handler := func(writer http.ResponseWriter, request *http.Request) {
+		onRequest(writer, request)
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(http.StatusOK)
+
+		_, _ = writer.Write([]byte(
+			`{"MediaContainer":{"size":1,"totalSize":5000,"offset":0,"Metadata":[` +
+				`{"ratingKey":"100","title":"Paged","type":"movie","addedAt":1700000000}` +
+				`]}}`,
+		))
+	}
+	ts := httptest.NewServer(http.HandlerFunc(handler))
+	t.Cleanup(ts.Close)
+
+	parsed, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+
+	port, err := strconv.Atoi(parsed.Port())
+	require.NoError(t, err)
+
+	client := plex.NewClient(plex.ClientConfig{
+		Product:  "outtake",
+		ClientID: "test",
+		Token:    "token",
+		Timeout:  5 * time.Second,
+		BaseURL:  "",
+	})
+	server := plex.Server{
+		Address: parsed.Hostname(),
+		Port:    port,
+		Token:   "token",
+		Scheme:  "http",
+	}
+
+	return client, server
 }

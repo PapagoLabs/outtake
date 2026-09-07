@@ -5,8 +5,10 @@ package handlers
 
 import (
 	"context"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -34,6 +36,12 @@ type mediaListWindow struct {
 	Size  int
 }
 
+// addedAtIndexCache stores added-at jump buckets by server, library, and sort.
+type addedAtIndexCache struct {
+	mu      sync.Mutex
+	indexes map[string][]plex.LetterIndex
+}
+
 const (
 	// QueryLetter is the media library first-character jump parameter.
 	queryLetter = "letter"
@@ -43,6 +51,8 @@ const (
 
 	// AddedIndexPageSize is the PMS page size used to build added-at buckets.
 	addedIndexPageSize = 200
+	// MaxAddedIndexPages caps added-at jump-rail collection.
+	maxAddedIndexPages = 10
 
 	// MaxJumpLabels is the target number of marks on the jump rail.
 	maxJumpLabels = 28
@@ -483,6 +493,82 @@ func addedAtIndexes(items []plex.MediaItem) []plex.LetterIndex {
 	})
 }
 
+// loadAddedAtIndexes returns cached added-at buckets, collecting them on a miss.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - cache: Per-handler added-at jump cache.
+//   - client: PMS client.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//   - sort: Normalized Outtake sort key.
+//
+// Returns:
+//   - index: Month buckets for the jump rail.
+func loadAddedAtIndexes(
+	ctx context.Context,
+	cache *addedAtIndexCache,
+	client *plex.Client,
+	server plex.Server,
+	libraryID, sort string,
+) []plex.LetterIndex {
+	key := addedAtCacheKey(server, libraryID, sort)
+	if index, ok := cache.get(key); ok {
+		return index
+	}
+
+	index := addedAtIndexes(collectAddedAtItems(ctx, client, server, libraryID, sort))
+	cache.put(key, index)
+
+	return index
+}
+
+// addedAtCacheKey identifies an added-at jump rail by server, library, and sort.
+//
+// Parameters:
+//   - server: PMS identity.
+//   - libraryID: Section key.
+//   - sort: Normalized Outtake sort key.
+//
+// Returns:
+//   - key: Cache key.
+func addedAtCacheKey(server plex.Server, libraryID, sort string) string {
+	return server.Address + ":" + strconv.Itoa(server.Port) + "|" + libraryID + "|" + sort
+}
+
+// get returns a copy of cached buckets for key.
+//
+// Parameters:
+//   - key: Cache key.
+//
+// Returns:
+//   - index: Cached buckets.
+//   - ok: True when the key is present.
+func (cache *addedAtIndexCache) get(key string) ([]plex.LetterIndex, bool) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	index, ok := cache.indexes[key]
+
+	return slices.Clone(index), ok
+}
+
+// put stores a copy of index for key.
+//
+// Parameters:
+//   - key: Cache key.
+//   - index: Month buckets to store.
+func (cache *addedAtIndexCache) put(key string, index []plex.LetterIndex) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if cache.indexes == nil {
+		cache.indexes = make(map[string][]plex.LetterIndex)
+	}
+
+	cache.indexes[key] = slices.Clone(index)
+}
+
 // yearIndexes builds year buckets from a sorted library listing.
 //
 // Parameters:
@@ -586,6 +672,7 @@ func collectAddedAtItems(
 ) []plex.MediaItem {
 	items := make([]plex.MediaItem, 0)
 	start := 0
+	pages := 0
 
 	for {
 		page, err := client.GetMediaPage(
@@ -603,7 +690,9 @@ func collectAddedAtItems(
 		items = append(items, page.Items...)
 
 		start += len(page.Items)
-		if len(page.Items) == 0 || start >= page.Total {
+		pages++
+
+		if len(page.Items) == 0 || start >= page.Total || pages >= maxAddedIndexPages {
 			return items
 		}
 	}

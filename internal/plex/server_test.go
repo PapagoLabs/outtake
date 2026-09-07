@@ -295,6 +295,7 @@ func TestGetSectionIndexRejectsUnknown(t *testing.T) {
 		ClientID: testServerClient,
 		Token:    testSrvToken,
 		Timeout:  5 * time.Second,
+		BaseURL:  "",
 	})
 
 	_, err := c.GetSectionIndex(t.Context(), Server{}, "1", "genre")
