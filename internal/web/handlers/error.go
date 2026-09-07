@@ -25,6 +25,15 @@ type httpErrorView struct {
 func PageError(ctx fiber.Ctx, err error) error {
 	view := httpErrorCopy(err)
 
+	if isHTMXRequest(ctx) {
+		err = writeHTMXFlash(ctx, view.code, view.message)
+		if err != nil {
+			return fmt.Errorf("write htmx flash: %w", err)
+		}
+
+		return nil
+	}
+
 	if strings.HasPrefix(ctx.Path(), "/api/") {
 		return writeJSON(ctx, view.code, api.ErrorResponse{
 			Error:   "http_error",

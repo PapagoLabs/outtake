@@ -4,9 +4,12 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
@@ -30,9 +33,18 @@ templ Login(props LoginProps) {
 			<script src="/assets/js/htmx.min.js"></script>
 			<script src="/assets/js/app.js" defer></script>
 			<script src="/assets/js/input.js" defer></script>
+			if token := web.CSRFToken(ctx); token != "" {
+				<meta name="csrf-token" content={ token }/>
+			}
 		</head>
-		<body class="min-h-screen bg-background text-foreground flex items-center justify-center">
+		<body
+			class="min-h-screen bg-background text-foreground flex items-center justify-center"
+			if headers := web.CSRFHeaderJSON(ctx); headers != "" {
+				hx-headers:inherited={ headers }
+			}
+		>
 			<div class="w-full max-w-md p-8">
+				@flash.Slot("")
 				@card.Card() {
 					@card.Header(card.HeaderProps{Class: "items-center text-center"}) {
 						<img src="/assets/brand/mascot-128.png" width="80" height="80" alt="" class="size-20"/>
@@ -61,6 +73,7 @@ templ Login(props LoginProps) {
 							<div class="relative flex justify-center text-xs uppercase"><span class="bg-card px-2 text-muted-foreground">Or</span></div>
 						</div>
 						<form action="/api/auth/login" method="POST" class="flex flex-col gap-4">
+							@csrf.Field()
 							<div class="flex flex-col gap-2">
 								@label.Label(label.Props{For: "manual-token"}) {
 									Plex Token

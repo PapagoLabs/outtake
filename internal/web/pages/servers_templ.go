@@ -17,6 +17,8 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
@@ -73,27 +75,12 @@ func Servers(props ServersProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if props.Error != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"js-flash rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start justify-between gap-3\"><span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var3 string
-				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.Error)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 39, Col: 24}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span> <button type=\"button\" class=\"js-flash-dismiss text-xs underline\" aria-label=\"Dismiss\">Dismiss</button></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+			templ_7745c5c3_Err = flash.Banner(props.Error).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
 			if len(props.Servers) == 0 {
-				templ_7745c5c3_Var4 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -105,7 +92,7 @@ func Servers(props ServersProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var4 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -117,25 +104,25 @@ func Servers(props ServersProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"text-muted-foreground\">No Plex servers were discovered for this account.</p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<p class=\"text-muted-foreground\">No Plex servers were discovered for this account.</p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 			for _, server := range props.Servers {
-				templ_7745c5c3_Var6 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -147,7 +134,7 @@ func Servers(props ServersProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Var7 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var6 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -159,153 +146,161 @@ func Servers(props ServersProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<form action=\"/servers\" method=\"POST\" class=\"flex items-center justify-between gap-4\"><input type=\"hidden\" name=\"name\" value=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<form action=\"/servers\" method=\"POST\" class=\"flex items-center justify-between gap-4\">")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						templ_7745c5c3_Err = csrf.Field().Render(ctx, templ_7745c5c3_Buffer)
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<input type=\"hidden\" name=\"name\" value=\"")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						var templ_7745c5c3_Var7 string
+						templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Name)
+						if templ_7745c5c3_Err != nil {
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 52, Col: 59}
+						}
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\"> <input type=\"hidden\" name=\"address\" value=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var8 string
-						templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Name)
+						templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Address)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 54, Col: 59}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 53, Col: 65}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"> <input type=\"hidden\" name=\"address\" value=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"> <input type=\"hidden\" name=\"port\" value=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var9 string
-						templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Address)
+						templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(server.Port))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 55, Col: 65}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 54, Col: 73}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"> <input type=\"hidden\" name=\"port\" value=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"> <input type=\"hidden\" name=\"scheme\" value=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var10 string
-						templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(server.Port))
+						templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Scheme)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 56, Col: 73}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 55, Col: 63}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <input type=\"hidden\" name=\"scheme\" value=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\"> <input type=\"hidden\" name=\"token\" value=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var11 string
-						templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Scheme)
+						templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Token)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 57, Col: 63}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 56, Col: 61}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var11)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"> <input type=\"hidden\" name=\"token\" value=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><div><p class=\"font-medium\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var12 string
-						templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue(server.Token)
+						templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(server.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 58, Col: 61}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 59, Col: 22}
 						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\"><div><p class=\"font-medium\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, " ")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						if server.Selected {
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<span class=\"ml-2 text-xs font-normal text-muted-foreground\">Current</span>")
+							if templ_7745c5c3_Err != nil {
+								return templ_7745c5c3_Err
+							}
+						}
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</p><p class=\"text-sm text-muted-foreground break-all\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var13 string
-						templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(server.Name)
+						templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(server.Scheme)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 61, Col: 22}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 65, Col: 24}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, " ")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						if server.Selected {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<span class=\"ml-2 text-xs font-normal text-muted-foreground\">Current</span>")
-							if templ_7745c5c3_Err != nil {
-								return templ_7745c5c3_Err
-							}
-						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</p><p class=\"text-sm text-muted-foreground break-all\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "://")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var14 string
-						templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(server.Scheme)
+						templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(server.Address)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 67, Col: 24}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 65, Col: 45}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "://")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, ":")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var15 string
-						templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(server.Address)
+						templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(server.Port))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 67, Col: 45}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 65, Col: 75}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, ":")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						var templ_7745c5c3_Var16 string
-						templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(server.Port))
-						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 67, Col: 75}
-						}
-						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						if server.Local {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span>(local)</span>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<span>(local)</span>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						} else {
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<span>(remote)</span>")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<span>(remote)</span>")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</p></div>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</p></div>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Var17 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+						templ_7745c5c3_Var16 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 							templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 							templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 							if !templ_7745c5c3_IsBuffer {
@@ -317,34 +312,34 @@ func Servers(props ServersProps) templ.Component {
 								}()
 							}
 							ctx = templ.InitializeContext(ctx)
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "Use this server")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "Use this server")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							return nil
 						})
-						templ_7745c5c3_Err = button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</form>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</form>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var6), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Var18 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var17 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -356,7 +351,7 @@ func Servers(props ServersProps) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Var19 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var18 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -368,12 +363,20 @@ func Servers(props ServersProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<form action=\"/servers\" method=\"POST\" class=\"flex flex-col gap-3\"><div><p class=\"font-medium\">Custom server URL</p><p class=\"text-sm text-muted-foreground\">Use an FQDN or ingress address, such as https://plex.example.com.</p></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<form action=\"/servers\" method=\"POST\" class=\"flex flex-col gap-3\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var20 = []any{utils.ControlClass}
-					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var20...)
+					templ_7745c5c3_Err = csrf.Field().Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div><p class=\"font-medium\">Custom server URL</p><p class=\"text-sm text-muted-foreground\">Use an FQDN or ingress address, such as https://plex.example.com.</p></div>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var19 = []any{utils.ControlClass}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var19...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -381,12 +384,12 @@ func Servers(props ServersProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var21 string
-					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var20).String())
+					var templ_7745c5c3_Var20 string
+					templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var19).String())
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/servers.templ`, Line: 1, Col: 0}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -394,7 +397,7 @@ func Servers(props ServersProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Var22 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var21 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -412,7 +415,7 @@ func Servers(props ServersProps) templ.Component {
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Class: "self-start"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var22), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Class: "self-start"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var21), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -422,13 +425,13 @@ func Servers(props ServersProps) templ.Component {
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var19), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

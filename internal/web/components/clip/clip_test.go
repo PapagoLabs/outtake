@@ -55,6 +55,7 @@ func TestClipCard(t *testing.T) {
 				"Preview",
 				"<video",
 				"hx-confirm",
+				`hx-disable="this"`,
 			},
 			notContains: []string{"<details open", "On disk"},
 		},
@@ -137,6 +138,7 @@ func TestClipCard(t *testing.T) {
 			contains: []string{
 				`hx-get="/clips/c1/row"`,
 				`hx-trigger="every 2s"`,
+				`hx-disable="this"`,
 				"40%",
 				"Cancel",
 			},

@@ -19,6 +19,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/clip"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
@@ -106,7 +108,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						var templ_7745c5c3_Var3 templ.SafeURL
 						templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(crumb.URL))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 50, Col: 42}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 52, Col: 42}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 						if templ_7745c5c3_Err != nil {
@@ -119,7 +121,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						var templ_7745c5c3_Var4 string
 						templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(crumb.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 50, Col: 88}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 52, Col: 88}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 						if templ_7745c5c3_Err != nil {
@@ -137,7 +139,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						var templ_7745c5c3_Var5 string
 						templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(crumb.Title)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 52, Col: 51}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 54, Col: 51}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 						if templ_7745c5c3_Err != nil {
@@ -166,7 +168,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(props.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 59, Col: 68}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 61, Col: 68}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -179,7 +181,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(props.Type)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 61, Col: 17}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 63, Col: 17}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 			if templ_7745c5c3_Err != nil {
@@ -197,7 +199,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(props.Duration).HMS())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 63, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 65, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -212,26 +214,11 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if props.Error != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div class=\"js-flash rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start justify-between gap-3\"><span>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var9 string
-				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(props.Error)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 69, Col: 24}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span> <button type=\"button\" class=\"js-flash-dismiss text-xs underline\" aria-label=\"Dismiss\">Dismiss</button></div>")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
+			templ_7745c5c3_Err = flash.Banner(props.Error).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Var10 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var9 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -243,7 +230,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Var11 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var10 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -255,6 +242,32 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
+					templ_7745c5c3_Var11 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+						if !templ_7745c5c3_IsBuffer {
+							defer func() {
+								templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+								if templ_7745c5c3_Err == nil {
+									templ_7745c5c3_Err = templ_7745c5c3_BufErr
+								}
+							}()
+						}
+						ctx = templ.InitializeContext(ctx)
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "Plex playback")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						return nil
+					})
+					templ_7745c5c3_Err = card.Title().Render(templ.WithChildren(ctx, templ_7745c5c3_Var11), templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, " ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 					templ_7745c5c3_Var12 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -267,53 +280,27 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "Plex playback")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "Watch in Plex on any client. Outtake reads the current position.")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = card.Title().Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " ")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Var13 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-						if !templ_7745c5c3_IsBuffer {
-							defer func() {
-								templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-								if templ_7745c5c3_Err == nil {
-									templ_7745c5c3_Err = templ_7745c5c3_BufErr
-								}
-							}()
-						}
-						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "Watch in Plex on any client. Outtake reads the current position.")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						return nil
-					})
-					templ_7745c5c3_Err = card.Description().Render(templ.WithChildren(ctx, templ_7745c5c3_Var13), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = card.Description().Render(templ.WithChildren(ctx, templ_7745c5c3_Var12), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = card.Header().Render(templ.WithChildren(ctx, templ_7745c5c3_Var11), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = card.Header().Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, " ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, " ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Var14 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var13 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -325,55 +312,55 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<div hx-get=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div hx-get=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var15 string
-					templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("/media/item/" + props.ID + "/playback")
+					var templ_7745c5c3_Var14 string
+					templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue("/media/item/" + props.ID + "/playback")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 83, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 80, Col: 58}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" hx-trigger=\"load, every 2s\" hx-swap=\"innerHTML\"></div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "\" hx-trigger=\"load, every 2s\" hx-swap=\"innerHTML\"></div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var14), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var13), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var10), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var9), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if props.PreviewID != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<video class=\"w-full rounded-md bg-black\" controls preload=\"metadata\"><source src=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<video class=\"w-full rounded-md bg-black\" controls preload=\"metadata\"><source src=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var16 string
-				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.ResolveAttributeValue("/previews/" + props.PreviewID)
+				var templ_7745c5c3_Var15 string
+				templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.ResolveAttributeValue("/previews/" + props.PreviewID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 88, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 85, Col: 49}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var16)
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var15)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "\" type=\"video/mp4\"></video>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" type=\"video/mp4\"></video>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Var17 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_Var16 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -385,7 +372,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Var18 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var17 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -397,6 +384,32 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
+					templ_7745c5c3_Var18 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+						if !templ_7745c5c3_IsBuffer {
+							defer func() {
+								templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+								if templ_7745c5c3_Err == nil {
+									templ_7745c5c3_Err = templ_7745c5c3_BufErr
+								}
+							}()
+						}
+						ctx = templ.InitializeContext(ctx)
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "New export")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						return nil
+					})
+					templ_7745c5c3_Err = card.Title().Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, " ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 					templ_7745c5c3_Var19 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -409,53 +422,27 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "New export")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "Set start and end from Plex, preview the segment, then save.")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = card.Title().Render(templ.WithChildren(ctx, templ_7745c5c3_Var19), templ_7745c5c3_Buffer)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, " ")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Var20 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-						if !templ_7745c5c3_IsBuffer {
-							defer func() {
-								templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-								if templ_7745c5c3_Err == nil {
-									templ_7745c5c3_Err = templ_7745c5c3_BufErr
-								}
-							}()
-						}
-						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "Set start and end from Plex, preview the segment, then save.")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						return nil
-					})
-					templ_7745c5c3_Err = card.Description().Render(templ.WithChildren(ctx, templ_7745c5c3_Var20), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = card.Description().Render(templ.WithChildren(ctx, templ_7745c5c3_Var19), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = card.Header().Render(templ.WithChildren(ctx, templ_7745c5c3_Var18), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = card.Header().Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, " ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, " ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Var21 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+				templ_7745c5c3_Var20 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 					templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 					templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 					if !templ_7745c5c3_IsBuffer {
@@ -467,46 +454,84 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<form id=\"clip-form\" class=\"flex flex-col gap-4\" data-export-form><input type=\"hidden\" name=\"mediaId\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<form id=\"clip-form\" class=\"flex flex-col gap-4\" data-export-form>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = csrf.Field().Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<input type=\"hidden\" name=\"mediaId\" value=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var21 string
+					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.ID)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 100, Col: 58}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\"> <input type=\"hidden\" name=\"mediaTitle\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var22 string
-					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.ID)
+					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 102, Col: 58}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 101, Col: 64}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\"> <input type=\"hidden\" name=\"mediaTitle\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\"> <input type=\"hidden\" name=\"mediaType\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var23 string
-					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Title)
+					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Type)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 103, Col: 64}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 102, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\"> <input type=\"hidden\" name=\"mediaType\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\"><div class=\"flex flex-col gap-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var24 string
-					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Type)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 104, Col: 62}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
+					templ_7745c5c3_Var24 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+						if !templ_7745c5c3_IsBuffer {
+							defer func() {
+								templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+								if templ_7745c5c3_Err == nil {
+									templ_7745c5c3_Err = templ_7745c5c3_BufErr
+								}
+							}()
+						}
+						ctx = templ.InitializeContext(ctx)
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "Clip name")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+						return nil
+					})
+					templ_7745c5c3_Err = label.Label(label.Props{For: "name"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var24), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\"><div class=\"flex flex-col gap-2\">")
+					templ_7745c5c3_Err = input.Input(input.Props{ID: "name", Name: "name", Placeholder: "Optional name", Value: props.Title}).Render(ctx, templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</div><div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -522,82 +547,52 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "Clip name")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "Start")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = label.Label(label.Props{For: "name"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var25), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = label.Label(label.Props{For: "startTime"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var25), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = input.Input(input.Props{ID: "name", Name: "name", Placeholder: "Optional name", Value: props.Title}).Render(ctx, templ_7745c5c3_Buffer)
+					var templ_7745c5c3_Var26 = []any{utils.ControlClass}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var26...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</div><div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<input id=\"startTime\" name=\"startTime\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Var26 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-						if !templ_7745c5c3_IsBuffer {
-							defer func() {
-								templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-								if templ_7745c5c3_Err == nil {
-									templ_7745c5c3_Err = templ_7745c5c3_BufErr
-								}
-							}()
-						}
-						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "Start")
-						if templ_7745c5c3_Err != nil {
-							return templ_7745c5c3_Err
-						}
-						return nil
-					})
-					templ_7745c5c3_Err = label.Label(label.Props{For: "startTime"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var26), templ_7745c5c3_Buffer)
+					var templ_7745c5c3_Var27 string
+					templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(props.StartTime).String())
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 114, Col: 157}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var27 = []any{utils.ControlClass}
-					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var27...)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<input id=\"startTime\" name=\"startTime\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "\" class=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var28 string
-					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(props.StartTime).String())
+					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var26).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 116, Col: 157}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 1, Col: 0}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\" class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\"></div><div class=\"flex flex-col gap-2\" data-export-for=\"clip,gif\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var29 string
-					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var27).String())
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 1, Col: 0}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var29)
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\"></div><div class=\"flex flex-col gap-2\" data-export-for=\"clip,gif\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Var30 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var29 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -609,78 +604,78 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "End")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "End")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = label.Label(label.Props{For: "endTime"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var30), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = label.Label(label.Props{For: "endTime"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var29), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var31 = []any{utils.ControlClass}
-					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var31...)
+					var templ_7745c5c3_Var30 = []any{utils.ControlClass}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var30...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<input id=\"endTime\" name=\"endTime\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<input id=\"endTime\" name=\"endTime\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var31 string
+					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(props.EndTime).String())
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 120, Col: 151}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\" class=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var32 string
-					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(props.EndTime).String())
+					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var30).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 122, Col: 151}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 1, Col: 0}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\" class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\"></div></div><input type=\"hidden\" id=\"duration\" name=\"duration\" value=\"10\"><p class=\"text-sm text-muted-foreground\" data-export-for=\"clip,gif\">Duration: <span id=\"duration-label\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var33 string
-					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var31).String())
+					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(props.EndTime - props.StartTime).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 1, Col: 0}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 124, Col: 171}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\"></div></div><input type=\"hidden\" id=\"duration\" name=\"duration\" value=\"10\"><p class=\"text-sm text-muted-foreground\" data-export-for=\"clip,gif\">Duration: <span id=\"duration-label\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "</span> (max ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var34 string
-					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(props.EndTime - props.StartTime).String())
+					templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(float64(props.MaxDur)).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 126, Col: 171}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 124, Col: 237}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</span> (max ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, ") <span id=\"duration-warning\" class=\"hidden text-destructive\">Clamped to the maximum duration.</span></p><div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var35 string
-					templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(float64(props.MaxDur)).String())
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 126, Col: 237}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, ") <span id=\"duration-warning\" class=\"hidden text-destructive\">Clamped to the maximum duration.</span></p><div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Var36 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var35 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -692,39 +687,39 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "Export as")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "Export as")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = label.Label(label.Props{For: "clipType"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var36), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = label.Label(label.Props{For: "clipType"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var35), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var37 = []any{utils.ControlClass}
-					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var37...)
+					var templ_7745c5c3_Var36 = []any{utils.ControlClass}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var36...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<select id=\"clipType\" name=\"clipType\" class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<select id=\"clipType\" name=\"clipType\" class=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var38 string
-					templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var37).String())
+					var templ_7745c5c3_Var37 string
+					templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var36).String())
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 1, Col: 0}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\"><option value=\"clip\">Video clip</option> <option value=\"gif\">GIF</option> <option value=\"screenshot\">Screenshot</option></select></div><div class=\"flex flex-col gap-2\" data-export-for=\"clip\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\"><option value=\"clip\">Video clip</option> <option value=\"gif\">GIF</option> <option value=\"screenshot\">Screenshot</option></select></div><div class=\"flex flex-col gap-2\" data-export-for=\"clip\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Var39 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var38 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -736,13 +731,13 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "Profile")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "Profile")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = label.Label(label.Props{For: "quality"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var39), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = label.Label(label.Props{For: "quality"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var38), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -750,16 +745,16 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if len(props.AudioTracks) > 0 {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<div class=\"flex flex-col gap-2\" data-export-for=\"clip\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<div class=\"flex flex-col gap-2\" data-export-for=\"clip\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Var40 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+						templ_7745c5c3_Var39 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 							templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 							templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 							if !templ_7745c5c3_IsBuffer {
@@ -771,13 +766,13 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 								}()
 							}
 							ctx = templ.InitializeContext(ctx)
-							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "Audio track")
+							templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "Audio track")
 							if templ_7745c5c3_Err != nil {
 								return templ_7745c5c3_Err
 							}
 							return nil
 						})
-						templ_7745c5c3_Err = label.Label(label.Props{For: "audioIndex"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var40), templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = label.Label(label.Props{For: "audioIndex"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var39), templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -785,16 +780,16 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "</div>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "</div>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<div class=\"flex flex-col gap-2\" data-export-for=\"gif\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "<div class=\"flex flex-col gap-2\" data-export-for=\"gif\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Var41 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var40 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -806,39 +801,39 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "GIF width (px)")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "GIF width (px)")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = label.Label(label.Props{For: "width"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var41), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = label.Label(label.Props{For: "width"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var40), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var42 = []any{utils.ControlClass}
-					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var42...)
+					var templ_7745c5c3_Var41 = []any{utils.ControlClass}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var41...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<input id=\"width\" name=\"width\" type=\"number\" min=\"120\" max=\"1920\" value=\"480\" class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<input id=\"width\" name=\"width\" type=\"number\" min=\"120\" max=\"1920\" value=\"480\" class=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var43 string
-					templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var42).String())
+					var templ_7745c5c3_Var42 string
+					templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var41).String())
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 1, Col: 0}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\"></div><div class=\"flex flex-col gap-2\" data-export-for=\"gif\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\"></div><div class=\"flex flex-col gap-2\" data-export-for=\"gif\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Var44 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var43 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -850,35 +845,35 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "GIF frames per second")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "GIF frames per second")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = label.Label(label.Props{For: "fps"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var44), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = label.Label(label.Props{For: "fps"}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var43), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var45 = []any{utils.ControlClass}
-					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var45...)
+					var templ_7745c5c3_Var44 = []any{utils.ControlClass}
+					templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var44...)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "<input id=\"fps\" name=\"fps\" type=\"number\" min=\"5\" max=\"30\" value=\"10\" class=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "<input id=\"fps\" name=\"fps\" type=\"number\" min=\"5\" max=\"30\" value=\"10\" class=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var46 string
-					templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var45).String())
+					var templ_7745c5c3_Var45 string
+					templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var44).String())
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 1, Col: 0}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var45)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "\"></div></div><div data-export-for=\"clip\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "\"></div></div><div data-export-for=\"clip\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -886,11 +881,11 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</div><div class=\"flex gap-3\"><button type=\"submit\" formaction=\"/api/clips/preview\" formmethod=\"post\" class=\"js-export-submit inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent\">Preview</button>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</div><div class=\"flex gap-3\"><button type=\"submit\" formaction=\"/api/clips/preview\" formmethod=\"post\" class=\"js-export-submit inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent\">Preview</button>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Var47 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+					templ_7745c5c3_Var46 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 						templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 						templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 						if !templ_7745c5c3_IsBuffer {
@@ -902,38 +897,38 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "Save clip")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "Save clip")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						return nil
 					})
-					templ_7745c5c3_Err = button.Button(button.Props{Type: button.TypeSubmit, Class: "js-export-submit", Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var47), templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = button.Button(button.Props{Type: button.TypeSubmit, Class: "js-export-submit", Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var46), templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "</div></form>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "</div></form>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					return nil
 				})
-				templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var21), templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = card.Content().Render(templ.WithChildren(ctx, templ_7745c5c3_Var20), templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var17), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = card.Card().Render(templ.WithChildren(ctx, templ_7745c5c3_Var16), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<div class=\"flex flex-col gap-4\"><h3 class=\"text-lg font-semibold\">Clips from this item</h3>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<div class=\"flex flex-col gap-4\"><h3 class=\"text-lg font-semibold\">Clips from this item</h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if len(props.Clips) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<p class=\"text-sm text-muted-foreground\">No clips yet.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<p class=\"text-sm text-muted-foreground\">No clips yet.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -944,20 +939,20 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</div></div><div id=\"clip-form-config\" data-max-dur=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "</div></div><div id=\"clip-form-config\" data-max-dur=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var48 string
-			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(props.MaxDur))
+			var templ_7745c5c3_Var47 string
+			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(props.MaxDur))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 189, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 187, Col: 70}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var48)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var47)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "\" class=\"hidden\"></div><script src=\"/assets/js/media-item.js\"></script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "\" class=\"hidden\"></div><script src=\"/assets/js/media-item.js\"></script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

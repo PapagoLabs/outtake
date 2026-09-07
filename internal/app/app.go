@@ -11,11 +11,14 @@ import (
 	"fmt"
 	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/extractors"
+	"github.com/gofiber/fiber/v3/middleware/csrf"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/gofiber/fiber/v3/middleware/static"
@@ -45,6 +48,11 @@ type App struct {
 const (
 	// ShutdownTimeout is the maximum time to wait for graceful shutdown.
 	shutdownTimeout = 10 * time.Second
+
+	// ContentSecurityPolicy is the helmet CSP for vendored HTMX and same-origin media.
+	contentSecurityPolicy = "default-src 'self'; script-src 'self'; " +
+		"style-src 'self' 'unsafe-inline'; img-src 'self'; media-src 'self'; " +
+		"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 	// SessionIdleMinutes is the session idle timeout.
 	sessionIdleMinutes = 30
@@ -125,7 +133,10 @@ func newRouter(
 	})
 	app.Use(recover.New())
 	app.Use(middleware.RequestLogger())
+	app.Use(helmet.New(helmetConfig()))
 	app.Use(session.New(sessionConfig()))
+	app.Use(csrf.New(csrfConfig(cfg)))
+	app.Use(middleware.BindCSRFToken())
 	app.Use(middleware.RestoreToken(db))
 	app.Use("/assets", static.New("assets", staticConfig()))
 
@@ -154,6 +165,88 @@ func sessionConfig() session.Config {
 		CookieHTTPOnly:    true,
 		CookieSessionOnly: false,
 	}
+}
+
+// helmetConfig returns security headers including a same-origin CSP.
+//
+// Returns:
+//   - Helmet middleware config.
+func helmetConfig() helmet.Config {
+	return helmet.Config{
+		Next:                      nil,
+		XSSProtection:             "0",
+		ContentTypeNosniff:        "nosniff",
+		XFrameOptions:             "DENY",
+		ContentSecurityPolicy:     contentSecurityPolicy,
+		ReferrerPolicy:            "no-referrer",
+		PermissionPolicy:          "",
+		CrossOriginEmbedderPolicy: "require-corp",
+		CrossOriginOpenerPolicy:   "same-origin",
+		CrossOriginResourcePolicy: "same-origin",
+		OriginAgentCluster:        "?1",
+		XDNSPrefetchControl:       "off",
+		XDownloadOptions:          "noopen",
+		XPermittedCrossDomain:     "none",
+		HSTSMaxAge:                0,
+		HSTSExcludeSubdomains:     false,
+		CSPReportOnly:             false,
+		HSTSPreloadEnabled:        false,
+	}
+}
+
+// csrfConfig returns CSRF middleware that accepts header or form tokens.
+//
+// Parameters:
+//   - cfg: App config; PublicURL scheme controls CookieSecure.
+//
+// Returns:
+//   - CSRF middleware config.
+func csrfConfig(cfg *config.Config) csrf.Config {
+	return csrf.Config{
+		Storage:        nil,
+		Next:           nil,
+		Session:        nil,
+		KeyGenerator:   csrf.ConfigDefault.KeyGenerator,
+		ErrorHandler:   csrfError,
+		CookieName:     "csrf_",
+		CookieDomain:   "",
+		CookiePath:     "",
+		CookieSameSite: "Lax",
+		TrustedOrigins: nil,
+		Extractor: extractors.Chain(
+			extractors.FromHeader(csrf.HeaderName),
+			extractors.FromForm(web.CSRFFormField),
+		),
+		IdleTimeout:           sessionIdleMinutes * time.Minute,
+		DisableValueRedaction: false,
+		CookieSecure:          cookieSecure(cfg),
+		CookieHTTPOnly:        true,
+		CookieSessionOnly:     false,
+		SingleUseToken:        false,
+	}
+}
+
+// cookieSecure reports whether cookies should set the Secure attribute.
+//
+// Parameters:
+//   - cfg: App config. PublicURL is https for remote HTTPS deployments.
+//
+// Returns:
+//   - True when PublicURL uses https; false for local HTTP.
+func cookieSecure(cfg *config.Config) bool {
+	return strings.HasPrefix(strings.ToLower(cfg.PublicURL()), "https://")
+}
+
+// csrfError turns a CSRF failure into a Fiber error for PageError.
+//
+// Parameters:
+//   - _ctx: Request context. Unused.
+//   - _err: CSRF middleware error. Unused.
+//
+// Returns:
+//   - Forbidden Fiber error.
+func csrfError(_ fiber.Ctx, _ error) error {
+	return fiber.NewError(fiber.StatusForbidden, "invalid csrf token")
 }
 
 // staticConfig returns the static asset middleware configuration.

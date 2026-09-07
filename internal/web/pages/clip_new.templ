@@ -8,6 +8,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/clip"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
@@ -37,6 +38,7 @@ templ NewClip(props NewClipProps) {
 			@card.Card() {
 				@card.Content() {
 					<form action="/api/clips" method="POST" class="flex flex-col gap-4">
+						@csrf.Field()
 						<input type="hidden" name="mediaId" value={ props.MediaID }/>
 						<input type="hidden" name="mediaTitle" value={ props.MediaTitle }/>
 						<input type="hidden" name="mediaType" value={ props.MediaType }/>

@@ -154,13 +154,20 @@ func TestSelectedLibraryID(t *testing.T) {
 func TestWantsMediaResults(t *testing.T) {
 	t.Parallel()
 
+	const (
+		wantPage     = "page"
+		wantFragment = "fragment"
+	)
+
 	tests := []struct {
 		giveTarget string
 		want       string
 	}{
-		{giveTarget: "", want: "page"},
-		{giveTarget: "main-content", want: "page"},
-		{giveTarget: "media-results", want: "fragment"},
+		{giveTarget: "", want: wantPage},
+		{giveTarget: "main-content", want: wantPage},
+		{giveTarget: "main#main-content", want: wantPage},
+		{giveTarget: "media-results", want: wantFragment},
+		{giveTarget: "div#media-results", want: wantFragment},
 	}
 
 	for _, test := range tests {

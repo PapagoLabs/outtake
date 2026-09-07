@@ -21,6 +21,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/badge"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -79,7 +80,7 @@ func clipPlayback(item view.ClipItem) templ.Component {
 				var templ_7745c5c3_Var2 string
 				templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(clipFileURL(item.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 44, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 45, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 				if templ_7745c5c3_Err != nil {
@@ -92,7 +93,7 @@ func clipPlayback(item view.ClipItem) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.DisplayName())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 44, Col: 63}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 45, Col: 63}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 				if templ_7745c5c3_Err != nil {
@@ -110,7 +111,7 @@ func clipPlayback(item view.ClipItem) templ.Component {
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(clipFileURL(item.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 46, Col: 106}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 47, Col: 106}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 				if templ_7745c5c3_Err != nil {
@@ -207,7 +208,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 		var templ_7745c5c3_Var8 string
 		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue("clip-" + item.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 63, Col: 24}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 64, Col: 24}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 		if templ_7745c5c3_Err != nil {
@@ -225,7 +226,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("/clips/" + item.ID + "/row")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 65, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 66, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -271,39 +272,47 @@ func ClipCard(item view.ClipItem) templ.Component {
 				var templ_7745c5c3_Var12 templ.SafeURL
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/api/clips/" + item.ID + "/update"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 72, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 73, Col: 69}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" method=\"POST\" class=\"flex flex-col gap-4\" data-export-form><input type=\"hidden\" name=\"mediaId\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" method=\"POST\" class=\"flex flex-col gap-4\" data-export-form>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = csrf.Field().Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<input type=\"hidden\" name=\"mediaId\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var13 string
 				templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.MediaID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 73, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 75, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "\"><div class=\"flex items-center justify-between gap-3\"><div class=\"flex flex-col gap-1\"><div class=\"flex flex-wrap items-center gap-2\"><span class=\"font-medium\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\"><div class=\"flex items-center justify-between gap-3\"><div class=\"flex flex-col gap-1\"><div class=\"flex flex-wrap items-center gap-2\"><span class=\"font-medium\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var14 string
 				templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(item.DisplayName())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 77, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 79, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -322,7 +331,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 					var templ_7745c5c3_Var16 string
 					templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(item.Status)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 79, Col: 22}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 81, Col: 22}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 					if templ_7745c5c3_Err != nil {
@@ -338,230 +347,230 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><div class=\"flex flex-wrap items-center gap-2 text-sm text-muted-foreground\"><span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div><div class=\"flex flex-wrap items-center gap-2 text-sm text-muted-foreground\"><span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(view.ClipTypeLabel(item.ClipType))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 84, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 86, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.ProfileName != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<span>&middot;</span> <span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<span>&middot;</span> <span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(item.ProfileName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 87, Col: 33}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 89, Col: 33}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if item.MediaTitle != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span>&middot;</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span>&middot;</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					if item.MediaID != "" {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<a href=\"")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "<a href=\"")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var19 templ.SafeURL
 						templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/media/item/" + item.MediaID))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 92, Col: 64}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 94, Col: 64}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\" class=\"hover:text-foreground\">")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "\" class=\"hover:text-foreground\">")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var20 string
 						templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(item.MediaTitle)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 92, Col: 114}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 94, Col: 114}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "</a> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "</a> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "<span>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var21 string
 						templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(item.MediaTitle)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 94, Col: 33}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 96, Col: 33}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "</span> ")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> ")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "<span>&middot;</span> <span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<span>&middot;</span> <span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(item.StartTime).HMS())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 98, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 100, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "</span> ")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</span> ")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.ClipType != "screenshot" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<span>+</span> <span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<span>+</span> <span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var23 string
 					templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(item.Duration).HMS())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 101, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 103, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "</span> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "</span> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if item.CreatedAt != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<span>&middot;</span> <span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<span>&middot;</span> <span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(item.CreatedAt)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 105, Col: 31}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 107, Col: 31}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</div></div><button type=\"button\" hx-delete=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</div></div><button type=\"button\" hx-delete=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue("/api/clips/" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 111, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 113, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "\" hx-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" hx-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue("#clip-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 112, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 114, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "\" hx-swap=\"delete\" hx-confirm=\"Delete this clip? This cannot be undone.\" class=\"inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors\">Delete</button></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" hx-swap=\"delete\" hx-disable=\"this\" hx-confirm=\"Delete this clip? This cannot be undone.\" class=\"inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors\">Delete</button></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.Error != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<p class=\"text-sm text-destructive\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<p class=\"text-sm text-destructive\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var27 string
 					templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(item.Error)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 121, Col: 54}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 124, Col: 54}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if item.IsActive() {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<div class=\"h-1.5 w-full overflow-hidden rounded-full bg-secondary\"><div class=\"h-full rounded-full bg-primary\" style=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<div class=\"h-1.5 w-full overflow-hidden rounded-full bg-secondary\"><div class=\"h-full rounded-full bg-primary\" style=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues("width: " + strconv.Itoa(item.Progress) + "%")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 125, Col: 104}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 128, Col: 104}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\"></div></div><p class=\"text-xs text-muted-foreground\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "\"></div></div><p class=\"text-xs text-muted-foreground\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(item.Progress))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 127, Col: 76}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 130, Col: 76}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "%</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "%</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -570,7 +579,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -586,7 +595,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "Name")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "Name")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -596,33 +605,33 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<input id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "<input id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var31 string
 				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue("name-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 135, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 138, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, "\" name=\"name\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\" name=\"name\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var32 string
 				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.DisplayName())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 135, Col: 77}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 138, Col: 77}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -638,7 +647,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "Start")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "Start")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -648,33 +657,33 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<input id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<input id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue("start-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 141, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 144, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "\" name=\"startTime\" type=\"text\" inputmode=\"decimal\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" name=\"startTime\" type=\"text\" inputmode=\"decimal\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(item.StartTime).String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 141, Col: 139}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 144, Col: 139}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\" data-export-for=\"clip,gif\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\" data-export-for=\"clip,gif\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -690,7 +699,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "Duration")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "Duration")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -700,33 +709,33 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "<input id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "<input id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue("dur-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 147, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 150, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" name=\"duration\" type=\"text\" inputmode=\"decimal\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" name=\"duration\" type=\"text\" inputmode=\"decimal\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(item.Duration).String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 147, Col: 135}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 150, Col: 135}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -742,7 +751,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "Type")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "Type")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -752,50 +761,50 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "<select id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<select id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var40 string
 				templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue("type-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 153, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 156, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "\" name=\"clipType\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"><option value=\"clip\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "\" name=\"clipType\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"><option value=\"clip\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.ClipType == "clip" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, " selected")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, " selected")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, ">Video clip</option> <option value=\"gif\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, ">Video clip</option> <option value=\"gif\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.ClipType == "gif" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, " selected")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, " selected")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, ">GIF</option> <option value=\"screenshot\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, ">GIF</option> <option value=\"screenshot\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.ClipType == "screenshot" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, " selected")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, " selected")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, ">Screenshot</option></select></div><div class=\"flex min-w-40 flex-col gap-2\" data-export-for=\"clip\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, ">Screenshot</option></select></div><div class=\"flex min-w-40 flex-col gap-2\" data-export-for=\"clip\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -811,7 +820,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "Profile")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "Profile")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -825,12 +834,12 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if len(item.AudioTracks) > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "<div class=\"flex flex-col gap-2\" data-export-for=\"clip\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<div class=\"flex flex-col gap-2\" data-export-for=\"clip\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -846,7 +855,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "Audio track")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "Audio track")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -860,12 +869,12 @@ func ClipCard(item view.ClipItem) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</div><div data-export-for=\"clip\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</div><div data-export-for=\"clip\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -873,67 +882,67 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</div><div class=\"flex flex-wrap items-end gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</div><div class=\"flex flex-wrap items-end gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.IsActive() {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<button type=\"button\" hx-post=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<button type=\"button\" hx-post=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var43 string
 					templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue("/api/clips/" + item.ID + "/cancel")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 181, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 184, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" hx-target=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" hx-target=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var44 string
 					templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue("#clip-" + item.ID)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 182, Col: 38}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 185, Col: 38}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "\" hx-swap=\"outerHTML\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Cancel</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\" hx-swap=\"outerHTML\" hx-disable=\"this\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Cancel</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<button type=\"submit\" name=\"regenerate\" value=\"1\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Regenerate</button> <button type=\"submit\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Save metadata</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<button type=\"submit\" name=\"regenerate\" value=\"1\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Regenerate</button> <button type=\"submit\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Save metadata</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if item.CanPlay() {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<a href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<a href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var45 templ.SafeURL
 					templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/api/clips/" + item.ID + "/download"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 197, Col: 69}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 201, Col: 69}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\" download class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Download</a>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\" download class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Download</a>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "</div></form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "</div></form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -949,7 +958,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -978,22 +987,22 @@ func CropBlackBarsField(checked bool) templ.Component {
 			templ_7745c5c3_Var46 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<label class=\"flex items-center gap-2 text-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<label class=\"flex items-center gap-2 text-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if checked {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<input type=\"checkbox\" name=\"cropBlackBars\" value=\"1\" checked class=\"rounded border-input\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<input type=\"checkbox\" name=\"cropBlackBars\" value=\"1\" checked class=\"rounded border-input\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<input type=\"checkbox\" name=\"cropBlackBars\" value=\"1\" class=\"rounded border-input\"> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<input type=\"checkbox\" name=\"cropBlackBars\" value=\"1\" class=\"rounded border-input\"> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "Trim black bars</label>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "Trim black bars</label>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1046,46 +1055,54 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "<form action=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<form action=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var50 templ.SafeURL
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinURLErrs("/api/clips/" + item.ID + "/update")
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 222, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 226, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "\" method=\"POST\" class=\"flex flex-col gap-4\"><div class=\"flex items-center justify-between gap-2\"><span class=\"font-medium\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "\" method=\"POST\" class=\"flex flex-col gap-4\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = csrf.Field().Render(ctx, templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<div class=\"flex items-center justify-between gap-2\"><span class=\"font-medium\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(item.DisplayName())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 224, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 229, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "</span><div class=\"flex items-center gap-2\"><span class=\"text-xs text-muted-foreground capitalize\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</span><div class=\"flex items-center gap-2\"><span class=\"text-xs text-muted-foreground capitalize\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var52 string
 				templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(item.Status)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 226, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 231, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "</span>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1093,25 +1110,25 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.Error != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "<p class=\"text-sm text-destructive\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "<p class=\"text-sm text-destructive\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var53 string
 					templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(item.Error)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 231, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 236, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1120,20 +1137,20 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "<input type=\"hidden\" name=\"mediaId\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "<input type=\"hidden\" name=\"mediaId\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.MediaID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 234, Col: 60}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 239, Col: 60}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var54)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "\"><div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\"><div class=\"grid gap-4 sm:grid-cols-2\"><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1149,7 +1166,7 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "Name")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "Name")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1159,33 +1176,33 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "<input id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<input id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var56 string
 				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue("name-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 240, Col: 35}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 245, Col: 35}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "\" name=\"name\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" name=\"name\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var57 string
 				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(item.DisplayName())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 240, Col: 76}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 245, Col: 76}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1201,7 +1218,7 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "Start")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "Start")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1211,33 +1228,33 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "<input id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "<input id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue("start-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 246, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 251, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "\" name=\"startTime\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "\" name=\"startTime\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var60 string
 				templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(item.StartTime).String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 246, Col: 165}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 251, Col: 165}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var60)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1253,20 +1270,20 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "Duration (max ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "Duration (max ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var62 string
 					templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(media.FromSeconds(float64(maxDur)).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 250, Col: 66}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 255, Col: 66}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, ")")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, ")")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1276,33 +1293,33 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<input id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<input id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var63 string
 				templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.ResolveAttributeValue("dur-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 252, Col: 34}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 257, Col: 34}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" name=\"duration\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "\" name=\"duration\" type=\"text\" inputmode=\"decimal\" placeholder=\"00:00:00.000\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var64 string
 				templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.ResolveAttributeValue(media.FromSeconds(item.Duration).String())
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 252, Col: 161}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 257, Col: 161}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var64)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\"></div><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1318,7 +1335,7 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "Type")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "Type")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1328,57 +1345,57 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "<select id=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<select id=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var66 string
 				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue("type-" + item.ID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 258, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 263, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "\" name=\"clipType\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "\" name=\"clipType\" class=\"flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.ClipType == "clip" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 108, "<option value=\"clip\" selected>Video clip</option> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<option value=\"clip\" selected>Video clip</option> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 109, "<option value=\"clip\">Video clip</option> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<option value=\"clip\">Video clip</option> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if item.ClipType == "gif" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 110, "<option value=\"gif\" selected>GIF</option> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<option value=\"gif\" selected>GIF</option> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 111, "<option value=\"gif\">GIF</option> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<option value=\"gif\">GIF</option> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if item.ClipType == "screenshot" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 112, "<option value=\"screenshot\" selected>Screenshot</option>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "<option value=\"screenshot\" selected>Screenshot</option>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 113, "<option value=\"screenshot\">Screenshot</option>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "<option value=\"screenshot\">Screenshot</option>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 114, "</select></div><div class=\"flex flex-col gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "</select></div><div class=\"flex flex-col gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1394,7 +1411,7 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 115, "Profile")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "Profile")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1408,12 +1425,12 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 116, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if len(item.AudioTracks) > 0 {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 117, "<div class=\"flex flex-col gap-2\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<div class=\"flex flex-col gap-2\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1429,7 +1446,7 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, "Audio track")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "Audio track")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -1443,12 +1460,12 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1456,25 +1473,25 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 121, "<div class=\"flex gap-2\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "<div class=\"flex gap-2\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if item.IsActive() {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 122, "<button type=\"button\" hx-post=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "<button type=\"button\" hx-post=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var69 string
 					templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.ResolveAttributeValue("/api/clips/" + item.ID + "/cancel")
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 296, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 301, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var69)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 123, "\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Cancel</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, "\" hx-disable=\"this\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Cancel</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -1491,7 +1508,7 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 124, "Save metadata")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "Save metadata")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -1501,31 +1518,31 @@ func EditCard(item view.ClipItem, maxDur int) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 125, " <button type=\"submit\" name=\"regenerate\" value=\"1\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Regenerate</button> ")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, " <button type=\"submit\" name=\"regenerate\" value=\"1\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Regenerate</button> ")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
 				if item.CanPlay() {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 126, "<a href=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "<a href=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var71 templ.SafeURL
 					templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/api/clips/" + item.ID + "/download"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 310, Col: 68}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 316, Col: 68}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 127, "\" download class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Download</a>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 129, "\" download class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\">Download</a>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 128, "</div></form>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 130, "</div></form>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

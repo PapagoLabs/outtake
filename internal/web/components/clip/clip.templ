@@ -11,6 +11,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/badge"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -70,6 +71,7 @@ templ ClipCard(item view.ClipItem) {
 		@card.Card() {
 			@card.Content() {
 				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4" data-export-form>
+					@csrf.Field()
 					<input type="hidden" name="mediaId" value={ item.MediaID }/>
 					<div class="flex items-center justify-between gap-3">
 						<div class="flex flex-col gap-1">
@@ -111,6 +113,7 @@ templ ClipCard(item view.ClipItem) {
 							hx-delete={ "/api/clips/" + item.ID }
 							hx-target={ "#clip-" + item.ID }
 							hx-swap="delete"
+							hx-disable="this"
 							hx-confirm="Delete this clip? This cannot be undone."
 							class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
 						>
@@ -181,6 +184,7 @@ templ ClipCard(item view.ClipItem) {
 								hx-post={ "/api/clips/" + item.ID + "/cancel" }
 								hx-target={ "#clip-" + item.ID }
 								hx-swap="outerHTML"
+								hx-disable="this"
 								class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
 							>
 								Cancel
@@ -220,6 +224,7 @@ templ EditCard(item view.ClipItem, maxDur int) {
 	@card.Card() {
 		@card.Content() {
 			<form action={ "/api/clips/" + item.ID + "/update" } method="POST" class="flex flex-col gap-4">
+				@csrf.Field()
 				<div class="flex items-center justify-between gap-2">
 					<span class="font-medium">{ item.DisplayName() }</span>
 					<div class="flex items-center gap-2">
@@ -294,6 +299,7 @@ templ EditCard(item view.ClipItem, maxDur int) {
 						<button
 							type="button"
 							hx-post={ "/api/clips/" + item.ID + "/cancel" }
+							hx-disable="this"
 							class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
 						>
 							Cancel

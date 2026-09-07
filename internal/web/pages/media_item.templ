@@ -10,6 +10,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/clip"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
@@ -64,12 +66,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				</p>
 			</div>
-			if props.Error != "" {
-				<div class="js-flash rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start justify-between gap-3">
-					<span>{ props.Error }</span>
-					<button type="button" class="js-flash-dismiss text-xs underline" aria-label="Dismiss">Dismiss</button>
-				</div>
-			}
+			@flash.Banner(props.Error)
 			@card.Card() {
 				@card.Header() {
 					@card.Title() {
@@ -99,6 +96,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 				}
 				@card.Content() {
 					<form id="clip-form" class="flex flex-col gap-4" data-export-form>
+						@csrf.Field()
 						<input type="hidden" name="mediaId" value={ props.ID }/>
 						<input type="hidden" name="mediaTitle" value={ props.Title }/>
 						<input type="hidden" name="mediaType" value={ props.Type }/>

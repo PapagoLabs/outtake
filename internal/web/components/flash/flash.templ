@@ -1,0 +1,26 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// Package flash renders dismissible error banners and HTMX error partials.
+package flash
+
+templ Banner(message string) {
+	if message != "" {
+		<div class="js-flash rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start justify-between gap-3">
+			<span>{ message }</span>
+			<button type="button" class="js-flash-dismiss text-xs underline" aria-label="Dismiss">Dismiss</button>
+		</div>
+	}
+}
+
+templ Slot(message string) {
+	<div id="flash">
+		@Banner(message)
+	</div>
+}
+
+templ Partial(message string) {
+	<hx-partial hx-target="#flash">
+		@Banner(message)
+	</hx-partial>
+}

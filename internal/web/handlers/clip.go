@@ -120,7 +120,7 @@ func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 		job = updated
 	}
 
-	if ctx.Get("HX-Request") == "true" {
+	if isHTMXRequest(ctx) {
 		ctx.Set("HX-Refresh", "true")
 
 		return sendStatusCode(ctx, fiber.StatusOK)
