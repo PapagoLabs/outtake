@@ -9,6 +9,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/theme"
 )
 
 type LoginProps struct {
@@ -18,7 +19,7 @@ type LoginProps struct {
 
 templ Login(props LoginProps) {
 	<!DOCTYPE html>
-	<html lang="en" class="dark">
+	<html lang="en" class="dark" data-palette="plex" data-palettes={ theme.IDList() }>
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>

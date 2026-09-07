@@ -11,6 +11,25 @@
 		});
 	}
 
+	function paletteList() {
+		var raw = root.getAttribute('data-palettes');
+		if (!raw) {
+			return ['plex'];
+		}
+
+		return raw.split(',');
+	}
+
+	function syncPaletteButtons() {
+		var current = root.getAttribute('data-palette') || 'plex';
+		document.querySelectorAll('.js-palette').forEach(function (el) {
+			var on = el.getAttribute('data-palette') === current;
+			el.setAttribute('aria-pressed', on ? 'true' : 'false');
+			el.classList.toggle('ring-2', on);
+			el.classList.toggle('ring-sidebar-primary', on);
+		});
+	}
+
 	function sidebarEl() {
 		return document.querySelector('.js-sidebar');
 	}
@@ -69,6 +88,15 @@
 			window.localStorage.setItem('outtake-theme', dark ? 'dark' : 'light');
 			syncThemeIcons();
 		}
+		var paletteBtn = event.target.closest('.js-palette');
+		if (paletteBtn) {
+			var palette = paletteBtn.getAttribute('data-palette');
+			if (palette && paletteList().indexOf(palette) !== -1) {
+				root.setAttribute('data-palette', palette);
+				window.localStorage.setItem('outtake-palette', palette);
+				syncPaletteButtons();
+			}
+		}
 		if (event.target.closest('.js-sidebar-open')) {
 			openSidebar();
 		}
@@ -108,5 +136,6 @@
 	document.addEventListener('htmx:afterSwap', bindExportForms);
 
 	syncThemeIcons();
+	syncPaletteButtons();
 	bindExportForms();
 })();

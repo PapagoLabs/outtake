@@ -1,0 +1,36 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/theme"
+)
+
+templ Appearance() {
+	@layout.Layout(layout.Props{Title: "Appearance", Active: "appearance"}) {
+		<div class="flex flex-col gap-6 max-w-xl">
+			<div>
+				<h2 class="text-2xl font-bold tracking-tight">Appearance</h2>
+				<p class="text-muted-foreground">Plex is the default. Light and dark still use the sun/moon control in the sidebar.</p>
+			</div>
+			<div class="grid gap-3 sm:grid-cols-2">
+				for _, palette := range theme.Palettes() {
+					<button
+						type="button"
+						class="js-palette flex flex-col gap-3 rounded-lg border bg-card p-4 text-left hover:bg-accent transition-colors"
+						data-palette={ palette.ID }
+						aria-pressed="false"
+					>
+						<span class="flex items-center gap-2">
+							<span class="size-5 rounded-full border" style={ "background:" + palette.Accent }></span>
+							<span class="size-5 rounded-full border" style={ "background:" + palette.Surface }></span>
+						</span>
+						<span class="font-medium">{ palette.Name }</span>
+					</button>
+				}
+			</div>
+		</div>
+	}
+}
