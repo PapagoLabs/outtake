@@ -5,7 +5,10 @@
 package queue
 
 import (
+	"cmp"
 	"context"
+	"maps"
+	"slices"
 	"sync"
 	"time"
 
@@ -106,17 +109,26 @@ func (que *Queue) Done() <-chan struct{} {
 	return que.done
 }
 
-// GetAllJobs returns all jobs.
+// GetAllJobs returns every job, newest first.
+//
+// Jobs with the same CreatedAt are ordered by ID descending.
 func (que *Queue) GetAllJobs() []*Job {
 	que.mu.RLock()
 	defer que.mu.RUnlock()
 
-	result := make([]*Job, 0, len(que.jobs))
-	for _, job := range que.jobs {
-		result = append(result, job)
-	}
+	result := slices.Collect(maps.Values(que.jobs))
+	slices.SortFunc(result, compareJobsNewestFirst)
 
 	return result
+}
+
+// compareJobsNewestFirst orders jobs by CreatedAt descending, then ID descending.
+func compareJobsNewestFirst(left, right *Job) int {
+	if order := right.CreatedAt.Compare(left.CreatedAt); order != 0 {
+		return order
+	}
+
+	return cmp.Compare(right.ID, left.ID)
 }
 
 // GetJob gets a job by ID.

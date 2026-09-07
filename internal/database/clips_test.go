@@ -83,6 +83,68 @@ func TestClipPersistence(t *testing.T) {
 	require.ErrorIs(t, err, ErrClipNotFound)
 }
 
+func TestListClipsOrder(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/clips-order.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	older := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	newer := older.Add(time.Minute)
+
+	require.NoError(t, db.SaveClip(t.Context(), testStoredClip("old", "100", older)))
+	require.NoError(t, db.SaveClip(t.Context(), testStoredClip("tie-a", "100", newer)))
+	require.NoError(t, db.SaveClip(t.Context(), testStoredClip("tie-z", "100", newer)))
+	require.NoError(t, db.SaveClip(t.Context(), testStoredClip("other", "200", newer)))
+
+	wantAll := []string{"tie-z", "tie-a", "other", "old"}
+	all, err := db.ListClips(t.Context())
+	require.NoError(t, err)
+	require.Len(t, all, 4)
+	assert.Equal(t, wantAll, clipIDs(all))
+
+	wantMedia := []string{"tie-z", "tie-a", "old"}
+	byMedia, err := db.ListClipsForMedia(t.Context(), "100")
+	require.NoError(t, err)
+	require.Len(t, byMedia, 3)
+	assert.Equal(t, wantMedia, clipIDs(byMedia))
+}
+
+func testStoredClip(id, mediaID string, created time.Time) *queue.Job {
+	return &queue.Job{
+		ID:            id,
+		Type:          queue.JobTypeClip,
+		Name:          id,
+		MediaID:       mediaID,
+		MediaTitle:    "Order Movie",
+		MediaType:     "show",
+		InputPath:     "/media/order.mkv",
+		OutputPath:    "/out/" + id + ".mp4",
+		StartTime:     10,
+		Duration:      15,
+		Quality:       "high",
+		Width:         0,
+		FPS:           0,
+		AudioIndex:    0,
+		CropBlackBars: false,
+		Status:        queue.JobStatusCompleted,
+		Progress:      100,
+		Error:         "",
+		CreatedAt:     created,
+		UpdatedAt:     created,
+	}
+}
+
+func clipIDs(jobs []*queue.Job) []string {
+	ids := make([]string, 0, len(jobs))
+	for _, job := range jobs {
+		ids = append(ids, job.ID)
+	}
+
+	return ids
+}
+
 func TestScanJobMockScannable(t *testing.T) {
 	t.Parallel()
 

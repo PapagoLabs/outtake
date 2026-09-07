@@ -100,11 +100,11 @@ func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 	return job, nil
 }
 
-// ListClips returns all clips ordered by creation time.
+// ListClips returns all clips ordered by creation time, newest first.
 func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
-		db.rewrite(`SELECT `+clipSelectCols+` FROM clips ORDER BY created_at DESC`),
+		db.rewrite(`SELECT `+clipSelectCols+` FROM clips ORDER BY created_at DESC, id DESC`),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list clips: %w", err)
@@ -147,7 +147,7 @@ func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.J
 	rows, err := db.conn.QueryContext(
 		ctx,
 		db.rewrite(
-			`SELECT `+clipSelectCols+` FROM clips WHERE media_id = ? ORDER BY created_at DESC`,
+			`SELECT `+clipSelectCols+` FROM clips WHERE media_id = ? ORDER BY created_at DESC, id DESC`,
 		),
 		mediaID,
 	)

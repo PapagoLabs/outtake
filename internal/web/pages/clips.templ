@@ -13,6 +13,13 @@ import (
 type ClipsProps struct {
 	Items  []view.ClipItem
 	Status string
+	Type   string
+	Query  string
+	Sort   string
+}
+
+func clipsFiltered(props ClipsProps) bool {
+	return props.Status != "" || props.Type != "" || props.Query != ""
 }
 
 templ Clips(props ClipsProps) {
@@ -27,24 +34,43 @@ templ Clips(props ClipsProps) {
 					New from library
 				</a>
 			</div>
+			@clip.ListToolbar(clip.ListToolbarProps{
+				Action:  "/clips",
+				Target:  "clip-list",
+				PushURL: true,
+				Status:  props.Status,
+				Type:    props.Type,
+				Query:   props.Query,
+				Sort:    props.Sort,
+			})
 			if props.Status != "" {
 				<p class="text-sm text-muted-foreground">Showing { props.Status } clips. <a href="/clips" class="underline hover:text-foreground">Show all</a></p>
 			}
-			if len(props.Items) == 0 {
-				@card.Card() {
-					@card.Content() {
-						<div class="text-center py-12 text-muted-foreground">
-							<p>No clips yet. Browse your media library and create your first clip.</p>
-							<a href="/media" class="mt-4 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
-								Browse Media
-							</a>
-						</div>
-					}
-				}
-			}
-			for _, item := range props.Items {
-				@clip.ClipCard(item)
-			}
+			<div id="clip-list" class="flex flex-col gap-6">
+				@ClipsList(props)
+			</div>
 		</div>
+	}
+}
+
+templ ClipsList(props ClipsProps) {
+	if len(props.Items) == 0 {
+		@card.Card() {
+			@card.Content() {
+				<div class="text-center py-12 text-muted-foreground">
+					if clipsFiltered(props) {
+						<p>No clips match these filters.</p>
+					} else {
+						<p>No clips yet. Browse your media library and create your first clip.</p>
+						<a href="/media" class="mt-4 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
+							Browse Media
+						</a>
+					}
+				</div>
+			}
+		}
+	}
+	for _, item := range props.Items {
+		@clip.ClipCard(item)
 	}
 }

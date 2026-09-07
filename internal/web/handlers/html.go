@@ -105,13 +105,23 @@ func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 
 // Clips handles the clips list page request.
 func (handler *HTMLHandler) Clips(ctx fiber.Ctx) error {
-	status := ctx.Query("status")
+	query := parseClipListQuery(ctx)
+	props := pages.ClipsProps{
+		Items:  handler.jobsToClipItems(ctx, applyClipListQuery(handler.listJobs(ctx), query)),
+		Status: query.Status,
+		Type:   query.Type,
+		Query:  query.Query,
+		Sort:   query.Sort,
+	}
+
+	if wantsClipList(ctx) {
+		return renderHTML(ctx, func(writer io.Writer) error {
+			return pages.ClipsList(props).Render(ctx.Context(), writer)
+		})
+	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.Clips(pages.ClipsProps{
-			Items:  filterClipItems(handler.clipItems(ctx), status),
-			Status: status,
-		}).Render(ctx.Context(), writer)
+		return pages.Clips(props).Render(ctx.Context(), writer)
 	})
 }
 
@@ -205,8 +215,9 @@ func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	item, itemErr := handler.loadMediaItem(ctx, id)
-	clips := handler.clipsForMedia(ctx, id)
+	query := parseClipListQuery(ctx)
 	tracks := handler.mediaAudioTracks(ctx, id)
+	clips := handler.clipsForMedia(ctx, id)
 
 	for index := range clips {
 		clips[index].AudioTracks = tracks
@@ -234,6 +245,10 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		Duration:      0,
 		MaxDur:        maxDur,
 		Clips:         clips,
+		ClipStatus:    query.Status,
+		ClipType:      query.Type,
+		ClipQuery:     query.Query,
+		ClipSort:      query.Sort,
 		Profiles:      handler.clipProfileOptions(ctx),
 		AudioTracks:   tracks,
 		Error:         mediaItemError(itemErr, ctx.Query(queryError)),
@@ -257,6 +272,22 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	})
 }
 
+// MediaItemClips renders the media-item clip list fragment for HTMX swaps.
+func (handler *HTMLHandler) MediaItemClips(ctx fiber.Ctx) error {
+	id := ctx.Params(paramID)
+	query := parseClipListQuery(ctx)
+	tracks := handler.mediaAudioTracks(ctx, id)
+	clips := handler.clipsForMedia(ctx, id)
+
+	for index := range clips {
+		clips[index].AudioTracks = tracks
+	}
+
+	return renderHTML(ctx, func(writer io.Writer) error {
+		return pages.ItemClipList(clips, query.filtered()).Render(ctx.Context(), writer)
+	})
+}
+
 // NavLibraries renders sidebar library links.
 func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
 	selected := selectedLibraryID(ctx.Get("HX-Current-URL"), ctx.Query(queryLibrary))
@@ -276,6 +307,17 @@ func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
 //   - True when HTMX is targeting #media-results.
 func wantsMediaResults(ctx fiber.Ctx) bool {
 	return hxTargetID(ctx.Get(headerHXTarget)) == "media-results"
+}
+
+// wantsClipList reports whether the request should swap the clips list only.
+//
+// Parameters:
+//   - ctx: Request context with an optional HX-Target header.
+//
+// Returns:
+//   - True when HTMX is targeting #clip-list.
+func wantsClipList(ctx fiber.Ctx) bool {
+	return hxTargetID(ctx.Get(headerHXTarget)) == "clip-list"
 }
 
 // selectedLibraryID returns the library id from the nav query or the current page URL.
@@ -419,21 +461,6 @@ func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error 
 	return redirectTo(ctx, pathRoot)
 }
 
-// clipItems converts stored jobs into page models.
-func (handler *HTMLHandler) clipItems(ctx fiber.Ctx) []view.ClipItem {
-	jobs := handler.listJobs(ctx)
-	items := make([]view.ClipItem, 0, len(jobs))
-
-	for _, job := range jobs {
-		items = append(
-			items,
-			toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur()),
-		)
-	}
-
-	return items
-}
-
 // clipMaxDur is the configured clip duration cap, or the default when unset.
 func (handler *HTMLHandler) clipMaxDur() int {
 	if handler.cfg != nil && handler.cfg.MaxClipDurSec > 0 {
@@ -450,15 +477,7 @@ func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []view.
 		return nil
 	}
 
-	items := make([]view.ClipItem, 0, len(jobs))
-	for _, job := range jobs {
-		items = append(
-			items,
-			toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur()),
-		)
-	}
-
-	return items
+	return handler.jobsToClipItems(ctx, applyClipListQuery(jobs, parseClipListQuery(ctx)))
 }
 
 // discoverServers lists Plex servers for the session token.
@@ -478,6 +497,20 @@ func (handler *HTMLHandler) discoverServers(ctx fiber.Ctx) []plex.Server {
 	}
 
 	return servers
+}
+
+// jobsToClipItems converts jobs into page models.
+func (handler *HTMLHandler) jobsToClipItems(ctx fiber.Ctx, jobs []*queue.Job) []view.ClipItem {
+	items := make([]view.ClipItem, 0, len(jobs))
+
+	for _, job := range jobs {
+		items = append(
+			items,
+			toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur()),
+		)
+	}
+
+	return items
 }
 
 // listJobs returns in-memory jobs, falling back to persisted clips.
@@ -1080,23 +1113,6 @@ func toServerItems(servers []plex.Server, current plex.Server) []pages.ServerIte
 	}
 
 	return out
-}
-
-// filterClipItems keeps clips matching a dashboard status filter.
-func filterClipItems(items []view.ClipItem, status string) []view.ClipItem {
-	if status == "" {
-		return items
-	}
-
-	filtered := make([]view.ClipItem, 0, len(items))
-	for index := range items {
-		item := items[index]
-		if clipMatchesStatus(item.Status, status) {
-			filtered = append(filtered, item)
-		}
-	}
-
-	return filtered
 }
 
 // clipMatchesStatus reports whether a clip belongs to a status filter.

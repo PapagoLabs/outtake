@@ -23,6 +23,10 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 		Duration:      0,
 		MaxDur:        600,
 		Clips:         nil,
+		ClipStatus:    "",
+		ClipType:      "gif",
+		ClipQuery:     "intro",
+		ClipSort:      "name_asc",
 		Profiles:      nil,
 		AudioTracks:   nil,
 		Error:         "",
@@ -42,4 +46,56 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Less(t, strings.Index(body, `id="clipType"`), strings.Index(body, `id="name"`))
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")
+	assert.Contains(t, body, `hx-get="/media/item/42/clips"`)
+	assert.Contains(t, body, `hx-target="#item-clip-list"`)
+	assert.NotContains(t, body, `hx-push-url`)
+	assert.Contains(t, body, `id="clip-list-type"`)
+	assert.Contains(t, body, `value="intro"`)
+}
+
+func TestMediaItemPagePreservesStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := MediaItemPage(MediaItemPageProps{
+		ID:            "42",
+		Title:         "Movie",
+		Type:          "",
+		Duration:      0,
+		MaxDur:        600,
+		Clips:         nil,
+		ClipStatus:    "pending",
+		ClipType:      "",
+		ClipQuery:     "",
+		ClipSort:      "created_desc",
+		Profiles:      nil,
+		AudioTracks:   nil,
+		Error:         "",
+		PreviewID:     "",
+		StartTime:     0,
+		EndTime:       0,
+		CropBlackBars: false,
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, `name="status"`)
+	assert.Contains(t, body, `value="pending"`)
+	assert.Contains(t, body, "No clips match these filters.")
+	assert.NotContains(t, body, "No clips yet.")
+}
+
+func TestItemClipListOmitsLayout(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := ItemClipList(nil, true).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, "No clips match these filters.")
+	assert.NotContains(t, body, "Outtake")
+	assert.NotContains(t, body, `id="clip-list-type"`)
 }
