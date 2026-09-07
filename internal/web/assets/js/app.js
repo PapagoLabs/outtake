@@ -157,11 +157,15 @@
 		}
 	});
 
-	document.addEventListener('htmx:afterSwap', function (event) {
+	document.addEventListener('htmx:after:swap', function (event) {
 		bindExportForms();
 		syncPaletteButtons();
 		syncNav();
-		var target = event.detail && event.detail.target;
+		var detail = event.detail || {};
+		var target = detail.target;
+		if (!target && detail.ctx) {
+			target = detail.ctx.target;
+		}
 		if (target && target.id === 'main-content') {
 			closeSidebar();
 		}

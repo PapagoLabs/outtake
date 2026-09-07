@@ -269,8 +269,14 @@ func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
 }
 
 // wantsMediaResults reports whether the request should swap the media grid only.
+//
+// Parameters:
+//   - ctx: Request context with an optional HX-Target header.
+//
+// Returns:
+//   - True when HTMX is targeting #media-results.
 func wantsMediaResults(ctx fiber.Ctx) bool {
-	return ctx.Get("HX-Target") == "media-results"
+	return hxTargetID(ctx.Get(headerHXTarget)) == "media-results"
 }
 
 // selectedLibraryID returns the library id from the nav query or the current page URL.

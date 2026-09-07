@@ -5,7 +5,9 @@
 package layout
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/separator"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
@@ -30,7 +32,12 @@ templ Layout(props Props) {
 			<script src="/assets/js/htmx.min.js"></script>
 			<script src="/assets/js/app.js" defer></script>
 		</head>
-		<body class="min-h-screen bg-background text-foreground">
+		<body
+			class="min-h-screen bg-background text-foreground"
+			if headers := web.CSRFHeaderJSON(ctx); headers != "" {
+				hx-headers:inherited={ headers }
+			}
+		>
 			<div class="flex min-h-screen">
 				<button
 					type="button"
@@ -42,10 +49,10 @@ templ Layout(props Props) {
 				<div class="js-sidebar-overlay hidden md:hidden fixed inset-0 z-40 bg-black/50"></div>
 				<aside
 					class="js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform"
-					hx-boost="true"
-					hx-target="#main-content"
-					hx-select="#main-content"
-					hx-swap="outerHTML show:window:top"
+					hx-boost:inherited="true"
+					hx-target:inherited="#main-content"
+					hx-select:inherited="#main-content"
+					hx-swap:inherited="outerHTML scroll:window:top"
 				>
 					<div class="flex items-center justify-between gap-2 mb-4">
 						<a href="/" class="flex items-center gap-2.5 text-sidebar-foreground">
@@ -153,10 +160,12 @@ templ Layout(props Props) {
 				</aside>
 				<main
 					id="main-content"
+					hx-history-elt
 					class="flex-1 p-8 pt-16 md:pt-8 overflow-auto"
 					data-nav={ props.Active }
 					data-library={ props.Library }
 				>
+					@flash.Slot("")
 					{ children... }
 				</main>
 			</div>

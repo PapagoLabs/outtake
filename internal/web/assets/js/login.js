@@ -11,9 +11,14 @@
 			return;
 		}
 		try {
+			var csrf = document.querySelector('meta[name="csrf-token"]');
+			var headers = { 'Accept': 'application/json' };
+			if (csrf && csrf.content) {
+				headers['X-Csrf-Token'] = csrf.content;
+			}
 			var res = await fetch('/api/auth/login', {
 				method: 'POST',
-				headers: { 'Accept': 'application/json' }
+				headers: headers
 			});
 			var data = await res.json();
 			if (!res.ok || !data.authUrl) {

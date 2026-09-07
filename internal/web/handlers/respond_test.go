@@ -5,6 +5,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,6 +21,32 @@ import (
 )
 
 const formContentType = "application/x-www-form-urlencoded"
+
+func TestWriteErrorHTMXFlash(t *testing.T) {
+	t.Parallel()
+
+	app := fiber.New()
+	app.Post("/err", func(ctx fiber.Ctx) error {
+		return writeError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/err", nil)
+	req.Header.Set("Hx-Request", "true")
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
+	assert.Contains(t, string(body), `<hx-partial hx-target="#flash">`)
+	assert.Contains(t, string(body), "clip is not running")
+	assert.NotContains(t, string(body), `"error"`)
+}
 
 func TestWriteErrorJSON(t *testing.T) {
 	t.Parallel()
