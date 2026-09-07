@@ -1,38 +1,56 @@
-# AGENTS
+# Outtake
 
-Shared style: [PapagoLabs/code-guide](https://github.com/PapagoLabs/code-guide). Nested tree: `Git/`, `Text/`, `Docker/`, `Go/{language,libraries,tooling}/`.
+Plex clip manager. Go 1.27, Fiber v3, templ, HTMX, Cobra. App code lives under `internal/` (no `pkg/`). Composition root: `internal/app`. CLI: `internal/cli`. Entrypoint: `main.go`.
 
-## Generate
+## Commands
 
-`*_templ.go` is gitignored. After clone or any `.templ` edit, run `task templ` before compile or test. Tailwind: edit `internal/web/assets/css/input.css`, then `task tailwind`. Mocks: `task mock`. Edit `.templ` sources and interfaces; leave `*_templ.go` and `**/mocks/` to the generators.
+Taskfile, not Make. golangci config: `build/golangci-lint/golangci-lint.yaml`.
 
-## Lint
+```bash
+task templ          # required before lint/test/vet
+task lint           # golangci-lint --fix
+task lint-ci        # no --fix (what CI runs)
+task vet
+task test
+task run            # go run . server start
+task templ-watch    # templ proxy → :8080, cmd is server start
+task compose-dev    # docker compose up --build
+task mock           # mockery --config=build/mockery/mockery.yaml
+```
 
-Config: `build/golangci-lint/golangci-lint.yaml`.
-Command: `task lint`.
-`task lint-ci` runs without `--fix`.
-SPDX `AGPL-3.0-or-later` plus copyright on every Go file (goheader).
-Viper/mapstructure keys are kebab-case (`listen-addr`). Env is `OUTTAKE_` with underscores. JSON tags are camelCase (`mediaId`).
+Validate with `task lint-ci` then `task vet`, not `go build`. Single package: `go test ./internal/media -run TestFoo` after `task templ`.
 
-## Fiber
+Server CLI is `outtake server start` (or `go run . server start`), not `serve`. Default listen `:8080`. Do not add a templ `:8080`→`:8090` proxy or a `docker-compose.dev.yml` overlay; one `docker-compose.yml` plus `.env`.
 
-Web and API use Fiber v3. HTML is Templ + HTMX. Pages live in `internal/web/pages/`; reusable widgets in `internal/web/components/` (templui primitives plus Outtake widgets); shared view models in `internal/web/view/`; handlers in `internal/web/handlers/`; routes are mounted in `internal/app/app.go`. Outtake page JS lives in `internal/web/assets/js/` and is loaded with `<script src="/assets/js/…">`; do not inline scripts in templ (templui component scripts excluded).
+## Generated code
 
-## Validate
+`**/*.templ.go` is gitignored. `task templ` is `templ generate` then `goimports -local github.com/PapagoLabs/outtake -w ./internal/web`. Ungrouped imports after generate are fixed by that goimports pass, not by skipping generate.
 
-`task vet`, then `task lint`, then `task test`. E2E (`task test-e2e`) needs FFmpeg and Plex credentials in `testing/e2e/.env`.
-This module's `go` directive is 1.27.1. Org current minor is in the guide.
+Do not add templ/goimports hooks to GoReleaser. CI and `task goreleaser*` already generate first. Do not edit Mockery output; regenerate with `task mock`.
+
+CSS: `task tailwind` reads `internal/web/assets/css/input.css`.
+
+## Nested module and e2e
+
+`scripts/download-ffmpeg` is its own module (`outtake-scripts`). Test it with `go test -v` in that directory. Security CI scans it separately.
+
+E2E is `//go:build e2e` under `testing/e2e` and is **not** in `go test ./...`. Needs ffmpeg plus `testing/e2e/.env` (from `.env.example`). `task test-e2e`. White-box tests sit beside the code in the same package. There is no `testing/integration` tree.
 
 ## Layout
 
-Entry: `main.go`. Internal code lives in `internal/`. White-box tests sit beside the package. E2E tests: `testing/e2e`. CLI: `outtake server start`, `outtake health`, `outtake version`.
+- Dockerfiles: `build/docker/Dockerfile` (GoReleaser image context) and `Dockerfile.dev` (source build used by compose).
+- GoReleaser: `build/goreleaser/stable.yaml` (git tag `vX.Y.Z`) and `nightly.yaml`. Docker `hooks.pre` runs `scripts/download-ffmpeg` into the image context. Ship ffmpeg/ffprobe binaries, not the downloader script.
+- Images: `papagolabs/outtake` and `ghcr.io/papagolabs/outtake`.
+- Schema is greenfield/squashed: `internal/database/migrations/001_initial.sql` and `postgres/001_initial.sql`.
+- IDs: Go stdlib `uuid`, not `github.com/google/uuid`.
+- `References/` is local-only (gitignored).
 
-## Docker
+## CI
 
-Build context is always the repo root.
+Workflows call templ, goimports, and goreleaser directly, not Taskfile. Go lint is `.github/workflows/lint-go.yaml` (no `lint.yaml`). lint-go / test / vet / security are pull_request + path filters, not push. `lint-gh.yaml` only on `.github/workflows/**`. Stable release: exact `vX.Y.Z` tags, `cancel-in-progress: false`. Changelog: git-cliff via `update-changelog.yaml` on `main`.
 
-- Local/from-source image: `build/docker/Dockerfile.dev` (`docker-compose.yml` uses this).
-- Release image: `build/docker/Dockerfile` is a GoReleaser `dockers_v2` context (pre-built binary at `${TARGETPLATFORM}/outtake`). Do not `docker build` it from the repo root.
-- Production compose example: `examples/docker-compose.yaml` (GHCR image, no local build).
+## Domain
 
-Local compose config is gitignored `.env` (`cp .env.example .env`). Keep host media paths out of tracked compose files.
+- Timecode is `internal/media/timecode` (FromSeconds / Parse / String) over Clock/FFmpegClock. Parse through milliseconds. Library duration is HH:MM:SS; clip editing is HH:MM:SS.mmm.
+- Black-bar trim uses `cropdetect=limit=24/255`. A bare `24` is 24/65535 on FFmpeg 9 10-bit HDR and misses letterboxing.
+- Export max resolution is a clip-profile setting (720p, 1080p, 1440p, 4K). Defaults: Low 720p, Medium 1080p, High 4K. Preview stays 720p.
