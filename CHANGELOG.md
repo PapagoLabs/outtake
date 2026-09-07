@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add selectable ui color palettes by @nicholas-fedor in [#102](https://github.com/PapagoLabs/outtake/pull/102)
 - Add Outtake chart with optional S3 and Postgres backends by @nicholas-fedor in [#68](https://github.com/PapagoLabs/outtake/pull/68)
 - Add S3 and Postgres backends behind config by @nicholas-fedor in [#69](https://github.com/PapagoLabs/outtake/pull/69)
 - Add README badge bar and centered header by @nicholas-fedor in [#65](https://github.com/PapagoLabs/outtake/pull/65)
@@ -102,8 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#100](https://github.com/PapagoLabs/outtake/pull/100)
-- @github-actions[bot] made their first contribution in [#99](https://github.com/PapagoLabs/outtake/pull/99)
+- @nicholas-fedor made their first contribution in [#102](https://github.com/PapagoLabs/outtake/pull/102)
+- @github-actions[bot] made their first contribution in [#101](https://github.com/PapagoLabs/outtake/pull/101)
 - @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 
 ## Compare Releases
