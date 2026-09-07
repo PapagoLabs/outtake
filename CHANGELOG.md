@@ -91,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Persist sidebar across navigation by @nicholas-fedor in [#104](https://github.com/PapagoLabs/outtake/pull/104)
 - Overhaul library browse, clips, and shell by @nicholas-fedor in [#91](https://github.com/PapagoLabs/outtake/pull/91)
 - Fix license badge by @nicholas-fedor in [#89](https://github.com/PapagoLabs/outtake/pull/89)
 - Clear storage and database lint-go hits by @nicholas-fedor in [#75](https://github.com/PapagoLabs/outtake/pull/75)
@@ -103,8 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#102](https://github.com/PapagoLabs/outtake/pull/102)
-- @github-actions[bot] made their first contribution in [#101](https://github.com/PapagoLabs/outtake/pull/101)
+- @nicholas-fedor made their first contribution in [#104](https://github.com/PapagoLabs/outtake/pull/104)
+- @github-actions[bot] made their first contribution in [#103](https://github.com/PapagoLabs/outtake/pull/103)
 - @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 
 ## Compare Releases
