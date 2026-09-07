@@ -191,7 +191,7 @@ func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 		HasServer:   hasServer,
 	}
 
-	if ctx.Get("HX-Request") == "true" {
+	if wantsMediaResults(ctx) {
 		return renderHTML(ctx, func(writer io.Writer) error {
 			return browse.MediaResults(props).Render(ctx.Context(), writer)
 		})
@@ -266,6 +266,11 @@ func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
 		return nav.NavLibraries(handler.sidebarLibraries(ctx), selected).
 			Render(ctx.Context(), writer)
 	})
+}
+
+// wantsMediaResults reports whether the request should swap the media grid only.
+func wantsMediaResults(ctx fiber.Ctx) bool {
+	return ctx.Get("HX-Target") == "media-results"
 }
 
 // selectedLibraryID returns the library id from the nav query or the current page URL.
