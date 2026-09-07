@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to 6331bc6 by @renovate[bot] in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 - Update module github.com/gofiber/utils/v2 to v2.5.0 by @renovate[bot] in [#96](https://github.com/PapagoLabs/outtake/pull/96)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#94](https://github.com/PapagoLabs/outtake/pull/94)
 - Update github.com/google/pprof digest to d6c3cb2 by @renovate[bot] in [#93](https://github.com/PapagoLabs/outtake/pull/93)
@@ -100,8 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @renovate[bot] made their first contribution in [#96](https://github.com/PapagoLabs/outtake/pull/96)
-- @github-actions[bot] made their first contribution in [#95](https://github.com/PapagoLabs/outtake/pull/95)
+- @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 - @nicholas-fedor made their first contribution in [#91](https://github.com/PapagoLabs/outtake/pull/91)
 
 ## Compare Releases
