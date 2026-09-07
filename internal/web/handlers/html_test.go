@@ -23,7 +23,15 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-const testTVShows = "TV Shows"
+const (
+	testTVShows    = "TV Shows"
+	testShow       = "Strike Back"
+	testSeason     = "Season 3"
+	testEpisode    = "Episode 5"
+	testShowURL    = "/media?library=2&parent=9&title=Strike+Back"
+	testSeasonURL  = "/media?library=2&parent=10&title=Season+3&up=9&upTitle=Strike+Back"
+	testEpisodeURL = "/media/item/42"
+)
 
 func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
 	t.Parallel()
@@ -107,6 +115,120 @@ func TestItemCrumbsSeasonUsesParentShow(t *testing.T) {
 	assert.Equal(t, "Better Call Saul", crumbs[2].Title)
 	assert.Equal(t, "Season 2", crumbs[3].Title)
 	assert.Contains(t, crumbs[2].URL, "parent=9")
+}
+
+func TestSessionTitleParts(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		give     plex.MediaItem
+		want     []view.Crumb
+		wantYear int
+	}{
+		{
+			name: "episode with ids",
+			give: plex.MediaItem{
+				ID:               "42",
+				Title:            testEpisode,
+				Type:             plex.TypeEpisode,
+				LibraryID:        "2",
+				ParentID:         "10",
+				ParentTitle:      testSeason,
+				GrandparentID:    "9",
+				GrandparentTitle: testShow,
+			},
+			want: []view.Crumb{
+				{Title: testShow, URL: testShowURL},
+				{Title: testSeason, URL: testSeasonURL},
+				{Title: testEpisode, URL: testEpisodeURL},
+			},
+		},
+		{
+			name: "episode missing library",
+			give: plex.MediaItem{
+				ID:               "42",
+				Title:            testEpisode,
+				Type:             plex.TypeEpisode,
+				ParentID:         "10",
+				ParentTitle:      testSeason,
+				GrandparentID:    "9",
+				GrandparentTitle: testShow,
+			},
+			want: []view.Crumb{
+				{Title: testShow},
+				{Title: testSeason},
+				{Title: testEpisode, URL: testEpisodeURL},
+			},
+		},
+		{
+			name: "episode missing parent title uses index",
+			give: plex.MediaItem{
+				ID:               "42",
+				Title:            testEpisode,
+				Type:             plex.TypeEpisode,
+				LibraryID:        "2",
+				ParentID:         "10",
+				ParentIndex:      3,
+				GrandparentID:    "9",
+				GrandparentTitle: testShow,
+			},
+			want: []view.Crumb{
+				{Title: testShow, URL: testShowURL},
+				{Title: testSeason, URL: testSeasonURL},
+				{Title: testEpisode, URL: testEpisodeURL},
+			},
+		},
+		{
+			name: "episode skips season without title or index",
+			give: plex.MediaItem{
+				ID:               "42",
+				Title:            testEpisode,
+				Type:             plex.TypeEpisode,
+				LibraryID:        "2",
+				ParentID:         "10",
+				GrandparentID:    "9",
+				GrandparentTitle: testShow,
+			},
+			want: []view.Crumb{
+				{Title: testShow, URL: testShowURL},
+				{Title: testEpisode, URL: testEpisodeURL},
+			},
+		},
+		{
+			name: "movie with year",
+			give: plex.MediaItem{
+				ID:    "100",
+				Title: "Heat",
+				Year:  1995,
+			},
+			want:     []view.Crumb{{Title: "Heat", URL: "/media/item/100"}},
+			wantYear: 1995,
+		},
+		{
+			name: "movie without year",
+			give: plex.MediaItem{
+				ID:    "101",
+				Title: "Dune",
+			},
+			want: []view.Crumb{{Title: "Dune", URL: "/media/item/101"}},
+		},
+		{
+			name: "non-episode without id",
+			give: plex.MediaItem{Title: "Concert", Type: "clip"},
+			want: []view.Crumb{{Title: "Concert"}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, year := sessionTitleParts(test.give)
+			assert.Equal(t, test.want, got)
+			assert.Equal(t, test.wantYear, year)
+		})
+	}
 }
 
 func TestMediaItemLocationEscapesID(t *testing.T) {

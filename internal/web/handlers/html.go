@@ -689,10 +689,13 @@ func (handler *HTMLHandler) sessionItems() []pages.SessionItem {
 	for index := range sessions {
 		sess := &sessions[index]
 
+		parts, year := sessionTitleParts(sess.MediaItem)
+
 		items = append(items, pages.SessionItem{
 			ID:         sess.ID,
 			MediaID:    sess.MediaItem.ID,
-			Title:      sess.MediaItem.DisplayTitle(),
+			Parts:      parts,
+			Year:       year,
 			ViewOffset: sess.ViewOffset,
 			Duration:   sess.Duration,
 		})
@@ -890,6 +893,96 @@ func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string
 	}
 
 	return crumbs
+}
+
+// sessionTitleParts builds dashboard title crumbs for a live session.
+func sessionTitleParts(item plex.MediaItem) ([]view.Crumb, int) {
+	if item.Type != plex.TypeEpisode {
+		if item.Title == "" {
+			return displayTitleCrumb(item), 0
+		}
+
+		return []view.Crumb{{Title: item.Title, URL: sessionItemURL(item.ID)}}, item.Year
+	}
+
+	var parts []view.Crumb
+
+	if item.GrandparentTitle != "" {
+		parts = append(parts, view.Crumb{
+			Title: item.GrandparentTitle,
+			URL: sessionBrowseURL(
+				item.LibraryID,
+				item.GrandparentID,
+				item.GrandparentTitle,
+				"",
+				"",
+			),
+		})
+	}
+
+	if label := seasonSessionLabel(item); label != "" {
+		parts = append(parts, view.Crumb{
+			Title: label,
+			URL: sessionBrowseURL(
+				item.LibraryID,
+				item.ParentID,
+				label,
+				item.GrandparentID,
+				item.GrandparentTitle,
+			),
+		})
+	}
+
+	if item.Title != "" {
+		parts = append(parts, view.Crumb{Title: item.Title, URL: sessionItemURL(item.ID)})
+	}
+
+	if len(parts) == 0 {
+		return displayTitleCrumb(item), 0
+	}
+
+	return parts, 0
+}
+
+// displayTitleCrumb is a plain-text fallback when structured parts are missing.
+func displayTitleCrumb(item plex.MediaItem) []view.Crumb {
+	title := item.DisplayTitle()
+	if title == "" {
+		return nil
+	}
+
+	return []view.Crumb{{Title: title}}
+}
+
+// seasonSessionLabel returns ParentTitle, or Season N from ParentIndex.
+func seasonSessionLabel(item plex.MediaItem) string {
+	if item.ParentTitle != "" {
+		return item.ParentTitle
+	}
+
+	if item.ParentIndex > 0 {
+		return "Season " + strconv.Itoa(item.ParentIndex)
+	}
+
+	return ""
+}
+
+// sessionBrowseURL returns a container browse URL when library and item ids exist.
+func sessionBrowseURL(libraryID, itemID, itemTitle, parentID, parentTitle string) string {
+	if libraryID == "" || itemID == "" {
+		return ""
+	}
+
+	return browseURL(libraryID, itemID, itemTitle, parentID, parentTitle)
+}
+
+// sessionItemURL returns the media item path when id is set.
+func sessionItemURL(id string) string {
+	if id == "" {
+		return ""
+	}
+
+	return mediaItemLocation(id, url.Values{})
 }
 
 // browseURL builds a drill-down link for a container item.
