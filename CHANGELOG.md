@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Link live session titles to media by @nicholas-fedor in [#108](https://github.com/PapagoLabs/outtake/pull/108)
 - Upgrade HTMX to v4 with CSP and CSRF by @nicholas-fedor in [#106](https://github.com/PapagoLabs/outtake/pull/106)
 - Rewrite outtake agent instructions by @nicholas-fedor in [#100](https://github.com/PapagoLabs/outtake/pull/100)
 - Extract page widgets, view models, and asset js by @nicholas-fedor in [#87](https://github.com/PapagoLabs/outtake/pull/87)
@@ -105,8 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#106](https://github.com/PapagoLabs/outtake/pull/106)
-- @github-actions[bot] made their first contribution in [#105](https://github.com/PapagoLabs/outtake/pull/105)
+- @nicholas-fedor made their first contribution in [#108](https://github.com/PapagoLabs/outtake/pull/108)
+- @github-actions[bot] made their first contribution in [#107](https://github.com/PapagoLabs/outtake/pull/107)
 - @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 
 ## Compare Releases
