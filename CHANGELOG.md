@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Upgrade HTMX to v4 with CSP and CSRF by @nicholas-fedor in [#106](https://github.com/PapagoLabs/outtake/pull/106)
 - Rewrite outtake agent instructions by @nicholas-fedor in [#100](https://github.com/PapagoLabs/outtake/pull/100)
 - Extract page widgets, view models, and asset js by @nicholas-fedor in [#87](https://github.com/PapagoLabs/outtake/pull/87)
 - Nest plex.tv XML decode under decode/plextv by @nicholas-fedor in [#85](https://github.com/PapagoLabs/outtake/pull/85)
@@ -104,8 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#104](https://github.com/PapagoLabs/outtake/pull/104)
-- @github-actions[bot] made their first contribution in [#103](https://github.com/PapagoLabs/outtake/pull/103)
+- @nicholas-fedor made their first contribution in [#106](https://github.com/PapagoLabs/outtake/pull/106)
+- @github-actions[bot] made their first contribution in [#105](https://github.com/PapagoLabs/outtake/pull/105)
 - @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 
 ## Compare Releases
