@@ -38,6 +38,8 @@ type Section struct {
 	Type      string `json:"type"`
 	Thumb     string `json:"thumb"`
 	Composite string `json:"composite"`
+	Size      int    `json:"size"`
+	LeafCount int    `json:"leafCount"`
 }
 
 // Hub is a search hub from GET /hubs/search.
@@ -68,6 +70,8 @@ type Metadata struct {
 	GrandparentRatingKey flexString `json:"grandparentRatingKey"`
 	GrandparentTitle     string     `json:"grandparentTitle"`
 	LibrarySectionID     flexString `json:"librarySectionID"`
+	TitleSort            string     `json:"titleSort"`
+	AddedAt              int64      `json:"addedAt"`
 	Media                []media    `json:"Media"`
 	Session              session    `json:"Session"`
 }
@@ -157,7 +161,7 @@ func Decode(body []byte) (Container, error) {
 //
 // Returns:
 //   - path: The first non-empty part file, or empty when none exist.
-func (meta Metadata) File() string {
+func (meta *Metadata) File() string {
 	for mediaIndex := range meta.Media {
 		for partIndex := range meta.Media[mediaIndex].Part {
 			mediaPart := meta.Media[mediaIndex].Part[partIndex]
@@ -174,7 +178,7 @@ func (meta Metadata) File() string {
 //
 // Returns:
 //   - ok: True when the item can map onto a MediaItem.
-func (meta Metadata) HasMetadata() bool {
+func (meta *Metadata) HasMetadata() bool {
 	_, hasPrefix := strings.CutPrefix(meta.Key, metadataKeyPrefix)
 
 	return meta.RatingKey != "" || hasPrefix
@@ -184,7 +188,7 @@ func (meta Metadata) HasMetadata() bool {
 //
 // Returns:
 //   - id: The PMS metadata identifier.
-func (meta Metadata) ID() string {
+func (meta *Metadata) ID() string {
 	if meta.RatingKey != "" {
 		return string(meta.RatingKey)
 	}

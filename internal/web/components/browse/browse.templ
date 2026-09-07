@@ -7,9 +7,14 @@ package browse
 import (
 	"net/url"
 	"strconv"
+	"strings"
+	"time"
+	"unicode"
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -36,7 +41,178 @@ func emptyMediaMessage(props view.MediaProps) string {
 	return "This folder is empty."
 }
 
-func pageURL(props view.MediaProps, start int) string {
+// showSort reports whether the library root should show the sort control.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - ok: True when a library is selected without a parent or search.
+func showSort(props view.MediaProps) bool {
+	return props.LibraryID != "" && props.ParentID == "" && props.Query == ""
+}
+
+// showLetters reports whether the jump rail should render.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - ok: True when sort is shown and letter buckets exist.
+func showLetters(props view.MediaProps) bool {
+	return showSort(props) && len(props.Letters) > 0
+}
+
+// jumpNavLabel returns the accessible name for the jump rail.
+//
+// Parameters:
+//   - sort: Normalized Outtake sort key.
+//
+// Returns:
+//   - label: Jump to year, month, or letter.
+func jumpNavLabel(sort string) string {
+	switch sort {
+	case "year_desc", "year_asc":
+		return "Jump to year"
+	case "added_desc", "added_asc":
+		return "Jump to month"
+	default:
+		return "Jump to letter"
+	}
+}
+
+// jumpNavWidth returns the Tailwind width class for the jump rail.
+//
+// Parameters:
+//   - sort: Normalized Outtake sort key.
+//
+// Returns:
+//   - class: Width class for letter, year, or month marks.
+func jumpNavWidth(sort string) string {
+	switch sort {
+	case "added_desc", "added_asc":
+		return "w-14"
+	case "year_desc", "year_asc":
+		return "w-10"
+	default:
+		return "w-8"
+	}
+}
+
+// jumpKind returns the data-jump-kind value for the active sort.
+//
+// Parameters:
+//   - sort: Normalized Outtake sort key.
+//
+// Returns:
+//   - kind: year, month, or letter.
+func jumpKind(sort string) string {
+	switch sort {
+	case "year_desc", "year_asc":
+		return "year"
+	case "added_desc", "added_asc":
+		return "month"
+	default:
+		return "letter"
+	}
+}
+
+// jumpKey returns the poster data-jump value for the active sort.
+//
+// Parameters:
+//   - item: Media card being rendered.
+//   - sort: Normalized Outtake sort key.
+//
+// Returns:
+//   - key: Letter, year, month, or #.
+func jumpKey(item view.MediaItem, sort string) string {
+	switch sort {
+	case "year_desc", "year_asc":
+		if item.Year <= 0 {
+			return "#"
+		}
+
+		return strconv.Itoa(item.Year)
+	case "added_desc", "added_asc":
+		if item.AddedAt <= 0 {
+			return "#"
+		}
+
+		return time.Unix(item.AddedAt, 0).Local().Format("01/2006")
+	default:
+		return titleJumpKey(item.TitleSort, item.Title)
+	}
+}
+
+// titleJumpKey returns the first-letter jump key for a title.
+//
+// Parameters:
+//   - titleSort: PMS titleSort value, preferred when set.
+//   - title: Display title used when titleSort is empty.
+//
+// Returns:
+//   - key: A through Z, or # for anything else.
+func titleJumpKey(titleSort, title string) string {
+	s := strings.TrimSpace(titleSort)
+	if s == "" {
+		s = strings.TrimSpace(title)
+	}
+
+	if s == "" {
+		return "#"
+	}
+
+	r := unicode.ToUpper([]rune(s)[0])
+	if r >= 'A' && r <= 'Z' {
+		return string(r)
+	}
+
+	return "#"
+}
+
+// hasPrev reports whether a previous poster page can be prepended.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - ok: True when start is past the first page and search is empty.
+func hasPrev(props view.MediaProps) bool {
+	return props.Query == "" && props.Start > 0
+}
+
+func showChooser(props view.MediaProps) bool {
+	return props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == ""
+}
+
+func hasMore(props view.MediaProps) bool {
+	return props.Query == "" && props.PageSize > 0 && props.Start+len(props.Items) < props.Total
+}
+
+// sortSelected reports whether a sort option should be marked selected.
+//
+// Parameters:
+//   - current: Active sort key, or empty for the default.
+//   - value: Option value being rendered.
+//
+// Returns:
+//   - ok: True when value matches current, or title A-Z when current is empty.
+func sortSelected(current, value string) bool {
+	if current == "" {
+		return value == "title_asc"
+	}
+
+	return current == value
+}
+
+// browseValues builds shared query parameters for media browse URLs.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - values: Library, parent, crumb, and sort parameters.
+func browseValues(props view.MediaProps) url.Values {
 	values := url.Values{}
 	if props.LibraryID != "" {
 		values.Set("library", props.LibraryID)
@@ -58,16 +234,85 @@ func pageURL(props view.MediaProps, start int) string {
 		values.Set("upTitle", props.UpTitle)
 	}
 
-	if start > 0 {
-		values.Set("start", strconv.Itoa(start))
+	if props.Sort != "" {
+		values.Set("sort", props.Sort)
 	}
 
+	return values
+}
+
+// encodeMediaURL builds a /media URL from query values.
+//
+// Parameters:
+//   - values: Query parameters to encode.
+//
+// Returns:
+//   - url: /media, with a query string when values are set.
+func encodeMediaURL(values url.Values) string {
 	encoded := values.Encode()
 	if encoded == "" {
 		return "/media"
 	}
 
 	return "/media?" + encoded
+}
+
+// nextPageURL builds the infinite-scroll URL for the next poster page.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - url: /media URL with start set past the current items.
+func nextPageURL(props view.MediaProps) string {
+	values := browseValues(props)
+	start := props.Start + len(props.Items)
+	if start > 0 {
+		values.Set("start", strconv.Itoa(start))
+	}
+
+	return encodeMediaURL(values)
+}
+
+// prevPageURL builds the infinite-scroll URL for the previous poster page.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - url: /media URL with before set to the current start.
+func prevPageURL(props view.MediaProps) string {
+	values := browseValues(props)
+	if props.Start > 0 {
+		values.Set("before", strconv.Itoa(props.Start))
+	}
+
+	return encodeMediaURL(values)
+}
+
+// letterURL builds a library-root jump URL for one rail mark.
+//
+// Parameters:
+//   - props: Media library page state.
+//   - letter: Jump title to select.
+//
+// Returns:
+//   - url: /media URL with library, sort, and letter.
+func letterURL(props view.MediaProps, letter string) string {
+	values := url.Values{}
+	if props.LibraryID != "" {
+		values.Set("library", props.LibraryID)
+	}
+
+	if props.Sort != "" {
+		values.Set("sort", props.Sort)
+	}
+
+	if letter != "" {
+		values.Set("letter", letter)
+	}
+
+	return encodeMediaURL(values)
 }
 
 func libraryURL(id string) templ.SafeURL {
@@ -77,18 +322,57 @@ func libraryURL(id string) templ.SafeURL {
 	return templ.SafeURL("/media?" + values.Encode())
 }
 
-templ mediaCard(item view.MediaItem) {
-	@card.Card() {
-		@card.Content() {
+// itemURL returns the poster destination for a media card.
+//
+// Parameters:
+//   - item: Media card being rendered.
+//
+// Returns:
+//   - url: Browse URL for containers, or the item editor otherwise.
+func itemURL(item view.MediaItem) templ.SafeURL {
+	if item.Browsable {
+		return templ.SafeURL(item.BrowseURL)
+	}
+
+	return templ.SafeURL("/media/item/" + item.ID)
+}
+
+// libraryInitial returns the first rune of a library title.
+//
+// Parameters:
+//   - title: Library display name.
+//
+// Returns:
+//   - initial: First character, or # when title is empty.
+func libraryInitial(title string) string {
+	for _, r := range title {
+		return string(r)
+	}
+
+	return "#"
+}
+
+// mediaCard renders one poster in the media grid.
+//
+// Parameters:
+//   - item: Media card being rendered.
+//   - sort: Normalized Outtake sort key used for the jump marker.
+templ mediaCard(item view.MediaItem, sort string) {
+	@card.Card(card.Props{Attributes: templ.Attributes{"data-jump": jumpKey(item, sort)}}) {
+		@card.Content(card.ContentProps{Class: "p-3"}) {
 			<div class="flex flex-col gap-2">
-				if item.ThumbPath != "" {
-					<img src={ item.ThumbPath } alt={ item.Title } class={ "w-full rounded-md object-cover bg-muted " + thumbAspect(item.Type) }/>
-				} else {
-					<div class={ "w-full rounded-md bg-muted flex items-center justify-center " + thumbAspect(item.Type) }>
-						<span class="text-muted-foreground text-sm">No thumbnail</span>
-					</div>
-				}
-				<h3 class="font-medium text-sm line-clamp-1">{ item.Title }</h3>
+				<a href={ itemURL(item) } class="block rounded-md focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
+					if item.ThumbPath != "" {
+						<img src={ item.ThumbPath } alt={ item.Title } class={ "w-full rounded-md object-cover bg-muted transition-opacity hover:opacity-90 " + thumbAspect(item.Type) }/>
+					} else {
+						<div class={ "w-full rounded-md bg-muted flex items-center justify-center transition-opacity hover:opacity-90 " + thumbAspect(item.Type) }>
+							<span class="text-muted-foreground text-sm">No thumbnail</span>
+						</div>
+					}
+				</a>
+				<h3 class="font-medium text-sm line-clamp-1">
+					<a href={ itemURL(item) } class="hover:underline">{ item.Title }</a>
+				</h3>
 				<div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
 					<span class="capitalize">{ item.Type }</span>
 					if item.ShowTitle != "" {
@@ -108,18 +392,32 @@ templ mediaCard(item view.MediaItem) {
 						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
 					}
 				</div>
-				if item.Browsable {
-					<a href={ templ.SafeURL(item.BrowseURL) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
-						Browse
-					</a>
-				} else {
-					<a href={ templ.SafeURL("/media/item/" + item.ID) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
-						Open
-					</a>
-				}
 			</div>
 		}
 	}
+}
+
+// libraryCard renders a library chooser row.
+//
+// Parameters:
+//   - lib: Library to link.
+templ libraryCard(lib view.LibraryItem) {
+	<a
+		href={ libraryURL(lib.ID) }
+		class="flex items-center gap-4 self-start rounded-lg border bg-card p-4 text-card-foreground shadow-xs transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+	>
+		if lib.ThumbPath != "" {
+			<img src={ lib.ThumbPath } alt="" class="size-16 shrink-0 rounded-md object-cover bg-muted"/>
+		} else {
+			<div class="flex size-16 shrink-0 items-center justify-center rounded-md bg-muted text-lg font-semibold text-muted-foreground">
+				{ libraryInitial(lib.Title) }
+			</div>
+		}
+		<div class="min-w-0">
+			<h3 class="font-medium truncate">{ lib.Title }</h3>
+			<p class="text-xs text-muted-foreground capitalize">{ lib.Type }</p>
+		</div>
+	</a>
 }
 
 templ mediaCrumbs(crumbs []view.Crumb) {
@@ -139,55 +437,196 @@ templ mediaCrumbs(crumbs []view.Crumb) {
 	}
 }
 
-templ MediaResults(props view.MediaProps) {
-	@mediaCrumbs(props.Crumbs)
-	if props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == "" {
-		<div class="col-span-full grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-			for _, lib := range props.Libraries {
-				@card.Card() {
-					@card.Content() {
-						<div class="flex flex-col gap-2">
-							if lib.ThumbPath != "" {
-								<img src={ lib.ThumbPath } alt="" class="w-full aspect-[2/3] rounded-md object-cover bg-muted"/>
-							}
-							<h3 class="font-medium">{ lib.Title }</h3>
-							<p class="text-xs text-muted-foreground capitalize">{ lib.Type }</p>
-							<a href={ libraryURL(lib.ID) } class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors">
-								Browse
-							</a>
-						</div>
-					}
-				}
+// mediaSortToolbar renders the library-root sort control.
+//
+// Parameters:
+//   - props: Media library page state.
+templ mediaSortToolbar(props view.MediaProps) {
+	<form class="w-52">
+		<input type="hidden" name="library" value={ props.LibraryID }/>
+		<div class="w-52">
+			@label.Label(label.Props{For: "media-list-sort"}) {
+				Sort
 			}
+			<select
+				id="media-list-sort"
+				name="sort"
+				hx-get="/media"
+				hx-target="#media-browse"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				hx-include="closest form"
+				class={ utils.ControlClass }
+			>
+				<option value="title_asc" selected?={ sortSelected(props.Sort, "title_asc") }>Title A-Z</option>
+				<option value="title_desc" selected?={ sortSelected(props.Sort, "title_desc") }>Title Z-A</option>
+				<option value="year_desc" selected?={ sortSelected(props.Sort, "year_desc") }>Year newest</option>
+				<option value="year_asc" selected?={ sortSelected(props.Sort, "year_asc") }>Year oldest</option>
+				<option value="added_desc" selected?={ sortSelected(props.Sort, "added_desc") }>Date added newest</option>
+				<option value="added_asc" selected?={ sortSelected(props.Sort, "added_asc") }>Date added oldest</option>
+			</select>
 		</div>
-	}
-	if len(props.Items) == 0 && (props.Query != "" || props.LibraryID != "" || len(props.Libraries) == 0) {
-		<div class="col-span-full text-center py-12 text-muted-foreground">
-			<p>{ emptyMediaMessage(props) }</p>
-		</div>
-	}
-	for _, item := range props.Items {
-		@mediaCard(item)
-	}
-	@mediaPager(props)
+	</form>
 }
 
-templ mediaPager(props view.MediaProps) {
-	if props.Query == "" && props.PageSize > 0 && props.Total > props.PageSize {
-		<nav class="col-span-full flex items-center justify-between gap-4 pt-2 text-sm">
-			if props.Start > 0 {
-				<a href={ templ.SafeURL(pageURL(props, max(props.Start-props.PageSize, 0))) } class="inline-flex items-center rounded-md border px-3 py-1.5 font-medium hover:bg-accent">Previous</a>
-			} else {
-				<span class="text-muted-foreground">Previous</span>
+// letterJumpSelect renders the small-screen jump dropdown.
+//
+// Parameters:
+//   - props: Media library page state.
+templ letterJumpSelect(props view.MediaProps) {
+	<form class="w-36 md:hidden">
+		<input type="hidden" name="library" value={ props.LibraryID }/>
+		if props.Sort != "" {
+			<input type="hidden" name="sort" value={ props.Sort }/>
+		}
+		@label.Label(label.Props{For: "media-list-letter"}) {
+			Jump to
+		}
+		<select
+			id="media-list-letter"
+			name="letter"
+			hx-get="/media"
+			hx-target="#media-browse"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			hx-include="closest form"
+			class={ utils.ControlClass }
+		>
+			<option value="" selected?={ props.Letter == "" }>Jump</option>
+			for _, letter := range props.Letters {
+				<option value={ letter.Title } selected?={ props.Letter == letter.Title }>{ letter.Title }</option>
 			}
-			<span class="text-muted-foreground">
-				{ strconv.Itoa(props.Start + 1) }–{ strconv.Itoa(min(props.Start+len(props.Items), props.Total)) } of { strconv.Itoa(props.Total) }
-			</span>
-			if props.Start+props.PageSize < props.Total {
-				<a href={ templ.SafeURL(pageURL(props, props.Start+props.PageSize)) } class="inline-flex items-center rounded-md border px-3 py-1.5 font-medium hover:bg-accent">Next</a>
-			} else {
-				<span class="text-muted-foreground">Next</span>
+		</select>
+	</form>
+}
+
+// letterLinks renders desktop jump-rail marks.
+//
+// Parameters:
+//   - props: Media library page state.
+templ letterLinks(props view.MediaProps) {
+	for _, letter := range props.Letters {
+		<a
+			href={ templ.SafeURL(letterURL(props, letter.Title)) }
+			hx-get={ letterURL(props, letter.Title) }
+			hx-target="#media-browse"
+			hx-swap="innerHTML"
+			hx-push-url="true"
+			data-jump-key={ letter.Title }
+			class={ utils.TwMerge(
+				"js-media-jump inline-flex min-h-5 w-full flex-1 items-center justify-center rounded px-0 text-xs font-medium leading-none hover:bg-accent",
+				utils.IfElse(props.Letter == letter.Title, "bg-primary text-primary-foreground", "text-muted-foreground"),
+			) }
+		>{ letter.Title }</a>
+	}
+}
+
+// mediaMoreSentinel renders the infinite-scroll sentinel for the next page.
+//
+// Parameters:
+//   - props: Media library page state.
+templ mediaMoreSentinel(props view.MediaProps) {
+	if hasMore(props) {
+		<div
+			id="media-more"
+			hx-get={ nextPageURL(props) }
+			hx-trigger="revealed"
+			hx-swap="outerHTML"
+			class="col-span-full py-4 text-center text-sm text-muted-foreground"
+		>
+			Loading more…
+		</div>
+	}
+}
+
+// mediaPrevSentinel renders the infinite-scroll sentinel for the previous page.
+//
+// Parameters:
+//   - props: Media library page state.
+templ mediaPrevSentinel(props view.MediaProps) {
+	if hasPrev(props) {
+		<div
+			id="media-prev"
+			hx-get={ prevPageURL(props) }
+			hx-trigger="intersect delay:300ms root:#media-results"
+			hx-swap="outerHTML"
+			class="col-span-full py-4 text-center text-sm text-muted-foreground"
+		>
+			Loading previous…
+		</div>
+	}
+}
+
+// MediaBrowse renders the media library browse pane.
+//
+// Parameters:
+//   - props: Media library page state.
+templ MediaBrowse(props view.MediaProps) {
+	<div class="flex h-full min-h-0 flex-col gap-4">
+		if showSort(props) {
+			<div class="flex shrink-0 flex-wrap items-end gap-3">
+				@mediaSortToolbar(props)
+				if showLetters(props) {
+					@letterJumpSelect(props)
+				}
+			</div>
+		}
+		<div class="flex min-h-0 flex-1 gap-5">
+			<div id="media-results" class="grid min-h-0 min-w-0 flex-1 content-start gap-4 overflow-y-auto overscroll-contain pr-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+				@MediaResults(props)
+			</div>
+			if showLetters(props) {
+				<nav class={ "hidden h-full min-h-0 shrink-0 flex-col overflow-y-auto overscroll-contain md:flex " + jumpNavWidth(props.Sort) } aria-label={ jumpNavLabel(props.Sort) } data-jump-nav data-jump-kind={ jumpKind(props.Sort) }>
+					@letterLinks(props)
+				</nav>
 			}
-		</nav>
+		</div>
+	</div>
+}
+
+templ MediaResults(props view.MediaProps) {
+	if showChooser(props) {
+		<div class="col-span-full flex flex-col gap-3">
+			@mediaCrumbs(props.Crumbs)
+			<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				for _, lib := range props.Libraries {
+					@libraryCard(lib)
+				}
+			</div>
+		</div>
+	} else {
+		@mediaCrumbs(props.Crumbs)
+		if len(props.Items) == 0 && (props.Query != "" || props.LibraryID != "" || len(props.Libraries) == 0) {
+			<div class="col-span-full text-center py-12 text-muted-foreground">
+				<p>{ emptyMediaMessage(props) }</p>
+			</div>
+		}
+		@mediaPrevSentinel(props)
+		for _, item := range props.Items {
+			@mediaCard(item, props.Sort)
+		}
+		@mediaMoreSentinel(props)
+	}
+}
+
+// MediaMore renders the next poster page for infinite scroll.
+//
+// Parameters:
+//   - props: Media library page state.
+templ MediaMore(props view.MediaProps) {
+	for _, item := range props.Items {
+		@mediaCard(item, props.Sort)
+	}
+	@mediaMoreSentinel(props)
+}
+
+// MediaPrev renders the previous poster page for infinite scroll.
+//
+// Parameters:
+//   - props: Media library page state.
+templ MediaPrev(props view.MediaProps) {
+	@mediaPrevSentinel(props)
+	for _, item := range props.Items {
+		@mediaCard(item, props.Sort)
 	}
 }

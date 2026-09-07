@@ -210,7 +210,7 @@ func (client *Client) GetMediaItem(
 		return nil, ErrNoFilePathFound
 	}
 
-	item := metadataToItem(container.Metadata[0], "")
+	item := metadataToItem(&container.Metadata[0], "")
 
 	item.ID = mediaID
 
@@ -232,7 +232,7 @@ func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([
 	sessions := make([]Session, 0, len(container.Metadata))
 	for index := range container.Metadata {
 		meta := &container.Metadata[index]
-		item := metadataToItem(*meta, "")
+		item := metadataToItem(meta, "")
 
 		sessions = append(sessions, Session{
 			ID:         meta.Session.ID,

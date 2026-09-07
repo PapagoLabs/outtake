@@ -37,6 +37,8 @@ type MediaItem struct {
 	ParentTitle      string  `json:"parentTitle,omitempty"`
 	GrandparentID    string  `json:"grandparentId,omitempty"`
 	GrandparentTitle string  `json:"grandparentTitle,omitempty"`
+	TitleSort        string  `json:"titleSort,omitempty"`
+	AddedAt          int64   `json:"addedAt,omitempty"`
 }
 
 // Session represents a playback session.

@@ -41,6 +41,7 @@ type HTMLHandler struct {
 	cfg      *config.Config
 	product  string
 	clientID string
+	addedAt  addedAtIndexCache
 }
 
 // dashStats holds dashboard clip counters.
@@ -164,51 +165,101 @@ func (*HTMLHandler) Login(ctx fiber.Ctx) error {
 }
 
 // Media handles the media library page request.
+//
+// Parameters:
+//   - ctx: Request with library browse query and optional HX-Target.
+//
+// Returns:
+//   - err: Non-nil when rendering fails.
 func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
-	query := ctx.Query("q")
-	libraryID := ctx.Query(queryLibrary)
-	parentID := ctx.Query(queryParent)
-	start := pageStart(ctx.Query(queryStart))
+	query := parseMediaListQuery(ctx)
+	props := mediaPageProps(handler, ctx, query)
+
+	err := renderMediaPage(ctx, &props)
+	if err != nil {
+		return fmt.Errorf("render media: %w", err)
+	}
+
+	return nil
+}
+
+// mediaPageProps builds library browse props for the current request.
+//
+// Parameters:
+//   - handler: HTML handler with Plex access.
+//   - ctx: Request with library browse query.
+//   - query: Normalized browse state.
+//
+// Returns:
+//   - props: Media library page model.
+func mediaPageProps(
+	handler *HTMLHandler,
+	ctx fiber.Ctx,
+	query mediaListQuery,
+) view.MediaProps {
+	var letters []plex.LetterIndex
+
+	if !wantsMediaMore(ctx) && !wantsMediaPrev(ctx) {
+		letters = handler.mediaLetters(ctx, query)
+	}
+
+	window := query.window(letters)
 	_, _, hasServer := handler.plexPair()
-	items, libraries, total := handler.mediaContent(
-		ctx,
-		query,
-		libraryID,
-		parentID,
-		start,
-		mediaPageSize,
-	)
-	props := view.MediaProps{
+	items, libraries, total := handler.mediaContent(ctx, query, window.Start, window.Size)
+
+	return view.MediaProps{
 		Items:     items,
-		Libraries: chooserLibraries(libraries, query, libraryID),
+		Libraries: chooserLibraries(libraries, query.Query, query.LibraryID),
 		Crumbs: mediaCrumbs(
 			libraries,
-			libraryID,
+			query.LibraryID,
 			ctx.Query(queryUp),
 			ctx.Query(queryUpTitle),
 			ctx.Query(queryTitle),
 		),
-		Query:       query,
-		LibraryID:   libraryID,
-		ParentID:    parentID,
+		Letters:     thinJumpIndexes(toLetterIndexes(letters), query.Sort),
+		Query:       query.Query,
+		LibraryID:   query.LibraryID,
+		ParentID:    query.ParentID,
 		ParentTitle: ctx.Query(queryTitle),
 		UpID:        ctx.Query(queryUp),
 		UpTitle:     ctx.Query(queryUpTitle),
-		Start:       start,
+		Sort:        query.Sort,
+		Letter:      query.Letter,
+		Start:       window.Start,
 		Total:       total,
 		PageSize:    mediaPageSize,
 		HasServer:   hasServer,
 	}
+}
 
-	if wantsMediaResults(ctx) {
+// renderMediaPage writes the media library page or an HTMX fragment.
+//
+// Parameters:
+//   - ctx: Request with an optional HX-Target.
+//   - props: Media library page model.
+//
+// Returns:
+//   - err: Non-nil when rendering fails.
+func renderMediaPage(ctx fiber.Ctx, props *view.MediaProps) error {
+	switch {
+	case wantsMediaPrev(ctx):
 		return renderHTML(ctx, func(writer io.Writer) error {
-			return browse.MediaResults(props).Render(ctx.Context(), writer)
+			return browse.MediaPrev(*props).Render(ctx.Context(), writer)
+		})
+	case wantsMediaMore(ctx):
+		return renderHTML(ctx, func(writer io.Writer) error {
+			return browse.MediaMore(*props).Render(ctx.Context(), writer)
+		})
+	case wantsMediaResults(ctx):
+		return renderHTML(ctx, func(writer io.Writer) error {
+			return browse.MediaBrowse(*props).Render(ctx.Context(), writer)
+		})
+	default:
+		return renderHTML(ctx, func(writer io.Writer) error {
+			return pages.Media(*props).Render(ctx.Context(), writer)
 		})
 	}
-
-	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.Media(props).Render(ctx.Context(), writer)
-	})
 }
 
 // MediaItem renders a single media item with a player and its clips.
@@ -298,15 +349,37 @@ func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
 	})
 }
 
-// wantsMediaResults reports whether the request should swap the media grid only.
+// wantsMediaResults reports whether the request should swap the media browse pane.
 //
 // Parameters:
 //   - ctx: Request context with an optional HX-Target header.
 //
 // Returns:
-//   - True when HTMX is targeting #media-results.
+//   - ok: True when HTMX is targeting #media-browse.
 func wantsMediaResults(ctx fiber.Ctx) bool {
-	return hxTargetID(ctx.Get(headerHXTarget)) == "media-results"
+	return hxTargetID(ctx.Get(headerHXTarget)) == "media-browse"
+}
+
+// wantsMediaMore reports whether the request should append the next poster page.
+//
+// Parameters:
+//   - ctx: Request context with an optional HX-Target header.
+//
+// Returns:
+//   - ok: True when HTMX is targeting #media-more.
+func wantsMediaMore(ctx fiber.Ctx) bool {
+	return hxTargetID(ctx.Get(headerHXTarget)) == "media-more"
+}
+
+// wantsMediaPrev reports whether the request should prepend the previous poster page.
+//
+// Parameters:
+//   - ctx: Request context with an optional HX-Target header.
+//
+// Returns:
+//   - ok: True when HTMX is targeting #media-prev.
+func wantsMediaPrev(ctx fiber.Ctx) bool {
+	return hxTargetID(ctx.Get(headerHXTarget)) == "media-prev"
 }
 
 // wantsClipList reports whether the request should swap the clips list only.
@@ -641,9 +714,20 @@ func chooserLibraries(libraries []view.LibraryItem, query, libraryID string) []v
 }
 
 // mediaContent loads libraries or media for the media page.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - query: Normalized browse state.
+//   - start: Container offset.
+//   - size: Page size.
+//
+// Returns:
+//   - items: Media cards for the window.
+//   - libraries: Library chooser entries.
+//   - total: Total matching items.
 func (handler *HTMLHandler) mediaContent(
 	ctx fiber.Ctx,
-	query, libraryID, parentID string,
+	query mediaListQuery,
 	start, size int,
 ) ([]view.MediaItem, []view.LibraryItem, int) {
 	plexClient, server, ok := handler.plexPair()
@@ -651,11 +735,63 @@ func (handler *HTMLHandler) mediaContent(
 		return nil, nil, 0
 	}
 
-	if query != "" {
-		return searchMediaContent(ctx, plexClient, server, query, libraryID)
+	if query.Query != "" {
+		return searchMediaContent(ctx, plexClient, server, query.Query, query.LibraryID)
 	}
 
-	return listMediaContent(ctx, plexClient, server, libraryID, parentID, start, size)
+	return listMediaContent(ctx, plexClient, server, query, start, size)
+}
+
+// mediaLetters loads jump-rail buckets for a library root.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - query: Normalized browse state.
+//
+// Returns:
+//   - letters: Title, year, or added-at buckets for the jump rail.
+func (handler *HTMLHandler) mediaLetters(
+	ctx fiber.Ctx,
+	query mediaListQuery,
+) []plex.LetterIndex {
+	if !query.showJumpIndex() {
+		return nil
+	}
+
+	plexClient, server, ok := handler.plexPair()
+	if !ok {
+		return nil
+	}
+
+	switch query.Sort {
+	case mediaSortAddedDesc, mediaSortAddedAsc:
+		return loadAddedAtIndexes(
+			ctx.Context(),
+			&handler.addedAt,
+			plexClient,
+			server,
+			query.LibraryID,
+			query.Sort,
+		)
+	case mediaSortYearDesc, mediaSortYearAsc:
+		index, err := plexClient.GetYears(ctx.Context(), server, query.LibraryID)
+		if err != nil {
+			log.Warn().Err(err).Msg("list years failed")
+
+			return nil
+		}
+
+		return orderJumpIndex(index, query.Sort)
+	default:
+		index, err := plexClient.GetFirstCharacters(ctx.Context(), server, query.LibraryID)
+		if err != nil {
+			log.Warn().Err(err).Msg("list first characters failed")
+
+			return nil
+		}
+
+		return orderJumpIndex(index, query.Sort)
+	}
 }
 
 // searchMediaContent runs a Plex hub search and keeps library names for crumbs.
@@ -683,11 +819,24 @@ func searchMediaContent(
 }
 
 // listMediaContent lists a library, a container, or the library chooser.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - plexClient: PMS client.
+//   - server: PMS to query.
+//   - query: Normalized browse state.
+//   - start: Container offset.
+//   - size: Page size.
+//
+// Returns:
+//   - items: Media cards for the window.
+//   - libraries: Library chooser entries.
+//   - total: Total matching items.
 func listMediaContent(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
 	server plex.Server,
-	libraryID, parentID string,
+	query mediaListQuery,
 	start, size int,
 ) ([]view.MediaItem, []view.LibraryItem, int) {
 	libs, err := plexClient.GetLibraries(ctx.Context(), server)
@@ -697,11 +846,11 @@ func listMediaContent(
 		return nil, nil, 0
 	}
 
-	if libraryID == "" {
+	if query.LibraryID == "" {
 		return nil, toLibraryItems(libs), 0
 	}
 
-	page, listErr := listMediaPage(ctx, plexClient, server, libraryID, parentID, start, size)
+	page, listErr := listMediaPage(ctx, plexClient, server, query, start, size)
 	if listErr != nil {
 		log.Warn().Err(listErr).Msg("list media failed")
 
@@ -710,8 +859,8 @@ func listMediaContent(
 
 	return toMediaItems(
 			page.Items,
-			libraryID,
-			parentID,
+			query.LibraryID,
+			query.ParentID,
 			ctx.Query(queryTitle),
 		), toLibraryItems(
 			libs,
@@ -884,15 +1033,27 @@ func toLibraryItems(libs []plex.Library) []view.LibraryItem {
 }
 
 // listMediaPage loads one page of a library section or container children.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - plexClient: PMS client.
+//   - server: PMS to query.
+//   - query: Normalized browse state.
+//   - start: Container offset.
+//   - size: Page size.
+//
+// Returns:
+//   - page: Items and total size for the requested window.
+//   - err: Non-nil when the PMS request fails.
 func listMediaPage(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
 	server plex.Server,
-	libraryID, parentID string,
+	query mediaListQuery,
 	start, size int,
 ) (plex.MediaPage, error) {
-	if parentID != "" {
-		page, err := plexClient.GetChildrenPage(ctx.Context(), server, parentID, start, size)
+	if query.ParentID != "" {
+		page, err := plexClient.GetChildrenPage(ctx.Context(), server, query.ParentID, start, size)
 		if err != nil {
 			return plex.MediaPage{}, fmt.Errorf("list children: %w", err)
 		}
@@ -900,7 +1061,14 @@ func listMediaPage(
 		return page, nil
 	}
 
-	page, err := plexClient.GetMediaPage(ctx.Context(), server, libraryID, start, size)
+	page, err := plexClient.GetMediaPage(
+		ctx.Context(),
+		server,
+		query.LibraryID,
+		start,
+		size,
+		plexMediaSort(query.Sort),
+	)
 	if err != nil {
 		return plex.MediaPage{}, fmt.Errorf("list section: %w", err)
 	}
@@ -1091,6 +1259,8 @@ func toMediaItems(
 			ParentIndex:  item.ParentIndex,
 			ShowTitle:    item.GrandparentTitle,
 			EpisodeLabel: episodeLabel,
+			TitleSort:    item.TitleSort,
+			AddedAt:      item.AddedAt,
 		})
 	}
 

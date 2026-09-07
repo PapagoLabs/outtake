@@ -111,7 +111,7 @@ func (client *Client) GetMedia(
 	server Server,
 	libraryID string,
 ) ([]MediaItem, error) {
-	page, err := client.GetMediaPage(ctx, server, libraryID, 0, 0)
+	page, err := client.GetMediaPage(ctx, server, libraryID, 0, 0, "")
 	if err != nil {
 		return nil, fmt.Errorf("get media page: %w", err)
 	}
@@ -120,15 +120,28 @@ func (client *Client) GetMedia(
 }
 
 // GetMediaPage fetches one page of media items from a library.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//   - start: Container offset.
+//   - size: Page size, or 0 for the PMS default.
+//   - sort: PMS sort value such as titleSort:asc, or empty.
+//
+// Returns:
+//   - page: Items and total size for the requested window.
+//   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) GetMediaPage(
 	ctx context.Context,
 	server Server,
 	libraryID string,
 	start, size int,
+	sort string,
 ) (MediaPage, error) {
 	path := serverAPIBase + "/sections/" + url.PathEscape(libraryID) + "/all"
 
-	resp, err := client.getPMS(ctx, server, path, containerQuery(start, size))
+	resp, err := client.getPMS(ctx, server, path, mediaListQuery(start, size, sort))
 	if err != nil {
 		return MediaPage{}, fmt.Errorf("get media: %w", err)
 	}
@@ -139,6 +152,131 @@ func (client *Client) GetMediaPage(
 	}
 
 	return mediaPage(container, start, size), nil
+}
+
+// GetFirstCharacters fetches title first-character buckets for a library.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//
+// Returns:
+//   - index: First-character buckets.
+//   - err: Non-nil when the PMS request or decode fails.
+func (client *Client) GetFirstCharacters(
+	ctx context.Context,
+	server Server,
+	libraryID string,
+) ([]LetterIndex, error) {
+	index, err := client.GetSectionIndex(ctx, server, libraryID, "firstCharacter")
+	if err != nil {
+		return nil, fmt.Errorf("get firstCharacter: %w", err)
+	}
+
+	return index, nil
+}
+
+// GetYears fetches year buckets for a library section.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//
+// Returns:
+//   - index: Year buckets.
+//   - err: Non-nil when the PMS request or decode fails.
+func (client *Client) GetYears(
+	ctx context.Context,
+	server Server,
+	libraryID string,
+) ([]LetterIndex, error) {
+	index, err := client.GetSectionIndex(ctx, server, libraryID, "year")
+	if err != nil {
+		return nil, fmt.Errorf("get year: %w", err)
+	}
+
+	return index, nil
+}
+
+// GetSectionIndex fetches directory buckets for a library facet.
+//
+// Facet must be firstCharacter or year.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//   - facet: Directory facet name.
+//
+// Returns:
+//   - index: Directory buckets.
+//   - err: Non-nil when the facet is unsupported or the PMS request fails.
+func (client *Client) GetSectionIndex(
+	ctx context.Context,
+	server Server,
+	libraryID, facet string,
+) ([]LetterIndex, error) {
+	switch facet {
+	case "firstCharacter", "year":
+	default:
+		return nil, fmt.Errorf("%w %q", ErrUnsupportedSectionIndex, facet)
+	}
+
+	path := serverAPIBase + "/sections/" + url.PathEscape(libraryID) + "/" + facet
+
+	resp, err := client.getPMS(ctx, server, path, "")
+	if err != nil {
+		return nil, fmt.Errorf("get %s: %w", facet, err)
+	}
+
+	container, decodeErr := decodePMS(resp.Body())
+	if decodeErr != nil {
+		return nil, fmt.Errorf("get %s: %w", facet, decodeErr)
+	}
+
+	return directoryIndexes(container.Directory), nil
+}
+
+// directoryIndexes maps PMS directory entries onto jump buckets.
+//
+// Parameters:
+//   - sections: PMS Directory rows.
+//
+// Returns:
+//   - index: Title and size for each directory.
+func directoryIndexes(sections []pms.Section) []LetterIndex {
+	index := make([]LetterIndex, 0, len(sections))
+	for i := range sections {
+		index = append(index, directoryIndex(sections[i]))
+	}
+
+	return index
+}
+
+// directoryIndex maps one PMS directory entry onto a jump bucket.
+//
+// Parameters:
+//   - section: PMS Directory row.
+//
+// Returns:
+//   - entry: Title and size for the directory.
+func directoryIndex(section pms.Section) LetterIndex {
+	title := section.Title
+	if title == "" {
+		title = section.Key
+	}
+
+	size := section.Size
+	if size == 0 {
+		size = section.LeafCount
+	}
+
+	return LetterIndex{
+		Title: title,
+		Size:  size,
+	}
 }
 
 // GetMediaPath fetches the file path for a media item.
@@ -169,7 +307,7 @@ func (client *Client) GetMediaPath(
 	}
 
 	for index := range container.Metadata {
-		if file := firstMediaFile(container.Metadata[index]); file != "" {
+		if file := firstMediaFile(&container.Metadata[index]); file != "" {
 			return file, nil
 		}
 	}
@@ -396,17 +534,42 @@ func sectionThumb(section pms.Section) string {
 }
 
 // containerQuery builds PMS pagination query parameters.
+//
+// Parameters:
+//   - start: Container offset.
+//   - size: Page size, or 0 to omit pagination.
+//
+// Returns:
+//   - query: Encoded query string, or empty when size is unset.
 func containerQuery(start, size int) string {
-	if size <= 0 {
-		return ""
+	return mediaListQuery(start, size, "")
+}
+
+// mediaListQuery builds PMS pagination and sort query parameters.
+//
+// Parameters:
+//   - start: Container offset.
+//   - size: Page size, or 0 to omit pagination.
+//   - sort: PMS sort value, or empty.
+//
+// Returns:
+//   - query: Encoded query string, or empty when both size and sort are unset.
+func mediaListQuery(start, size int, sort string) string {
+	values := url.Values{}
+	if size > 0 {
+		if start < 0 {
+			start = 0
+		}
+
+		values.Set("X-Plex-Container-Start", strconv.Itoa(start))
+		values.Set("X-Plex-Container-Size", strconv.Itoa(size))
 	}
 
-	if start < 0 {
-		start = 0
+	if sort != "" {
+		values.Set("sort", sort)
 	}
 
-	return "X-Plex-Container-Start=" + strconv.Itoa(start) +
-		"&X-Plex-Container-Size=" + strconv.Itoa(size)
+	return values.Encode()
 }
 
 // mediaPage maps a PMS container onto a page of media items.

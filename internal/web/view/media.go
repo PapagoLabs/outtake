@@ -25,6 +25,8 @@ type MediaItem struct {
 	ParentIndex  int
 	ShowTitle    string
 	EpisodeLabel string
+	TitleSort    string
+	AddedAt      int64
 }
 
 // Crumb is one step in the media library trail.
@@ -33,17 +35,27 @@ type Crumb struct {
 	URL   string
 }
 
+// LetterIndex is one first-character jump target on a library section.
+type LetterIndex struct {
+	Title string
+	Size  int
+	Start int
+}
+
 // MediaProps is the media library page and its HTMX results fragment.
 type MediaProps struct {
 	Items       []MediaItem
 	Libraries   []LibraryItem
 	Crumbs      []Crumb
+	Letters     []LetterIndex
 	Query       string
 	LibraryID   string
 	ParentID    string
 	ParentTitle string
 	UpID        string
 	UpTitle     string
+	Sort        string
+	Letter      string
 	Start       int
 	Total       int
 	PageSize    int

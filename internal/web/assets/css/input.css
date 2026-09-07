@@ -45,21 +45,28 @@
 @layer base {
   * {
     @apply border-border;
-    scrollbar-width: thin;
+
+    scrollbar-width: auto;
     scrollbar-color: var(--color-muted-foreground) transparent;
   }
   *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
   }
   *::-webkit-scrollbar-thumb {
     background: var(--color-muted-foreground);
-    border-radius: 4px;
+    border-radius: 6px;
   }
   *::-webkit-scrollbar-thumb:hover {
     background: var(--color-foreground);
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  #media-results {
+    scrollbar-gutter: stable;
   }
 }
