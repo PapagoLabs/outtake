@@ -114,13 +114,18 @@
 
 	function parseTimecode(value) {
 		var parts = String(value).trim().split(':');
+		var sec;
 		if (parts.length === 1) {
-			return parseFloat(parts[0]) || 0;
+			sec = parseFloat(parts[0]) || 0;
+		} else if (parts.length === 2) {
+			sec = (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0);
+		} else {
+			sec = (parseInt(parts[0], 10) || 0) * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseFloat(parts[2]) || 0);
 		}
-		if (parts.length === 2) {
-			return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0);
+		if (!isFinite(sec) || sec < 0) {
+			return 0;
 		}
-		return (parseInt(parts[0], 10) || 0) * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseFloat(parts[2]) || 0);
+		return sec;
 	}
 
 	function formControl(form, name) {

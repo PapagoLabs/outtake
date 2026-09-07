@@ -8,8 +8,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/database/mocks"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/queue"
 )
@@ -79,6 +81,17 @@ func TestClipPersistence(t *testing.T) {
 
 	_, err = db.GetClip(t.Context(), job.ID)
 	require.ErrorIs(t, err, ErrClipNotFound)
+}
+
+func TestScanJobMockScannable(t *testing.T) {
+	t.Parallel()
+
+	row := mocks.NewMockScannable(t)
+	row.EXPECT().Scan(mock.Anything).Return(nil)
+
+	job, err := scanJob(row)
+	require.NoError(t, err)
+	require.NotNil(t, job)
 }
 
 func TestTokenAndServerPersistence(t *testing.T) {
