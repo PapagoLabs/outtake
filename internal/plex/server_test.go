@@ -161,12 +161,167 @@ func TestGetMediaPageSendsContainerQuery(t *testing.T) {
 		Local:   false,
 	}
 
-	page, err := c.GetMediaPage(t.Context(), server, "1", 48, 48)
+	page, err := c.GetMediaPage(t.Context(), server, "1", 48, 48, "")
 	require.NoError(t, err)
 	require.Len(t, page.Items, 1)
 	assert.Equal(t, 200, page.Total)
 	assert.Equal(t, 1999, page.Items[0].Year)
 	assert.Equal(t, "Paged (1999)", page.Items[0].DisplayTitle())
+}
+
+func TestGetMediaPageSendsSort(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "0", r.URL.Query().Get("X-Plex-Container-Start"))
+		assert.Equal(t, "48", r.URL.Query().Get("X-Plex-Container-Size"))
+		assert.Equal(t, "titleSort:asc", r.URL.Query().Get("sort"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		_, _ = w.Write([]byte(`{"MediaContainer":{"size":0,"totalSize":0,"Metadata":[]}}`))
+	}))
+	defer ts.Close()
+
+	host, port := extractAddrPort(t, ts)
+	c := NewClient(ClientConfig{
+		Product:  productName,
+		ClientID: testServerClient,
+		Token:    testSrvToken,
+		Timeout:  5 * time.Second,
+		BaseURL:  "",
+	})
+	server := Server{
+		Name:    testServerName,
+		Address: host,
+		Port:    port,
+		Token:   testSrvToken,
+		Scheme:  httpScheme,
+		Local:   false,
+	}
+
+	_, err := c.GetMediaPage(t.Context(), server, "1", 0, 48, "titleSort:asc")
+	require.NoError(t, err)
+}
+
+func TestMediaListQuery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		start int
+		size  int
+		sort  string
+		want  string
+	}{
+		{name: "empty", want: ""},
+		{
+			name:  "page only",
+			start: 48,
+			size:  48,
+			want:  "X-Plex-Container-Size=48&X-Plex-Container-Start=48",
+		},
+		{
+			name: "sort only",
+			sort: "year:desc",
+			want: "sort=year%3Adesc",
+		},
+		{
+			name:  "page and sort",
+			start: 0,
+			size:  48,
+			sort:  "titleSort:asc",
+			want:  "X-Plex-Container-Size=48&X-Plex-Container-Start=0&sort=titleSort%3Aasc",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, mediaListQuery(test.start, test.size, test.sort))
+		})
+	}
+}
+
+func TestGetFirstCharacters(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/library/sections/1/firstCharacter", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[
+			{"key":"/library/sections/1/firstCharacter/%23","title":"#","size":3},
+			{"key":"/library/sections/1/firstCharacter/A","title":"A","size":40}
+		]}}`))
+	}))
+	defer ts.Close()
+
+	host, port := extractAddrPort(t, ts)
+	c := NewClient(ClientConfig{
+		Product:  productName,
+		ClientID: testServerClient,
+		Token:    testSrvToken,
+		Timeout:  5 * time.Second,
+		BaseURL:  "",
+	})
+	server := Server{
+		Name:    testServerName,
+		Address: host,
+		Port:    port,
+		Token:   testSrvToken,
+		Scheme:  httpScheme,
+		Local:   false,
+	}
+
+	index, err := c.GetFirstCharacters(t.Context(), server, "1")
+	require.NoError(t, err)
+	require.Equal(t, []LetterIndex{
+		{Title: "#", Size: 3},
+		{Title: "A", Size: 40},
+	}, index)
+}
+
+func TestGetYears(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/library/sections/1/year", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[
+			{"title":"2024","size":12},
+			{"title":"1995","size":4}
+		]}}`))
+	}))
+	defer ts.Close()
+
+	host, port := extractAddrPort(t, ts)
+	c := NewClient(ClientConfig{
+		Product:  productName,
+		ClientID: testServerClient,
+		Token:    testSrvToken,
+		Timeout:  5 * time.Second,
+		BaseURL:  "",
+	})
+	server := Server{
+		Name:    testServerName,
+		Address: host,
+		Port:    port,
+		Token:   testSrvToken,
+		Scheme:  httpScheme,
+		Local:   false,
+	}
+
+	index, err := c.GetYears(t.Context(), server, "1")
+	require.NoError(t, err)
+	require.Equal(t, []LetterIndex{
+		{Title: "2024", Size: 12},
+		{Title: "1995", Size: 4},
+	}, index)
 }
 
 func TestMediaPageNormalizesNegativeStart(t *testing.T) {

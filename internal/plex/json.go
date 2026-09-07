@@ -54,6 +54,8 @@ func metadataToItem(meta pms.Metadata, libraryTitle string) MediaItem {
 		ParentTitle:      meta.ParentTitle,
 		GrandparentID:    string(meta.GrandparentRatingKey),
 		GrandparentTitle: meta.GrandparentTitle,
+		TitleSort:        meta.TitleSort,
+		AddedAt:          meta.AddedAt,
 	}
 }
 

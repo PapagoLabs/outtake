@@ -21,7 +21,7 @@ type Props struct {
 
 templ Layout(props Props) {
 	<!DOCTYPE html>
-	<html lang="en" class="dark" data-palette="plex" data-palettes={ theme.IDList() }>
+	<html lang="en" class="dark h-dvh overflow-hidden" data-palette="plex" data-palettes={ theme.IDList() }>
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -30,15 +30,15 @@ templ Layout(props Props) {
 			<script src="/assets/js/theme.js"></script>
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
-			<script src="/assets/js/app.js" defer></script>
+			<script src={ utils.ScriptURL("/assets/js/app.js") } defer></script>
 		</head>
 		<body
-			class="min-h-screen bg-background text-foreground"
+			class="h-dvh overflow-hidden bg-background text-foreground"
 			if headers := web.CSRFHeaderJSON(ctx); headers != "" {
 				hx-headers:inherited={ headers }
 			}
 		>
-			<div class="flex min-h-screen">
+			<div class="flex h-full min-h-0">
 				<button
 					type="button"
 					class="js-sidebar-open md:hidden fixed z-30 top-3 left-3 inline-flex size-9 items-center justify-center rounded-md border bg-card text-foreground shadow-xs"
@@ -48,12 +48,12 @@ templ Layout(props Props) {
 				</button>
 				<div class="js-sidebar-overlay hidden md:hidden fixed inset-0 z-40 bg-black/50"></div>
 				<aside
-					class="js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform"
+					class="js-sidebar fixed md:static inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col gap-2 overflow-hidden border-r border-sidebar-border bg-sidebar p-4 -translate-x-full md:translate-x-0 transition-transform"
 					hx-boost:inherited="true"
 					hx-target:inherited="#main-content"
-					hx-swap:inherited="outerHTML scroll:window:top"
+					hx-swap:inherited="outerHTML scroll:#main-content:top"
 				>
-					<div class="flex items-center justify-between gap-2 mb-4">
+					<div class="flex shrink-0 items-center justify-between gap-2 mb-2">
 						<a href="/" hx-select="#main-content" class="flex items-center gap-2.5 text-sidebar-foreground">
 							<img src="/assets/brand/mascot-128.png" width="32" height="32" alt="" class="size-8"/>
 							<h1 class="text-xl font-bold">Outtake</h1>
@@ -68,96 +68,98 @@ templ Layout(props Props) {
 							</button>
 						</div>
 					</div>
-					<a
-						href="/"
-						hx-select="#main-content"
-						data-nav="dashboard"
-						class={ utils.TwMerge(
-							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
-							utils.IfElse(props.Active == "dashboard", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-						) }
-					>
-						Dashboard
-					</a>
-					<div class="flex flex-col gap-1">
+					<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain">
 						<a
-							href="/media"
+							href="/"
 							hx-select="#main-content"
-							data-nav="media"
+							data-nav="dashboard"
 							class={ utils.TwMerge(
 								"px-3 py-2 rounded-md text-sm font-medium transition-colors",
-								utils.IfElse(props.Active == "media", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+								utils.IfElse(props.Active == "dashboard", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
 							) }
 						>
-							Media Libraries
+							Dashboard
 						</a>
-						<div
-							id="nav-libraries"
-							class="flex flex-col gap-1 pl-2"
-							if props.Library != "" {
-								hx-get={ "/nav/libraries?library=" + props.Library }
-							} else {
-								hx-get="/nav/libraries"
-							}
-							hx-trigger="load"
-							hx-target="this"
-							hx-swap="innerHTML"
-						></div>
-					</div>
-					<a
-						href="/clips"
-						hx-select="#main-content"
-						data-nav="clips"
-						class={ utils.TwMerge(
-							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
-							utils.IfElse(props.Active == "clips", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-						) }
-					>
-						Clips
-					</a>
-					<div class="flex flex-col gap-1">
-						<span class="px-3 py-2 text-sm font-medium text-sidebar-foreground">Settings</span>
-						<div class="flex flex-col gap-1 pl-2">
+						<div class="flex flex-col gap-1">
 							<a
-								href="/servers"
+								href="/media"
 								hx-select="#main-content"
-								data-nav="servers"
+								data-nav="media"
 								class={ utils.TwMerge(
-									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-									utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+									"px-3 py-2 rounded-md text-sm font-medium transition-colors",
+									utils.IfElse(props.Active == "media", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
 								) }
 							>
-								Servers
+								Media Libraries
 							</a>
-							<a
-								href="/settings/profiles"
-								hx-select="#main-content"
-								data-nav="profiles"
-								class={ utils.TwMerge(
-									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-									utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-								) }
-							>
-								Clip Profiles
-							</a>
-							<a
-								href="/settings/appearance"
-								hx-select="#main-content"
-								data-nav="appearance"
-								class={ utils.TwMerge(
-									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-									utils.IfElse(props.Active == "appearance", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-								) }
-							>
-								Appearance
-							</a>
+							<div
+								id="nav-libraries"
+								class="flex flex-col gap-1 pl-2"
+								if props.Library != "" {
+									hx-get={ "/nav/libraries?library=" + props.Library }
+								} else {
+									hx-get="/nav/libraries"
+								}
+								hx-trigger="load"
+								hx-target="this"
+								hx-swap="innerHTML"
+							></div>
+						</div>
+						<a
+							href="/clips"
+							hx-select="#main-content"
+							data-nav="clips"
+							class={ utils.TwMerge(
+								"px-3 py-2 rounded-md text-sm font-medium transition-colors",
+								utils.IfElse(props.Active == "clips", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+							) }
+						>
+							Clips
+						</a>
+						<div class="flex flex-col gap-1">
+							<span class="px-3 py-2 text-sm font-medium text-sidebar-foreground">Settings</span>
+							<div class="flex flex-col gap-1 pl-2">
+								<a
+									href="/servers"
+									hx-select="#main-content"
+									data-nav="servers"
+									class={ utils.TwMerge(
+										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+										utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+									) }
+								>
+									Servers
+								</a>
+								<a
+									href="/settings/profiles"
+									hx-select="#main-content"
+									data-nav="profiles"
+									class={ utils.TwMerge(
+										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+										utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+									) }
+								>
+									Clip Profiles
+								</a>
+								<a
+									href="/settings/appearance"
+									hx-select="#main-content"
+									data-nav="appearance"
+									class={ utils.TwMerge(
+										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+										utils.IfElse(props.Active == "appearance", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+									) }
+								>
+									Appearance
+								</a>
+							</div>
 						</div>
 					</div>
 					@separator.Separator()
 					<a
 						href="/api/auth/logout"
 						hx-boost="false"
-						class="px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-destructive hover:text-white transition-colors mt-auto"
+						class="shrink-0 px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-destructive hover:text-white transition-colors"
 					>
 						Logout
 					</a>
@@ -165,7 +167,7 @@ templ Layout(props Props) {
 				<main
 					id="main-content"
 					hx-history-elt
-					class="flex-1 p-8 pt-16 md:pt-8 overflow-auto"
+					class="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-8 pt-16 md:pt-8"
 					data-nav={ props.Active }
 					data-library={ props.Library }
 				>

@@ -123,6 +123,19 @@ func TestDecodeLibraryThumb(t *testing.T) {
 	assert.Equal(t, "/library/sections/5/composite/1", container.Directory[0].Thumb)
 }
 
+func TestDecodeFirstCharacterSize(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(
+		`{"MediaContainer":{"Directory":[{"key":"/library/sections/1/firstCharacter/A","title":"A","size":40}]}}`,
+	)
+	container, err := Decode(body)
+	require.NoError(t, err)
+	require.Len(t, container.Directory, 1)
+	assert.Equal(t, "A", container.Directory[0].Title)
+	assert.Equal(t, 40, container.Directory[0].Size)
+}
+
 func TestHasMetadataRejectsHubsPath(t *testing.T) {
 	t.Parallel()
 

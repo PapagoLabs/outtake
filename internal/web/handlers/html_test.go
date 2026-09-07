@@ -268,13 +268,32 @@ func TestWantsMediaResults(t *testing.T) {
 		{giveTarget: "", want: wantPage},
 		{giveTarget: "main-content", want: wantPage},
 		{giveTarget: "main#main-content", want: wantPage},
-		{giveTarget: "media-results", want: wantFragment},
-		{giveTarget: "div#media-results", want: wantFragment},
+		{giveTarget: "media-browse", want: wantFragment},
+		{giveTarget: "div#media-browse", want: wantFragment},
+		{giveTarget: "media-results", want: wantPage},
 	}
 
 	for _, test := range tests {
 		assert.Equal(t, test.want, mediaResultsKind(t, test.giveTarget))
 	}
+}
+
+func TestWantsMediaMore(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "page", mediaMoreKind(t, ""))
+	assert.Equal(t, "page", mediaMoreKind(t, "media-browse"))
+	assert.Equal(t, "more", mediaMoreKind(t, "media-more"))
+	assert.Equal(t, "more", mediaMoreKind(t, "div#media-more"))
+}
+
+func TestWantsMediaPrev(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "page", mediaPrevKind(t, ""))
+	assert.Equal(t, "page", mediaPrevKind(t, "media-browse"))
+	assert.Equal(t, "prev", mediaPrevKind(t, "media-prev"))
+	assert.Equal(t, "prev", mediaPrevKind(t, "div#media-prev"))
 }
 
 func TestWantsClipList(t *testing.T) {
@@ -293,6 +312,66 @@ func mediaResultsKind(t *testing.T, hxTarget string) string {
 	app.Get("/media", func(ctx fiber.Ctx) error {
 		if wantsMediaResults(ctx) {
 			return ctx.SendString("fragment")
+		}
+
+		return ctx.SendString("page")
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media", nil)
+	req.Header.Set("Hx-Request", "true")
+
+	if hxTarget != "" {
+		req.Header.Set("Hx-Target", hxTarget)
+	}
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return string(body)
+}
+
+func mediaPrevKind(t *testing.T, hxTarget string) string {
+	t.Helper()
+
+	app := fiber.New()
+	app.Get("/media", func(ctx fiber.Ctx) error {
+		if wantsMediaPrev(ctx) {
+			return ctx.SendString("prev")
+		}
+
+		return ctx.SendString("page")
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media", nil)
+	req.Header.Set("Hx-Request", "true")
+
+	if hxTarget != "" {
+		req.Header.Set("Hx-Target", hxTarget)
+	}
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return string(body)
+}
+
+func mediaMoreKind(t *testing.T, hxTarget string) string {
+	t.Helper()
+
+	app := fiber.New()
+	app.Get("/media", func(ctx fiber.Ctx) error {
+		if wantsMediaMore(ctx) {
+			return ctx.SendString("more")
 		}
 
 		return ctx.SendString("page")

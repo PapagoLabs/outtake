@@ -111,7 +111,7 @@ func (client *Client) GetMedia(
 	server Server,
 	libraryID string,
 ) ([]MediaItem, error) {
-	page, err := client.GetMediaPage(ctx, server, libraryID, 0, 0)
+	page, err := client.GetMediaPage(ctx, server, libraryID, 0, 0, "")
 	if err != nil {
 		return nil, fmt.Errorf("get media page: %w", err)
 	}
@@ -120,15 +120,28 @@ func (client *Client) GetMedia(
 }
 
 // GetMediaPage fetches one page of media items from a library.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//   - start: Container offset.
+//   - size: Page size, or 0 for the PMS default.
+//   - sort: PMS sort value such as titleSort:asc, or empty.
+//
+// Returns:
+//   - page: Items and total size for the requested window.
+//   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) GetMediaPage(
 	ctx context.Context,
 	server Server,
 	libraryID string,
 	start, size int,
+	sort string,
 ) (MediaPage, error) {
 	path := serverAPIBase + "/sections/" + url.PathEscape(libraryID) + "/all"
 
-	resp, err := client.getPMS(ctx, server, path, containerQuery(start, size))
+	resp, err := client.getPMS(ctx, server, path, mediaListQuery(start, size, sort))
 	if err != nil {
 		return MediaPage{}, fmt.Errorf("get media: %w", err)
 	}
@@ -139,6 +152,99 @@ func (client *Client) GetMediaPage(
 	}
 
 	return mediaPage(container, start, size), nil
+}
+
+// GetFirstCharacters fetches title first-character buckets for a library.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//
+// Returns:
+//   - index: First-character buckets.
+//   - err: Non-nil when the PMS request or decode fails.
+func (client *Client) GetFirstCharacters(
+	ctx context.Context,
+	server Server,
+	libraryID string,
+) ([]LetterIndex, error) {
+	return client.GetSectionIndex(ctx, server, libraryID, "firstCharacter")
+}
+
+// GetYears fetches year buckets for a library section.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//
+// Returns:
+//   - index: Year buckets.
+//   - err: Non-nil when the PMS request or decode fails.
+func (client *Client) GetYears(
+	ctx context.Context,
+	server Server,
+	libraryID string,
+) ([]LetterIndex, error) {
+	return client.GetSectionIndex(ctx, server, libraryID, "year")
+}
+
+// GetSectionIndex fetches directory buckets for a library facet.
+//
+// Facet must be firstCharacter or year.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//   - facet: Directory facet name.
+//
+// Returns:
+//   - index: Directory buckets.
+//   - err: Non-nil when the facet is unsupported or the PMS request fails.
+func (client *Client) GetSectionIndex(
+	ctx context.Context,
+	server Server,
+	libraryID, facet string,
+) ([]LetterIndex, error) {
+	switch facet {
+	case "firstCharacter", "year":
+	default:
+		return nil, fmt.Errorf("unsupported section index %q", facet)
+	}
+
+	path := serverAPIBase + "/sections/" + url.PathEscape(libraryID) + "/" + facet
+
+	resp, err := client.getPMS(ctx, server, path, "")
+	if err != nil {
+		return nil, fmt.Errorf("get %s: %w", facet, err)
+	}
+
+	container, decodeErr := decodePMS(resp.Body())
+	if decodeErr != nil {
+		return nil, fmt.Errorf("get %s: %w", facet, decodeErr)
+	}
+
+	index := make([]LetterIndex, 0, len(container.Directory))
+	for _, entry := range container.Directory {
+		title := entry.Title
+		if title == "" {
+			title = entry.Key
+		}
+
+		size := entry.Size
+		if size == 0 {
+			size = entry.LeafCount
+		}
+
+		index = append(index, LetterIndex{
+			Title: title,
+			Size:  size,
+		})
+	}
+
+	return index, nil
 }
 
 // GetMediaPath fetches the file path for a media item.
@@ -396,17 +502,42 @@ func sectionThumb(section pms.Section) string {
 }
 
 // containerQuery builds PMS pagination query parameters.
+//
+// Parameters:
+//   - start: Container offset.
+//   - size: Page size, or 0 to omit pagination.
+//
+// Returns:
+//   - query: Encoded query string, or empty when size is unset.
 func containerQuery(start, size int) string {
-	if size <= 0 {
-		return ""
+	return mediaListQuery(start, size, "")
+}
+
+// mediaListQuery builds PMS pagination and sort query parameters.
+//
+// Parameters:
+//   - start: Container offset.
+//   - size: Page size, or 0 to omit pagination.
+//   - sort: PMS sort value, or empty.
+//
+// Returns:
+//   - query: Encoded query string, or empty when both size and sort are unset.
+func mediaListQuery(start, size int, sort string) string {
+	values := url.Values{}
+	if size > 0 {
+		if start < 0 {
+			start = 0
+		}
+
+		values.Set("X-Plex-Container-Start", strconv.Itoa(start))
+		values.Set("X-Plex-Container-Size", strconv.Itoa(size))
 	}
 
-	if start < 0 {
-		start = 0
+	if sort != "" {
+		values.Set("sort", sort)
 	}
 
-	return "X-Plex-Container-Start=" + strconv.Itoa(start) +
-		"&X-Plex-Container-Size=" + strconv.Itoa(size)
+	return values.Encode()
 }
 
 // mediaPage maps a PMS container onto a page of media items.

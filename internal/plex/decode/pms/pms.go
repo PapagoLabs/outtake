@@ -38,6 +38,8 @@ type Section struct {
 	Type      string `json:"type"`
 	Thumb     string `json:"thumb"`
 	Composite string `json:"composite"`
+	Size      int    `json:"size"`
+	LeafCount int    `json:"leafCount"`
 }
 
 // Hub is a search hub from GET /hubs/search.
@@ -68,6 +70,8 @@ type Metadata struct {
 	GrandparentRatingKey flexString `json:"grandparentRatingKey"`
 	GrandparentTitle     string     `json:"grandparentTitle"`
 	LibrarySectionID     flexString `json:"librarySectionID"`
+	TitleSort            string     `json:"titleSort"`
+	AddedAt              int64      `json:"addedAt"`
 	Media                []media    `json:"Media"`
 	Session              session    `json:"Session"`
 }

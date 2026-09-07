@@ -61,7 +61,7 @@ func Media(props view.MediaProps) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col gap-6\"><div><h2 class=\"text-2xl font-bold tracking-tight\">Media Library</h2><p class=\"text-muted-foreground\">Browse and clip media from your Plex library.</p></div><form hx-get=\"/media\" hx-target=\"#media-results\" hx-swap=\"innerHTML\" hx-push-url=\"true\" hx-indicator=\"#search-indicator\" class=\"flex gap-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex min-h-0 flex-1 flex-col gap-6\"><div class=\"shrink-0\"><h2 class=\"text-2xl font-bold tracking-tight\">Media Library</h2><p class=\"text-muted-foreground\">Browse and clip media from your Plex library.</p></div><form hx-get=\"/media\" hx-target=\"#media-browse\" hx-swap=\"innerHTML\" hx-push-url=\"true\" hx-include=\"#media-list-sort\" hx-indicator=\"#search-indicator\" class=\"flex shrink-0 gap-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -114,11 +114,11 @@ func Media(props view.MediaProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><button type=\"submit\" class=\"inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors\">Search</button> <span id=\"search-indicator\" class=\"htmx-indicator self-center text-sm text-muted-foreground\">Searching…</span></form><div id=\"media-results\" class=\"grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div><button type=\"submit\" class=\"inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors\">Search</button> <span id=\"search-indicator\" class=\"htmx-indicator self-center text-sm text-muted-foreground\">Searching…</span></form><div id=\"media-browse\" class=\"flex min-h-0 flex-1 flex-col overflow-hidden\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = browse.MediaResults(props).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = browse.MediaBrowse(props).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
