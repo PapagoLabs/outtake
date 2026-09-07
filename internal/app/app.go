@@ -196,6 +196,7 @@ func mountPages(
 	app.Get(routeClips, guard, htmlHandler.Clips)
 	app.Get("/servers", guard, htmlHandler.Servers)
 	app.Post("/servers", guard, htmlHandler.SelectServer)
+	app.Get("/settings/appearance", guard, htmlHandler.Appearance)
 	app.Get("/settings/profiles", guard, htmlHandler.ClipProfiles)
 	app.Post("/settings/profiles", guard, htmlHandler.CreateClipProfile)
 	app.Post("/settings/profiles/:id/default", guard, htmlHandler.SetDefaultClipProfile)

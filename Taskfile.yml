@@ -125,8 +125,14 @@ tasks:
     cmds:
       - templ generate --watch --proxy="http://localhost:8080" --cmd="go run . server start" --open-browser=false
 
+  theme-css:
+    desc: Generate palette CSS from the theme catalog
+    cmds:
+      - go run ./internal/web/theme/gen.go
+
   tailwind:
     desc: Watch Tailwind CSS changes
+    deps: [theme-css]
     cmds:
       - "tailwindcss -i ./internal/web/assets/css/input.css -o ./internal/web/assets/css/output.css"
 
