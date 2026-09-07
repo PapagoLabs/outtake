@@ -129,10 +129,6 @@ func sendRangedFile(ctx fiber.Ctx, path string) error {
 // Returns:
 //   - Wrapped write or redirect error.
 func writeError(ctx fiber.Ctx, status int, code, message string) error {
-	if isFormRequest(ctx) {
-		return redirectTo(ctx, formErrorLocation(ctx, message))
-	}
-
 	if isHTMXRequest(ctx) {
 		err := writeHTMXFlash(ctx, status, message)
 		if err != nil {
@@ -140,6 +136,10 @@ func writeError(ctx fiber.Ctx, status int, code, message string) error {
 		}
 
 		return nil
+	}
+
+	if isFormRequest(ctx) {
+		return redirectTo(ctx, formErrorLocation(ctx, message))
 	}
 
 	return writeJSON(ctx, status, api.ErrorResponse{

@@ -128,3 +128,13 @@ func TestSecurityHeadersAndCSRF(t *testing.T) {
 	assert.Equal(t, fiber.StatusForbidden, htmxResp.StatusCode)
 	assert.Contains(t, string(htmxBody), `<hx-partial hx-target="#flash">`)
 }
+
+func TestCSRFCookieSecureFollowsPublicURL(t *testing.T) {
+	t.Parallel()
+
+	httpCfg := &config.Config{ListenAddr: "127.0.0.1:8080"}
+	assert.False(t, csrfConfig(httpCfg).CookieSecure)
+
+	httpsCfg := &config.Config{PublicBaseURL: "https://clips.example"}
+	assert.True(t, csrfConfig(httpsCfg).CookieSecure)
+}

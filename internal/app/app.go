@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -134,7 +135,7 @@ func newRouter(
 	app.Use(middleware.RequestLogger())
 	app.Use(helmet.New(helmetConfig()))
 	app.Use(session.New(sessionConfig()))
-	app.Use(csrf.New(csrfConfig()))
+	app.Use(csrf.New(csrfConfig(cfg)))
 	app.Use(middleware.BindCSRFToken())
 	app.Use(middleware.RestoreToken(db))
 	app.Use("/assets", static.New("assets", staticConfig()))
@@ -195,9 +196,12 @@ func helmetConfig() helmet.Config {
 
 // csrfConfig returns CSRF middleware that accepts header or form tokens.
 //
+// Parameters:
+//   - cfg: App config; PublicURL scheme controls CookieSecure.
+//
 // Returns:
 //   - CSRF middleware config.
-func csrfConfig() csrf.Config {
+func csrfConfig(cfg *config.Config) csrf.Config {
 	return csrf.Config{
 		Storage:        nil,
 		Next:           nil,
@@ -215,11 +219,22 @@ func csrfConfig() csrf.Config {
 		),
 		IdleTimeout:           sessionIdleMinutes * time.Minute,
 		DisableValueRedaction: false,
-		CookieSecure:          false,
+		CookieSecure:          cookieSecure(cfg),
 		CookieHTTPOnly:        true,
 		CookieSessionOnly:     false,
 		SingleUseToken:        false,
 	}
+}
+
+// cookieSecure reports whether cookies should set the Secure attribute.
+//
+// Parameters:
+//   - cfg: App config. PublicURL is https for remote HTTPS deployments.
+//
+// Returns:
+//   - True when PublicURL uses https; false for local HTTP.
+func cookieSecure(cfg *config.Config) bool {
+	return strings.HasPrefix(strings.ToLower(cfg.PublicURL()), "https://")
 }
 
 // csrfError turns a CSRF failure into a Fiber error for PageError.

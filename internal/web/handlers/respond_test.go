@@ -48,6 +48,38 @@ func TestWriteErrorHTMXFlash(t *testing.T) {
 	assert.NotContains(t, string(body), `"error"`)
 }
 
+func TestWriteErrorHTMXFormUsesFlash(t *testing.T) {
+	t.Parallel()
+
+	app := fiber.New()
+	app.Post("/err", func(ctx fiber.Ctx) error {
+		return writeError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
+	})
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/err",
+		strings.NewReader("mediaId=42"),
+	)
+	req.Header.Set(fiber.HeaderContentType, formContentType)
+	req.Header.Set("Hx-Request", "true")
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
+	assert.Empty(t, resp.Header.Get("Location"))
+	assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
+	assert.Contains(t, string(body), `<hx-partial hx-target="#flash">`)
+	assert.Contains(t, string(body), "clip is not running")
+}
+
 func TestWriteErrorJSON(t *testing.T) {
 	t.Parallel()
 
