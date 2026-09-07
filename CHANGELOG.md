@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add clip list filters and stable sort by @nicholas-fedor in [#112](https://github.com/PapagoLabs/outtake/pull/112)
 - Add selectable ui color palettes by @nicholas-fedor in [#102](https://github.com/PapagoLabs/outtake/pull/102)
 - Add Outtake chart with optional S3 and Postgres backends by @nicholas-fedor in [#68](https://github.com/PapagoLabs/outtake/pull/68)
 - Add S3 and Postgres backends behind config by @nicholas-fedor in [#69](https://github.com/PapagoLabs/outtake/pull/69)
@@ -107,8 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New Contributors
 
-- @nicholas-fedor made their first contribution in [#110](https://github.com/PapagoLabs/outtake/pull/110)
-- @github-actions[bot] made their first contribution in [#109](https://github.com/PapagoLabs/outtake/pull/109)
+- @nicholas-fedor made their first contribution in [#112](https://github.com/PapagoLabs/outtake/pull/112)
+- @github-actions[bot] made their first contribution in [#111](https://github.com/PapagoLabs/outtake/pull/111)
 - @renovate[bot] made their first contribution in [#97](https://github.com/PapagoLabs/outtake/pull/97)
 
 ## Compare Releases
