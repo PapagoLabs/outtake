@@ -107,7 +107,7 @@ func Layout(props Props) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "><div class=\"flex min-h-screen\"><button type=\"button\" class=\"js-sidebar-open md:hidden fixed z-30 top-3 left-3 inline-flex size-9 items-center justify-center rounded-md border bg-card text-foreground shadow-xs\" aria-label=\"Open menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 5h16\"></path><path d=\"M4 12h16\"></path><path d=\"M4 19h16\"></path></svg></button><div class=\"js-sidebar-overlay hidden md:hidden fixed inset-0 z-40 bg-black/50\"></div><aside class=\"js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform\" hx-boost:inherited=\"true\" hx-target:inherited=\"#main-content\" hx-select:inherited=\"#main-content\" hx-swap:inherited=\"outerHTML scroll:window:top\"><div class=\"flex items-center justify-between gap-2 mb-4\"><a href=\"/\" class=\"flex items-center gap-2.5 text-sidebar-foreground\"><img src=\"/assets/brand/mascot-128.png\" width=\"32\" height=\"32\" alt=\"\" class=\"size-8\"><h1 class=\"text-xl font-bold\">Outtake</h1></a><div class=\"flex items-center gap-1\"><button type=\"button\" class=\"js-theme-toggle inline-flex size-8 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent\" aria-label=\"Toggle theme\"><svg class=\"js-theme-icon-dark size-4\" xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2\"></path><path d=\"M12 20v2\"></path><path d=\"m4.93 4.93 1.41 1.41\"></path><path d=\"m17.66 17.66 1.41 1.41\"></path><path d=\"M2 12h2\"></path><path d=\"M20 12h2\"></path><path d=\"m6.34 17.66-1.41 1.41\"></path><path d=\"m19.07 4.93-1.41 1.41\"></path></svg> <svg class=\"js-theme-icon-light size-4 hidden\" xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"></path></svg></button> <button type=\"button\" class=\"js-sidebar-close md:hidden inline-flex size-8 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent\" aria-label=\"Close menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path></svg></button></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "><div class=\"flex min-h-screen\"><button type=\"button\" class=\"js-sidebar-open md:hidden fixed z-30 top-3 left-3 inline-flex size-9 items-center justify-center rounded-md border bg-card text-foreground shadow-xs\" aria-label=\"Open menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 5h16\"></path><path d=\"M4 12h16\"></path><path d=\"M4 19h16\"></path></svg></button><div class=\"js-sidebar-overlay hidden md:hidden fixed inset-0 z-40 bg-black/50\"></div><aside class=\"js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform\" hx-boost:inherited=\"true\" hx-target:inherited=\"#main-content\" hx-swap:inherited=\"outerHTML scroll:window:top\"><div class=\"flex items-center justify-between gap-2 mb-4\"><a href=\"/\" hx-select=\"#main-content\" class=\"flex items-center gap-2.5 text-sidebar-foreground\"><img src=\"/assets/brand/mascot-128.png\" width=\"32\" height=\"32\" alt=\"\" class=\"size-8\"><h1 class=\"text-xl font-bold\">Outtake</h1></a><div class=\"flex items-center gap-1\"><button type=\"button\" class=\"js-theme-toggle inline-flex size-8 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent\" aria-label=\"Toggle theme\"><svg class=\"js-theme-icon-dark size-4\" xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"></circle><path d=\"M12 2v2\"></path><path d=\"M12 20v2\"></path><path d=\"m4.93 4.93 1.41 1.41\"></path><path d=\"m17.66 17.66 1.41 1.41\"></path><path d=\"M2 12h2\"></path><path d=\"M20 12h2\"></path><path d=\"m6.34 17.66-1.41 1.41\"></path><path d=\"m19.07 4.93-1.41 1.41\"></path></svg> <svg class=\"js-theme-icon-light size-4 hidden\" xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"></path></svg></button> <button type=\"button\" class=\"js-sidebar-close md:hidden inline-flex size-8 items-center justify-center rounded-md text-sidebar-foreground hover:bg-sidebar-accent\" aria-label=\"Close menu\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"></path><path d=\"m6 6 12 12\"></path></svg></button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -119,7 +119,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/\" data-nav=\"dashboard\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/\" hx-select=\"#main-content\" data-nav=\"dashboard\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -144,7 +144,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a href=\"/media\" data-nav=\"media\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<a href=\"/media\" hx-select=\"#main-content\" data-nav=\"media\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -169,7 +169,7 @@ func Layout(props Props) templ.Component {
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("/nav/libraries?library=" + props.Library)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 97, Col: 58}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 98, Col: 58}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 			if templ_7745c5c3_Err != nil {
@@ -185,7 +185,7 @@ func Layout(props Props) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " hx-trigger=\"load\" hx-target=\"this\" hx-select=\"unset\" hx-swap=\"innerHTML\"></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " hx-trigger=\"load\" hx-target=\"this\" hx-swap=\"innerHTML\"></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -197,7 +197,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<a href=\"/clips\" data-nav=\"clips\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<a href=\"/clips\" hx-select=\"#main-content\" data-nav=\"clips\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -222,7 +222,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<a href=\"/servers\" data-nav=\"servers\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<a href=\"/servers\" hx-select=\"#main-content\" data-nav=\"servers\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -247,7 +247,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<a href=\"/settings/profiles\" data-nav=\"profiles\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<a href=\"/settings/profiles\" hx-select=\"#main-content\" data-nav=\"profiles\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -272,7 +272,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<a href=\"/settings/appearance\" data-nav=\"appearance\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<a href=\"/settings/appearance\" hx-select=\"#main-content\" data-nav=\"appearance\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -300,7 +300,7 @@ func Layout(props Props) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Active)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 165, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 169, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -313,7 +313,7 @@ func Layout(props Props) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Library)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 166, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 170, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {

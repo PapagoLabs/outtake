@@ -25,7 +25,8 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	body := buf.String()
 	assert.Contains(t, body, `hx-boost:inherited="true"`)
 	assert.Contains(t, body, `hx-target:inherited="#main-content"`)
-	assert.Contains(t, body, `hx-select:inherited="#main-content"`)
+	assert.NotContains(t, body, `hx-select:inherited`)
+	assert.Contains(t, body, `hx-select="#main-content"`)
 	assert.Contains(t, body, `hx-swap:inherited="outerHTML scroll:window:top"`)
 	assert.Contains(t, body, `hx-headers:inherited`)
 	assert.Contains(t, body, "X-Csrf-Token")
@@ -38,5 +39,5 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	assert.Contains(t, body, `data-nav="clips"`)
 	assert.Regexp(t, `href="/api/auth/logout"[^>]*hx-boost="false"`, body)
 	assert.Regexp(t, `id="nav-libraries"[^>]*hx-target="this"`, body)
-	assert.Regexp(t, `id="nav-libraries"[^>]*hx-select="unset"`, body)
+	assert.NotRegexp(t, `id="nav-libraries"[^>]*hx-select`, body)
 }

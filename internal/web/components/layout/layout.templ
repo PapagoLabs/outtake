@@ -51,11 +51,10 @@ templ Layout(props Props) {
 					class="js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform"
 					hx-boost:inherited="true"
 					hx-target:inherited="#main-content"
-					hx-select:inherited="#main-content"
 					hx-swap:inherited="outerHTML scroll:window:top"
 				>
 					<div class="flex items-center justify-between gap-2 mb-4">
-						<a href="/" class="flex items-center gap-2.5 text-sidebar-foreground">
+						<a href="/" hx-select="#main-content" class="flex items-center gap-2.5 text-sidebar-foreground">
 							<img src="/assets/brand/mascot-128.png" width="32" height="32" alt="" class="size-8"/>
 							<h1 class="text-xl font-bold">Outtake</h1>
 						</a>
@@ -71,6 +70,7 @@ templ Layout(props Props) {
 					</div>
 					<a
 						href="/"
+						hx-select="#main-content"
 						data-nav="dashboard"
 						class={ utils.TwMerge(
 							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
@@ -82,6 +82,7 @@ templ Layout(props Props) {
 					<div class="flex flex-col gap-1">
 						<a
 							href="/media"
+							hx-select="#main-content"
 							data-nav="media"
 							class={ utils.TwMerge(
 								"px-3 py-2 rounded-md text-sm font-medium transition-colors",
@@ -100,12 +101,12 @@ templ Layout(props Props) {
 							}
 							hx-trigger="load"
 							hx-target="this"
-							hx-select="unset"
 							hx-swap="innerHTML"
 						></div>
 					</div>
 					<a
 						href="/clips"
+						hx-select="#main-content"
 						data-nav="clips"
 						class={ utils.TwMerge(
 							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
@@ -119,6 +120,7 @@ templ Layout(props Props) {
 						<div class="flex flex-col gap-1 pl-2">
 							<a
 								href="/servers"
+								hx-select="#main-content"
 								data-nav="servers"
 								class={ utils.TwMerge(
 									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
@@ -129,6 +131,7 @@ templ Layout(props Props) {
 							</a>
 							<a
 								href="/settings/profiles"
+								hx-select="#main-content"
 								data-nav="profiles"
 								class={ utils.TwMerge(
 									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
@@ -139,6 +142,7 @@ templ Layout(props Props) {
 							</a>
 							<a
 								href="/settings/appearance"
+								hx-select="#main-content"
 								data-nav="appearance"
 								class={ utils.TwMerge(
 									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
