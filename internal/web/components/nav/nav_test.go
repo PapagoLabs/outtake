@@ -29,4 +29,8 @@ func TestNavLibrariesHighlightsSelected(t *testing.T) {
 	body := buf.String()
 	assert.Regexp(t, `href="/media\?library=2"[^>]*bg-sidebar-primary`, body)
 	assert.NotRegexp(t, `href="/media\?library=1"[^>]*bg-sidebar-primary`, body)
+	assert.Contains(t, body, `data-nav-library="1"`)
+	assert.Contains(t, body, `data-nav-library="2"`)
+	assert.Contains(t, body, `hx-target="#main-content"`)
+	assert.Contains(t, body, `hx-select="#main-content"`)
 }

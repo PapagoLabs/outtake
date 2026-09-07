@@ -40,7 +40,13 @@ templ Layout(props Props) {
 					<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16"></path><path d="M4 12h16"></path><path d="M4 19h16"></path></svg>
 				</button>
 				<div class="js-sidebar-overlay hidden md:hidden fixed inset-0 z-40 bg-black/50"></div>
-				<aside class="js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform">
+				<aside
+					class="js-sidebar fixed md:static inset-y-0 left-0 z-50 w-64 -translate-x-full md:translate-x-0 border-r border-sidebar-border bg-sidebar p-4 flex flex-col gap-2 transition-transform"
+					hx-boost="true"
+					hx-target="#main-content"
+					hx-select="#main-content"
+					hx-swap="outerHTML show:window:top"
+				>
 					<div class="flex items-center justify-between gap-2 mb-4">
 						<a href="/" class="flex items-center gap-2.5 text-sidebar-foreground">
 							<img src="/assets/brand/mascot-128.png" width="32" height="32" alt="" class="size-8"/>
@@ -58,6 +64,7 @@ templ Layout(props Props) {
 					</div>
 					<a
 						href="/"
+						data-nav="dashboard"
 						class={ utils.TwMerge(
 							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
 							utils.IfElse(props.Active == "dashboard", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -68,6 +75,7 @@ templ Layout(props Props) {
 					<div class="flex flex-col gap-1">
 						<a
 							href="/media"
+							data-nav="media"
 							class={ utils.TwMerge(
 								"px-3 py-2 rounded-md text-sm font-medium transition-colors",
 								utils.IfElse(props.Active == "media", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -84,11 +92,14 @@ templ Layout(props Props) {
 								hx-get="/nav/libraries"
 							}
 							hx-trigger="load"
+							hx-target="this"
+							hx-select="unset"
 							hx-swap="innerHTML"
 						></div>
 					</div>
 					<a
 						href="/clips"
+						data-nav="clips"
 						class={ utils.TwMerge(
 							"px-3 py-2 rounded-md text-sm font-medium transition-colors",
 							utils.IfElse(props.Active == "clips", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -101,6 +112,7 @@ templ Layout(props Props) {
 						<div class="flex flex-col gap-1 pl-2">
 							<a
 								href="/servers"
+								data-nav="servers"
 								class={ utils.TwMerge(
 									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
 									utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -110,6 +122,7 @@ templ Layout(props Props) {
 							</a>
 							<a
 								href="/settings/profiles"
+								data-nav="profiles"
 								class={ utils.TwMerge(
 									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
 									utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -119,6 +132,7 @@ templ Layout(props Props) {
 							</a>
 							<a
 								href="/settings/appearance"
+								data-nav="appearance"
 								class={ utils.TwMerge(
 									"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
 									utils.IfElse(props.Active == "appearance", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -131,12 +145,18 @@ templ Layout(props Props) {
 					@separator.Separator()
 					<a
 						href="/api/auth/logout"
+						hx-boost="false"
 						class="px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-destructive hover:text-white transition-colors mt-auto"
 					>
 						Logout
 					</a>
 				</aside>
-				<main class="flex-1 p-8 pt-16 md:pt-8 overflow-auto">
+				<main
+					id="main-content"
+					class="flex-1 p-8 pt-16 md:pt-8 overflow-auto"
+					data-nav={ props.Active }
+					data-library={ props.Library }
+				>
 					{ children... }
 				</main>
 			</div>

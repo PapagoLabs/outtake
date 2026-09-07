@@ -60,6 +60,30 @@
 		}
 	}
 
+	var navOn = ['bg-sidebar-primary', 'text-sidebar-primary-foreground'];
+	var navOff = ['text-sidebar-foreground', 'hover:bg-sidebar-accent', 'hover:text-sidebar-accent-foreground'];
+
+	function setNavActive(el, on) {
+		navOn.forEach(function (cls) {
+			el.classList.toggle(cls, on);
+		});
+		navOff.forEach(function (cls) {
+			el.classList.toggle(cls, !on);
+		});
+	}
+
+	function syncNav() {
+		var main = document.getElementById('main-content');
+		var active = (main && main.getAttribute('data-nav')) || '';
+		var library = (main && main.getAttribute('data-library')) || '';
+		document.querySelectorAll('.js-sidebar [data-nav]').forEach(function (el) {
+			setNavActive(el, active !== '' && el.getAttribute('data-nav') === active);
+		});
+		document.querySelectorAll('.js-sidebar [data-nav-library]').forEach(function (el) {
+			setNavActive(el, library !== '' && el.getAttribute('data-nav-library') === library);
+		});
+	}
+
 	function applyExportForm(form) {
 		var select = form.querySelector('[name="clipType"]');
 		var type = select ? select.value : 'clip';
@@ -133,9 +157,18 @@
 		}
 	});
 
-	document.addEventListener('htmx:afterSwap', bindExportForms);
+	document.addEventListener('htmx:afterSwap', function (event) {
+		bindExportForms();
+		syncPaletteButtons();
+		syncNav();
+		var target = event.detail && event.detail.target;
+		if (target && target.id === 'main-content') {
+			closeSidebar();
+		}
+	});
 
 	syncThemeIcons();
 	syncPaletteButtons();
+	syncNav();
 	bindExportForms();
 })();

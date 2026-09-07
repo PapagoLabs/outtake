@@ -4,6 +4,9 @@
 package handlers
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -12,6 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
@@ -144,6 +149,53 @@ func TestSelectedLibraryID(t *testing.T) {
 	for _, test := range tests {
 		assert.Equal(t, test.want, selectedLibraryID(test.giveCurrent, test.giveQuery))
 	}
+}
+
+func TestWantsMediaResults(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		giveTarget string
+		want       string
+	}{
+		{giveTarget: "", want: "page"},
+		{giveTarget: "main-content", want: "page"},
+		{giveTarget: "media-results", want: "fragment"},
+	}
+
+	for _, test := range tests {
+		assert.Equal(t, test.want, mediaResultsKind(t, test.giveTarget))
+	}
+}
+
+func mediaResultsKind(t *testing.T, hxTarget string) string {
+	t.Helper()
+
+	app := fiber.New()
+	app.Get("/media", func(ctx fiber.Ctx) error {
+		if wantsMediaResults(ctx) {
+			return ctx.SendString("fragment")
+		}
+
+		return ctx.SendString("page")
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media", nil)
+	req.Header.Set("Hx-Request", "true")
+
+	if hxTarget != "" {
+		req.Header.Set("Hx-Target", hxTarget)
+	}
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return string(body)
 }
 
 func TestMediaItemError(t *testing.T) {
