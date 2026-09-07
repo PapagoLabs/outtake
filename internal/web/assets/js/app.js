@@ -89,19 +89,96 @@
 		var type = select ? select.value : 'clip';
 		form.querySelectorAll('[data-export-for]').forEach(function (el) {
 			var allowed = el.getAttribute('data-export-for').split(',');
-			el.classList.toggle('hidden', allowed.indexOf(type) === -1);
+			var hide = allowed.indexOf(type) === -1;
+			el.classList.toggle('hidden', hide);
+			el.toggleAttribute('hidden', hide);
 		});
+	}
+
+	function pad2(n) {
+		return String(n).padStart(2, '0');
+	}
+
+	function formatTimecode(sec) {
+		if (!isFinite(sec) || sec < 0) {
+			sec = 0;
+		}
+		var ms = Math.round(sec * 1000);
+		var whole = Math.floor(ms / 1000);
+		var frac = ms % 1000;
+		var h = Math.floor(whole / 3600);
+		var m = Math.floor((whole % 3600) / 60);
+		var s = whole % 60;
+		return pad2(h) + ':' + pad2(m) + ':' + pad2(s) + '.' + String(frac).padStart(3, '0');
+	}
+
+	function parseTimecode(value) {
+		var parts = String(value).trim().split(':');
+		if (parts.length === 1) {
+			return parseFloat(parts[0]) || 0;
+		}
+		if (parts.length === 2) {
+			return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0);
+		}
+		return (parseInt(parts[0], 10) || 0) * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseFloat(parts[2]) || 0);
+	}
+
+	function formControl(form, name) {
+		return form.querySelector('[name="' + name + '"]');
+	}
+
+	function syncExportDuration(form) {
+		var startEl = formControl(form, 'startTime');
+		var endEl = formControl(form, 'endTime');
+		var durEl = formControl(form, 'duration');
+		if (!startEl || !endEl || !durEl) {
+			return;
+		}
+		var maxDur = parseInt(form.getAttribute('data-max-dur'), 10) || 600;
+		var start = parseTimecode(startEl.value);
+		var end = parseTimecode(endEl.value);
+		var dur = Math.max(0, end - start);
+		var warning = form.querySelector('[data-duration-warning]');
+		if (dur > maxDur) {
+			dur = maxDur;
+			if (warning) {
+				warning.classList.remove('hidden');
+			}
+		} else if (warning) {
+			warning.classList.add('hidden');
+		}
+		durEl.value = dur.toFixed(3);
+		var label = form.querySelector('[data-duration-label]');
+		if (label) {
+			label.textContent = formatTimecode(dur);
+		}
 	}
 
 	function bindExportForms() {
 		document.querySelectorAll('[data-export-form]').forEach(function (form) {
 			applyExportForm(form);
+			syncExportDuration(form);
 			var select = form.querySelector('[name="clipType"]');
 			if (select && !select.dataset.exportBound) {
 				select.dataset.exportBound = '1';
 				select.addEventListener('change', function () {
 					applyExportForm(form);
 				});
+			}
+			if (!form.dataset.durationBound) {
+				form.dataset.durationBound = '1';
+				var startEl = formControl(form, 'startTime');
+				var endEl = formControl(form, 'endTime');
+				if (startEl) {
+					startEl.addEventListener('input', function () {
+						syncExportDuration(form);
+					});
+				}
+				if (endEl) {
+					endEl.addEventListener('input', function () {
+						syncExportDuration(form);
+					});
+				}
 			}
 		});
 	}

@@ -95,11 +95,21 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				}
 				@card.Content() {
-					<form id="clip-form" class="flex flex-col gap-4" data-export-form>
+					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(props.MaxDur) }>
 						@csrf.Field()
 						<input type="hidden" name="mediaId" value={ props.ID }/>
 						<input type="hidden" name="mediaTitle" value={ props.Title }/>
 						<input type="hidden" name="mediaType" value={ props.Type }/>
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "clipType"}) {
+								Export as
+							}
+							<select id="clipType" name="clipType" class={ utils.ControlClass }>
+								<option value="clip">Video clip</option>
+								<option value="gif">GIF</option>
+								<option value="screenshot">Screenshot</option>
+							</select>
+						</div>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "name"}) {
 								Clip name
@@ -108,9 +118,18 @@ templ MediaItemPage(props MediaItemPageProps) {
 						</div>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2">
-								@label.Label(label.Props{For: "startTime"}) {
-									Start
-								}
+								<div class="grid">
+									<div class="col-start-1 row-start-1 flex" data-export-for="clip,gif">
+										@label.Label(label.Props{For: "startTime"}) {
+											Start
+										}
+									</div>
+									<div class="col-start-1 row-start-1 flex" data-export-for="screenshot">
+										@label.Label(label.Props{For: "startTime"}) {
+											Time
+										}
+									</div>
+								</div>
 								<input id="startTime" name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.StartTime).String() } class={ utils.ControlClass }/>
 							</div>
 							<div class="flex flex-col gap-2" data-export-for="clip,gif">
@@ -121,18 +140,8 @@ templ MediaItemPage(props MediaItemPageProps) {
 							</div>
 						</div>
 						<input type="hidden" id="duration" name="duration" value="10"/>
-						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).String() }</span> (max { media.FromSeconds(float64(props.MaxDur)).String() }) <span id="duration-warning" class="hidden text-destructive">Clamped to the maximum duration.</span></p>
+						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).String() }</span> (max { media.FromSeconds(float64(props.MaxDur)).String() }) <span data-duration-warning id="duration-warning" class="hidden text-destructive">Clamped to the maximum duration.</span></p>
 						<div class="grid gap-4 sm:grid-cols-2">
-							<div class="flex flex-col gap-2">
-								@label.Label(label.Props{For: "clipType"}) {
-									Export as
-								}
-								<select id="clipType" name="clipType" class={ utils.ControlClass }>
-									<option value="clip">Video clip</option>
-									<option value="gif">GIF</option>
-									<option value="screenshot">Screenshot</option>
-								</select>
-							</div>
 							<div class="flex flex-col gap-2" data-export-for="clip">
 								@label.Label(label.Props{For: "quality"}) {
 									Profile
@@ -160,9 +169,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 								<input id="fps" name="fps" type="number" min="5" max="30" value="10" class={ utils.ControlClass }/>
 							</div>
 						</div>
-						<div data-export-for="clip">
-							@clip.CropBlackBarsField(props.CropBlackBars)
-						</div>
+						@clip.CropBlackBarsField(props.CropBlackBars)
 						<div class="flex gap-3">
 							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="js-export-submit inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
 								Preview
@@ -180,7 +187,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					<p class="text-sm text-muted-foreground">No clips yet.</p>
 				}
 				for _, item := range props.Clips {
-					@clip.EditCard(item, props.MaxDur)
+					@clip.ClipCard(item)
 				}
 			</div>
 		</div>

@@ -74,6 +74,25 @@ func TestClipItemIsActive(t *testing.T) {
 	}
 }
 
+func TestClipItemEndTime(t *testing.T) {
+	t.Parallel()
+
+	item := ClipItem{StartTime: 1.5, Duration: 4.25}
+	assert.InDelta(t, 5.75, item.EndTime(), 0.001)
+}
+
+func TestClipItemGIFDefaults(t *testing.T) {
+	t.Parallel()
+
+	unset := ClipItem{}
+	assert.Equal(t, 480, unset.GIFWidth())
+	assert.Equal(t, 10, unset.GIFFPS())
+
+	set := ClipItem{Width: 640, FPS: 12}
+	assert.Equal(t, 640, set.GIFWidth())
+	assert.Equal(t, 12, set.GIFFPS())
+}
+
 func TestClipItemCanPlay(t *testing.T) {
 	t.Parallel()
 

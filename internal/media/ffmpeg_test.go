@@ -38,7 +38,16 @@ func TestExecFFmpeg_ExtractGIF_MissingInput(t *testing.T) {
 	t.Parallel()
 
 	ff := NewExecFFmpeg("ffmpeg", "ffprobe")
-	err := ff.ExtractGIF(t.Context(), "/nonexistent/input.mp4", "/tmp/output.gif", 0, 5, 480, 10)
+	err := ff.ExtractGIF(
+		t.Context(),
+		"/nonexistent/input.mp4",
+		"/tmp/output.gif",
+		0,
+		5,
+		480,
+		10,
+		CropRect{},
+	)
 	assert.Error(t, err)
 }
 
@@ -46,7 +55,13 @@ func TestExecFFmpeg_ExtractScreenshot_MissingInput(t *testing.T) {
 	t.Parallel()
 
 	ff := NewExecFFmpeg("ffmpeg", "ffprobe")
-	err := ff.ExtractScreenshot(t.Context(), "/nonexistent/input.mp4", "/tmp/screenshot.jpg", 100)
+	err := ff.ExtractScreenshot(
+		t.Context(),
+		"/nonexistent/input.mp4",
+		"/tmp/screenshot.jpg",
+		100,
+		CropRect{},
+	)
 	assert.Error(t, err)
 }
 

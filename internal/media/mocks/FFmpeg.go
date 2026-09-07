@@ -213,16 +213,16 @@ func (_c *MockFFmpeg_ExtractClip_Call) RunAndReturn(run func(ctx context.Context
 }
 
 // ExtractGIF provides a mock function for the type MockFFmpeg
-func (_mock *MockFFmpeg) ExtractGIF(ctx context.Context, input string, output string, start float64, duration float64, width int, fps int) error {
-	ret := _mock.Called(ctx, input, output, start, duration, width, fps)
+func (_mock *MockFFmpeg) ExtractGIF(ctx context.Context, input string, output string, start float64, duration float64, width int, fps int, crop media.CropRect) error {
+	ret := _mock.Called(ctx, input, output, start, duration, width, fps, crop)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExtractGIF")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, float64, float64, int, int) error); ok {
-		r0 = returnFunc(ctx, input, output, start, duration, width, fps)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, float64, float64, int, int, media.CropRect) error); ok {
+		r0 = returnFunc(ctx, input, output, start, duration, width, fps, crop)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -242,11 +242,12 @@ type MockFFmpeg_ExtractGIF_Call struct {
 //   - duration float64
 //   - width int
 //   - fps int
-func (_e *MockFFmpeg_Expecter) ExtractGIF(ctx any, input any, output any, start any, duration any, width any, fps any) *MockFFmpeg_ExtractGIF_Call {
-	return &MockFFmpeg_ExtractGIF_Call{Call: _e.mock.On("ExtractGIF", ctx, input, output, start, duration, width, fps)}
+//   - crop media.CropRect
+func (_e *MockFFmpeg_Expecter) ExtractGIF(ctx any, input any, output any, start any, duration any, width any, fps any, crop any) *MockFFmpeg_ExtractGIF_Call {
+	return &MockFFmpeg_ExtractGIF_Call{Call: _e.mock.On("ExtractGIF", ctx, input, output, start, duration, width, fps, crop)}
 }
 
-func (_c *MockFFmpeg_ExtractGIF_Call) Run(run func(ctx context.Context, input string, output string, start float64, duration float64, width int, fps int)) *MockFFmpeg_ExtractGIF_Call {
+func (_c *MockFFmpeg_ExtractGIF_Call) Run(run func(ctx context.Context, input string, output string, start float64, duration float64, width int, fps int, crop media.CropRect)) *MockFFmpeg_ExtractGIF_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -276,6 +277,10 @@ func (_c *MockFFmpeg_ExtractGIF_Call) Run(run func(ctx context.Context, input st
 		if args[6] != nil {
 			arg6 = args[6].(int)
 		}
+		var arg7 media.CropRect
+		if args[7] != nil {
+			arg7 = args[7].(media.CropRect)
+		}
 		run(
 			arg0,
 			arg1,
@@ -284,6 +289,7 @@ func (_c *MockFFmpeg_ExtractGIF_Call) Run(run func(ctx context.Context, input st
 			arg4,
 			arg5,
 			arg6,
+			arg7,
 		)
 	})
 	return _c
@@ -294,7 +300,7 @@ func (_c *MockFFmpeg_ExtractGIF_Call) Return(err error) *MockFFmpeg_ExtractGIF_C
 	return _c
 }
 
-func (_c *MockFFmpeg_ExtractGIF_Call) RunAndReturn(run func(ctx context.Context, input string, output string, start float64, duration float64, width int, fps int) error) *MockFFmpeg_ExtractGIF_Call {
+func (_c *MockFFmpeg_ExtractGIF_Call) RunAndReturn(run func(ctx context.Context, input string, output string, start float64, duration float64, width int, fps int, crop media.CropRect) error) *MockFFmpeg_ExtractGIF_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -387,16 +393,16 @@ func (_c *MockFFmpeg_ExtractPreview_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // ExtractScreenshot provides a mock function for the type MockFFmpeg
-func (_mock *MockFFmpeg) ExtractScreenshot(ctx context.Context, input string, output string, timestamp float64) error {
-	ret := _mock.Called(ctx, input, output, timestamp)
+func (_mock *MockFFmpeg) ExtractScreenshot(ctx context.Context, input string, output string, timestamp float64, crop media.CropRect) error {
+	ret := _mock.Called(ctx, input, output, timestamp, crop)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExtractScreenshot")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, float64) error); ok {
-		r0 = returnFunc(ctx, input, output, timestamp)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, float64, media.CropRect) error); ok {
+		r0 = returnFunc(ctx, input, output, timestamp, crop)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -413,11 +419,12 @@ type MockFFmpeg_ExtractScreenshot_Call struct {
 //   - input string
 //   - output string
 //   - timestamp float64
-func (_e *MockFFmpeg_Expecter) ExtractScreenshot(ctx any, input any, output any, timestamp any) *MockFFmpeg_ExtractScreenshot_Call {
-	return &MockFFmpeg_ExtractScreenshot_Call{Call: _e.mock.On("ExtractScreenshot", ctx, input, output, timestamp)}
+//   - crop media.CropRect
+func (_e *MockFFmpeg_Expecter) ExtractScreenshot(ctx any, input any, output any, timestamp any, crop any) *MockFFmpeg_ExtractScreenshot_Call {
+	return &MockFFmpeg_ExtractScreenshot_Call{Call: _e.mock.On("ExtractScreenshot", ctx, input, output, timestamp, crop)}
 }
 
-func (_c *MockFFmpeg_ExtractScreenshot_Call) Run(run func(ctx context.Context, input string, output string, timestamp float64)) *MockFFmpeg_ExtractScreenshot_Call {
+func (_c *MockFFmpeg_ExtractScreenshot_Call) Run(run func(ctx context.Context, input string, output string, timestamp float64, crop media.CropRect)) *MockFFmpeg_ExtractScreenshot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -435,11 +442,16 @@ func (_c *MockFFmpeg_ExtractScreenshot_Call) Run(run func(ctx context.Context, i
 		if args[3] != nil {
 			arg3 = args[3].(float64)
 		}
+		var arg4 media.CropRect
+		if args[4] != nil {
+			arg4 = args[4].(media.CropRect)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -450,7 +462,7 @@ func (_c *MockFFmpeg_ExtractScreenshot_Call) Return(err error) *MockFFmpeg_Extra
 	return _c
 }
 
-func (_c *MockFFmpeg_ExtractScreenshot_Call) RunAndReturn(run func(ctx context.Context, input string, output string, timestamp float64) error) *MockFFmpeg_ExtractScreenshot_Call {
+func (_c *MockFFmpeg_ExtractScreenshot_Call) RunAndReturn(run func(ctx context.Context, input string, output string, timestamp float64, crop media.CropRect) error) *MockFFmpeg_ExtractScreenshot_Call {
 	_c.Call.Return(run)
 	return _c
 }

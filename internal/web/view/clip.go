@@ -22,6 +22,9 @@ type ClipItem struct {
 	AudioIndex    int
 	AudioTracks   []AudioTrackOption
 	CropBlackBars bool
+	Width         int
+	FPS           int
+	MaxDur        int
 	Error         string
 }
 
@@ -50,6 +53,13 @@ const (
 	// ClipStatusCancelled is a clip stopped by the user.
 	// The persisted job status literal is "canceled".
 	ClipStatusCancelled = "canceled"
+)
+
+const (
+	// DefaultGIFWidth is the New export GIF width when a clip has none stored.
+	defaultGIFWidth = 480
+	// DefaultGIFFPS is the New export GIF frame rate when a clip has none stored.
+	defaultGIFFPS = 10
 )
 
 // ClipTypeLabel is the user-facing name for a clip type.
@@ -82,6 +92,38 @@ func (item *ClipItem) DisplayName() string {
 	}
 
 	return item.MediaTitle
+}
+
+// EndTime is the clip end as start plus duration.
+//
+// Returns:
+//   - end: StartTime + Duration in seconds.
+func (item *ClipItem) EndTime() float64 {
+	return item.StartTime + item.Duration
+}
+
+// GIFFPS is the GIF frame rate, or the New export default when unset.
+//
+// Returns:
+//   - fps: Stored fps, or 10 when FPS is 0.
+func (item *ClipItem) GIFFPS() int {
+	if item.FPS > 0 {
+		return item.FPS
+	}
+
+	return defaultGIFFPS
+}
+
+// GIFWidth is the GIF export width, or the New export default when unset.
+//
+// Returns:
+//   - width: Stored width, or 480 when Width is 0.
+func (item *ClipItem) GIFWidth() int {
+	if item.Width > 0 {
+		return item.Width
+	}
+
+	return defaultGIFWidth
 }
 
 // IsActive reports whether the clip is still queued or encoding.
