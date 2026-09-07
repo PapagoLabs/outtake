@@ -172,17 +172,41 @@ func (*HTMLHandler) Login(ctx fiber.Ctx) error {
 //   - err: Non-nil when rendering fails.
 func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 	query := parseMediaListQuery(ctx)
+	props := mediaPageProps(handler, ctx, query)
 
+	err := renderMediaPage(ctx, &props)
+	if err != nil {
+		return fmt.Errorf("render media: %w", err)
+	}
+
+	return nil
+}
+
+// mediaPageProps builds library browse props for the current request.
+//
+// Parameters:
+//   - handler: HTML handler with Plex access.
+//   - ctx: Request with library browse query.
+//   - query: Normalized browse state.
+//
+// Returns:
+//   - props: Media library page model.
+func mediaPageProps(
+	handler *HTMLHandler,
+	ctx fiber.Ctx,
+	query mediaListQuery,
+) view.MediaProps {
 	var letters []plex.LetterIndex
 
 	if !wantsMediaMore(ctx) && !wantsMediaPrev(ctx) {
 		letters = handler.mediaLetters(ctx, query)
 	}
 
-	start, size := query.window(letters)
+	window := query.window(letters)
 	_, _, hasServer := handler.plexPair()
-	items, libraries, total := handler.mediaContent(ctx, query, start, size)
-	props := view.MediaProps{
+	items, libraries, total := handler.mediaContent(ctx, query, window.Start, window.Size)
+
+	return view.MediaProps{
 		Items:     items,
 		Libraries: chooserLibraries(libraries, query.Query, query.LibraryID),
 		Crumbs: mediaCrumbs(
@@ -201,33 +225,40 @@ func (handler *HTMLHandler) Media(ctx fiber.Ctx) error {
 		UpTitle:     ctx.Query(queryUpTitle),
 		Sort:        query.Sort,
 		Letter:      query.Letter,
-		Start:       start,
+		Start:       window.Start,
 		Total:       total,
 		PageSize:    mediaPageSize,
 		HasServer:   hasServer,
 	}
+}
 
-	if wantsMediaPrev(ctx) {
+// renderMediaPage writes the media library page or an HTMX fragment.
+//
+// Parameters:
+//   - ctx: Request with an optional HX-Target.
+//   - props: Media library page model.
+//
+// Returns:
+//   - err: Non-nil when rendering fails.
+func renderMediaPage(ctx fiber.Ctx, props *view.MediaProps) error {
+	switch {
+	case wantsMediaPrev(ctx):
 		return renderHTML(ctx, func(writer io.Writer) error {
-			return browse.MediaPrev(props).Render(ctx.Context(), writer)
+			return browse.MediaPrev(*props).Render(ctx.Context(), writer)
+		})
+	case wantsMediaMore(ctx):
+		return renderHTML(ctx, func(writer io.Writer) error {
+			return browse.MediaMore(*props).Render(ctx.Context(), writer)
+		})
+	case wantsMediaResults(ctx):
+		return renderHTML(ctx, func(writer io.Writer) error {
+			return browse.MediaBrowse(*props).Render(ctx.Context(), writer)
+		})
+	default:
+		return renderHTML(ctx, func(writer io.Writer) error {
+			return pages.Media(*props).Render(ctx.Context(), writer)
 		})
 	}
-
-	if wantsMediaMore(ctx) {
-		return renderHTML(ctx, func(writer io.Writer) error {
-			return browse.MediaMore(props).Render(ctx.Context(), writer)
-		})
-	}
-
-	if wantsMediaResults(ctx) {
-		return renderHTML(ctx, func(writer io.Writer) error {
-			return browse.MediaBrowse(props).Render(ctx.Context(), writer)
-		})
-	}
-
-	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.Media(props).Render(ctx.Context(), writer)
-	})
 }
 
 // MediaItem renders a single media item with a player and its clips.
@@ -731,15 +762,29 @@ func (handler *HTMLHandler) mediaLetters(
 		return nil
 	}
 
-	items := collectAddedAtItems(ctx.Context(), plexClient, server, query.LibraryID, query.Sort)
-
 	switch query.Sort {
 	case mediaSortAddedDesc, mediaSortAddedAsc:
-		return addedAtIndexes(items)
+		return addedAtIndexes(
+			collectAddedAtItems(ctx.Context(), plexClient, server, query.LibraryID, query.Sort),
+		)
 	case mediaSortYearDesc, mediaSortYearAsc:
-		return yearIndexes(items)
+		index, err := plexClient.GetYears(ctx.Context(), server, query.LibraryID)
+		if err != nil {
+			log.Warn().Err(err).Msg("list years failed")
+
+			return nil
+		}
+
+		return orderJumpIndex(index, query.Sort)
 	default:
-		return titleIndexes(items)
+		index, err := plexClient.GetFirstCharacters(ctx.Context(), server, query.LibraryID)
+		if err != nil {
+			log.Warn().Err(err).Msg("list first characters failed")
+
+			return nil
+		}
+
+		return orderJumpIndex(index, query.Sort)
 	}
 }
 

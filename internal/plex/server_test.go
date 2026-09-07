@@ -39,6 +39,29 @@ func extractAddrPort(t *testing.T, server *httptest.Server) (string, int) {
 	return parts[0], port
 }
 
+func testPMSClient(t *testing.T, ts *httptest.Server) (*Client, Server) {
+	t.Helper()
+
+	host, port := extractAddrPort(t, ts)
+	client := NewClient(ClientConfig{
+		Product:  productName,
+		ClientID: testServerClient,
+		Token:    testSrvToken,
+		Timeout:  5 * time.Second,
+		BaseURL:  "",
+	})
+	server := Server{
+		Name:    testServerName,
+		Address: host,
+		Port:    port,
+		Token:   testSrvToken,
+		Scheme:  httpScheme,
+		Local:   false,
+	}
+
+	return client, server
+}
+
 func TestGetLibraries(t *testing.T) {
 	t.Parallel()
 
@@ -144,22 +167,7 @@ func TestGetMediaPageSendsContainerQuery(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	host, port := extractAddrPort(t, ts)
-	c := NewClient(ClientConfig{
-		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
-		Timeout:  5 * time.Second,
-		BaseURL:  "",
-	})
-	server := Server{
-		Name:    testServerName,
-		Address: host,
-		Port:    port,
-		Token:   testSrvToken,
-		Scheme:  httpScheme,
-		Local:   false,
-	}
+	c, server := testPMSClient(t, ts)
 
 	page, err := c.GetMediaPage(t.Context(), server, "1", 48, 48, "")
 	require.NoError(t, err)
@@ -183,22 +191,7 @@ func TestGetMediaPageSendsSort(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	host, port := extractAddrPort(t, ts)
-	c := NewClient(ClientConfig{
-		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
-		Timeout:  5 * time.Second,
-		BaseURL:  "",
-	})
-	server := Server{
-		Name:    testServerName,
-		Address: host,
-		Port:    port,
-		Token:   testSrvToken,
-		Scheme:  httpScheme,
-		Local:   false,
-	}
+	c, server := testPMSClient(t, ts)
 
 	_, err := c.GetMediaPage(t.Context(), server, "1", 0, 48, "titleSort:asc")
 	require.NoError(t, err)
@@ -259,22 +252,7 @@ func TestGetFirstCharacters(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	host, port := extractAddrPort(t, ts)
-	c := NewClient(ClientConfig{
-		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
-		Timeout:  5 * time.Second,
-		BaseURL:  "",
-	})
-	server := Server{
-		Name:    testServerName,
-		Address: host,
-		Port:    port,
-		Token:   testSrvToken,
-		Scheme:  httpScheme,
-		Local:   false,
-	}
+	c, server := testPMSClient(t, ts)
 
 	index, err := c.GetFirstCharacters(t.Context(), server, "1")
 	require.NoError(t, err)
@@ -299,22 +277,7 @@ func TestGetYears(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	host, port := extractAddrPort(t, ts)
-	c := NewClient(ClientConfig{
-		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
-		Timeout:  5 * time.Second,
-		BaseURL:  "",
-	})
-	server := Server{
-		Name:    testServerName,
-		Address: host,
-		Port:    port,
-		Token:   testSrvToken,
-		Scheme:  httpScheme,
-		Local:   false,
-	}
+	c, server := testPMSClient(t, ts)
 
 	index, err := c.GetYears(t.Context(), server, "1")
 	require.NoError(t, err)
@@ -322,6 +285,20 @@ func TestGetYears(t *testing.T) {
 		{Title: "2024", Size: 12},
 		{Title: "1995", Size: 4},
 	}, index)
+}
+
+func TestGetSectionIndexRejectsUnknown(t *testing.T) {
+	t.Parallel()
+
+	c := NewClient(ClientConfig{
+		Product:  productName,
+		ClientID: testServerClient,
+		Token:    testSrvToken,
+		Timeout:  5 * time.Second,
+	})
+
+	_, err := c.GetSectionIndex(t.Context(), Server{}, "1", "genre")
+	require.ErrorIs(t, err, ErrUnsupportedSectionIndex)
 }
 
 func TestMediaPageNormalizesNegativeStart(t *testing.T) {

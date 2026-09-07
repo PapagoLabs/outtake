@@ -297,11 +297,13 @@
 		var rootTop = results.getBoundingClientRect().top;
 		var active = '';
 		var cards = results.querySelectorAll('[data-jump]');
-		cards.forEach(function (card) {
-			if (card.getBoundingClientRect().top <= rootTop + 96) {
-				active = card.getAttribute('data-jump');
+		for (var i = 0; i < cards.length; i++) {
+			var card = cards[i];
+			if (card.getBoundingClientRect().top > rootTop + 96) {
+				break;
 			}
-		});
+			active = card.getAttribute('data-jump');
+		}
 		if (!active && cards.length) {
 			active = cards[0].getAttribute('data-jump');
 		}

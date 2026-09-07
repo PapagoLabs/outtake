@@ -27,7 +27,7 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	assert.Contains(t, body, `hx-boost:inherited="true"`)
 	assert.Contains(t, body, `hx-target:inherited="#main-content"`)
 	assert.NotContains(t, body, `hx-select:inherited`)
-	assert.Contains(t, body, `hx-swap:inherited="outerHTML scroll:#main-content:top"`)
+	assert.Contains(t, body, `hx-swap:inherited="outerHTML scroll:top scrollTarget:#main-content"`)
 	assert.Contains(t, body, `class="dark h-dvh overflow-hidden"`)
 	assert.Contains(t, body, "h-dvh")
 	assert.Contains(t, body, "overflow-hidden")

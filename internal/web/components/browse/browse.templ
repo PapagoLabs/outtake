@@ -392,15 +392,6 @@ templ mediaCard(item view.MediaItem, sort string) {
 						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
 					}
 				</div>
-				if item.Browsable {
-					<a href={ templ.SafeURL(item.BrowseURL) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
-						Browse
-					</a>
-				} else {
-					<a href={ templ.SafeURL("/media/item/" + item.ID) } class="mt-2 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors">
-						Open
-					</a>
-				}
 			</div>
 		}
 	}

@@ -169,7 +169,12 @@ func (client *Client) GetFirstCharacters(
 	server Server,
 	libraryID string,
 ) ([]LetterIndex, error) {
-	return client.GetSectionIndex(ctx, server, libraryID, "firstCharacter")
+	index, err := client.GetSectionIndex(ctx, server, libraryID, "firstCharacter")
+	if err != nil {
+		return nil, fmt.Errorf("get firstCharacter: %w", err)
+	}
+
+	return index, nil
 }
 
 // GetYears fetches year buckets for a library section.
@@ -187,7 +192,12 @@ func (client *Client) GetYears(
 	server Server,
 	libraryID string,
 ) ([]LetterIndex, error) {
-	return client.GetSectionIndex(ctx, server, libraryID, "year")
+	index, err := client.GetSectionIndex(ctx, server, libraryID, "year")
+	if err != nil {
+		return nil, fmt.Errorf("get year: %w", err)
+	}
+
+	return index, nil
 }
 
 // GetSectionIndex fetches directory buckets for a library facet.
@@ -211,7 +221,7 @@ func (client *Client) GetSectionIndex(
 	switch facet {
 	case "firstCharacter", "year":
 	default:
-		return nil, fmt.Errorf("unsupported section index %q", facet)
+		return nil, fmt.Errorf("%w %q", ErrUnsupportedSectionIndex, facet)
 	}
 
 	path := serverAPIBase + "/sections/" + url.PathEscape(libraryID) + "/" + facet
@@ -226,25 +236,47 @@ func (client *Client) GetSectionIndex(
 		return nil, fmt.Errorf("get %s: %w", facet, decodeErr)
 	}
 
-	index := make([]LetterIndex, 0, len(container.Directory))
-	for _, entry := range container.Directory {
-		title := entry.Title
-		if title == "" {
-			title = entry.Key
-		}
+	return directoryIndexes(container.Directory), nil
+}
 
-		size := entry.Size
-		if size == 0 {
-			size = entry.LeafCount
-		}
-
-		index = append(index, LetterIndex{
-			Title: title,
-			Size:  size,
-		})
+// directoryIndexes maps PMS directory entries onto jump buckets.
+//
+// Parameters:
+//   - sections: PMS Directory rows.
+//
+// Returns:
+//   - index: Title and size for each directory.
+func directoryIndexes(sections []pms.Section) []LetterIndex {
+	index := make([]LetterIndex, 0, len(sections))
+	for i := range sections {
+		index = append(index, directoryIndex(sections[i]))
 	}
 
-	return index, nil
+	return index
+}
+
+// directoryIndex maps one PMS directory entry onto a jump bucket.
+//
+// Parameters:
+//   - section: PMS Directory row.
+//
+// Returns:
+//   - entry: Title and size for the directory.
+func directoryIndex(section pms.Section) LetterIndex {
+	title := section.Title
+	if title == "" {
+		title = section.Key
+	}
+
+	size := section.Size
+	if size == 0 {
+		size = section.LeafCount
+	}
+
+	return LetterIndex{
+		Title: title,
+		Size:  size,
+	}
 }
 
 // GetMediaPath fetches the file path for a media item.
@@ -275,7 +307,7 @@ func (client *Client) GetMediaPath(
 	}
 
 	for index := range container.Metadata {
-		if file := firstMediaFile(container.Metadata[index]); file != "" {
+		if file := firstMediaFile(&container.Metadata[index]); file != "" {
 			return file, nil
 		}
 	}

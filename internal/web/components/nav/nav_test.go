@@ -33,5 +33,5 @@ func TestNavLibrariesHighlightsSelected(t *testing.T) {
 	assert.Contains(t, body, `data-nav-library="2"`)
 	assert.Contains(t, body, `hx-target="#main-content"`)
 	assert.Contains(t, body, `hx-select="#main-content"`)
-	assert.Contains(t, body, `hx-swap="outerHTML scroll:#main-content:top"`)
+	assert.Contains(t, body, `hx-swap="outerHTML scroll:top scrollTarget:#main-content"`)
 }

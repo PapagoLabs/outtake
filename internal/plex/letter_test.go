@@ -68,11 +68,11 @@ func TestSortYearIndexes(t *testing.T) {
 		{Title: "2024", Size: 1},
 		{Title: "2001", Size: 4},
 		{Title: "1995", Size: 2},
-	}, SortYearIndexes(index, true))
+	}, ReverseIndexes(SortYearIndexes(index)))
 
 	assert.Equal(t, []LetterIndex{
 		{Title: "1995", Size: 2},
 		{Title: "2001", Size: 4},
 		{Title: "2024", Size: 1},
-	}, SortYearIndexes(index, false))
+	}, SortYearIndexes(index))
 }

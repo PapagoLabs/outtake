@@ -51,7 +51,7 @@ templ Layout(props Props) {
 					class="js-sidebar fixed md:static inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col gap-2 overflow-hidden border-r border-sidebar-border bg-sidebar p-4 -translate-x-full md:translate-x-0 transition-transform"
 					hx-boost:inherited="true"
 					hx-target:inherited="#main-content"
-					hx-swap:inherited="outerHTML scroll:#main-content:top"
+					hx-swap:inherited="outerHTML scroll:top scrollTarget:#main-content"
 				>
 					<div class="flex shrink-0 items-center justify-between gap-2 mb-2">
 						<a href="/" hx-select="#main-content" class="flex items-center gap-2.5 text-sidebar-foreground">

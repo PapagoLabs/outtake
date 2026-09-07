@@ -45,6 +45,7 @@
 @layer base {
   * {
     @apply border-border;
+
     scrollbar-width: auto;
     scrollbar-color: var(--color-muted-foreground) transparent;
   }
@@ -66,7 +67,6 @@
 
 @layer components {
   #media-results {
-    align-content: start;
     scrollbar-gutter: stable;
   }
 }

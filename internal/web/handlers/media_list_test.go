@@ -135,24 +135,24 @@ func TestMediaListQueryWindow(t *testing.T) {
 		{Title: "A", Size: 40},
 	}
 
-	start, size := (mediaListQuery{Before: 43}).window(index)
-	assert.Equal(t, 0, start)
-	assert.Equal(t, 43, size)
+	window := (mediaListQuery{Before: 43}).window(index)
+	assert.Equal(t, 0, window.Start)
+	assert.Equal(t, 43, window.Size)
 
-	start, size = (mediaListQuery{Before: 96}).window(index)
-	assert.Equal(t, 48, start)
-	assert.Equal(t, 48, size)
+	window = (mediaListQuery{Before: 96}).window(index)
+	assert.Equal(t, 48, window.Start)
+	assert.Equal(t, 48, window.Size)
 
-	start, size = (mediaListQuery{Letter: "A"}).window(index)
-	assert.Equal(t, 3, start)
-	assert.Equal(t, mediaPageSize, size)
+	window = (mediaListQuery{Letter: "A"}).window(index)
+	assert.Equal(t, 3, window.Start)
+	assert.Equal(t, mediaPageSize, window.Size)
 }
 
 func TestAddedAtIndexes(t *testing.T) {
 	t.Parallel()
 
-	march := time.Date(2024, 3, 2, 0, 0, 0, 0, time.Local).Unix()
-	feb := time.Date(2024, 2, 10, 0, 0, 0, 0, time.Local).Unix()
+	march := time.Date(2024, time.March, 2, 0, 0, 0, 0, time.Local).Unix()
+	feb := time.Date(2024, time.February, 10, 0, 0, 0, 0, time.Local).Unix()
 
 	got := addedAtIndexes([]plex.MediaItem{
 		{AddedAt: march},
@@ -171,7 +171,7 @@ func TestTitleIndexes(t *testing.T) {
 
 	got := titleIndexes([]plex.MediaItem{
 		{Title: "2 Fast", TitleSort: "2 Fast"},
-		{Title: "The Heat", TitleSort: "Heat"},
+		{Title: "The Heat", TitleSort: testHeat},
 		{Title: "Heat 2", TitleSort: "Heat 2"},
 		{Title: "Zodiac", TitleSort: "Zodiac"},
 	})
@@ -223,6 +223,7 @@ func TestThinJumpIndexesYearsUseDecades(t *testing.T) {
 	for _, letter := range got {
 		titles = append(titles, letter.Title)
 	}
+
 	assert.Contains(t, titles, "2020")
 	assert.Contains(t, titles, "2010")
 	assert.NotContains(t, titles, "2023")
@@ -244,9 +245,11 @@ func TestThinMonthTitlesKeepsOnePerYear(t *testing.T) {
 	t.Parallel()
 
 	letters := make([]view.LetterIndex, 0, 40)
-	for i := 0; i < 40; i++ {
+
+	for i := range 40 {
 		year := 2026 - i/12
 		month := 12 - i%12
+
 		letters = append(letters, view.LetterIndex{
 			Title: time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("01/2006"),
 			Size:  1,
@@ -263,10 +266,18 @@ func TestOrderJumpIndex(t *testing.T) {
 	t.Parallel()
 
 	letters := []plex.LetterIndex{{Title: "A", Size: 2}, {Title: "B", Size: 3}}
-	assert.Equal(t, []plex.LetterIndex{{Title: "B", Size: 3}, {Title: "A", Size: 2}}, orderJumpIndex(letters, mediaSortTitleDesc))
+	assert.Equal(
+		t,
+		[]plex.LetterIndex{{Title: "B", Size: 3}, {Title: "A", Size: 2}},
+		orderJumpIndex(letters, mediaSortTitleDesc),
+	)
 
 	years := []plex.LetterIndex{{Title: "1995", Size: 2}, {Title: "2024", Size: 1}}
-	assert.Equal(t, []plex.LetterIndex{{Title: "2024", Size: 1}, {Title: "1995", Size: 2}}, orderJumpIndex(years, mediaSortYearDesc))
+	assert.Equal(
+		t,
+		[]plex.LetterIndex{{Title: "2024", Size: 1}, {Title: "1995", Size: 2}},
+		orderJumpIndex(years, mediaSortYearDesc),
+	)
 }
 
 func TestPlexMediaSort(t *testing.T) {

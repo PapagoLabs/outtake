@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	fiber "github.com/gofiber/fiber/v3"
 
@@ -27,18 +28,37 @@ type mediaListQuery struct {
 	Before    int
 }
 
+// mediaListWindow is the PMS container offset and page size for a query.
+type mediaListWindow struct {
+	Start int
+	Size  int
+}
+
 const (
 	// QueryLetter is the media library first-character jump parameter.
 	queryLetter = "letter"
 
-	// queryBefore is the exclusive end offset when prepending a previous page.
+	// QueryBefore is the exclusive end offset when prepending a previous page.
 	queryBefore = "before"
 
-	// addedIndexPageSize is the PMS page size used to build added-at buckets.
+	// AddedIndexPageSize is the PMS page size used to build added-at buckets.
 	addedIndexPageSize = 200
 
-	// maxJumpLabels is the target number of marks on the jump rail.
+	// MaxJumpLabels is the target number of marks on the jump rail.
 	maxJumpLabels = 28
+
+	// YearTickDenseMax is the year-count cutoff for five-year ticks.
+	yearTickDenseMax = 70
+	// YearTickDenseStep keeps every fifth year on a moderately long rail.
+	yearTickDenseStep = 5
+	// YearTickSparseStep keeps every tenth year on a long rail.
+	yearTickSparseStep = 10
+	// MonthYearLen is the trailing year length in mm/yyyy labels.
+	monthYearLen = 4
+	// JumpSampleEnds is the first and last marks always kept when sampling.
+	jumpSampleEnds = 2
+	// JumpOtherKey is the catch-all jump title for unknown letters, years, or dates.
+	jumpOtherKey = "#"
 
 	// MediaSortTitleAsc lists titles A-Z.
 	mediaSortTitleAsc = "title_asc"
@@ -144,33 +164,29 @@ func (query mediaListQuery) listStart(index []plex.LetterIndex) int {
 	return plex.LetterOffset(index, query.Letter)
 }
 
-// window returns the PMS offset and page size for this query.
-//
-// Parameters:
-//   - index: First-character buckets used when letter is set and start is 0.
-//
-// Returns:
-//   - start: Container offset.
-//   - size: Page size for this window.
-func (query mediaListQuery) window(index []plex.LetterIndex) (int, int) {
-	if query.Before > 0 {
-		start := query.Before - mediaPageSize
-		if start < 0 {
-			start = 0
-		}
-
-		return start, query.Before - start
-	}
-
-	return query.listStart(index), mediaPageSize
-}
-
 // showJumpIndex reports whether the library root has a jump rail.
 //
 // Returns:
 //   - ok: True when the query is a library section listing.
 func (query mediaListQuery) showJumpIndex() bool {
 	return query.isLibraryRoot()
+}
+
+// window returns the PMS offset and page size for this query.
+//
+// Parameters:
+//   - index: First-character buckets used when letter is set and start is 0.
+//
+// Returns:
+//   - window: Container offset and page size.
+func (query mediaListQuery) window(index []plex.LetterIndex) mediaListWindow {
+	if query.Before > 0 {
+		start := max(query.Before-mediaPageSize, 0)
+
+		return mediaListWindow{Start: start, Size: query.Before - start}
+	}
+
+	return mediaListWindow{Start: query.listStart(index), Size: mediaPageSize}
 }
 
 // plexMediaSort maps an Outtake sort key onto a PMS sort value.
@@ -261,10 +277,10 @@ func yearTickStep(n int) int {
 	switch {
 	case n <= maxJumpLabels:
 		return 1
-	case n <= 70:
-		return 5
+	case n <= yearTickDenseMax:
+		return yearTickDenseStep
 	default:
-		return 10
+		return yearTickSparseStep
 	}
 }
 
@@ -277,28 +293,15 @@ func yearTickStep(n int) int {
 // Returns:
 //   - letters: Thinned numeric marks.
 func thinNumericTitles(letters []view.LetterIndex, step int) []view.LetterIndex {
-	if step <= 1 || len(letters) <= 2 {
+	if step <= 1 || len(letters) <= jumpSampleEnds {
 		return letters
 	}
 
-	keep := make([]bool, len(letters))
-	keep[0] = true
-	keep[len(letters)-1] = true
-
-	for i, letter := range letters {
-		year, err := strconv.Atoi(letter.Title)
-		if err != nil {
-			continue
-		}
-
-		if year%step == 0 {
-			keep[i] = true
-		}
-	}
-
 	out := make([]view.LetterIndex, 0, maxJumpLabels)
+	last := len(letters) - 1
+
 	for i, letter := range letters {
-		if keep[i] {
+		if keepNumericTitle(i, last, letter.Title, step) {
 			out = append(out, letter)
 		}
 	}
@@ -308,6 +311,29 @@ func thinNumericTitles(letters []view.LetterIndex, step int) []view.LetterIndex 
 	}
 
 	return out
+}
+
+// keepNumericTitle reports whether a numeric jump mark should stay on the rail.
+//
+// Parameters:
+//   - index: Position in the ordered year list.
+//   - last: Last index in the list.
+//   - title: Year label.
+//   - step: Year modulus to keep.
+//
+// Returns:
+//   - ok: True for the ends or a step-aligned year.
+func keepNumericTitle(index, last int, title string, step int) bool {
+	if index == 0 || index == last {
+		return true
+	}
+
+	year, err := strconv.Atoi(title)
+	if err != nil {
+		return false
+	}
+
+	return year%step == 0
 }
 
 // thinMonthTitles keeps one month mark per year, then samples if still long.
@@ -350,8 +376,8 @@ func thinMonthTitles(letters []view.LetterIndex) []view.LetterIndex {
 // Returns:
 //   - year: Trailing four characters, or the whole title when shorter.
 func monthJumpYear(title string) string {
-	if len(title) >= 4 {
-		return title[len(title)-4:]
+	if len(title) >= monthYearLen {
+		return title[len(title)-monthYearLen:]
 	}
 
 	return title
@@ -361,35 +387,48 @@ func monthJumpYear(title string) string {
 //
 // Parameters:
 //   - letters: Jump targets in display order.
-//   - max: Maximum number of marks to keep.
+//   - limit: Maximum number of marks to keep.
 //
 // Returns:
 //   - letters: Sampled marks.
-func sampleJumpIndexes(letters []view.LetterIndex, max int) []view.LetterIndex {
-	if len(letters) <= max || max < 2 {
+func sampleJumpIndexes(letters []view.LetterIndex, limit int) []view.LetterIndex {
+	if len(letters) <= limit || limit < jumpSampleEnds {
 		return letters
 	}
 
-	out := make([]view.LetterIndex, 0, max)
 	last := len(letters) - 1
-	out = append(out, letters[0])
+	out := []view.LetterIndex{letters[0]}
 
-	inner := max - 2
+	out = appendInnerJumpMarks(out, letters, limit-jumpSampleEnds, last)
+
+	if out[len(out)-1].Title != letters[last].Title {
+		out = append(out, letters[last])
+	}
+
+	return out
+}
+
+// appendInnerJumpMarks adds evenly spaced interior marks between the ends.
+//
+// Parameters:
+//   - out: Marks already kept, starting with the first letter.
+//   - letters: Jump targets in display order.
+//   - inner: Number of interior marks to attempt.
+//   - last: Last index in letters.
+//
+// Returns:
+//   - out: Marks with interior samples appended.
+func appendInnerJumpMarks(
+	out, letters []view.LetterIndex,
+	inner, last int,
+) []view.LetterIndex {
 	for i := 1; i <= inner; i++ {
 		idx := i * last / (inner + 1)
-		if idx <= 0 || idx >= last {
-			continue
-		}
-
-		if out[len(out)-1].Title == letters[idx].Title {
+		if idx <= 0 || idx >= last || out[len(out)-1].Title == letters[idx].Title {
 			continue
 		}
 
 		out = append(out, letters[idx])
-	}
-
-	if out[len(out)-1].Title != letters[last].Title {
-		out = append(out, letters[last])
 	}
 
 	return out
@@ -408,9 +447,9 @@ func orderJumpIndex(index []plex.LetterIndex, sort string) []plex.LetterIndex {
 	case mediaSortTitleDesc:
 		return plex.ReverseIndexes(index)
 	case mediaSortYearDesc:
-		return plex.SortYearIndexes(index, true)
+		return plex.ReverseIndexes(plex.SortYearIndexes(index))
 	case mediaSortYearAsc:
-		return plex.SortYearIndexes(index, false)
+		return plex.SortYearIndexes(index)
 	default:
 		return index
 	}
@@ -425,7 +464,7 @@ func orderJumpIndex(index []plex.LetterIndex, sort string) []plex.LetterIndex {
 //   - key: Month label, or # when addedAt is unset.
 func addedMonthKey(addedAt int64) string {
 	if addedAt <= 0 {
-		return "#"
+		return jumpOtherKey
 	}
 
 	return time.Unix(addedAt, 0).Local().Format("01/2006")
@@ -454,7 +493,7 @@ func addedAtIndexes(items []plex.MediaItem) []plex.LetterIndex {
 func yearIndexes(items []plex.MediaItem) []plex.LetterIndex {
 	return groupIndexes(items, func(item plex.MediaItem) string {
 		if item.Year <= 0 {
-			return "#"
+			return jumpOtherKey
 		}
 
 		return strconv.Itoa(item.Year)
@@ -483,21 +522,22 @@ func titleIndexes(items []plex.MediaItem) []plex.LetterIndex {
 // Returns:
 //   - key: A through Z, or # for anything else.
 func titleJumpKey(titleSort, title string) string {
-	s := strings.TrimSpace(titleSort)
-	if s == "" {
-		s = strings.TrimSpace(title)
+	key := strings.TrimSpace(titleSort)
+	if key == "" {
+		key = strings.TrimSpace(title)
 	}
 
-	if s == "" {
-		return "#"
+	if key == "" {
+		return jumpOtherKey
 	}
 
-	r := unicode.ToUpper([]rune(s)[0])
-	if r >= 'A' && r <= 'Z' {
-		return string(r)
+	first, _ := utf8.DecodeRuneInString(key)
+	upper := unicode.ToUpper(first)
+	if upper >= 'A' && upper <= 'Z' {
+		return string(upper)
 	}
 
-	return "#"
+	return jumpOtherKey
 }
 
 // groupIndexes collapses consecutive items that share a jump key.
@@ -512,8 +552,8 @@ func groupIndexes(items []plex.MediaItem, keyFn func(plex.MediaItem) string) []p
 	index := make([]plex.LetterIndex, 0)
 	last := ""
 
-	for _, item := range items {
-		key := keyFn(item)
+	for i := range items {
+		key := keyFn(items[i])
 		if key == last && len(index) > 0 {
 			index[len(index)-1].Size++
 
@@ -548,12 +588,20 @@ func collectAddedAtItems(
 	start := 0
 
 	for {
-		page, err := client.GetMediaPage(ctx, server, libraryID, start, addedIndexPageSize, plexMediaSort(sort))
+		page, err := client.GetMediaPage(
+			ctx,
+			server,
+			libraryID,
+			start,
+			addedIndexPageSize,
+			plexMediaSort(sort),
+		)
 		if err != nil {
 			return items
 		}
 
 		items = append(items, page.Items...)
+
 		start += len(page.Items)
 		if len(page.Items) == 0 || start >= page.Total {
 			return items

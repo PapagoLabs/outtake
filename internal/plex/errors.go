@@ -26,6 +26,9 @@ var (
 	// ErrInvalidThumbPath is returned when a thumbnail path is not a library asset.
 	ErrInvalidThumbPath = errors.New("invalid thumbnail path")
 
+	// ErrUnsupportedSectionIndex is returned when a section facet is not firstCharacter or year.
+	ErrUnsupportedSectionIndex = errors.New("unsupported section index")
+
 	// ErrEmptyBody is returned when a Plex response body is empty.
 	errEmptyBody = errors.New("decode: empty body")
 )

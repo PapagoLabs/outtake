@@ -1697,7 +1697,6 @@ html[data-palette="tokyo-night"].dark {
 }
 @layer components {
   #media-results {
-    align-content: start;
     scrollbar-gutter: stable;
   }
 }

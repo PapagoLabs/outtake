@@ -53,41 +53,42 @@ func LetterOffset(index []LetterIndex, letter string) int {
 // Returns:
 //   - index: A reversed copy.
 func ReverseIndexes(index []LetterIndex) []LetterIndex {
-	out := make([]LetterIndex, len(index))
-	for i, entry := range index {
-		out[len(index)-1-i] = entry
+	out := make([]LetterIndex, 0, len(index))
+	for _, entry := range slices.Backward(index) {
+		out = append(out, entry)
 	}
 
 	return out
 }
 
-// SortYearIndexes orders year buckets numerically.
+// SortYearIndexes orders year buckets from oldest to newest.
 //
 // Parameters:
 //   - index: Year buckets in any order.
-//   - desc: True to sort newest years first.
 //
 // Returns:
 //   - index: A sorted copy.
-func SortYearIndexes(index []LetterIndex, desc bool) []LetterIndex {
+func SortYearIndexes(index []LetterIndex) []LetterIndex {
 	out := append([]LetterIndex(nil), index...)
-	slices.SortFunc(out, func(a, b LetterIndex) int {
-		ay, aErr := strconv.Atoi(a.Title)
-		by, bErr := strconv.Atoi(b.Title)
-		if aErr != nil || bErr != nil {
-			if desc {
-				return strings.Compare(b.Title, a.Title)
-			}
-
-			return strings.Compare(a.Title, b.Title)
-		}
-
-		if desc {
-			return by - ay
-		}
-
-		return ay - by
-	})
+	slices.SortFunc(out, compareYearTitles)
 
 	return out
+}
+
+// compareYearTitles orders two year buckets numerically, oldest first.
+//
+// Parameters:
+//   - left: First year bucket.
+//   - right: Second year bucket.
+//
+// Returns:
+//   - cmp: Negative when left is older, positive when newer.
+func compareYearTitles(left, right LetterIndex) int {
+	leftYear, leftErr := strconv.Atoi(left.Title)
+	rightYear, rightErr := strconv.Atoi(right.Title)
+	if leftErr != nil || rightErr != nil {
+		return strings.Compare(left.Title, right.Title)
+	}
+
+	return leftYear - rightYear
 }

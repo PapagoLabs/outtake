@@ -292,7 +292,7 @@ func TestMediaCardPosterLinksToItem(t *testing.T) {
 	body := buf.String()
 	assert.GreaterOrEqual(t, strings.Count(body, `href="/media/item/10"`), 2)
 	assert.Contains(t, body, `alt="Heat"`)
-	assert.Contains(t, body, ">Open<")
+	assert.NotContains(t, body, ">Open<")
 }
 
 func TestMediaCardPosterLinksToBrowse(t *testing.T) {
@@ -311,7 +311,7 @@ func TestMediaCardPosterLinksToBrowse(t *testing.T) {
 
 	body := buf.String()
 	assert.GreaterOrEqual(t, strings.Count(body, `href="/media?library=2&amp;parent=9"`), 2)
-	assert.Contains(t, body, ">Browse<")
+	assert.NotContains(t, body, ">Browse<")
 	assert.NotContains(t, body, "/media/item/9")
 }
 

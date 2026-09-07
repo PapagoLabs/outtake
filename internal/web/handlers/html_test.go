@@ -31,6 +31,7 @@ const (
 	testShowURL    = "/media?library=2&parent=9&title=Strike+Back"
 	testSeasonURL  = "/media?library=2&parent=10&title=Season+3&up=9&upTitle=Strike+Back"
 	testEpisodeURL = "/media/item/42"
+	testHeat       = "Heat"
 )
 
 func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
@@ -179,10 +180,10 @@ func TestSessionTitleParts(t *testing.T) {
 			name: "movie with year",
 			give: plex.MediaItem{
 				ID:    "100",
-				Title: "Heat",
+				Title: testHeat,
 				Year:  1995,
 			},
-			want:     []view.Crumb{{Title: "Heat", URL: "/media/item/100"}},
+			want:     []view.Crumb{{Title: testHeat, URL: "/media/item/100"}},
 			wantYear: 1995,
 		},
 		{
@@ -305,19 +306,23 @@ func TestWantsClipList(t *testing.T) {
 	assert.Equal(t, "fragment", clipListKind(t, "div#clip-list"))
 }
 
-func mediaResultsKind(t *testing.T, hxTarget string) string {
+func hxTargetKind(
+	t *testing.T,
+	route, hxTarget, hit string,
+	match func(fiber.Ctx) bool,
+) string {
 	t.Helper()
 
 	app := fiber.New()
-	app.Get("/media", func(ctx fiber.Ctx) error {
-		if wantsMediaResults(ctx) {
-			return ctx.SendString("fragment")
+	app.Get(route, func(ctx fiber.Ctx) error {
+		if match(ctx) {
+			return ctx.SendString(hit)
 		}
 
 		return ctx.SendString("page")
 	})
 
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, route, nil)
 	req.Header.Set("Hx-Request", "true")
 
 	if hxTarget != "" {
@@ -333,96 +338,30 @@ func mediaResultsKind(t *testing.T, hxTarget string) string {
 	require.NoError(t, err)
 
 	return string(body)
+}
+
+func mediaResultsKind(t *testing.T, hxTarget string) string {
+	t.Helper()
+
+	return hxTargetKind(t, "/media", hxTarget, "fragment", wantsMediaResults)
 }
 
 func mediaPrevKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
-	app := fiber.New()
-	app.Get("/media", func(ctx fiber.Ctx) error {
-		if wantsMediaPrev(ctx) {
-			return ctx.SendString("prev")
-		}
-
-		return ctx.SendString("page")
-	})
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media", nil)
-	req.Header.Set("Hx-Request", "true")
-
-	if hxTarget != "" {
-		req.Header.Set("Hx-Target", hxTarget)
-	}
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-
-	defer closeBody(t, resp)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	return string(body)
+	return hxTargetKind(t, "/media", hxTarget, "prev", wantsMediaPrev)
 }
 
 func mediaMoreKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
-	app := fiber.New()
-	app.Get("/media", func(ctx fiber.Ctx) error {
-		if wantsMediaMore(ctx) {
-			return ctx.SendString("more")
-		}
-
-		return ctx.SendString("page")
-	})
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media", nil)
-	req.Header.Set("Hx-Request", "true")
-
-	if hxTarget != "" {
-		req.Header.Set("Hx-Target", hxTarget)
-	}
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-
-	defer closeBody(t, resp)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	return string(body)
+	return hxTargetKind(t, "/media", hxTarget, "more", wantsMediaMore)
 }
 
 func clipListKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
-	app := fiber.New()
-	app.Get("/clips", func(ctx fiber.Ctx) error {
-		if wantsClipList(ctx) {
-			return ctx.SendString("fragment")
-		}
-
-		return ctx.SendString("page")
-	})
-
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/clips", nil)
-	req.Header.Set("Hx-Request", "true")
-
-	if hxTarget != "" {
-		req.Header.Set("Hx-Target", hxTarget)
-	}
-
-	resp, err := app.Test(req)
-	require.NoError(t, err)
-
-	defer closeBody(t, resp)
-
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-
-	return string(body)
+	return hxTargetKind(t, "/clips", hxTarget, "fragment", wantsClipList)
 }
 
 func TestMediaItemError(t *testing.T) {

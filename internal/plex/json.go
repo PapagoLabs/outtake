@@ -38,7 +38,7 @@ func decodePMS(body []byte) (pms.Container, error) {
 //
 // Returns:
 //   - item: The mapped media item.
-func metadataToItem(meta pms.Metadata, libraryTitle string) MediaItem {
+func metadataToItem(meta *pms.Metadata, libraryTitle string) MediaItem {
 	return MediaItem{
 		ID:               meta.ID(),
 		Title:            meta.Title,
@@ -75,7 +75,7 @@ func metadataItems(metas []pms.Metadata, libraryTitle string) []MediaItem {
 			continue
 		}
 
-		items = append(items, metadataToItem(*meta, libraryTitle))
+		items = append(items, metadataToItem(meta, libraryTitle))
 	}
 
 	return items
@@ -88,6 +88,6 @@ func metadataItems(metas []pms.Metadata, libraryTitle string) []MediaItem {
 //
 // Returns:
 //   - path: The first non-empty part file, or empty when none exist.
-func firstMediaFile(meta pms.Metadata) string {
+func firstMediaFile(meta *pms.Metadata) string {
 	return meta.File()
 }
