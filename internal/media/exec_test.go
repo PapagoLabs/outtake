@@ -4,7 +4,10 @@
 package media
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -206,6 +209,42 @@ func TestScaleFilterForcesEvenWidth(t *testing.T) {
 	assert.Contains(t, scaleFilter(1920, scaleFlagsLanczos), "h=-2")
 }
 
+func TestExtractGIFWritesFile(t *testing.T) {
+	t.Parallel()
+
+	ffmpegPath, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Skip("ffmpeg not available")
+	}
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.mp4")
+	makeCmd := exec.CommandContext(
+		t.Context(),
+		ffmpegPath,
+		"-y",
+		"-f", "lavfi",
+		"-i", "testsrc=size=320x240:rate=24:duration=1",
+		"-pix_fmt", "yuv420p",
+		"-c:v", "libx264",
+		"-preset", "ultrafast",
+		src,
+	)
+	require.NoError(t, makeCmd.Run())
+
+	out := filepath.Join(dir, "out.gif")
+	ff := NewExecFFmpeg(ffmpegPath, "ffprobe")
+	ff.SetTimeout(30 * time.Second)
+
+	err = ff.ExtractGIF(t.Context(), src, out, 0, 0.5, 160, 10, CropRect{})
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(out)
+	require.NoError(t, err)
+	require.Greater(t, len(data), 6)
+	assert.Equal(t, "GIF", string(data[:3]))
+}
+
 func TestExecFFmpeg_ExtractScreenshot_Args(t *testing.T) {
 	t.Parallel()
 
@@ -220,7 +259,8 @@ func TestGIFPaletteFilterCropsBlackBars(t *testing.T) {
 	t.Parallel()
 
 	crop := CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
-	want := crop.Filter() + ",fps=10,scale=480:-1:flags=lanczos,palettegen=stats_mode=diff"
+	want := crop.Filter() +
+		",fps=10,scale=480:-2:flags=lanczos,format=yuv420p,palettegen=stats_mode=diff"
 
 	assert.Equal(t, want, gifPaletteFilter(480, 10, crop))
 }
@@ -229,8 +269,8 @@ func TestGIFEncodeFilterCropsBlackBars(t *testing.T) {
 	t.Parallel()
 
 	crop := CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
-	want := crop.Filter() +
-		",fps=10,scale=480:-1:flags=lanczos [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5"
+	want := "[0:v]" + crop.Filter() +
+		",fps=10,scale=480:-2:flags=lanczos,format=yuv420p[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5"
 
 	assert.Equal(t, want, gifEncodeFilter(480, 10, crop))
 }
@@ -239,9 +279,39 @@ func TestGIFPaletteFilterOmitsCropWhenEmpty(t *testing.T) {
 	t.Parallel()
 
 	got := gifPaletteFilter(480, 10, CropRect{})
+	want := "fps=10,scale=480:-2:flags=lanczos,format=yuv420p,palettegen=stats_mode=diff"
 
-	assert.Equal(t, "fps=10,scale=480:-1:flags=lanczos,palettegen=stats_mode=diff", got)
+	assert.Equal(t, want, got)
 	assert.NotContains(t, got, "crop=")
+}
+
+func TestGIFPaletteArgsLimitsInput(t *testing.T) {
+	t.Parallel()
+
+	args := gifPaletteArgs("ffmpeg", "/in.mkv", "/p.png", 10, 5, "vf")
+	ss := slices.Index(args, ssFlag)
+	dur := slices.Index(args, durationFlag)
+	in := slices.Index(args, inputFlag)
+
+	assert.Greater(t, dur, ss)
+	assert.Greater(t, in, dur)
+	assert.Contains(t, args, anFlag)
+	assert.Contains(t, args, updateFlag)
+	assert.Contains(t, args, framesFlag)
+}
+
+func TestGIFEncodeArgsLimitsInput(t *testing.T) {
+	t.Parallel()
+
+	args := gifEncodeArgs("ffmpeg", "/in.mkv", "/p.png", "/out.gif", 10, 5, "fc")
+	firstInput := slices.Index(args, inputFlag)
+	dur := slices.Index(args, durationFlag)
+
+	assert.Greater(t, firstInput, dur)
+	assert.Equal(t, "/in.mkv", args[firstInput+1])
+	assert.Equal(t, "/p.png", args[firstInput+3])
+	assert.Contains(t, args, anFlag)
+	assert.NotContains(t, args[firstInput:], durationFlag)
 }
 
 func TestScreenshotEncodeArgsCropsBlackBars(t *testing.T) {
