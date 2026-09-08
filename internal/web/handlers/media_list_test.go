@@ -62,9 +62,9 @@ func TestParseMediaListQuery(t *testing.T) {
 			want: mediaListQuery{LibraryID: "1", ParentID: "9", Start: 48},
 		},
 		{
-			give: "/media?library=1&q=matrix&sort=year_desc&letter=M",
+			give: "/media?library=1&q=movie&sort=year_desc&letter=M",
 			want: mediaListQuery{
-				Query:     "matrix",
+				Query:     defaultMediaType,
 				LibraryID: "1",
 				Sort:      mediaSortYearDesc,
 			},
@@ -171,16 +171,16 @@ func TestTitleIndexes(t *testing.T) {
 	t.Parallel()
 
 	got := titleIndexes([]plex.MediaItem{
-		{Title: "2 Fast", TitleSort: "2 Fast"},
-		{Title: "The Heat", TitleSort: testHeat},
-		{Title: "Heat 2", TitleSort: "Heat 2"},
-		{Title: "Zodiac", TitleSort: "Zodiac"},
+		{Title: "2 Movie", TitleSort: "2 Movie"},
+		{Title: "The Movie", TitleSort: testMovie},
+		{Title: "Movie 2", TitleSort: "Movie 2"},
+		{Title: "Other Movie", TitleSort: "Other Movie"},
 	})
 
 	assert.Equal(t, []plex.LetterIndex{
 		{Title: "#", Size: 1},
-		{Title: "H", Size: 2},
-		{Title: "Z", Size: 1},
+		{Title: "M", Size: 2},
+		{Title: "O", Size: 1},
 	}, got)
 }
 

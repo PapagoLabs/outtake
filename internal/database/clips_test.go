@@ -26,7 +26,7 @@ func TestClipPersistence(t *testing.T) {
 	job := &queue.Job{
 		ID:            "clip-1",
 		Type:          queue.JobTypeClip,
-		Name:          "Bond intro",
+		Name:          "Intro",
 		MediaID:       "100",
 		MediaTitle:    "Test Movie",
 		MediaType:     "movie",
@@ -51,7 +51,7 @@ func TestClipPersistence(t *testing.T) {
 	got, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
 	assert.Equal(t, job.MediaTitle, got.MediaTitle)
-	assert.Equal(t, "Bond intro", got.Name)
+	assert.Equal(t, "Intro", got.Name)
 	assert.Equal(t, 1, got.AudioIndex)
 	assert.True(t, got.CropBlackBars)
 

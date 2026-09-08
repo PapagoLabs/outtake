@@ -47,8 +47,8 @@ func TestParseClipListQuery(t *testing.T) {
 			},
 		},
 		{
-			give: "/clips?type=nope&sort=bogus&q=%20Bond%20",
-			want: clipListQuery{Query: "Bond", Sort: clipSortCreatedDesc},
+			give: "/clips?type=nope&sort=bogus&q=%20Clip%20",
+			want: clipListQuery{Query: "Clip", Sort: clipSortCreatedDesc},
 		},
 		{
 			give: "/clips?type=screenshot&sort=updated_desc",
@@ -73,10 +73,18 @@ func TestApplyClipListQuery(t *testing.T) {
 	latest := newer.Add(time.Hour)
 
 	jobs := []*queue.Job{
-		listJob(idOldClip, "Alpha", "Movie", clipTypeClip, view.ClipStatusCompleted, older, latest),
+		listJob(
+			idOldClip,
+			"Alpha",
+			testMovie,
+			clipTypeClip,
+			view.ClipStatusCompleted,
+			older,
+			latest,
+		),
 		listJob(idNewGIF, "bravo", "Other", clipTypeGIF, view.ClipStatusPending, newer, older),
-		listJob(idTieZ, "", "Movie", clipTypeClip, view.ClipStatusProcessing, newer, newer),
-		listJob(idTieA, "", "Movie", clipTypeScreenshot, view.ClipStatusFailed, newer, newer),
+		listJob(idTieZ, "", testMovie, clipTypeClip, view.ClipStatusProcessing, newer, newer),
+		listJob(idTieA, "", testMovie, clipTypeScreenshot, view.ClipStatusFailed, newer, newer),
 	}
 
 	tests := []struct {
@@ -126,7 +134,7 @@ func TestApplyClipListQuery(t *testing.T) {
 		},
 		{
 			name:  "name matches media title",
-			query: clipListQuery{Query: "movie", Sort: clipSortCreatedDesc},
+			query: clipListQuery{Query: defaultMediaType, Sort: clipSortCreatedDesc},
 			want:  []string{idTieZ, idTieA, idOldClip},
 		},
 		{

@@ -94,7 +94,7 @@ func TestDecodeEpisodeMetadata(t *testing.T) {
 		"parentRatingKey":"148395",
 		"parentTitle":"Season 2",
 		"grandparentRatingKey":"148394",
-		"grandparentTitle":"Better Call Saul",
+		"grandparentTitle":"Show",
 		"librarySectionID":2
 	}]}}`)
 	container, err := Decode(body)
@@ -107,7 +107,7 @@ func TestDecodeEpisodeMetadata(t *testing.T) {
 	assert.Equal(t, 3, meta.Index)
 	assert.Equal(t, 2, meta.ParentIndex)
 	assert.Equal(t, "148395", string(meta.ParentRatingKey))
-	assert.Equal(t, "Better Call Saul", meta.GrandparentTitle)
+	assert.Equal(t, "Show", meta.GrandparentTitle)
 	assert.Equal(t, "2", string(meta.LibrarySectionID))
 }
 

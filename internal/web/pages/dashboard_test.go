@@ -13,6 +13,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+const testMovie = "Movie"
+
 func TestLiveSessions(t *testing.T) {
 	t.Parallel()
 
@@ -28,10 +30,10 @@ func TestLiveSessions(t *testing.T) {
 				ID:      "sess-1",
 				MediaID: "42",
 				Parts: []view.Crumb{
-					{Title: "Strike Back", URL: "/media?library=2&parent=9&title=Strike+Back"},
+					{Title: "Show", URL: "/media?library=2&parent=9&title=Show"},
 					{
 						Title: "Season 3",
-						URL:   "/media?library=2&parent=10&title=Season+3&up=9&upTitle=Strike+Back",
+						URL:   "/media?library=2&parent=10&title=Season+3&up=9&upTitle=Show",
 					},
 					{Title: "Episode 5", URL: "/media/item/42"},
 				},
@@ -39,10 +41,10 @@ func TestLiveSessions(t *testing.T) {
 				Duration:   120,
 			}},
 			contains: []string{
-				`href="/media?library=2&amp;parent=9&amp;title=Strike+Back"`,
-				`href="/media?library=2&amp;parent=10&amp;title=Season+3&amp;up=9&amp;upTitle=Strike+Back"`,
+				`href="/media?library=2&amp;parent=9&amp;title=Show"`,
+				`href="/media?library=2&amp;parent=10&amp;title=Season+3&amp;up=9&amp;upTitle=Show"`,
 				`href="/media/item/42"`,
-				"Strike Back",
+				"Show",
 				"Season 3",
 				"Episode 5",
 				" · ",
@@ -55,20 +57,20 @@ func TestLiveSessions(t *testing.T) {
 			give: []SessionItem{{
 				ID:         "sess-2",
 				MediaID:    "100",
-				Parts:      []view.Crumb{{Title: "Heat", URL: "/media/item/100"}},
+				Parts:      []view.Crumb{{Title: testMovie, URL: "/media/item/100"}},
 				Year:       1995,
 				ViewOffset: 30,
 				Duration:   600,
 			}},
 			contains: []string{
 				`href="/media/item/100"`,
-				"Heat",
+				testMovie,
 				"(1995)",
 				`href="/media/item/100?start=30.0"`,
 			},
 			notContains: []string{
-				"Heat · (1995)",
-				`href="/media/item/100">Heat (1995)`,
+				testMovie + " · (1995)",
+				`href="/media/item/100">` + testMovie + " (1995)",
 			},
 		},
 	}
