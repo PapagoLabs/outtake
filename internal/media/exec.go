@@ -95,6 +95,16 @@ const (
 	previewAudioKbps = 96
 	// PreviewMaxSecs caps how long a preview encode may run.
 	previewMaxSecs = 30
+	// AnFlag disables audio decoding.
+	anFlag = "-an"
+	// UpdateFlag tells image2 to overwrite a single still.
+	updateFlag = "-update"
+	// UpdateEnabled is the image2 single-file update value.
+	updateEnabled = "1"
+	// FilterComplexFlag is the FFmpeg filter_complex flag.
+	filterComplexFlag = "-filter_complex"
+	// GIFScaleHeight keeps GIF scale height even.
+	gifScaleHeight = "-2"
 )
 
 // Type check.
@@ -445,65 +455,139 @@ func movFlags(req h264EncodeRequest) string {
 }
 
 // gifScaleFilter is the shared fps+scale chain for GIF palette and encode.
+//
+// Parameters:
+//   - width: Output width in pixels.
+//   - fps: Output frames per second.
+//
+// Returns:
+//   - filter: fps and even-height scale fragment.
 func gifScaleFilter(width, fps int) string {
-	return fmt.Sprintf("fps=%d,scale=%d:-1:flags=lanczos", fps, width)
+	return fmt.Sprintf("fps=%d,scale=%d:%s:flags=lanczos", fps, width, gifScaleHeight)
+}
+
+// gifVideoChain is the shared decode/scale chain for both GIF passes.
+//
+// Parameters:
+//   - width: Output width in pixels.
+//   - fps: Output frames per second.
+//   - rect: Optional black-bar crop.
+//
+// Returns:
+//   - filter: crop, fps, scale, and yuv420p conversion.
+func gifVideoChain(width, fps int, rect CropRect) string {
+	return prependCrop(rect, gifScaleFilter(width, fps)+",format=yuv420p")
 }
 
 // gifPaletteFilter builds the palettegen -vf chain, with optional crop first.
+//
+// Parameters:
+//   - width: Output width in pixels.
+//   - fps: Output frames per second.
+//   - rect: Optional black-bar crop.
+//
+// Returns:
+//   - filter: Palette generation -vf string.
 func gifPaletteFilter(width, fps int, rect CropRect) string {
-	return prependCrop(rect, gifScaleFilter(width, fps)+",palettegen=stats_mode=diff")
+	return gifVideoChain(width, fps, rect) + ",palettegen=stats_mode=diff"
 }
 
-// gifEncodeFilter builds the paletteuse -filter_complex chain, with optional crop first.
+// gifEncodeFilter builds the paletteuse -filter_complex chain.
+//
+// Parameters:
+//   - width: Output width in pixels.
+//   - fps: Output frames per second.
+//   - rect: Optional black-bar crop.
+//
+// Returns:
+//   - filter: Labeled paletteuse filter_complex string.
 func gifEncodeFilter(width, fps int, rect CropRect) string {
-	return prependCrop(
-		rect,
-		gifScaleFilter(width, fps)+" [x]; [x][1:v] paletteuse=dither=bayer:bayer_scale=5",
-	)
+	return "[0:v]" + gifVideoChain(width, fps, rect) +
+		"[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5"
+}
+
+// gifSeekArgs prefixes ffmpeg with an input-limited seek.
+//
+// -t must come before -i so palettegen does not decode to EOF.
+//
+// Parameters:
+//   - ffmpegPath: Path to the ffmpeg binary.
+//   - input: Source media path.
+//   - start: Seek offset in seconds.
+//   - duration: Input duration in seconds.
+//
+// Returns:
+//   - args: argv through the first -i inclusive.
+func gifSeekArgs(ffmpegPath, input string, start, duration float64) []string {
+	return []string{
+		ffmpegPath,
+		outputFlag,
+		ssFlag,
+		formatDuration(start),
+		durationFlag,
+		formatDuration(duration),
+		inputFlag,
+		input,
+	}
 }
 
 // gifPaletteArgs builds the ffmpeg palettegen command.
+//
+// Parameters:
+//   - ffmpegPath: Path to the ffmpeg binary.
+//   - input: Source media path.
+//   - palette: Destination palette PNG path.
+//   - start: Seek offset in seconds.
+//   - duration: Input duration in seconds.
+//   - vf: palettegen -vf chain.
+//
+// Returns:
+//   - args: ffmpeg argv including the binary path.
 func gifPaletteArgs(
 	ffmpegPath, input, palette string,
 	start, duration float64,
 	vf string,
 ) []string {
-	return []string{
-		ffmpegPath,
-		outputFlag,
-		ssFlag,
-		formatDuration(start),
-		inputFlag,
-		input,
-		durationFlag,
-		formatDuration(duration),
-		"-vf",
+	args := gifSeekArgs(ffmpegPath, input, start, duration)
+
+	args = append(
+		args,
+		anFlag,
+		videoFilterFlag,
 		vf,
+		framesFlag,
+		"1",
+		updateFlag,
+		updateEnabled,
 		palette,
-	}
+	)
+
+	return args
 }
 
 // gifEncodeArgs builds the ffmpeg paletteuse command.
+//
+// Parameters:
+//   - ffmpegPath: Path to the ffmpeg binary.
+//   - input: Source media path.
+//   - palette: Palette PNG path.
+//   - output: Destination GIF path.
+//   - start: Seek offset in seconds.
+//   - duration: Input duration in seconds.
+//   - filter: paletteuse filter_complex string.
+//
+// Returns:
+//   - args: ffmpeg argv including the binary path.
 func gifEncodeArgs(
 	ffmpegPath, input, palette, output string,
 	start, duration float64,
 	filter string,
 ) []string {
-	return []string{
-		ffmpegPath,
-		outputFlag,
-		ssFlag,
-		formatDuration(start),
-		inputFlag,
-		input,
-		inputFlag,
-		palette,
-		durationFlag,
-		formatDuration(duration),
-		"-filter_complex",
-		filter,
-		output,
-	}
+	args := gifSeekArgs(ffmpegPath, input, start, duration)
+
+	args = append(args, inputFlag, palette, anFlag, filterComplexFlag, filter, output)
+
+	return args
 }
 
 // ExtractGIF extracts a GIF from a video.
