@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/exp digest to 85c1c22 by @renovate[bot] in [#136](https://github.com/PapagoLabs/outtake/pull/136)
+- Update module golang.org/x/mod to v0.41.0 by @renovate[bot] in [#133](https://github.com/PapagoLabs/outtake/pull/133)
 - Update module github.com/gofiber/schema to v1.8.6 by @renovate[bot] in [#132](https://github.com/PapagoLabs/outtake/pull/132)
 
 ### Fixed
