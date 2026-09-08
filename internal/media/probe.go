@@ -18,13 +18,14 @@ type probeFormat struct {
 
 // probeStream represents a stream from ffprobe.
 type probeStream struct {
-	Index     int       `json:"index"`
-	CodecType string    `json:"codec_type"`
-	CodecName string    `json:"codec_name"`
-	Width     int       `json:"width"`
-	Height    int       `json:"height"`
-	Channels  int       `json:"channels"`
-	Tags      probeTags `json:"tags"`
+	Index         int       `json:"index"`
+	CodecType     string    `json:"codec_type"`
+	CodecName     string    `json:"codec_name"`
+	Width         int       `json:"width"`
+	Height        int       `json:"height"`
+	Channels      int       `json:"channels"`
+	ColorTransfer string    `json:"color_transfer"`
+	Tags          probeTags `json:"tags"`
 }
 
 // probeTags holds optional ffprobe stream tags.
@@ -104,8 +105,8 @@ func parseBitRate(output probeOutput, info *MediaInfo) {
 
 // parseStreams parses the streams from the probe output.
 func parseStreams(output probeOutput, info *MediaInfo) {
-	for _, stream := range output.Streams {
-		parseStream(stream, info)
+	for index := range output.Streams {
+		parseStream(output.Streams[index], info)
 	}
 }
 
@@ -117,6 +118,7 @@ func parseStream(stream probeStream, info *MediaInfo) {
 			info.VideoCodec = stream.CodecName
 			info.Width = stream.Width
 			info.Height = stream.Height
+			info.ColorTransfer = stream.ColorTransfer
 		}
 	case "audio":
 		if info.AudioCodec == emptyAudioCodec {

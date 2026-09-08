@@ -34,6 +34,7 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 		StartTime:     0,
 		EndTime:       0,
 		CropBlackBars: false,
+		WebSafeColor:  true,
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
@@ -43,6 +44,9 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Contains(t, body, `name="endTime"`)
 	assert.Contains(t, body, "Time")
 	assert.Contains(t, body, `name="cropBlackBars"`)
+	assert.Contains(t, body, `name="webSafeColor"`)
+	assert.Contains(t, body, "Web-safe color")
+	assert.Contains(t, body, `name="webSafeColor" value="1" checked`)
 	assert.Less(t, strings.Index(body, `id="clipType"`), strings.Index(body, `id="name"`))
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")

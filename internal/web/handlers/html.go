@@ -307,6 +307,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		StartTime:     start,
 		EndTime:       end,
 		CropBlackBars: handler.cfg.CropBlackBars,
+		WebSafeColor:  previewWebSafeColor(ctx, handler.cfg.WebSafeColor),
 		Crumbs:        nil,
 		LibraryID:     "",
 	}
@@ -321,6 +322,23 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	return renderHTML(ctx, func(writer io.Writer) error {
 		return pages.MediaItemPage(props).Render(ctx.Context(), writer)
 	})
+}
+
+// previewWebSafeColor prefers the preview redirect query over the config default.
+//
+// Parameters:
+//   - ctx: Incoming page request.
+//   - fallback: Config default when the query is omitted.
+//
+// Returns:
+//   - checked: True when the New export web-safe color checkbox should be on.
+func previewWebSafeColor(ctx fiber.Ctx, fallback bool) bool {
+	raw := ctx.Query(queryWebSafeColor)
+	if raw == "" {
+		return fallback
+	}
+
+	return raw == formChecked
 }
 
 // MediaItemClips renders the media-item clip list fragment for HTMX swaps.
@@ -1011,6 +1029,7 @@ func toClipItem(job *queue.Job, profiles []view.ClipProfileOption, maxDur int) v
 		AudioIndex:    job.AudioIndex,
 		AudioTracks:   nil,
 		CropBlackBars: job.CropBlackBars,
+		WebSafeColor:  job.WebSafeColor,
 		Width:         job.Width,
 		FPS:           job.FPS,
 		MaxDur:        maxDur,

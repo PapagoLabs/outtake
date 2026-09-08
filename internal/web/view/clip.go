@@ -22,6 +22,7 @@ type ClipItem struct {
 	AudioIndex    int
 	AudioTracks   []AudioTrackOption
 	CropBlackBars bool
+	WebSafeColor  bool
 	Width         int
 	FPS           int
 	MaxDur        int

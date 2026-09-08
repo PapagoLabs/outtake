@@ -30,6 +30,7 @@ type Job struct {
 	FPS           int
 	AudioIndex    int
 	CropBlackBars bool
+	WebSafeColor  bool
 	Status        JobStatus
 	Progress      int
 	Error         string

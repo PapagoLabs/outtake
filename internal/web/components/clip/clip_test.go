@@ -59,6 +59,7 @@ func TestClipCard(t *testing.T) {
 				`hx-disable="this"`,
 				`name="endTime"`,
 				`name="cropBlackBars"`,
+				`name="webSafeColor"`,
 				`data-max-dur=`,
 			},
 			notContains: []string{"<details open", "On disk"},

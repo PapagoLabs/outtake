@@ -35,6 +35,24 @@ func TestParseProbeOutput(t *testing.T) {
 	assert.Equal(t, "aac", info.AudioTracks[0].Codec)
 	assert.Equal(t, 1920, info.Width)
 	assert.Equal(t, 1080, info.Height)
+	assert.Empty(t, info.ColorTransfer)
+}
+
+func TestParseProbeOutput_HDRTransfer(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{
+		"format": {"duration": "10.0", "bit_rate": "1000", "format_name": "matroska"},
+		"streams": [
+			{"codec_type": "video", "codec_name": "hevc", "width": 3840, "height": 2160,
+				"color_transfer": "smpte2084"}
+		]
+	}`)
+
+	info, err := parseProbeOutput(data)
+	require.NoError(t, err)
+	assert.Equal(t, "smpte2084", info.ColorTransfer)
+	assert.True(t, isHDRTransfer(info.ColorTransfer))
 }
 
 func TestParseProbeOutput_AudioTracks(t *testing.T) {

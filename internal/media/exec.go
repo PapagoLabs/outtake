@@ -27,16 +27,19 @@ type ExecFFmpeg struct {
 
 // h264EncodeRequest is the input for a browser-safe libx264 encode.
 type h264EncodeRequest struct {
-	ffmpegPath string
-	input      string
-	output     string
-	start      float64
-	duration   float64
-	preset     QualityPreset
-	audioIndex int
-	maxWidth   int
-	scaleFlags string
-	crop       CropRect
+	ffmpegPath   string
+	input        string
+	output       string
+	start        float64
+	duration     float64
+	preset       QualityPreset
+	audioIndex   int
+	maxWidth     int
+	scaleFlags   string
+	crop         CropRect
+	webSafeColor bool
+	hdrKind      string
+	tonePeak     float64
 }
 
 const (
@@ -60,6 +63,14 @@ const (
 	qualityFlag = "-q:v"
 	// OverwriteFlag is the FFmpeg overwrite flag.
 	overwriteFlag = "+faststart"
+	// CommandDir is the working directory for ffmpeg child processes.
+	commandDir = "/"
+	// WebSafeMovFlags writes a colr atom so browsers agree on Rec.709.
+	webSafeMovFlags = "+faststart+write_colr"
+	// WebSafePeakSecs caps how long a luma-peak pass may sample.
+	webSafePeakSecs = 8
+	// SignalstatsFilter prints lavfi.signalstats.YMAX to stderr for peak detect.
+	signalstatsFilter = "signalstats,metadata=mode=print"
 	// DefaultVideoCodec is the default video codec.
 	defaultVideoCodec = "libx264"
 	// DefaultAudioCodec is the default audio codec.
@@ -113,7 +124,7 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 	// #nosec G204 - args are controlled by the application
 	cmd := exec.CommandContext(detectCtx, args[0], args[1:]...)
 
-	cmd.Dir = "/"
+	cmd.Dir = commandDir
 
 	var stderr bytes.Buffer
 
@@ -150,7 +161,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 
-	args := clipEncodeArgs(
+	req := clipEncodeRequest(
 		execFFmpeg.ffmpegPath,
 		cleanInput,
 		cleanOutput,
@@ -160,8 +171,11 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		audioIndex,
 		rect,
 	)
+	if req.webSafeColor {
+		execFFmpeg.applyWebSafe(ctx, &req)
+	}
 
-	err := execFFmpeg.run(ctx, duration, args...)
+	err := execFFmpeg.run(ctx, duration, h264EncodeArgs(req)...)
 	if err != nil {
 		return fmt.Errorf("extract clip: %w", err)
 	}
@@ -170,6 +184,19 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 }
 
 // clipEncodeArgs builds the ffmpeg argv for a video clip.
+//
+// Parameters:
+//   - ffmpegPath: Path to the ffmpeg binary.
+//   - input: Source media path.
+//   - output: Destination mp4 path.
+//   - start: Seek offset in seconds.
+//   - duration: Clip duration in seconds.
+//   - preset: Encode quality, including WebSafeColor.
+//   - audioIndex: Audio stream index on the source.
+//   - rect: Optional black-bar crop.
+//
+// Returns:
+//   - args: ffmpeg argv including the binary path.
 func clipEncodeArgs(
 	ffmpegPath, input, output string,
 	start, duration float64,
@@ -177,44 +204,141 @@ func clipEncodeArgs(
 	audioIndex int,
 	rect CropRect,
 ) []string {
-	return h264EncodeArgs(h264EncodeRequest{
-		ffmpegPath: ffmpegPath,
-		input:      input,
-		output:     output,
-		start:      start,
-		duration:   duration,
-		preset:     preset,
-		audioIndex: audioIndex,
-		maxWidth:   NormalizeOutputWidth(preset.MaxWidth),
-		scaleFlags: scaleFlagsLanczos,
-		crop:       rect,
-	})
+	return h264EncodeArgs(clipEncodeRequest(
+		ffmpegPath,
+		input,
+		output,
+		start,
+		duration,
+		preset,
+		audioIndex,
+		rect,
+	))
+}
+
+// clipEncodeRequest builds the shared H.264 encode request for a saved clip.
+//
+// Parameters:
+//   - ffmpegPath: Path to the ffmpeg binary.
+//   - input: Source media path.
+//   - output: Destination mp4 path.
+//   - start: Seek offset in seconds.
+//   - duration: Clip duration in seconds.
+//   - preset: Encode quality, including WebSafeColor.
+//   - audioIndex: Audio stream index on the source.
+//   - rect: Optional black-bar crop.
+//
+// Returns:
+//   - req: Populated encode request. HDR peak is filled later by applyWebSafe.
+func clipEncodeRequest(
+	ffmpegPath, input, output string,
+	start, duration float64,
+	preset QualityPreset,
+	audioIndex int,
+	rect CropRect,
+) h264EncodeRequest {
+	hdrKind := ""
+	if preset.WebSafeColor {
+		hdrKind = transferPQAlias
+	}
+
+	return h264EncodeRequest{
+		ffmpegPath:   ffmpegPath,
+		input:        input,
+		output:       output,
+		start:        start,
+		duration:     duration,
+		preset:       preset,
+		audioIndex:   audioIndex,
+		maxWidth:     NormalizeOutputWidth(preset.MaxWidth),
+		scaleFlags:   scaleFlagsLanczos,
+		crop:         rect,
+		webSafeColor: preset.WebSafeColor,
+		hdrKind:      hdrKind,
+		tonePeak:     defaultWebSafePeak,
+	}
 }
 
 // previewEncodeArgs builds the ffmpeg argv for an in-browser preview.
+//
+// Parameters:
+//   - ffmpegPath: Path to the ffmpeg binary.
+//   - input: Source media path.
+//   - output: Destination mp4 path.
+//   - start: Seek offset in seconds.
+//   - duration: Preview duration in seconds.
+//   - audioIndex: Audio stream index on the source.
+//   - rect: Optional black-bar crop.
+//   - preset: Encode options; only WebSafeColor is read.
+//
+// Returns:
+//   - args: ffmpeg argv including the binary path.
 func previewEncodeArgs(
 	ffmpegPath, input, output string,
 	start, duration float64,
 	audioIndex int,
 	rect CropRect,
+	preset QualityPreset,
 ) []string {
-	return h264EncodeArgs(h264EncodeRequest{
+	return h264EncodeArgs(previewEncodeRequest(
+		ffmpegPath,
+		input,
+		output,
+		start,
+		duration,
+		audioIndex,
+		rect,
+		preset,
+	))
+}
+
+// previewEncodeRequest builds the shared H.264 encode request for a preview.
+//
+// Parameters:
+//   - ffmpegPath: Path to the ffmpeg binary.
+//   - input: Source media path.
+//   - output: Destination mp4 path.
+//   - start: Seek offset in seconds.
+//   - duration: Preview duration in seconds.
+//   - audioIndex: Audio stream index on the source.
+//   - rect: Optional black-bar crop.
+//   - preset: Encode options; only WebSafeColor is read.
+//
+// Returns:
+//   - req: Populated encode request. HDR peak is filled later by applyWebSafe.
+func previewEncodeRequest(
+	ffmpegPath, input, output string,
+	start, duration float64,
+	audioIndex int,
+	rect CropRect,
+	preset QualityPreset,
+) h264EncodeRequest {
+	hdrKind := ""
+	if preset.WebSafeColor {
+		hdrKind = transferPQAlias
+	}
+
+	return h264EncodeRequest{
 		ffmpegPath: ffmpegPath,
 		input:      input,
 		output:     output,
 		start:      start,
 		duration:   duration,
 		preset: QualityPreset{
-			CRF:       previewCRF,
-			Preset:    previewPreset,
-			AudioKbps: previewAudioKbps,
-			MaxWidth:  previewMaxWidth,
+			CRF:          previewCRF,
+			Preset:       previewPreset,
+			AudioKbps:    previewAudioKbps,
+			MaxWidth:     previewMaxWidth,
+			WebSafeColor: preset.WebSafeColor,
 		},
-		audioIndex: audioIndex,
-		maxWidth:   previewMaxWidth,
-		scaleFlags: scaleFlagsFast,
-		crop:       rect,
-	})
+		audioIndex:   audioIndex,
+		maxWidth:     previewMaxWidth,
+		scaleFlags:   scaleFlagsFast,
+		crop:         rect,
+		webSafeColor: preset.WebSafeColor,
+		hdrKind:      hdrKind,
+		tonePeak:     defaultWebSafePeak,
+	}
 }
 
 // previewDuration caps a preview window so encodes stay cheap.
@@ -240,17 +364,34 @@ func prependCrop(rect CropRect, chain string) string {
 	return rect.Filter() + "," + chain
 }
 
-// videoFilter applies optional black-bar crop then scale.
-func videoFilter(maxWidth int, flags string, rect CropRect) string {
-	return prependCrop(rect, scaleFilter(maxWidth, flags))
+// videoFilter applies optional black-bar crop, optional HDR tone-map, then scale.
+//
+// Parameters:
+//   - req: Encode request with crop, scale, and web-safe color fields.
+//
+// Returns:
+//   - filter: The ffmpeg -vf chain.
+func videoFilter(req h264EncodeRequest) string {
+	chain := scaleFilter(req.maxWidth, req.scaleFlags)
+	if req.webSafeColor && req.hdrKind != "" {
+		chain = webSafeToneMapFilter(req.hdrKind, req.tonePeak) + "," + chain
+	}
+
+	return prependCrop(req.crop, chain)
 }
 
 // h264EncodeArgs builds a browser-safe libx264 argv.
+//
+// Parameters:
+//   - req: Encode request for a clip or preview.
+//
+// Returns:
+//   - args: ffmpeg argv including the binary path.
 func h264EncodeArgs(req h264EncodeRequest) []string {
 	preset := NormalizePreset(req.preset)
 	audioIndex := max(req.audioIndex, 0)
 
-	return []string{
+	args := []string{
 		req.ffmpegPath,
 		outputFlag,
 		ssFlag, formatDuration(req.start),
@@ -260,15 +401,47 @@ func h264EncodeArgs(req h264EncodeRequest) []string {
 		"-map", "0:a:" + strconv.Itoa(audioIndex) + "?",
 		"-c:v", defaultVideoCodec,
 		pixelFormatFlag, pixelFormatYUV420P,
-		videoFilterFlag, videoFilter(req.maxWidth, req.scaleFlags, req.crop),
+		videoFilterFlag, videoFilter(req),
 		"-crf", strconv.Itoa(preset.CRF),
 		"-preset", preset.Preset,
 		"-c:a", defaultAudioCodec,
 		"-b:a", strconv.Itoa(preset.AudioKbps) + "k",
 		"-ac", "2",
-		"-movflags", overwriteFlag,
-		req.output,
 	}
+	if req.webSafeColor {
+		args = append(args, webSafeColorArgs()...)
+	}
+
+	return append(args, "-movflags", movFlags(req), req.output)
+}
+
+// webSafeColorArgs tags the encode as Rec.709 / sRGB limited range.
+//
+// Returns:
+//   - args: ffmpeg color and x264-params flags.
+func webSafeColorArgs() []string {
+	return []string{
+		"-color_primaries", "bt709",
+		"-color_trc", "iec61966-2-1",
+		"-colorspace", "bt709",
+		"-color_range", "tv",
+		"-x264-params", "colorprim=bt709:transfer=iec61966-2-1:colormatrix=bt709",
+	}
+}
+
+// movFlags returns container flags, adding colr when web-safe color is on.
+//
+// Parameters:
+//   - req: Encode request whose WebSafeColor field selects the movflags value.
+//
+// Returns:
+//   - flags: +faststart, or +faststart+write_colr when web-safe color is on.
+func movFlags(req h264EncodeRequest) string {
+	if req.webSafeColor {
+		return webSafeMovFlags
+	}
+
+	return overwriteFlag
 }
 
 // gifScaleFilter is the shared fps+scale chain for GIF palette and encode.
@@ -396,13 +569,14 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 	start, duration float64,
 	audioIndex int,
 	rect CropRect,
+	preset QualityPreset,
 ) error {
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 
 	duration = previewDuration(duration)
 
-	args := previewEncodeArgs(
+	req := previewEncodeRequest(
 		execFFmpeg.ffmpegPath,
 		cleanInput,
 		cleanOutput,
@@ -410,9 +584,13 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 		duration,
 		audioIndex,
 		rect,
+		preset,
 	)
+	if req.webSafeColor {
+		execFFmpeg.applyWebSafe(ctx, &req)
+	}
 
-	err := execFFmpeg.run(ctx, duration, args...)
+	err := execFFmpeg.run(ctx, duration, h264EncodeArgs(req)...)
 	if err != nil {
 		return fmt.Errorf("extract preview: %w", err)
 	}
@@ -500,6 +678,45 @@ func (execFFmpeg *ExecFFmpeg) SetTimeout(d time.Duration) {
 	execFFmpeg.timeout = d
 }
 
+// applyWebSafe sets CPU tone-map parameters from the source stream.
+//
+// SDR sources keep Rec.709 tags only. Probe or peak failures leave tags
+// without a remaster.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for probe and luma sampling.
+//   - req: Encode request to update in place.
+func (execFFmpeg *ExecFFmpeg) applyWebSafe(ctx context.Context, req *h264EncodeRequest) {
+	info, err := execFFmpeg.Probe(ctx, req.input)
+	if err != nil {
+		req.hdrKind = ""
+
+		return
+	}
+
+	if !isHDRTransfer(info.ColorTransfer) {
+		req.hdrKind = ""
+
+		return
+	}
+
+	if isHLGTransfer(info.ColorTransfer) {
+		req.hdrKind = transferHLGAlias
+		req.tonePeak = defaultWebSafePeak
+
+		return
+	}
+
+	req.hdrKind = transferPQAlias
+
+	ymax, ok := execFFmpeg.signalstatsYMax(ctx, req.input, req.start, req.duration)
+	if !ok {
+		return
+	}
+
+	req.tonePeak = tonePeakFromNits(pqNitsFromLimitedY(ymax))
+}
+
 // run executes the FFmpeg command.
 func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ...string) error {
 	logging.Logger.Debug().
@@ -512,7 +729,7 @@ func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ..
 	// #nosec G204 - args are controlled by the application
 	cmd := exec.CommandContext(runCtx, args[0], args[1:]...)
 
-	cmd.Dir = "/"
+	cmd.Dir = commandDir
 
 	stderr := progress.NewWriter(duration, progress.From(ctx))
 
@@ -537,6 +754,58 @@ func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ..
 		Msg("ffmpeg command completed")
 
 	return nil
+}
+
+// signalstatsYMax samples luma on a short window of the clip.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the ffmpeg pass.
+//   - input: Source media path.
+//   - start: Seek offset in seconds.
+//   - duration: Clip duration in seconds; capped at webSafePeakSecs.
+//
+// Returns:
+//   - ymax: Highest limited-range luma code observed.
+//   - ok: True when at least one YMAX value was parsed.
+func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
+	ctx context.Context,
+	input string,
+	start, duration float64,
+) (float64, bool) {
+	sample := duration
+	if sample <= 0 || sample > webSafePeakSecs {
+		sample = webSafePeakSecs
+	}
+
+	args := []string{
+		execFFmpeg.ffmpegPath,
+		ssFlag, formatDuration(start),
+		inputFlag, input,
+		durationFlag, formatDuration(sample),
+		"-an",
+		videoFilterFlag, signalstatsFilter,
+		"-f", "null",
+		"-",
+	}
+
+	runCtx, cancel := context.WithTimeout(ctx, execFFmpeg.timeout)
+	defer cancel()
+
+	// #nosec G204 - args are controlled by the application
+	cmd := exec.CommandContext(runCtx, args[0], args[1:]...)
+
+	cmd.Dir = commandDir
+
+	var stderr bytes.Buffer
+
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		logging.Logger.Debug().Err(err).Msg("signalstats finished")
+	}
+
+	return parseSignalstatsYMax(stderr.String())
 }
 
 // formatDuration formats a duration in seconds to a string.
