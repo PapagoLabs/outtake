@@ -197,10 +197,10 @@ func helmetConfig() helmet.Config {
 // csrfConfig returns CSRF middleware that accepts header or form tokens.
 //
 // Parameters:
-//   - cfg: App config; PublicURL scheme controls CookieSecure.
+//   - cfg: App config. PublicURL controls CookieSecure and TrustedOrigins.
 //
 // Returns:
-//   - CSRF middleware config.
+//   - config: CSRF middleware config.
 func csrfConfig(cfg *config.Config) csrf.Config {
 	return csrf.Config{
 		Storage:        nil,
@@ -212,7 +212,7 @@ func csrfConfig(cfg *config.Config) csrf.Config {
 		CookieDomain:   "",
 		CookiePath:     "",
 		CookieSameSite: "Lax",
-		TrustedOrigins: nil,
+		TrustedOrigins: csrfTrustedOrigins(cfg),
 		Extractor: extractors.Chain(
 			extractors.FromHeader(csrf.HeaderName),
 			extractors.FromForm(web.CSRFFormField),
@@ -224,6 +224,25 @@ func csrfConfig(cfg *config.Config) csrf.Config {
 		CookieSessionOnly:     false,
 		SingleUseToken:        false,
 	}
+}
+
+// csrfTrustedOrigins returns Fiber CSRF TrustedOrigins from PublicBaseURL.
+//
+// Fiber compares Origin to c.Scheme()+c.Host(). Behind TLS-terminating proxies
+// the app scheme is http while the browser Origin is https, so the public URL
+// must be listed explicitly.
+//
+// Parameters:
+//   - cfg: App config. PublicBaseURL is the reverse-proxy origin when set.
+//
+// Returns:
+//   - origins: One origin from PublicURL, or nil when PublicBaseURL is unset.
+func csrfTrustedOrigins(cfg *config.Config) []string {
+	if cfg.PublicBaseURL == "" {
+		return nil
+	}
+
+	return []string{cfg.PublicURL()}
 }
 
 // cookieSecure reports whether cookies should set the Secure attribute.
