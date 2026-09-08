@@ -69,6 +69,8 @@ const (
 	webSafeMovFlags = "+faststart+write_colr"
 	// WebSafePeakSecs caps how long a luma-peak pass may sample.
 	webSafePeakSecs = 8
+	// SignalstatsFilter prints lavfi.signalstats.YMAX to stderr for peak detect.
+	signalstatsFilter = "signalstats,metadata=mode=print"
 	// DefaultVideoCodec is the default video codec.
 	defaultVideoCodec = "libx264"
 	// DefaultAudioCodec is the default audio codec.
@@ -781,7 +783,7 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 		inputFlag, input,
 		durationFlag, formatDuration(sample),
 		"-an",
-		videoFilterFlag, "signalstats",
+		videoFilterFlag, signalstatsFilter,
 		"-f", "null",
 		"-",
 	}
