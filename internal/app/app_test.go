@@ -93,6 +93,9 @@ func TestCSRFTrustedOriginsFollowsPublicBaseURL(t *testing.T) {
 
 	behindTLS := csrfConfig(&config.Config{PublicBaseURL: publicOrigin + "/"})
 	assert.Equal(t, []string{publicOrigin}, behindTLS.TrustedOrigins)
+
+	withPath := csrfConfig(&config.Config{PublicBaseURL: publicOrigin + "/outtake"})
+	assert.Equal(t, []string{publicOrigin}, withPath.TrustedOrigins)
 }
 
 func TestCSRFAllowsHTTPSOriginBehindHTTP(t *testing.T) {

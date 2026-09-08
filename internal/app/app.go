@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -230,19 +231,24 @@ func csrfConfig(cfg *config.Config) csrf.Config {
 //
 // Fiber compares Origin to c.Scheme()+c.Host(). Behind TLS-terminating proxies
 // the app scheme is http while the browser Origin is https, so the public URL
-// must be listed explicitly.
+// must be listed explicitly. Fiber rejects TrustedOrigins that include a path.
 //
 // Parameters:
 //   - cfg: App config. PublicBaseURL is the reverse-proxy origin when set.
 //
 // Returns:
-//   - origins: One origin from PublicURL, or nil when PublicBaseURL is unset.
+//   - origins: Scheme and host from PublicURL, or nil when PublicBaseURL is unset.
 func csrfTrustedOrigins(cfg *config.Config) []string {
 	if cfg.PublicBaseURL == "" {
 		return nil
 	}
 
-	return []string{cfg.PublicURL()}
+	parsed, err := url.Parse(cfg.PublicURL())
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return nil
+	}
+
+	return []string{parsed.Scheme + "://" + parsed.Host}
 }
 
 // cookieSecure reports whether cookies should set the Secure attribute.
