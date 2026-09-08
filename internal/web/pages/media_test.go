@@ -20,7 +20,7 @@ func TestMediaSearchPreservesLibrary(t *testing.T) {
 
 	err := Media(view.MediaProps{
 		LibraryID: "7",
-		Query:     "matrix",
+		Query:     "movie",
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 

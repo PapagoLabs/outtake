@@ -73,16 +73,16 @@ func TestMediaBrowseLibraryRoot(t *testing.T) {
 
 	err := MediaBrowse(view.MediaProps{
 		Items: []view.MediaItem{
-			{ID: "10", Title: "Heat", Type: "movie"},
+			{ID: "10", Title: "Movie", Type: "movie"},
 		},
 		LibraryID: "1",
 		Sort:      "title_asc",
 		Letters: []view.LetterIndex{
 			{Title: "#", Size: 3, Start: 0},
 			{Title: "A", Size: 40, Start: 3},
-			{Title: "H", Size: 8, Start: 43},
+			{Title: "M", Size: 8, Start: 43},
 		},
-		Letter:    "H",
+		Letter:    "M",
 		Start:     43,
 		Total:     200,
 		PageSize:  48,
@@ -97,7 +97,7 @@ func TestMediaBrowseLibraryRoot(t *testing.T) {
 	assert.Contains(t, body, `hx-include="closest form"`)
 	assert.NotContains(t, body, `change from:select`)
 	assert.Contains(t, body, `aria-label="Jump to letter"`)
-	assert.Contains(t, body, `data-jump-key="H"`)
+	assert.Contains(t, body, `data-jump-key="M"`)
 	assert.Contains(t, body, `id="media-prev"`)
 	assert.Contains(t, body, "before=43")
 	assert.Contains(t, body, `id="media-list-letter"`)
@@ -111,7 +111,7 @@ func TestMediaBrowseLibraryRoot(t *testing.T) {
 	assert.NotContains(t, body, "sticky")
 	assert.NotContains(t, body, "h-[calc(100dvh-4rem)]")
 	assert.NotContains(t, body, "xl:grid-cols-4")
-	assert.Contains(t, body, `letter=H`)
+	assert.Contains(t, body, `letter=M`)
 	assert.Contains(t, body, `href="/media/item/10"`)
 	assert.Contains(t, body, `id="media-more"`)
 	assert.Contains(t, body, "Loading more…")
@@ -129,7 +129,7 @@ func TestMediaBrowseShowsYearsForYearSort(t *testing.T) {
 
 	err := MediaBrowse(view.MediaProps{
 		Items: []view.MediaItem{
-			{ID: "10", Title: "Heat", Type: "movie", Year: 1995},
+			{ID: "10", Title: "Movie", Type: "movie", Year: 1995},
 		},
 		LibraryID: "1",
 		Sort:      "year_desc",
@@ -160,13 +160,13 @@ func TestMediaBrowseOmitsLettersOnSearch(t *testing.T) {
 
 	err := MediaBrowse(view.MediaProps{
 		Items: []view.MediaItem{
-			{ID: "10", Title: "Heat", Type: "movie"},
+			{ID: "10", Title: "Movie", Type: "movie"},
 		},
 		LibraryID: "1",
-		Query:     "heat",
+		Query:     "movie",
 		Sort:      "title_asc",
 		Letters: []view.LetterIndex{
-			{Title: "H", Size: 8, Start: 43},
+			{Title: "M", Size: 8, Start: 43},
 		},
 		Total:     1,
 		PageSize:  48,
@@ -258,8 +258,8 @@ func TestMediaResultsChooserLinksLibraries(t *testing.T) {
 func TestJumpKey(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "H", jumpKey(view.MediaItem{Title: "The Heat", TitleSort: "Heat"}, "title_asc"))
-	assert.Equal(t, "#", jumpKey(view.MediaItem{Title: "2 Fast"}, "title_asc"))
+	assert.Equal(t, "M", jumpKey(view.MediaItem{Title: "The Movie", TitleSort: "Movie"}, "title_asc"))
+	assert.Equal(t, "#", jumpKey(view.MediaItem{Title: "2 Movie"}, "title_asc"))
 	assert.Equal(t, "1995", jumpKey(view.MediaItem{Year: 1995}, "year_desc"))
 	assert.Equal(t, "#", jumpKey(view.MediaItem{}, "year_asc"))
 	assert.Equal(t, "03/2024", jumpKey(view.MediaItem{AddedAt: time.Date(2024, 3, 15, 0, 0, 0, 0, time.Local).Unix()}, "added_desc"))
@@ -268,7 +268,7 @@ func TestJumpKey(t *testing.T) {
 func TestItemURL(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "/media/item/10", string(itemURL(view.MediaItem{ID: "10", Title: "Heat"})))
+	assert.Equal(t, "/media/item/10", string(itemURL(view.MediaItem{ID: "10", Title: "Movie"})))
 	assert.Equal(t, "/media?library=1&parent=9", string(itemURL(view.MediaItem{
 		ID:        "9",
 		Browsable: true,
@@ -283,7 +283,7 @@ func TestMediaCardPosterLinksToItem(t *testing.T) {
 
 	err := mediaCard(view.MediaItem{
 		ID:        "10",
-		Title:     "Heat",
+		Title:     "Movie",
 		Type:      "movie",
 		ThumbPath: "/thumbs?path=/library/metadata/10/thumb/1",
 	}, "title_asc").Render(t.Context(), &buf)
@@ -291,7 +291,7 @@ func TestMediaCardPosterLinksToItem(t *testing.T) {
 
 	body := buf.String()
 	assert.GreaterOrEqual(t, strings.Count(body, `href="/media/item/10"`), 2)
-	assert.Contains(t, body, `alt="Heat"`)
+	assert.Contains(t, body, `alt="Movie"`)
 	assert.NotContains(t, body, ">Open<")
 }
 
@@ -302,7 +302,7 @@ func TestMediaCardPosterLinksToBrowse(t *testing.T) {
 
 	err := mediaCard(view.MediaItem{
 		ID:        "9",
-		Title:     "Strike Back",
+		Title:     "Show",
 		Type:      "show",
 		Browsable: true,
 		BrowseURL: "/media?library=2&parent=9",
@@ -339,7 +339,7 @@ func TestMediaMoreOmitsCrumbs(t *testing.T) {
 
 	err := MediaMore(view.MediaProps{
 		Items: []view.MediaItem{
-			{ID: "10", Title: "Heat", Type: "movie"},
+			{ID: "10", Title: "Movie", Type: "movie"},
 		},
 		Crumbs: []view.Crumb{
 			{Title: "Libraries", URL: "/media"},
@@ -355,7 +355,7 @@ func TestMediaMoreOmitsCrumbs(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "Heat")
+	assert.Contains(t, body, "Movie")
 	assert.Contains(t, body, `id="media-more"`)
 	assert.NotContains(t, body, "Libraries")
 	assert.NotContains(t, body, ">Movies<")

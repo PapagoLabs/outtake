@@ -18,7 +18,7 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:            "42",
-		Title:         "Movie",
+		Title:         testMovie,
 		Type:          "",
 		Duration:      0,
 		MaxDur:        600,
@@ -60,7 +60,7 @@ func TestMediaItemPagePreservesStatusFilter(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:            "42",
-		Title:         "Movie",
+		Title:         testMovie,
 		Type:          "",
 		Duration:      0,
 		MaxDur:        600,

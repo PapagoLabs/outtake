@@ -25,13 +25,13 @@ import (
 
 const (
 	testTVShows    = "TV Shows"
-	testShow       = "Strike Back"
+	testShow       = "Show"
 	testSeason     = "Season 3"
 	testEpisode    = "Episode 5"
-	testShowURL    = "/media?library=2&parent=9&title=Strike+Back"
-	testSeasonURL  = "/media?library=2&parent=10&title=Season+3&up=9&upTitle=Strike+Back"
+	testShowURL    = "/media?library=2&parent=9&title=Show"
+	testSeasonURL  = "/media?library=2&parent=10&title=Season+3&up=9&upTitle=Show"
 	testEpisodeURL = "/media/item/42"
-	testHeat       = "Heat"
+	testMovie      = "Movie"
 )
 
 func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
@@ -66,13 +66,13 @@ func TestItemCrumbsEpisodeTrail(t *testing.T) {
 		ParentID:         "10",
 		ParentTitle:      "Season 2",
 		GrandparentID:    "9",
-		GrandparentTitle: "Better Call Saul",
+		GrandparentTitle: testShow,
 	}, nil)
 
 	require.Len(t, crumbs, 5)
 	assert.Equal(t, "Libraries", crumbs[0].Title)
 	assert.Equal(t, testTVShows, crumbs[1].Title)
-	assert.Equal(t, "Better Call Saul", crumbs[2].Title)
+	assert.Equal(t, testShow, crumbs[2].Title)
 	assert.Equal(t, "Season 2", crumbs[3].Title)
 	assert.Equal(t, "Episode 3", crumbs[4].Title)
 	assert.Empty(t, crumbs[4].URL)
@@ -87,13 +87,13 @@ func TestItemCrumbsSeasonUsesParentShow(t *testing.T) {
 		LibraryID:    "2",
 		LibraryTitle: testTVShows,
 		ParentID:     "9",
-		ParentTitle:  "Better Call Saul",
+		ParentTitle:  testShow,
 	}, nil)
 
 	require.Len(t, crumbs, 4)
 	assert.Equal(t, "Libraries", crumbs[0].Title)
 	assert.Equal(t, testTVShows, crumbs[1].Title)
-	assert.Equal(t, "Better Call Saul", crumbs[2].Title)
+	assert.Equal(t, testShow, crumbs[2].Title)
 	assert.Equal(t, "Season 2", crumbs[3].Title)
 	assert.Contains(t, crumbs[2].URL, "parent=9")
 }
@@ -180,19 +180,19 @@ func TestSessionTitleParts(t *testing.T) {
 			name: "movie with year",
 			give: plex.MediaItem{
 				ID:    "100",
-				Title: testHeat,
+				Title: testMovie,
 				Year:  1995,
 			},
-			want:     []view.Crumb{{Title: testHeat, URL: "/media/item/100"}},
+			want:     []view.Crumb{{Title: testMovie, URL: "/media/item/100"}},
 			wantYear: 1995,
 		},
 		{
 			name: "movie without year",
 			give: plex.MediaItem{
 				ID:    "101",
-				Title: "Dune",
+				Title: testMovie,
 			},
-			want: []view.Crumb{{Title: "Dune", URL: "/media/item/101"}},
+			want: []view.Crumb{{Title: testMovie, URL: "/media/item/101"}},
 		},
 		{
 			name: "non-episode without id",
@@ -226,7 +226,7 @@ func TestMediaItemLocationEscapesID(t *testing.T) {
 func TestChooserLibraries(t *testing.T) {
 	t.Parallel()
 
-	libs := []view.LibraryItem{{ID: "1", Title: "Movies", Type: "movie"}}
+	libs := []view.LibraryItem{{ID: "1", Title: "Movies", Type: defaultMediaType}}
 
 	assert.Equal(t, libs, chooserLibraries(libs, "", ""))
 	assert.Nil(t, chooserLibraries(libs, "", "1"))
