@@ -23,7 +23,7 @@ on:
         required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ inputs.build-type }}-${{ github.head_ref || github.ref }}
+  group: build-${{ inputs.build-type }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ inputs.build-type != 'stable' }}
 
 permissions:
