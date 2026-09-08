@@ -197,6 +197,7 @@ templ ClipCard(item view.ClipItem) {
 					</div>
 					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).String() }</span> (max { media.FromSeconds(float64(item.MaxDur)).String() }) <span data-duration-warning class="hidden text-destructive">Clamped to the maximum duration.</span></p>
 					@CropBlackBarsField(item.CropBlackBars)
+					@WebSafeColorField(item.WebSafeColor)
 					<div class="flex flex-wrap items-end gap-2">
 						if item.IsActive() {
 							<button
@@ -237,5 +238,16 @@ templ CropBlackBarsField(checked bool) {
 			<input type="checkbox" name="cropBlackBars" value="1" class="rounded border-input"/>
 		}
 		Trim black bars
+	</label>
+}
+
+templ WebSafeColorField(checked bool) {
+	<label class="flex items-center gap-2 text-sm" data-export-for="clip">
+		if checked {
+			<input type="checkbox" name="webSafeColor" value="1" checked class="rounded border-input"/>
+		} else {
+			<input type="checkbox" name="webSafeColor" value="1" class="rounded border-input"/>
+		}
+		Web-safe color
 	</label>
 }

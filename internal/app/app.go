@@ -492,7 +492,7 @@ func extractJob(
 			job.OutputPath,
 			job.StartTime,
 			job.Duration,
-			clipPreset(ctx, db, job.Quality),
+			clipEncodePreset(ctx, db, job),
 			job.AudioIndex,
 			detectJobCrop(ctx, ffmpeg, job),
 		)
@@ -568,6 +568,23 @@ func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) med
 	}
 
 	return crop
+}
+
+// clipEncodePreset resolves quality settings and the per-clip web-safe color flag.
+//
+// Parameters:
+//   - ctx: Database context.
+//   - db: Clip profile store; may be nil.
+//   - job: Clip job whose Quality and WebSafeColor are applied.
+//
+// Returns:
+//   - preset: Encode settings with WebSafeColor copied from the job.
+func clipEncodePreset(ctx context.Context, db *database.DB, job *queue.Job) media.QualityPreset {
+	preset := clipPreset(ctx, db, job.Quality)
+
+	preset.WebSafeColor = job.WebSafeColor
+
+	return preset
 }
 
 // clipPreset resolves a stored quality id onto ffmpeg settings.

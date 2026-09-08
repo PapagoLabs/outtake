@@ -54,6 +54,14 @@ func TestClipPersistence(t *testing.T) {
 	assert.Equal(t, "Intro", got.Name)
 	assert.Equal(t, 1, got.AudioIndex)
 	assert.True(t, got.CropBlackBars)
+	assert.False(t, got.WebSafeColor)
+
+	job.WebSafeColor = true
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	got, err = db.GetClip(t.Context(), job.ID)
+	require.NoError(t, err)
+	assert.True(t, got.WebSafeColor)
 
 	byMedia, err := db.ListClipsForMedia(t.Context(), "100")
 	require.NoError(t, err)

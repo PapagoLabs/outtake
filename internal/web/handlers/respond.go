@@ -60,6 +60,12 @@ const (
 	// QueryError is the flash-error query parameter on HTML pages.
 	queryError = "error"
 
+	// QueryWebSafeColor carries the New export web-safe color checkbox.
+	queryWebSafeColor = "webSafeColor"
+
+	// QueryUnchecked is the query value for an explicit false checkbox.
+	queryUnchecked = "0"
+
 	// DefaultSegmentSecs is the fallback clip window when end is omitted.
 	defaultSegmentSecs = 10
 

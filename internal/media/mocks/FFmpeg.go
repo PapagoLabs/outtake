@@ -306,16 +306,16 @@ func (_c *MockFFmpeg_ExtractGIF_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // ExtractPreview provides a mock function for the type MockFFmpeg
-func (_mock *MockFFmpeg) ExtractPreview(ctx context.Context, input string, output string, start float64, duration float64, audioIndex int, crop media.CropRect) error {
-	ret := _mock.Called(ctx, input, output, start, duration, audioIndex, crop)
+func (_mock *MockFFmpeg) ExtractPreview(ctx context.Context, input string, output string, start float64, duration float64, audioIndex int, crop media.CropRect, preset media.QualityPreset) error {
+	ret := _mock.Called(ctx, input, output, start, duration, audioIndex, crop, preset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ExtractPreview")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, float64, float64, int, media.CropRect) error); ok {
-		r0 = returnFunc(ctx, input, output, start, duration, audioIndex, crop)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, float64, float64, int, media.CropRect, media.QualityPreset) error); ok {
+		r0 = returnFunc(ctx, input, output, start, duration, audioIndex, crop, preset)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -335,11 +335,12 @@ type MockFFmpeg_ExtractPreview_Call struct {
 //   - duration float64
 //   - audioIndex int
 //   - crop media.CropRect
-func (_e *MockFFmpeg_Expecter) ExtractPreview(ctx any, input any, output any, start any, duration any, audioIndex any, crop any) *MockFFmpeg_ExtractPreview_Call {
-	return &MockFFmpeg_ExtractPreview_Call{Call: _e.mock.On("ExtractPreview", ctx, input, output, start, duration, audioIndex, crop)}
+//   - preset media.QualityPreset
+func (_e *MockFFmpeg_Expecter) ExtractPreview(ctx any, input any, output any, start any, duration any, audioIndex any, crop any, preset any) *MockFFmpeg_ExtractPreview_Call {
+	return &MockFFmpeg_ExtractPreview_Call{Call: _e.mock.On("ExtractPreview", ctx, input, output, start, duration, audioIndex, crop, preset)}
 }
 
-func (_c *MockFFmpeg_ExtractPreview_Call) Run(run func(ctx context.Context, input string, output string, start float64, duration float64, audioIndex int, crop media.CropRect)) *MockFFmpeg_ExtractPreview_Call {
+func (_c *MockFFmpeg_ExtractPreview_Call) Run(run func(ctx context.Context, input string, output string, start float64, duration float64, audioIndex int, crop media.CropRect, preset media.QualityPreset)) *MockFFmpeg_ExtractPreview_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -369,6 +370,10 @@ func (_c *MockFFmpeg_ExtractPreview_Call) Run(run func(ctx context.Context, inpu
 		if args[6] != nil {
 			arg6 = args[6].(media.CropRect)
 		}
+		var arg7 media.QualityPreset
+		if args[7] != nil {
+			arg7 = args[7].(media.QualityPreset)
+		}
 		run(
 			arg0,
 			arg1,
@@ -377,6 +382,7 @@ func (_c *MockFFmpeg_ExtractPreview_Call) Run(run func(ctx context.Context, inpu
 			arg4,
 			arg5,
 			arg6,
+			arg7,
 		)
 	})
 	return _c
@@ -387,7 +393,7 @@ func (_c *MockFFmpeg_ExtractPreview_Call) Return(err error) *MockFFmpeg_ExtractP
 	return _c
 }
 
-func (_c *MockFFmpeg_ExtractPreview_Call) RunAndReturn(run func(ctx context.Context, input string, output string, start float64, duration float64, audioIndex int, crop media.CropRect) error) *MockFFmpeg_ExtractPreview_Call {
+func (_c *MockFFmpeg_ExtractPreview_Call) RunAndReturn(run func(ctx context.Context, input string, output string, start float64, duration float64, audioIndex int, crop media.CropRect, preset media.QualityPreset) error) *MockFFmpeg_ExtractPreview_Call {
 	_c.Call.Return(run)
 	return _c
 }

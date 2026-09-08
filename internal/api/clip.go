@@ -22,6 +22,7 @@ type ClipRequest struct {
 	FPS           int     `json:"fps"`
 	AudioIndex    int     `json:"audioIndex"`
 	CropBlackBars bool    `json:"cropBlackBars"`
+	WebSafeColor  *bool   `json:"webSafeColor"`
 }
 
 // ClipResponse represents the response for a clip job.
@@ -41,4 +42,5 @@ type ClipResponse struct {
 	UpdatedAt     time.Time `json:"updatedAt"`
 	AudioIndex    int       `json:"audioIndex"`
 	CropBlackBars bool      `json:"cropBlackBars"`
+	WebSafeColor  bool      `json:"webSafeColor"`
 }

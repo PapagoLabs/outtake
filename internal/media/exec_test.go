@@ -6,6 +6,7 @@ package media
 import (
 	"os/exec"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -80,6 +81,9 @@ func TestClipEncodeArgs(t *testing.T) {
 	assert.Contains(t, args, scaleFilter(OutputWidth2160p, scaleFlagsLanczos))
 	assert.NotContains(t, args, "128k")
 	assert.NotContains(t, args, "crop=")
+	assert.NotContains(t, args, "libplacebo")
+	assert.NotContains(t, args, "zscale=tin=smpte2084")
+	assert.NotContains(t, args, "write_colr")
 }
 
 func TestClipEncodeArgsCropsBlackBars(t *testing.T) {
@@ -100,10 +104,52 @@ func TestClipEncodeArgsCropsBlackBars(t *testing.T) {
 	assert.Contains(t, args, crop.Filter()+","+scaleFilter(OutputWidth2160p, scaleFlagsLanczos))
 }
 
+func TestClipEncodeArgsWebSafeColor(t *testing.T) {
+	t.Parallel()
+
+	preset := QualityPresets[ClipQualityHigh]
+
+	preset.WebSafeColor = true
+
+	args := clipEncodeArgs(
+		"ffmpeg",
+		"/in.mkv",
+		"/out.mp4",
+		10,
+		5,
+		preset,
+		1,
+		CropRect{},
+	)
+
+	joined := strings.Join(args, " ")
+	wantFilter := webSafeToneMapFilter(transferPQAlias, defaultWebSafePeak) +
+		"," + scaleFilter(OutputWidth2160p, scaleFlagsLanczos)
+	assert.Contains(t, args, wantFilter)
+	assert.Contains(t, joined, "zscale=tin=smpte2084")
+	assert.Contains(t, joined, "tonemap=tonemap=hable")
+	assert.Contains(t, args, "-color_primaries")
+	assert.Contains(t, args, "bt709")
+	assert.Contains(t, args, "-color_trc")
+	assert.Contains(t, args, "iec61966-2-1")
+	assert.Contains(t, args, webSafeMovFlags)
+	assert.NotContains(t, joined, "libplacebo")
+	assert.NotContains(t, args, "-init_hw_device")
+}
+
 func TestPreviewEncodeArgs(t *testing.T) {
 	t.Parallel()
 
-	args := previewEncodeArgs("ffmpeg", "/in.mkv", "/out.mp4", 10, 5, 1, CropRect{})
+	args := previewEncodeArgs(
+		"ffmpeg",
+		"/in.mkv",
+		"/out.mp4",
+		10,
+		5,
+		1,
+		CropRect{},
+		QualityPreset{},
+	)
 
 	assert.Contains(t, args, "-pix_fmt")
 	assert.Contains(t, args, pixelFormatYUV420P)
@@ -114,6 +160,35 @@ func TestPreviewEncodeArgs(t *testing.T) {
 	assert.Contains(t, args, strconv.Itoa(previewAudioKbps)+"k")
 	assert.Contains(t, args, scaleFilter(previewMaxWidth, scaleFlagsFast))
 	assert.NotContains(t, args, "320k")
+	assert.NotContains(t, strings.Join(args, " "), "tonemap=tonemap=hable")
+}
+
+func TestPreviewEncodeArgsWebSafeColor(t *testing.T) {
+	t.Parallel()
+
+	args := previewEncodeArgs(
+		"ffmpeg",
+		"/in.mkv",
+		"/out.mp4",
+		10,
+		5,
+		1,
+		CropRect{},
+		QualityPreset{WebSafeColor: true},
+	)
+
+	joined := strings.Join(args, " ")
+	wantFilter := webSafeToneMapFilter(transferPQAlias, defaultWebSafePeak) +
+		"," + scaleFilter(previewMaxWidth, scaleFlagsFast)
+	assert.Contains(t, args, wantFilter)
+	assert.Contains(t, joined, "tonemap=tonemap=hable")
+	assert.Contains(t, args, "-color_primaries")
+	assert.Contains(t, args, "bt709")
+	assert.Contains(t, args, "-color_trc")
+	assert.Contains(t, args, "iec61966-2-1")
+	assert.Contains(t, args, webSafeMovFlags)
+	assert.Contains(t, joined, scaleFilter(previewMaxWidth, scaleFlagsFast))
+	assert.NotContains(t, joined, "libplacebo")
 }
 
 func TestPreviewDuration(t *testing.T) {

@@ -38,6 +38,7 @@ type MediaItemPageProps struct {
 	StartTime     float64
 	EndTime       float64
 	CropBlackBars bool
+	WebSafeColor  bool
 	Crumbs        []view.Crumb
 	LibraryID     string
 }
@@ -174,6 +175,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 							</div>
 						</div>
 						@clip.CropBlackBarsField(props.CropBlackBars)
+						@clip.WebSafeColorField(props.WebSafeColor)
 						<div class="flex gap-3">
 							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="js-export-submit inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
 								Preview

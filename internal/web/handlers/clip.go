@@ -56,6 +56,8 @@ const (
 	gifMinFPS = 5
 	// GIFMaxFPS is the highest GIF frame rate accepted from the form.
 	gifMaxFPS = 30
+	// FormChecked is the value of a checked HTML checkbox.
+	formChecked = "1"
 )
 
 var (
@@ -304,6 +306,7 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		req.Duration,
 		req.AudioIndex,
 		crop,
+		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
 	)
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
@@ -319,7 +322,8 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	return redirectTo(ctx, "/media/item/"+req.MediaID+
 		"?preview="+previewID+
 		"&start="+strconv.FormatFloat(req.StartTime, 'f', 1, 64)+
-		"&end="+strconv.FormatFloat(end, 'f', 1, 64))
+		"&end="+strconv.FormatFloat(end, 'f', 1, 64)+
+		"&"+queryWebSafeColor+"="+webSafeQueryValue(req.WebSafeColor))
 }
 
 // Update saves clip metadata and optionally regenerates the file.
@@ -385,6 +389,11 @@ func applyClipEdits(job *queue.Job, req api.ClipRequest) {
 	job.FPS = req.FPS
 	job.AudioIndex = req.AudioIndex
 	job.CropBlackBars = req.CropBlackBars
+
+	if req.WebSafeColor != nil {
+		job.WebSafeColor = *req.WebSafeColor
+	}
+
 	job.UpdatedAt = time.Now()
 }
 
@@ -657,8 +666,39 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		Width:         formInt(ctx, "width"),
 		FPS:           formInt(ctx, "fps"),
 		AudioIndex:    formInt(ctx, "audioIndex"),
-		CropBlackBars: ctx.FormValue("cropBlackBars") == "1",
+		CropBlackBars: ctx.FormValue("cropBlackBars") == formChecked,
+		WebSafeColor:  new(ctx.FormValue("webSafeColor") == formChecked),
 	}, nil
+}
+
+// derefBool returns the pointed value, or false when ptr is nil.
+//
+// Parameters:
+//   - value: Optional boolean from JSON or form binding.
+//
+// Returns:
+//   - result: *value when set, otherwise false.
+func derefBool(value *bool) bool {
+	if value == nil {
+		return false
+	}
+
+	return *value
+}
+
+// webSafeQueryValue encodes an optional web-safe color flag as a query value.
+//
+// Parameters:
+//   - value: Optional checkbox from the preview form.
+//
+// Returns:
+//   - raw: formChecked when true, otherwise queryUnchecked.
+func webSafeQueryValue(value *bool) string {
+	if derefBool(value) {
+		return formChecked
+	}
+
+	return queryUnchecked
 }
 
 // formInt parses a form field as int, or 0.
@@ -736,6 +776,7 @@ func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *qu
 		FPS:           req.FPS,
 		AudioIndex:    req.AudioIndex,
 		CropBlackBars: req.CropBlackBars,
+		WebSafeColor:  derefBool(req.WebSafeColor),
 		Status:        queue.JobStatusPending,
 		Progress:      0,
 		Error:         "",
@@ -762,5 +803,6 @@ func clipResponse(job *queue.Job) api.ClipResponse {
 		UpdatedAt:     job.UpdatedAt,
 		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
+		WebSafeColor:  job.WebSafeColor,
 	}
 }

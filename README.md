@@ -38,7 +38,8 @@
 - Mark start and end from live Plex playback, or type the times yourself.
 - Export a video clip, GIF, or screenshot, then preview and download it.
 - Manage named clip profiles (CRF, encoder preset, audio bitrate, max
-  resolution) and optionally **Trim black bars** on each export.
+  resolution) and optionally **Trim black bars** or **Web-safe color**
+  on each export.
 
 The server listens on port 8080 by default.
 
@@ -221,6 +222,7 @@ media only**, not the clip store, and not Kubernetes media NFS.
 | `OUTTAKE_FFPROBE_PATH` | `ffprobe` binary | `ffprobe` (images use `/usr/bin/ffprobe`) |
 | `OUTTAKE_MAX_CLIP_DUR_SEC` | Maximum clip duration in seconds | `600` |
 | `OUTTAKE_CROP_BLACK_BARS` | Default for **Trim black bars** | `false` |
+| `OUTTAKE_WEB_SAFE_COLOR` | Default for **Web-safe color** on video clips | `false` |
 | `OUTTAKE_SESSION_POLL_SEC` | How often to poll live Plex playback | `10` |
 | `OUTTAKE_NUM_WORKERS` | Background clip workers | `2` |
 | `OUTTAKE_LOG_LEVEL` | `debug`, `info`, `warn`, or `error` | `info` |
@@ -262,6 +264,9 @@ You can change servers later under **Settings → Servers**.
    Plex**. You can also type **Start** and **End** yourself.
 4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or
    **Screenshot**, pick a **Profile**, and optionally **Trim black bars**.
+   For video clips, **Web-safe color** tone-maps HDR on the CPU so the
+   file looks consistent in browsers. Leave it off if you will grade the
+   clip yourself.
 5. Choose **Preview** to check the segment, then **Save clip**.
 
 If something is already playing, the dashboard **Live Sessions** list

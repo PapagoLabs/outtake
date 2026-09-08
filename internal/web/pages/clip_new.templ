@@ -26,6 +26,7 @@ type NewClipProps struct {
 	Profiles      []view.ClipProfileOption
 	AudioTracks   []view.AudioTrackOption
 	CropBlackBars bool
+	WebSafeColor  bool
 }
 
 templ NewClip(props NewClipProps) {
@@ -79,6 +80,7 @@ templ NewClip(props NewClipProps) {
 							</div>
 						}
 						@clip.CropBlackBarsField(props.CropBlackBars)
+						@clip.WebSafeColorField(props.WebSafeColor)
 						@button.Button(button.Props{Type: button.TypeSubmit}) {
 							Create
 						}

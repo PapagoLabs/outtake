@@ -53,4 +53,5 @@ Workflows call templ, goimports, and goreleaser directly, not Taskfile. Go lint 
 
 - Timecode is `internal/media/timecode` (FromSeconds / Parse / String) over Clock/FFmpegClock. Parse through milliseconds. Library duration is HH:MM:SS; clip editing is HH:MM:SS.mmm.
 - Black-bar trim uses `cropdetect=limit=24/255`. A bare `24` is 24/65535 on FFmpeg 9 10-bit HDR and misses letterboxing.
+- Optional web-safe color (off by default) tone-maps HDR on CPU with `zscale`+`tonemap=hable`, using luma measured from the clip—not disc MaxCLL. Leave it off when the user will grade the file themselves. Do not use libplacebo (Vulkan/GPU).
 - Export max resolution is a clip-profile setting (720p, 1080p, 1440p, 4K). Defaults: Low 720p, Medium 1080p, High 4K. Preview stays 720p.

@@ -35,6 +35,7 @@ type FFmpeg interface {
 		start, duration float64,
 		audioIndex int,
 		crop CropRect,
+		preset QualityPreset,
 	) error
 	ExtractScreenshot(
 		ctx context.Context,
@@ -49,14 +50,16 @@ type ClipQuality string
 
 // MediaInfo represents media file information.
 type MediaInfo struct {
-	Duration    float64      `json:"duration"`
-	Width       int          `json:"width"`
-	Height      int          `json:"height"`
-	VideoCodec  string       `json:"video_codec"`
-	AudioCodec  string       `json:"audio_codec"`
-	Format      string       `json:"format"`
-	BitRate     int64        `json:"bit_rate"`
-	AudioTracks []AudioTrack `json:"audio_tracks"`
+	Duration   float64 `json:"duration"`
+	Width      int     `json:"width"`
+	Height     int     `json:"height"`
+	VideoCodec string  `json:"video_codec"`
+	AudioCodec string  `json:"audio_codec"`
+	Format     string  `json:"format"`
+	BitRate    int64   `json:"bit_rate"`
+	// ColorTransfer is ffprobe color_transfer of the first video stream.
+	ColorTransfer string       `json:"color_transfer"`
+	AudioTracks   []AudioTrack `json:"audio_tracks"`
 }
 
 // AudioTrack is one audio stream on a source file.
@@ -74,6 +77,8 @@ type QualityPreset struct {
 	Preset    string
 	AudioKbps int
 	MaxWidth  int
+	// WebSafeColor tone-maps HDR to Rec.709 when true.
+	WebSafeColor bool
 }
 
 const (

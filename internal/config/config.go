@@ -56,6 +56,8 @@ type Config struct {
 	MaxClipDurSec int `mapstructure:"max-clip-dur-sec"`
 	// CropBlackBars is the default for trimming letterbox/pillarbox bars.
 	CropBlackBars bool `mapstructure:"crop-black-bars"`
+	// WebSafeColor is the default for HDR tone-mapping on saved clips.
+	WebSafeColor bool `mapstructure:"web-safe-color"`
 	// PlexServerURL is the Plex server URL.
 	PlexServerURL string `mapstructure:"plex-server-url"`
 	// PlexToken is the Plex token.
@@ -176,6 +178,7 @@ func emptyConfig() *Config {
 		NumWorkers:      0,
 		MaxClipDurSec:   0,
 		CropBlackBars:   false,
+		WebSafeColor:    false,
 		PlexServerURL:   "",
 		PlexToken:       "",
 		PlexClientID:    "",
@@ -207,6 +210,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("num-workers", defaultNumWorkers)
 	viperInstance.SetDefault("max-clip-dur-sec", defaultMaxClipDur)
 	viperInstance.SetDefault("crop-black-bars", false)
+	viperInstance.SetDefault("web-safe-color", false)
 	viperInstance.SetDefault("plex-media-root", "")
 	viperInstance.SetDefault("local-media-root", "")
 }
@@ -234,6 +238,7 @@ func bindEnv(viperInstance *viper.Viper) error {
 		"num-workers",
 		"max-clip-dur-sec",
 		"crop-black-bars",
+		"web-safe-color",
 		"plex-server-url",
 		"plex-token",
 		"plex-client-id",
