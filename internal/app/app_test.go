@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,40 +19,15 @@ import (
 	"github.com/PapagoLabs/outtake/internal/config"
 )
 
+const (
+	publicHost   = "clips.example"
+	publicOrigin = "https://clips.example"
+)
+
 func TestNew_DefaultBackends(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	cfg := &config.Config{
-		ListenAddr:      "127.0.0.1:0",
-		DatabasePath:    filepath.Join(dir, "outtake.db"),
-		DatabaseBackend: "sqlite",
-		DatabaseURL:     "",
-		StoragePath:     filepath.Join(dir, "output"),
-		StorageBackend:  "filesystem",
-		S3Endpoint:      "",
-		S3Bucket:        "",
-		S3Region:        "",
-		S3AccessKey:     "",
-		S3SecretKey:     "",
-		S3UsePathStyle:  true,
-		FFmpegPath:      "ffmpeg",
-		FFprobePath:     "ffprobe",
-		LogLevel:        "info",
-		Env:             "test",
-		SessionPollSec:  10,
-		NumWorkers:      1,
-		MaxClipDurSec:   600,
-		CropBlackBars:   false,
-		PlexServerURL:   "",
-		PlexToken:       "",
-		PlexClientID:    "",
-		PublicBaseURL:   "",
-		PlexMediaRoot:   "",
-		LocalMediaRoot:  "",
-	}
-
-	application, err := New(cfg)
+	application, err := New(testAppConfig(t, ""))
 	require.NoError(t, err)
 	application.Close()
 }
@@ -59,37 +35,7 @@ func TestNew_DefaultBackends(t *testing.T) {
 func TestSecurityHeadersAndCSRF(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	cfg := &config.Config{
-		ListenAddr:      "127.0.0.1:0",
-		DatabasePath:    filepath.Join(dir, "outtake.db"),
-		DatabaseBackend: "sqlite",
-		DatabaseURL:     "",
-		StoragePath:     filepath.Join(dir, "output"),
-		StorageBackend:  "filesystem",
-		S3Endpoint:      "",
-		S3Bucket:        "",
-		S3Region:        "",
-		S3AccessKey:     "",
-		S3SecretKey:     "",
-		S3UsePathStyle:  true,
-		FFmpegPath:      "ffmpeg",
-		FFprobePath:     "ffprobe",
-		LogLevel:        "info",
-		Env:             "test",
-		SessionPollSec:  10,
-		NumWorkers:      1,
-		MaxClipDurSec:   600,
-		CropBlackBars:   false,
-		PlexServerURL:   "",
-		PlexToken:       "",
-		PlexClientID:    "",
-		PublicBaseURL:   "",
-		PlexMediaRoot:   "",
-		LocalMediaRoot:  "",
-	}
-
-	application, err := New(cfg)
+	application, err := New(testAppConfig(t, ""))
 	require.NoError(t, err)
 
 	defer application.Close()
@@ -135,6 +81,142 @@ func TestCSRFCookieSecureFollowsPublicURL(t *testing.T) {
 	httpCfg := &config.Config{ListenAddr: "127.0.0.1:8080"}
 	assert.False(t, csrfConfig(httpCfg).CookieSecure)
 
-	httpsCfg := &config.Config{PublicBaseURL: "https://clips.example"}
+	httpsCfg := &config.Config{PublicBaseURL: publicOrigin}
 	assert.True(t, csrfConfig(httpsCfg).CookieSecure)
+}
+
+func TestCSRFTrustedOriginsFollowsPublicBaseURL(t *testing.T) {
+	t.Parallel()
+
+	local := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})
+	assert.Empty(t, local.TrustedOrigins)
+
+	behindTLS := csrfConfig(&config.Config{PublicBaseURL: publicOrigin + "/"})
+	assert.Equal(t, []string{publicOrigin}, behindTLS.TrustedOrigins)
+
+	withPath := csrfConfig(&config.Config{PublicBaseURL: publicOrigin + "/outtake"})
+	assert.Equal(t, []string{publicOrigin}, withPath.TrustedOrigins)
+}
+
+func TestCSRFAllowsHTTPSOriginBehindHTTP(t *testing.T) {
+	t.Parallel()
+
+	application, err := New(testAppConfig(t, publicOrigin))
+	require.NoError(t, err)
+
+	defer application.Close()
+
+	loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", nil)
+
+	loginReq.Host = publicHost
+
+	loginResp, err := application.router.Test(loginReq)
+	require.NoError(t, err)
+
+	defer func() {
+		require.NoError(t, loginResp.Body.Close())
+	}()
+
+	loginBody, err := io.ReadAll(loginResp.Body)
+	require.NoError(t, err)
+
+	token := csrfTokenFromLoginHTML(string(loginBody))
+	require.NotEmpty(t, token)
+
+	postResp := csrfOriginPost(t, application, loginResp, publicOrigin, token)
+
+	defer func() {
+		require.NoError(t, postResp.Body.Close())
+	}()
+
+	body, err := io.ReadAll(postResp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusNotFound, postResp.StatusCode, string(body))
+	assert.NotContains(t, string(body), "invalid csrf token")
+
+	evilResp := csrfOriginPost(t, application, loginResp, "https://evil.example", token)
+
+	defer func() {
+		require.NoError(t, evilResp.Body.Close())
+	}()
+
+	evilBody, err := io.ReadAll(evilResp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusForbidden, evilResp.StatusCode)
+	assert.Contains(t, string(evilBody), "invalid csrf token")
+}
+
+func testAppConfig(t *testing.T, publicBaseURL string) *config.Config {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	return &config.Config{
+		ListenAddr:      "127.0.0.1:0",
+		DatabasePath:    filepath.Join(dir, "outtake.db"),
+		DatabaseBackend: "sqlite",
+		DatabaseURL:     "",
+		StoragePath:     filepath.Join(dir, "output"),
+		StorageBackend:  "filesystem",
+		S3Endpoint:      "",
+		S3Bucket:        "",
+		S3Region:        "",
+		S3AccessKey:     "",
+		S3SecretKey:     "",
+		S3UsePathStyle:  true,
+		FFmpegPath:      "ffmpeg",
+		FFprobePath:     "ffprobe",
+		LogLevel:        "info",
+		Env:             "test",
+		SessionPollSec:  10,
+		NumWorkers:      1,
+		MaxClipDurSec:   600,
+		CropBlackBars:   false,
+		PlexServerURL:   "",
+		PlexToken:       "",
+		PlexClientID:    "",
+		PublicBaseURL:   publicBaseURL,
+		PlexMediaRoot:   "",
+		LocalMediaRoot:  "",
+	}
+}
+
+func csrfOriginPost(
+	t *testing.T,
+	application *App,
+	loginResp *http.Response,
+	origin, token string,
+) *http.Response {
+	t.Helper()
+
+	post := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/missing", nil)
+
+	post.Host = publicHost
+	post.Header.Set("Origin", origin)
+	post.Header.Set("X-Csrf-Token", token)
+
+	for _, cookie := range loginResp.Cookies() {
+		post.AddCookie(cookie)
+	}
+
+	resp, err := application.router.Test(post)
+	require.NoError(t, err)
+
+	return resp
+}
+
+func csrfTokenFromLoginHTML(body string) string {
+	const prefix = `name="csrf-token" content="`
+
+	_, after, found := strings.Cut(body, prefix)
+	if !found {
+		return ""
+	}
+
+	token, _, found := strings.Cut(after, `"`)
+	if !found {
+		return ""
+	}
+
+	return token
 }
