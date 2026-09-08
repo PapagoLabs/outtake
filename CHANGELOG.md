@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional web-safe color for HDR clip exports by @nicholas-fedor in [#129](https://github.com/PapagoLabs/outtake/pull/129)
 
+### Chores
+
+- Update module github.com/gofiber/schema to v1.8.6 by @renovate[bot] in [#132](https://github.com/PapagoLabs/outtake/pull/132)
+
 ### Fixed
 
 - Stop GIF exports from decoding past the clip window by @nicholas-fedor in [#130](https://github.com/PapagoLabs/outtake/pull/130)
