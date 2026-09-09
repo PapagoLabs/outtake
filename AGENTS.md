@@ -1,6 +1,6 @@
 # Outtake
 
-Plex clip manager. Go 1.27, Fiber v3, templ, HTMX, Cobra. App code lives under `internal/` (no `pkg/`). Composition root: `internal/app`. CLI: `internal/cli`. Entrypoint: `main.go`.
+Plex clip manager. Go 1.27, Fiber v3, templ, HTMX, Cobra. App code lives under `internal/` (no `pkg/`). Composition root: `internal/app`. CLI: `internal/cli` (version metadata under `internal/cli/metadata`). Clip queue/storage/worker under `internal/clip`. Entrypoint: `main.go`.
 
 ## Commands
 

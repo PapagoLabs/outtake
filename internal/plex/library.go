@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
-	"github.com/PapagoLabs/outtake/internal/plex/decode/plextv"
 	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
 )
 
@@ -315,32 +314,6 @@ func (client *Client) GetMediaPath(
 	return "", ErrNoFilePathFound
 }
 
-// DiscoverServers discovers Plex servers.
-func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
-	resp, err := client.doRequest(ctx, "/api/resources", "includeHttps=1")
-	if err != nil {
-		return nil, fmt.Errorf("discover servers: %w", err)
-	}
-
-	body := resp.Body()
-	if len(body) == 0 {
-		return nil, errEmptyBody
-	}
-
-	devices, err := plextv.Devices(body)
-	if err != nil {
-		return nil, fmt.Errorf("decode servers: %w", err)
-	}
-
-	servers := serversFromDevices(devices)
-
-	logging.Logger.Debug().
-		Int("count", len(servers)).
-		Msg("discovered servers")
-
-	return servers, nil
-}
-
 // Ping pings the server to check connectivity.
 func (client *Client) Ping(ctx context.Context, server Server) error {
 	scheme := server.Scheme
@@ -399,66 +372,6 @@ func (client *Client) GetServerIdentity(
 	}, nil
 }
 
-// SearchMedia searches for media across all accessible servers using the Plex.tv API.
-func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaItem, error) {
-	resp, err := client.doRequest(
-		ctx,
-		"/search",
-		"query="+url.QueryEscape(query),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("search media: %w", err)
-	}
-
-	body := resp.Body()
-	if len(body) == 0 {
-		return nil, errEmptyBody
-	}
-
-	videos, _, err := plextv.Search(body)
-	if err != nil {
-		return nil, fmt.Errorf("decode search: %w", err)
-	}
-
-	items := make([]MediaItem, 0, len(videos))
-	for _, entry := range videos {
-		items = append(items, mediaItemFromEntry(entry, ""))
-	}
-
-	return items, nil
-}
-
-// GetSessions fetches active sessions using the Plex.tv API.
-func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
-	resp, err := client.doRequest(ctx, "/status/sessions", "")
-	if err != nil {
-		return nil, fmt.Errorf("get sessions: %w", err)
-	}
-
-	body := resp.Body()
-	if len(body) == 0 {
-		return nil, nil
-	}
-
-	entries, err := plextv.Sessions(body)
-	if err != nil {
-		return nil, fmt.Errorf("decode sessions: %w", err)
-	}
-
-	sessions := make([]Session, 0, len(entries))
-	for _, entry := range entries {
-		sessions = append(sessions, Session{
-			ID:         entry.PlaybackID(),
-			MediaItem:  mediaItemFromEntry(entry.Media(), ""),
-			Title:      entry.Title,
-			Duration:   float64(entry.Duration) / scaleMsToS,
-			ViewOffset: float64(entry.ViewOffset) / scaleMsToS,
-		})
-	}
-
-	return sessions, nil
-}
-
 // MapPlexType maps Plex type strings to standardized types.
 func MapPlexType(plexType string) string {
 	mapped, ok := plexTypeNames[plexType]
@@ -467,53 +380,6 @@ func MapPlexType(plexType string) string {
 	}
 
 	return mapped
-}
-
-// serversFromDevices flattens discovered devices into server connections.
-func serversFromDevices(devices []plextv.Device) []Server {
-	servers := make([]Server, 0, len(devices))
-
-	for _, device := range devices {
-		token := device.AccessToken
-
-		for _, conn := range device.Connection {
-			servers = append(servers, serverFromConnection(device.Name, token, conn))
-		}
-	}
-
-	return servers
-}
-
-// serverFromConnection maps a Plex Connection element onto a Server.
-func serverFromConnection(name, token string, conn plextv.Connection) Server {
-	if conn.URI != "" {
-		parsed, ok := ServerFromURL(conn.URI, token)
-		if ok {
-			parsed.Name = name
-			parsed.Local = conn.Local == 1
-
-			return parsed
-		}
-	}
-
-	scheme := conn.Protocol
-	if scheme == "" {
-		scheme = defaultScheme
-	}
-
-	port := conn.Port
-	if port == 0 {
-		port = defaultPortForScheme(scheme)
-	}
-
-	return Server{
-		Name:    name,
-		Address: conn.Address,
-		Port:    port,
-		Token:   token,
-		Scheme:  scheme,
-		Local:   conn.Local == 1,
-	}
 }
 
 // jsonHeaders returns PMS JSON request headers as documented by the OpenAPI spec.
@@ -593,17 +459,5 @@ func mediaPage(container pms.Container, start, size int) MediaPage {
 		Total: total,
 		Start: start,
 		Size:  size,
-	}
-}
-
-// mediaItemFromEntry converts a Plex media listing entry.
-func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
-	return MediaItem{
-		ID:           entry.ID(),
-		Title:        entry.Title,
-		Type:         MapPlexType(entry.Type),
-		Duration:     float64(entry.Duration) / scaleMsToS,
-		ThumbPath:    entry.Thumb,
-		LibraryTitle: libraryTitle,
 	}
 }
