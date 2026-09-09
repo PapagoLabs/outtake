@@ -29,12 +29,12 @@ type HTMLHandler struct {
 // NewHTMLHandler creates the composed HTML page handlers.
 //
 // Parameters:
-//   - jobQueue: Job queue.
+//   - jobQueue: In-process clip job queue.
 //   - db: Database handle.
-//   - bind: Bind.
+//   - bind: Live Plex server binding and session monitor.
 //   - cfg: Application configuration.
-//   - product: Product.
-//   - clientID: Client id.
+//   - product: Plex X-Plex-Product identifier for API clients.
+//   - clientID: Plex X-Plex-Client-Identifier.
 //
 // Returns:
 //   - hTMLHandler: The composed HTML page handlers.
@@ -67,208 +67,82 @@ func NewHTMLHandler(
 }
 
 // Login delegates to the auth HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) Login(ctx fiber.Ctx) error { return h.auth.Login(ctx) }
 
 // Dashboard delegates to the dashboard HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) Dashboard(ctx fiber.Ctx) error {
 	return h.dashboard.Dashboard(ctx)
 }
 
 // DashboardSessions delegates to the dashboard sessions fragment handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) DashboardSessions(ctx fiber.Ctx) error {
 	return h.dashboard.DashboardSessions(ctx)
 }
 
 // Media delegates to the media HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) Media(ctx fiber.Ctx) error { return h.media.Media(ctx) }
 
 // Playback delegates to the media playback fragment handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) Playback(ctx fiber.Ctx) error { return h.media.Playback(ctx) }
 
 // MediaItemClips delegates to the media item clips fragment handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) MediaItemClips(ctx fiber.Ctx) error {
 	return h.media.MediaItemClips(ctx)
 }
 
 // MediaItem delegates to the media item HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) MediaItem(ctx fiber.Ctx) error { return h.media.MediaItem(ctx) }
 
 // PreviewFile delegates to the clips preview file handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) PreviewFile(ctx fiber.Ctx) error { return h.clips.PreviewFile(ctx) }
 
 // NavLibraries delegates to the media nav libraries fragment handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) NavLibraries(ctx fiber.Ctx) error { return h.media.NavLibraries(ctx) }
 
 // NewClip delegates to the clips create handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) NewClip(ctx fiber.Ctx) error { return h.clips.NewClip(ctx) }
 
 // ClipFile delegates to the clips file download handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) ClipFile(ctx fiber.Ctx) error { return h.clips.ClipFile(ctx) }
 
 // ClipRow delegates to the clips row fragment handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) ClipRow(ctx fiber.Ctx) error { return h.clips.ClipRow(ctx) }
 
 // Clips delegates to the clips list HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) Clips(ctx fiber.Ctx) error { return h.clips.Clips(ctx) }
 
 // Servers delegates to the servers HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) Servers(ctx fiber.Ctx) error { return h.servers.Servers(ctx) }
 
 // SelectServer delegates to the select-server HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) SelectServer(ctx fiber.Ctx) error {
 	return h.servers.SelectServer(ctx)
 }
 
 // Appearance delegates to the appearance settings HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) Appearance(ctx fiber.Ctx) error { return h.settings.Appearance(ctx) }
 
 // ClipProfiles delegates to the clip profiles settings HTML handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) ClipProfiles(ctx fiber.Ctx) error {
 	return h.settings.ClipProfiles(ctx)
 }
 
 // CreateClipProfile delegates to the create clip profile handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) CreateClipProfile(ctx fiber.Ctx) error {
 	return h.settings.CreateClipProfile(ctx)
 }
 
 // SetDefaultClipProfile delegates to the set-default clip profile handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) SetDefaultClipProfile(ctx fiber.Ctx) error {
 	return h.settings.SetDefaultClipProfile(ctx)
 }
 
 // DeleteClipProfile delegates to the delete clip profile handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) DeleteClipProfile(ctx fiber.Ctx) error {
 	return h.settings.DeleteClipProfile(ctx)
 }
 
 // UpdateClipProfile delegates to the update clip profile handler.
-//
-// Parameters:
-//   - ctx: HTTP request context.
-//
-// Returns:
-//   - err: The error, if any.
 func (h *HTMLHandler) UpdateClipProfile(ctx fiber.Ctx) error {
 	return h.settings.UpdateClipProfile(ctx)
 }

@@ -21,11 +21,8 @@ const (
 
 // AuthGuard provides authentication middleware that checks if the user has.
 //
-// a valid Plex token in their session before allowing access to protected
-// routes.
-//
 // Parameters:
-//   - env: Env.
+//   - env: App environment (development vs production).
 //
 // Returns:
 //   - handler: The authentication middleware that checks if the user has.
@@ -69,7 +66,7 @@ func RestoreToken(db *database.DB) fiber.Handler {
 // tokenFromSession reads the Plex token from the Fiber session.
 //
 // Parameters:
-//   - sess: Sess.
+//   - sess: Fiber session store entry.
 //
 // Returns:
 //   - value: The Plex token from the Fiber session.
@@ -92,7 +89,7 @@ func tokenFromSession(sess *session.Middleware) string {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "write unauthorized"; "redirect login".
 func unauthenticated(ctx fiber.Ctx) error {
 	if strings.HasPrefix(ctx.Path(), "/api/") {
 		err := ctx.Status(fiber.StatusUnauthorized).JSON(respond.ErrorResponse{

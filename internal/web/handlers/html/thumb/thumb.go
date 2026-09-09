@@ -31,10 +31,10 @@ const thumbCacheControl = "public, max-age=604800, immutable"
 // NewThumbHandler creates a thumbnail handler.
 //
 // Parameters:
-//   - store: Store.
-//   - bind: Bind.
-//   - product: Product.
-//   - clientID: Client id.
+//   - store: Blob storage backend for clip artifacts.
+//   - bind: Live Plex server binding and session monitor.
+//   - product: Plex X-Plex-Product identifier for API clients.
+//   - clientID: Plex X-Plex-Client-Identifier.
 //
 // Returns:
 //   - thumbHandler: A thumbnail handler.
@@ -58,7 +58,7 @@ func NewThumbHandler(
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "get cached thumb"; "fetch thumb".
 func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 	path := ctx.Query("path")
 	if !plex.ValidThumbPath(path) {
@@ -89,11 +89,11 @@ func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 // Parameters:
 //   - ctx: HTTP request context.
 //   - path: Filesystem path.
-//   - cacheID: Cache id.
-//   - cached: Cached.
+//   - cacheID: Typed string argument for fetchAndCache.
+//   - cached: Typed string argument for fetchAndCache.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send thumb.
 func (handler *ThumbHandler) fetchAndCache(
 	ctx fiber.Ctx,
 	path, cacheID, cached string,
@@ -127,11 +127,11 @@ func (handler *ThumbHandler) fetchAndCache(
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - body: Body.
-//   - contentType: Content type.
+//   - body: Typed []byte argument for sendThumbBytes.
+//   - contentType: Typed string argument for sendThumbBytes.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send thumb.
 func sendThumbBytes(ctx fiber.Ctx, body []byte, contentType string) error {
 	ctx.Type("jpg")
 	ctx.Set("Cache-Control", thumbCacheControl)
@@ -152,7 +152,7 @@ func sendThumbBytes(ctx fiber.Ctx, body []byte, contentType string) error {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send thumb.
 func sendCachedThumb(ctx fiber.Ctx, path string) error {
 	ctx.Set("Cache-Control", thumbCacheControl)
 
@@ -170,7 +170,7 @@ func sendCachedThumb(ctx fiber.Ctx, path string) error {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func thumbCacheID(path string) string {
 	sum := sha256.Sum256([]byte(path))
 

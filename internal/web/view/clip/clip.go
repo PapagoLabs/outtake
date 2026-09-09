@@ -66,10 +66,10 @@ const (
 // ClipTypeLabel is the user-facing name for a clip type.
 //
 // Parameters:
-//   - clipType: Clip type.
+//   - clipType: Typed string argument for ClipTypeLabel.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func ClipTypeLabel(clipType string) string {
 	switch clipType {
 	case "gif":

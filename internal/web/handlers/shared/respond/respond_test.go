@@ -141,10 +141,10 @@ func TestRefererPathStripsHost(t *testing.T) {
 // postWriteError returns the post write error.
 //
 // Parameters:
-//   - t: T.
-//   - contentType: Content type.
-//   - body: Body.
-//   - referer: Referer.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - contentType: Typed string argument for postWriteError.
+//   - body: HTML or response body text.
+//   - referer: HTTP Referer header value.
 //
 // Returns:
 //   - resp: The post write error.
@@ -182,10 +182,10 @@ func postWriteError(t *testing.T, contentType, body, referer string) *http.Respo
 // assertFormErrorLocation assert form error location.
 //
 // Parameters:
-//   - t: T.
-//   - resp: Resp.
-//   - wantPath: Want path.
-//   - wantError: Want error.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - resp: HTTP response to validate or close.
+//   - wantPath: Typed string argument for assertFormErrorLocation.
+//   - wantError: Typed string argument for assertFormErrorLocation.
 func assertFormErrorLocation(t *testing.T, resp *http.Response, wantPath, wantError string) {
 	t.Helper()
 
@@ -199,8 +199,8 @@ func assertFormErrorLocation(t *testing.T, resp *http.Response, wantPath, wantEr
 // closeBody closes resp.Body and ignores the error.
 //
 // Parameters:
-//   - t: T.
-//   - resp: Resp.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - resp: HTTP response to validate or close.
 func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 

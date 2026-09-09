@@ -178,8 +178,8 @@ func TestClipListQueryFiltered(t *testing.T) {
 // ParseListQueryFrom returns the parse list query from.
 //
 // Parameters:
-//   - t: T.
-//   - target: Target.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - target: URL or object under test.
 //
 // Returns:
 //   - listQuery: The parse list query from.
@@ -210,12 +210,12 @@ func ParseListQueryFrom(t *testing.T, target string) ListQuery {
 //
 // Parameters:
 //   - id: Identifier.
-//   - name: Name.
-//   - mediaTitle: Media title.
-//   - clipType: Clip type.
-//   - status: Status.
-//   - created: Created.
-//   - updated: Updated.
+//   - name: Display or lookup name.
+//   - mediaTitle: Typed string argument for listJob.
+//   - clipType: Typed string argument for listJob.
+//   - status: Typed string argument for listJob.
+//   - created: Newly created entity under test.
+//   - updated: Typed time.Time argument for listJob.
 //
 // Returns:
 //   - job: The list job.
@@ -250,7 +250,7 @@ func listJob(
 // clipJobIDs returns the clip job i ds.
 //
 // Parameters:
-//   - jobs: Jobs.
+//   - jobs: Clip jobs collection.
 //
 // Returns:
 //   - items: The clip job i ds.

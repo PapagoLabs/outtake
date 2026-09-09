@@ -26,25 +26,20 @@ const ControlClass = "flex h-9 w-full rounded-md border border-input bg-transpar
 
 // TwMerge combines Tailwind classes and resolves conflicts.
 //
-// Example: "bg-red-500 hover:bg-blue-500", "bg-green-500" → "hover:bg-blue-500
-// bg-green-500".
-//
 // Parameters:
-//   - classes: Classes.
+//   - classes: CSS class names to join.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func TwMerge(classes ...string) string {
 	return twmerge.Merge(classes...)
 }
 
 // If returns value if condition is true, otherwise the zero value of T.
 //
-// Example: true, "bg-red-500" → "bg-red-500".
-//
 // Parameters:
-//   - condition: Whether condition.
-//   - value: Value.
+//   - condition: Argument for .
+//   - value: Argument for .
 //
 // Returns:
 //   - t: The value if condition is true, otherwise the zero value of T.
@@ -60,12 +55,10 @@ func If[T any](condition bool, value T) T {
 
 // IfElse returns trueValue if condition is true, otherwise falseValue.
 //
-// Example: true, "bg-red-500", "bg-gray-300" → "bg-red-500".
-//
 // Parameters:
-//   - condition: Whether condition.
-//   - trueValue: True value.
-//   - falseValue: False value.
+//   - condition: Argument for .
+//   - trueValue: Argument for .
+//   - falseValue: Argument for .
 //
 // Returns:
 //   - t: The trueValue if condition is true, otherwise falseValue.
@@ -79,13 +72,11 @@ func IfElse[T any](condition bool, trueValue, falseValue T) T {
 
 // MergeAttributes combines multiple Attributes into one.
 //
-// Example: MergeAttributes(attr1, attr2) → combined attributes.
-//
 // Parameters:
-//   - attrs: Attrs.
+//   - attrs: Typed ...templ.Attributes argument for MergeAttributes.
 //
 // Returns:
-//   - attributes: The attributes.
+//   - attributes: Result of MergeAttributes.
 func MergeAttributes(attrs ...templ.Attributes) templ.Attributes {
 	merged := templ.Attributes{}
 
@@ -98,10 +89,8 @@ func MergeAttributes(attrs ...templ.Attributes) templ.Attributes {
 
 // RandomID generates a random ID string.
 //
-// Example: RandomID() → "id-1a2b3c".
-//
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func RandomID() string {
 	return "id-" + rand.Text()
 }
@@ -135,14 +124,11 @@ var UseUnminifiedScripts = false
 // ComponentScript renders a deferred script tag for a component JavaScript
 // file.
 //
-// Example: ComponentScript("datepicker") → <script defer
-// src="/templui/js/datepicker.min.js?..."></script>.
-//
 // Parameters:
-//   - component: Component.
+//   - component: Typed string argument for ComponentScript.
 //
 // Returns:
-//   - component: The component.
+//   - component: Result of ComponentScript.
 func ComponentScript(component string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		nonce := templ.GetNonce(ctx)
@@ -184,11 +170,8 @@ func ComponentScript(component string) templ.Component {
 // SetupScriptRoutes serves embedded component JavaScript files for the import
 // workflow.
 //
-// Example: SetupScriptRoutes(mux, true) mounts /templui/js/*.js with no-store
-// caching in development.
-//
 // Parameters:
-//   - mux: Mux.
+//   - mux: Typed *http.ServeMux argument for SetupScriptRoutes.
 //   - isDevelopment: Whether is development.
 func SetupScriptRoutes(mux *http.ServeMux, isDevelopment bool) {
 	if mux == nil || componentScriptBasePath != "/templui/js" {

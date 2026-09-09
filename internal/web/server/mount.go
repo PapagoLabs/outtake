@@ -14,10 +14,10 @@ const routeClips = "/clips"
 // MountPages registers HTML routes.
 //
 // Parameters:
-//   - app: App.
-//   - guard: Guard.
-//   - htmlHandler: Html handler.
-//   - thumbHandler: Thumb handler.
+//   - app: Fiber application to mount routes on.
+//   - guard: Auth middleware guarding private routes.
+//   - htmlHandler: Composed HTML page handlers.
+//   - thumbHandler: ThumbPages for this call.
 func MountPages(
 	app *fiber.App,
 	guard fiber.Handler,
@@ -51,11 +51,11 @@ func MountPages(
 // MountAPI registers JSON API routes.
 //
 // Parameters:
-//   - app: App.
-//   - guard: Guard.
-//   - clipHandler: Clip handler.
-//   - mediaHandler: Media handler.
-//   - authHandler: Auth handler.
+//   - app: Fiber application to mount routes on.
+//   - guard: Auth middleware guarding private routes.
+//   - clipHandler: ClipAPI for this call.
+//   - mediaHandler: MediaAPI for this call.
+//   - authHandler: AuthAPI for this call.
 func MountAPI(
 	app *fiber.App,
 	guard fiber.Handler,

@@ -23,9 +23,9 @@ type MediaHandler struct {
 // NewMediaHandler creates a new media handler.
 //
 // Parameters:
-//   - product: Product.
-//   - clientID: Client id.
-//   - bind: Bind.
+//   - product: Plex X-Plex-Product identifier for API clients.
+//   - clientID: Plex X-Plex-Client-Identifier.
+//   - bind: Live Plex server binding and session monitor.
 //
 // Returns:
 //   - mediaHandler: A new media handler.
@@ -43,7 +43,7 @@ func NewMediaHandler(product, clientID string, bind *binding.Binding) *MediaHand
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.WriteJSON.
 func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 	sessions := handler.bind.Sessions()
 	if sessions == nil {
@@ -69,7 +69,7 @@ func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.WriteError.
 func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 	query := ctx.Query("q")
 	if query == "" {
@@ -116,8 +116,8 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 // plexClient returns a client for the selected PMS.
 //
 // Returns:
-//   - client: The client.
-//   - server: The server.
+//   - client: Configured Plex API client.
+//   - server: a client for the selected PMS.
 //   - ok: True when the condition holds.
 func (handler *MediaHandler) plexClient() (*plex.Client, plex.Server, bool) {
 	server, ok := handler.bind.Get()

@@ -88,8 +88,8 @@ func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {
 // closeBody closes resp.Body and ignores the error.
 //
 // Parameters:
-//   - t: T.
-//   - resp: Resp.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - resp: HTTP response to validate or close.
 func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 	if resp != nil && resp.Body != nil {

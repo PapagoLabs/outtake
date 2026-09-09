@@ -30,10 +30,10 @@ import (
 // Parameters:
 //   - cfg: Application configuration.
 //   - db: Database handle.
-//   - jobQueue: Job queue.
-//   - store: Store.
-//   - bind: Bind.
-//   - plexProduct: Plex product.
+//   - jobQueue: In-process clip job queue.
+//   - store: Blob storage backend for clip artifacts.
+//   - bind: Live Plex server binding and session monitor.
+//   - plexProduct: Typed string argument for New.
 //   - plexClientID: Plex client id.
 //
 // Returns:

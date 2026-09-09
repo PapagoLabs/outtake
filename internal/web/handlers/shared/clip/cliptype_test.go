@@ -18,7 +18,7 @@ import (
 //
 // Parameters:
 //   - id: Identifier.
-//   - jobType: Job type.
+//   - jobType: Typed queue.JobType argument for testClipJob.
 //
 // Returns:
 //   - job: The test clip job.

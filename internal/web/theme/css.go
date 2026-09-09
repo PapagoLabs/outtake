@@ -10,7 +10,7 @@ import (
 // CSS renders :root/.dark for the default palette and data-palette overrides.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func CSS() string {
 	var buf strings.Builder
 
@@ -32,9 +32,9 @@ func CSS() string {
 // writeBlock writes one selector's CSS variables.
 //
 // Parameters:
-//   - buf: Buf.
-//   - selector: Selector.
-//   - scheme: Scheme.
+//   - buf: Buffer receiving rendered CSS or text.
+//   - selector: CSS selector for the rule block.
+//   - scheme: URL scheme (http or https).
 func writeBlock(buf *strings.Builder, selector string, scheme *Scheme) {
 	tokens := scheme.tokens()
 

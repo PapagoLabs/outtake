@@ -44,7 +44,7 @@ func New(rt *htmldeps.Runtime) *Handler {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from render media.
 func (h *Handler) Media(ctx fiber.Ctx) error {
 	query := htmldeps.ParseMediaListQuery(ctx)
 	props := h.rt.MediaPageProps(ctx, query)
@@ -63,7 +63,7 @@ func (h *Handler) Media(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RenderHTML.
 func (h *Handler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(htmldeps.ParamID)
 	item, itemErr := h.rt.LoadMediaItem(ctx, id)
@@ -131,7 +131,7 @@ func (h *Handler) MediaItem(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RenderHTML.
 func (h *Handler) MediaItemClips(ctx fiber.Ctx) error {
 	id := ctx.Params(htmldeps.ParamID)
 	query := clipapi.ParseListQuery(ctx)
@@ -153,7 +153,7 @@ func (h *Handler) MediaItemClips(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RenderHTML.
 func (h *Handler) NavLibraries(ctx fiber.Ctx) error {
 	selected := htmldeps.SelectedLibraryID(ctx.Get("HX-Current-URL"), ctx.Query(respond.QueryLibrary))
 
@@ -169,7 +169,7 @@ func (h *Handler) NavLibraries(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RenderHTML.
 func (h *Handler) Playback(ctx fiber.Ctx) error {
 	mediaID := ctx.Params(htmldeps.ParamID)
 	props := viewplayback.Playback{

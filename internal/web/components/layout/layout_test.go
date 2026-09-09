@@ -63,9 +63,9 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 // assertAnchorSelectsMain assert anchor selects main.
 //
 // Parameters:
-//   - t: T.
-//   - body: Body.
-//   - marker: Marker.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - body: HTML or response body text.
+//   - marker: Substring expected in rendered HTML.
 func assertAnchorSelectsMain(t *testing.T, body, marker string) {
 	t.Helper()
 

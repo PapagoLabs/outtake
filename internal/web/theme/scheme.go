@@ -70,7 +70,7 @@ func (scheme *Scheme) complete() bool {
 // tokens expands a scheme into the CSS variables the UI uses.
 //
 // Returns:
-//   - tokens: The tokens.
+//   - tokens: Result of tokens.
 func (scheme *Scheme) tokens() Tokens {
 	return Tokens{
 		Background:               scheme.Background,

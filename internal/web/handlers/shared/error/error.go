@@ -28,7 +28,7 @@ type HttpErrorView struct {
 //   - err: Error value.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "write htmx flash"; "render error page".
 func PageError(ctx fiber.Ctx, err error) error {
 	view := HttpErrorCopy(err)
 

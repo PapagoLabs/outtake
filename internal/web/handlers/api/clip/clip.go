@@ -80,13 +80,13 @@ var (
 // NewClipHandler creates a new clip handler.
 //
 // Parameters:
-//   - jobQueue: Job queue.
-//   - store: Store.
+//   - jobQueue: In-process clip job queue.
+//   - store: Blob storage backend for clip artifacts.
 //   - db: Database handle.
 //   - cfg: Application configuration.
-//   - bind: Bind.
-//   - product: Product.
-//   - clientID: Client id.
+//   - bind: Live Plex server binding and session monitor.
+//   - product: Plex X-Plex-Product identifier for API clients.
+//   - clientID: Plex X-Plex-Client-Identifier.
 //
 // Returns:
 //   - clipHandler: A new clip handler.
@@ -116,7 +116,7 @@ func NewClipHandler(
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.WriteError.
 func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -157,7 +157,7 @@ func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send status.
 func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
 	if err != nil {
@@ -213,7 +213,7 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "send status".
 func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -249,7 +249,7 @@ func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send file.
 func (handler *ClipHandler) Download(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -286,7 +286,7 @@ func (handler *ClipHandler) Download(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.WriteError.
 func (handler *ClipHandler) GetStatus(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -303,7 +303,7 @@ func (handler *ClipHandler) GetStatus(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.WriteJSON.
 func (handler *ClipHandler) List(ctx fiber.Ctx) error {
 	jobs := handler.listJobs(ctx.Context())
 	clips := make([]ClipResponse, 0, len(jobs))
@@ -321,7 +321,7 @@ func (handler *ClipHandler) List(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.WriteError.
 func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
 	if err != nil {
@@ -384,7 +384,7 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from apply quality.
 func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 	job := handler.lookupJob(ctx.Context(), ctx.Params(paramID))
 	if job == nil {
@@ -429,8 +429,8 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 // applyClipEdits writes editable clip fields onto a stored job.
 //
 // Parameters:
-//   - job: Job.
-//   - req: Req.
+//   - job: Clip job to process or persist.
+//   - req: Encode request with crop, scale, and color fields.
 func applyClipEdits(job *queue.Job, req ClipRequest) {
 	jobType, ok := sharedclip.NormalizeClipType(req.ClipType)
 	if ok {
@@ -462,11 +462,11 @@ func applyClipEdits(job *queue.Job, req ClipRequest) {
 // applyRequestQuality resolves a non-empty quality field onto a profile id.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - req: Req.
+//   - ctx: Cancels or deadlines this call.
+//   - req: Encode request with crop, scale, and color fields.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "apply quality".
 func (handler *ClipHandler) applyRequestQuality(ctx context.Context, req *ClipRequest) error {
 	if req.Quality == "" {
 		return nil
@@ -485,7 +485,7 @@ func (handler *ClipHandler) applyRequestQuality(ctx context.Context, req *ClipRe
 // listJobs returns in-memory jobs, falling back to persisted clips.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
 //   - items: The in-memory jobs, falling back to persisted clips.
@@ -506,7 +506,7 @@ func (handler *ClipHandler) listJobs(ctx context.Context) []*queue.Job {
 // lookupJob finds a job in the queue or the database.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - id: Identifier.
 //
 // Returns:
@@ -529,10 +529,10 @@ func (handler *ClipHandler) lookupJob(ctx context.Context, id string) *queue.Job
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - job: Job.
+//   - job: Clip job to process or persist.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "regenerate".
 func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error {
 	if ctx.FormValue("regenerate") != "1" {
 		return nil
@@ -549,11 +549,11 @@ func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error
 // queueRegenerate re-queues a clip after metadata changes.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - job: Job.
+//   - ctx: Cancels or deadlines this call.
+//   - job: Clip job to process or persist.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "save regenerate".
 func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job) error {
 	sharedclip.AssignOutputPaths(job, handler.clipStorage)
 
@@ -574,12 +574,12 @@ func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job)
 // resolveInput maps a media id onto a local filesystem path.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - mediaID: Media id.
 //
 // Returns:
 //   - path: A media id onto a local filesystem path.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "resolve input".
 func (handler *ClipHandler) resolveInput(ctx context.Context, mediaID string) (string, error) {
 	path, err := ResolveMediaPath(
 		ctx,
@@ -604,16 +604,16 @@ type ServerBinder interface {
 // ResolveMediaPath handles the HTTP request.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Fiber request/response for this HTTP handler.
 //   - cfg: Application configuration.
-//   - bind: Bind.
-//   - product: Product.
-//   - clientID: Client id.
+//   - bind: Live Plex server binding and session monitor.
+//   - product: Plex X-Plex-Product identifier for API clients.
+//   - clientID: Plex X-Plex-Client-Identifier.
 //   - mediaID: Media id.
 //
 // Returns:
-//   - value: The value.
-//   - err: The error, if any.
+//   - value: Result value; zero or empty when unavailable.
+//   - err: Wrapped failure from "resolve media path".
 func ResolveMediaPath(
 	ctx context.Context,
 	cfg *config.Config,
@@ -652,12 +652,12 @@ func ResolveMediaPath(
 // resolveQuality maps an empty or named quality onto a stored profile id.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - quality: Quality.
+//   - ctx: Cancels or deadlines this call.
+//   - quality: Stored quality preset id.
 //
 // Returns:
 //   - id: An empty or named quality onto a stored profile id.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "resolve quality".
 func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) (string, error) {
 	if quality == "" {
 		profile, err := handler.db.DefaultClipProfile(ctx)
@@ -687,11 +687,11 @@ func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) 
 // validateClipParams enforces duration and GIF encoder bounds.
 //
 // Parameters:
-//   - jobType: Job type.
-//   - req: Req.
+//   - jobType: Typed queue.JobType argument for validateClipParams.
+//   - req: Encode request with crop, scale, and color fields.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "validate duration"; "validate gif".
 func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req ClipRequest) error {
 	err := handler.validateDuration(jobType, req.Duration)
 	if err != nil {
@@ -709,11 +709,12 @@ func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req ClipRe
 // validateDuration enforces clip duration limits.
 //
 // Parameters:
-//   - jobType: Job type.
-//   - duration: Duration.
+//   - jobType: Typed queue.JobType argument for validateDuration.
+//   - duration: Length in seconds.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "...: must be zero or greater"; "...: must
+//     be between 0 and ... seconds".
 func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration float64) error {
 	if jobType == queue.JobTypeScreenshot {
 		if duration < 0 {
@@ -738,12 +739,12 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 // clipJobType prefers the requested clip type, then the stored job type.
 //
 // Parameters:
-//   - clipType: Clip type.
-//   - fallback: Fallback.
+//   - clipType: Typed string argument for clipJobType.
+//   - fallback: Typed queue.JobType argument for clipJobType.
 //
 // Returns:
-//   - jobType: The job type.
-//   - err: The error, if any.
+//   - jobType: Result of clipJobType.
+//   - err: Failure from bind json.
 func clipJobType(clipType string, fallback queue.JobType) (queue.JobType, error) {
 	if clipType == "" {
 		return fallback, nil
@@ -760,12 +761,12 @@ func clipJobType(clipType string, fallback queue.JobType) (queue.JobType, error)
 // validateGIFParams enforces the GIF width and fps bounds from the export form.
 //
 // Parameters:
-//   - jobType: Job type.
-//   - width: Width.
-//   - fps: Fps.
+//   - jobType: Typed queue.JobType argument for validateGIFParams.
+//   - width: Width in pixels.
+//   - fps: Output frames per second.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from bind json.
 func validateGIFParams(jobType queue.JobType, width, fps int) error {
 	if jobType != queue.JobTypeGIF {
 		return nil
@@ -788,8 +789,8 @@ func validateGIFParams(jobType queue.JobType, width, fps int) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - clipRequest: The clip request.
-//   - err: The error, if any.
+//   - clipRequest: Result of parseClipRequest.
+//   - err: Failure from bind json.
 func parseClipRequest(ctx fiber.Ctx) (ClipRequest, error) {
 	if strings.Contains(ctx.Get(fiber.HeaderContentType), "json") {
 		var req ClipRequest
@@ -862,7 +863,7 @@ func webSafeQueryValue(value *bool) string {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - name: Name.
+//   - name: Display or lookup name.
 //
 // Returns:
 //   - n: A form field as int, or 0.
@@ -879,7 +880,7 @@ func formInt(ctx fiber.Ctx, name string) int {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - name: Name.
+//   - name: Display or lookup name.
 //
 // Returns:
 //   - value: A form field as a timecode or raw seconds.
@@ -895,10 +896,10 @@ func formSeconds(ctx fiber.Ctx, name string) float64 {
 // clipName prefers the user-supplied name, then the media title.
 //
 // Parameters:
-//   - req: Req.
+//   - req: Encode request with crop, scale, and color fields.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func clipName(req *ClipRequest) string {
 	if req.Name != "" {
 		return req.Name
@@ -910,7 +911,7 @@ func clipName(req *ClipRequest) string {
 // downloadName builds a Content-Disposition filename for a completed clip.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 //
 // Returns:
 //   - value: A Content-Disposition filename for a completed clip.
@@ -939,9 +940,9 @@ func downloadName(job *queue.Job) string {
 // buildJob constructs a pending queue job from a clip request.
 //
 // Parameters:
-//   - req: Req.
-//   - jobType: Job type.
-//   - inputPath: Input path.
+//   - req: Encode request with crop, scale, and color fields.
+//   - jobType: Typed queue.JobType argument for buildJob.
+//   - inputPath: Typed string argument for buildJob.
 //
 // Returns:
 //   - job: A pending queue job from a clip request.
@@ -974,7 +975,7 @@ func buildJob(req *ClipRequest, jobType queue.JobType, inputPath string) *queue.
 // clipResponse maps a job onto the public clip payload.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 //
 // Returns:
 //   - clipResponse: A job onto the public clip payload.

@@ -22,7 +22,7 @@ type Handler struct {
 // New constructs a servers HTML handler.
 //
 // Parameters:
-//   - rt: Rt.
+//   - rt: HTML handler runtime (DB, bind, template deps).
 //
 // Returns:
 //   - handler: A servers HTML handler.
@@ -36,7 +36,7 @@ func New(rt *htmldeps.Runtime) *Handler {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from select server.
 func (h *Handler) SelectServer(ctx fiber.Ctx) error {
 	rawURL := ctx.FormValue("customUrl")
 	if rawURL == "" {
@@ -61,7 +61,7 @@ func (h *Handler) SelectServer(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RenderHTML.
 func (h *Handler) Servers(ctx fiber.Ctx) error {
 	current, _ := h.rt.Bind.Get()
 

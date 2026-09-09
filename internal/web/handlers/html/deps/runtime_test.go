@@ -311,11 +311,11 @@ func TestWantsClipList(t *testing.T) {
 // hxTargetKind returns the hx target kind.
 //
 // Parameters:
-//   - t: T.
-//   - route: Route.
-//   - hxTarget: Hx target.
-//   - hit: Hit.
-//   - match: Match.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - route: HTTP route path under test.
+//   - hxTarget: Typed string argument for hxTargetKind.
+//   - hit: Whether the handler was invoked.
+//   - match: Typed bool argument for hxTargetKind.
 //
 // Returns:
 //   - value: The hx target kind.
@@ -356,8 +356,8 @@ func hxTargetKind(
 // mediaResultsKind returns the media results kind.
 //
 // Parameters:
-//   - t: T.
-//   - hxTarget: Hx target.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - hxTarget: Typed string argument for mediaResultsKind.
 //
 // Returns:
 //   - value: The media results kind.
@@ -370,8 +370,8 @@ func mediaResultsKind(t *testing.T, hxTarget string) string {
 // mediaPrevKind returns the media prev kind.
 //
 // Parameters:
-//   - t: T.
-//   - hxTarget: Hx target.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - hxTarget: Typed string argument for mediaPrevKind.
 //
 // Returns:
 //   - value: The media prev kind.
@@ -384,8 +384,8 @@ func mediaPrevKind(t *testing.T, hxTarget string) string {
 // mediaMoreKind returns the media more kind.
 //
 // Parameters:
-//   - t: T.
-//   - hxTarget: Hx target.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - hxTarget: Typed string argument for mediaMoreKind.
 //
 // Returns:
 //   - value: The media more kind.
@@ -398,8 +398,8 @@ func mediaMoreKind(t *testing.T, hxTarget string) string {
 // clipListKind returns the clip list kind.
 //
 // Parameters:
-//   - t: T.
-//   - hxTarget: Hx target.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - hxTarget: Typed string argument for clipListKind.
 //
 // Returns:
 //   - value: The clip list kind.
@@ -474,8 +474,8 @@ func TestAudioTrackLabel(t *testing.T) {
 // closeBody closes resp.Body and ignores the error.
 //
 // Parameters:
-//   - t: T.
-//   - resp: Resp.
+//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - resp: HTTP response to validate or close.
 func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 	if resp != nil && resp.Body != nil {

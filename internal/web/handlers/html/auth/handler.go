@@ -25,7 +25,7 @@ type Handler struct {
 // New constructs a auth HTML handler.
 //
 // Parameters:
-//   - rt: Rt.
+//   - rt: HTML handler runtime (DB, bind, template deps).
 //
 // Returns:
 //   - handler: A auth HTML handler.
@@ -39,7 +39,7 @@ func New(rt *htmldeps.Runtime) *Handler {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RedirectTo.
 func (*Handler) Login(ctx fiber.Ctx) error {
 	token := respond.SessionString(session.FromContext(ctx), middleware.SessionKeyToken)
 	if token != "" {

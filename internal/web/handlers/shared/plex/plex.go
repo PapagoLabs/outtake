@@ -11,9 +11,9 @@ import (
 // NewBoundClient constructs a Plex client for the given token.
 //
 // Parameters:
-//   - product: Product.
-//   - clientID: Client id.
-//   - token: Token.
+//   - product: Plex X-Plex-Product identifier for API clients.
+//   - clientID: Plex X-Plex-Client-Identifier.
+//   - token: Plex or session access token.
 //
 // Returns:
 //   - client: A Plex client for the given token.
@@ -30,8 +30,8 @@ func NewBoundClient(product, clientID, token string) *plex.Client {
 // ClipMatchesStatus reports whether a clip belongs to a status filter.
 //
 // Parameters:
-//   - itemStatus: Item status.
-//   - want: Want.
+//   - itemStatus: Typed string argument for ClipMatchesStatus.
+//   - want: Expected value for the assertion.
 //
 // Returns:
 //   - ok: True when a clip belongs to a status filter.

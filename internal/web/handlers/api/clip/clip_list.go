@@ -134,9 +134,9 @@ func ApplyListQuery(jobs []*queue.Job, query ListQuery) []*queue.Job {
 // clipJobMatches reports whether a job passes status, type, and name filters.
 //
 // Parameters:
-//   - job: Job.
-//   - query: Query.
-//   - needle: Needle.
+//   - job: Clip job to process or persist.
+//   - query: Search or filter query string.
+//   - needle: Substring to match against clip fields.
 //
 // Returns:
 //   - ok: True when a job passes status, type, and name filters.
@@ -161,12 +161,12 @@ func clipJobMatches(job *queue.Job, query ListQuery, needle string) bool {
 // descending.
 //
 // Parameters:
-//   - left: Left.
-//   - right: Right.
-//   - sort: Sort.
+//   - left: Left operand for comparison.
+//   - right: Right operand for comparison.
+//   - sort: Typed string argument for compareClipListJobs.
 //
 // Returns:
-//   - n: The n.
+//   - n: Numeric result for this call.
 func compareClipListJobs(left, right *queue.Job, sort string) int {
 	var order int
 
@@ -195,10 +195,10 @@ func compareClipListJobs(left, right *queue.Job, sort string) int {
 // jobDisplayName is the clip name, or the media title when the name is empty.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func jobDisplayName(job *queue.Job) string {
 	if job.Name != "" {
 		return job.Name
@@ -210,10 +210,10 @@ func jobDisplayName(job *queue.Job) string {
 // clipNameKey is the case-insensitive display name used for name sorts.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func clipNameKey(job *queue.Job) string {
 	return strings.ToLower(jobDisplayName(job))
 }

@@ -100,11 +100,11 @@ const (
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - status: Status.
-//   - payload: Payload.
+//   - status: HTTP status code to write.
+//   - payload: JSON-serializable response body.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "write json".
 func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 	err := ctx.Status(status).JSON(payload)
 	if err != nil {
@@ -121,7 +121,7 @@ func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "send ranged file".
 func SendRangedFile(ctx fiber.Ctx, path string) error {
 	err := ctx.SendFile(path, fiber.SendFile{
 		FS:            nil,
@@ -216,7 +216,7 @@ func HxTargetID(raw string) string {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - message: Message.
+//   - message: Typed string argument for FormErrorLocation.
 //
 // Returns:
 //   - value: The HTML page that should show a form error.
@@ -237,11 +237,11 @@ func FormErrorLocation(ctx fiber.Ctx, message string) string {
 // PathWithError appends an encoded error query to a path-only location.
 //
 // Parameters:
-//   - location: Location.
-//   - message: Message.
+//   - location: Typed string argument for PathWithError.
+//   - message: Typed string argument for PathWithError.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func PathWithError(location, message string) string {
 	parsed, err := url.Parse(location)
 	if err != nil || parsed.Path == "" {
@@ -261,10 +261,10 @@ func PathWithError(location, message string) string {
 // RefererPath keeps only the path and query of a Referer URL.
 //
 // Parameters:
-//   - raw: Raw.
+//   - raw: Raw JSON response body.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func RefererPath(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Path == "" {
@@ -282,10 +282,10 @@ func RefererPath(raw string) string {
 //
 // Parameters:
 //   - itemErr: Error value.
-//   - queryErr: Query err.
+//   - queryErr: Typed string argument for MediaItemError.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func MediaItemError(itemErr error, queryErr string) string {
 	if queryErr != "" {
 		return queryErr
@@ -302,10 +302,10 @@ func MediaItemError(itemErr error, queryErr string) string {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - location: Location.
+//   - location: Typed string argument for RedirectTo.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "redirect".
 func RedirectTo(ctx fiber.Ctx, location string) error {
 	err := ctx.Redirect().To(location)
 	if err != nil {
@@ -319,10 +319,10 @@ func RedirectTo(ctx fiber.Ctx, location string) error {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - body: Body.
+//   - body: HTML or response body text to scan.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "send string".
 func SendText(ctx fiber.Ctx, body string) error {
 	err := ctx.SendString(body)
 	if err != nil {
@@ -336,10 +336,10 @@ func SendText(ctx fiber.Ctx, body string) error {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - status: Status.
+//   - status: HTTP status code to write.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "send status".
 func SendStatusCode(ctx fiber.Ctx, status int) error {
 	err := ctx.SendStatus(status)
 	if err != nil {
@@ -353,10 +353,10 @@ func SendStatusCode(ctx fiber.Ctx, status int) error {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - render: Render.
+//   - render: Typed error argument for RenderHTML.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from render html.
 func RenderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
 	ctx.Set(HeaderContentType, ContentTypeHTML)
 
@@ -371,8 +371,8 @@ func RenderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
 // SessionString reads a string value from the Fiber session.
 //
 // Parameters:
-//   - sess: Sess.
-//   - key: Key.
+//   - sess: Fiber session store entry.
+//   - key: Object or map key.
 //
 // Returns:
 //   - value: A string value from the Fiber session.
@@ -392,8 +392,8 @@ func SessionString(sess *session.Middleware, key string) string {
 // SessionInt reads an int value from the Fiber session.
 //
 // Parameters:
-//   - sess: Sess.
-//   - key: Key.
+//   - sess: Fiber session store entry.
+//   - key: Object or map key.
 //
 // Returns:
 //   - n: An int value from the Fiber session.
@@ -427,7 +427,7 @@ func IsFormRequest(ctx fiber.Ctx) bool {
 //   - mediaID: Media id.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func ClipReturnPath(mediaID string) string {
 	if mediaID == "" {
 		return PathClips

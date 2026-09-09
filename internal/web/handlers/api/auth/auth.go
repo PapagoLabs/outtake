@@ -63,11 +63,11 @@ const (
 // NewAuthHandler creates a new auth handler.
 //
 // Parameters:
-//   - product: Product.
-//   - clientID: Client id.
+//   - product: Plex X-Plex-Product identifier for API clients.
+//   - clientID: Plex X-Plex-Client-Identifier.
 //   - baseURL: Base url.
 //   - db: Database handle.
-//   - bind: Bind.
+//   - bind: Live Plex server binding and session monitor.
 //
 // Returns:
 //   - authHandler: A new auth handler.
@@ -92,7 +92,7 @@ func NewAuthHandler(
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RedirectTo.
 func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	pinID := respond.SessionInt(sess, sessionKeyPinID)
@@ -128,7 +128,7 @@ func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.RedirectTo.
 func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 	token := ctx.FormValue("token")
 	if token != "" {
@@ -158,7 +158,7 @@ func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.WriteError.
 func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if sess != nil {
@@ -190,7 +190,7 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from respond.SendText.
 func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if respond.SessionString(sess, middleware.SessionKeyToken) != "" {
@@ -244,7 +244,7 @@ func GenerateClientID() string {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - token: Token.
+//   - token: Plex or session access token.
 func (handler *AuthHandler) bindServer(ctx fiber.Ctx, token string) {
 	if _, ok := handler.bind.Get(); ok {
 		return
@@ -276,10 +276,10 @@ func (handler *AuthHandler) bindServer(ctx fiber.Ctx, token string) {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - token: Token.
+//   - token: Plex or session access token.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Non-nil when the call fails.
 func (handler *AuthHandler) finishAuth(ctx fiber.Ctx, token string) error {
 	err := handler.storeToken(ctx, token)
 	if err != nil {
@@ -294,7 +294,7 @@ func (handler *AuthHandler) finishAuth(ctx fiber.Ctx, token string) error {
 // newClient builds a Plex client for this handler.
 //
 // Parameters:
-//   - token: Token.
+//   - token: Plex or session access token.
 //
 // Returns:
 //   - client: A Plex client for this handler.
@@ -318,11 +318,11 @@ func (handler *AuthHandler) postAuthPath() string {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - sess: Sess.
+//   - sess: Fiber session store entry.
 //
 // Returns:
 //   - url: A Plex PIN and returns the Auth App URL.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "generate pin".
 func (handler *AuthHandler) startPIN(ctx fiber.Ctx, sess *session.Middleware) (string, error) {
 	plexClient := handler.newClient("")
 
@@ -348,10 +348,10 @@ func (handler *AuthHandler) startPIN(ctx fiber.Ctx, sess *session.Middleware) (s
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - token: Token.
+//   - token: Plex or session access token.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "save token".
 func (handler *AuthHandler) storeToken(ctx fiber.Ctx, token string) error {
 	sess := session.FromContext(ctx)
 	sess.Set(middleware.SessionKeyToken, token)
@@ -374,7 +374,7 @@ func (handler *AuthHandler) storeToken(ctx fiber.Ctx, token string) error {
 // clearPIN removes pending PIN values from the session.
 //
 // Parameters:
-//   - sess: Sess.
+//   - sess: Fiber session store entry.
 func clearPIN(sess *session.Middleware) {
 	sess.Delete(sessionKeyPinID)
 	sess.Delete(sessionKeyPinCode)
@@ -385,10 +385,10 @@ func clearPIN(sess *session.Middleware) {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - next: Next.
+//   - next: Typed string argument for sendAuthComplete.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "send auth complete".
 func sendAuthComplete(ctx fiber.Ctx, next string) error {
 	ctx.Set(respond.HeaderContentType, respond.ContentTypeHTML)
 
@@ -421,10 +421,10 @@ func sendAuthComplete(ctx fiber.Ctx, next string) error {
 //
 // Parameters:
 //   - err: Error value.
-//   - op: Op.
+//   - op: Typed string argument for wrapAuth.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from .
 func wrapAuth(err error, op string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)

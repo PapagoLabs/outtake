@@ -40,7 +40,7 @@ type SessionResponse struct {
 // SessionResponses maps Plex sessions onto API payloads.
 //
 // Parameters:
-//   - sessions: Sessions.
+//   - sessions: Active Plex playback sessions.
 //
 // Returns:
 //   - items: The Plex sessions onto API payloads.

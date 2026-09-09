@@ -17,11 +17,8 @@ const CSRFFormField = "_csrf"
 // ContextWithCSRFToken stores a CSRF token on ctx for templates.
 //
 // Parameters:
-//   - parent: Parent context.
+//   - parent: Cancels or deadlines this call.
 //   - token: CSRF token to store.
-//
-// Returns:
-//   - Derived context that carries the token.
 func ContextWithCSRFToken(parent context.Context, token string) context.Context {
 	return context.WithValue(parent, csrfTokenKey{}, token)
 }

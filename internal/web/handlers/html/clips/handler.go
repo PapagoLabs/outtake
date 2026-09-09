@@ -28,7 +28,7 @@ type Handler struct {
 // New constructs a clips HTML handler.
 //
 // Parameters:
-//   - rt: Rt.
+//   - rt: HTML handler runtime (DB, bind, template deps).
 //
 // Returns:
 //   - handler: A clips HTML handler.
@@ -42,7 +42,7 @@ func New(rt *htmldeps.Runtime) *Handler {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send clip file.
 func (h *Handler) ClipFile(ctx fiber.Ctx) error {
 	job := h.rt.LookupClip(ctx, ctx.Params(htmldeps.ParamID))
 	if job == nil || job.Status != queue.JobStatusCompleted || job.OutputPath == "" {
@@ -67,7 +67,7 @@ func (h *Handler) ClipFile(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send preview.
 func (h *Handler) ClipRow(ctx fiber.Ctx) error {
 	job := h.rt.LookupClip(ctx, ctx.Params(htmldeps.ParamID))
 	if job == nil {
@@ -87,7 +87,7 @@ func (h *Handler) ClipRow(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send preview.
 func (h *Handler) Clips(ctx fiber.Ctx) error {
 	query := clipapi.ParseListQuery(ctx)
 	props := clips.ClipsProps{
@@ -115,7 +115,7 @@ func (h *Handler) Clips(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send preview.
 func (*Handler) NewClip(ctx fiber.Ctx) error {
 	mediaID := ctx.Query("mediaId")
 	if mediaID == "" {
@@ -136,7 +136,7 @@ func (*Handler) NewClip(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from send preview.
 func (h *Handler) PreviewFile(ctx fiber.Ctx) error {
 	id := ctx.Params(htmldeps.ParamID)
 	path := filepath.Join(h.rt.Cfg.StoragePath, "previews", id+".mp4")
