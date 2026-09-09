@@ -19,7 +19,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/PapagoLabs/outtake/internal/api"
+	"github.com/PapagoLabs/outtake/internal/web/api"
 	"github.com/PapagoLabs/outtake/internal/app"
 	"github.com/PapagoLabs/outtake/internal/config"
 )

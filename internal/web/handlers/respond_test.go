@@ -17,7 +17,7 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/api"
+	"github.com/PapagoLabs/outtake/internal/web/api"
 )
 
 const formContentType = "application/x-www-form-urlencoded"
