@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update zizmorcore/zizmor-action action to v0.6.4 by @renovate[bot] in [#141](https://github.com/PapagoLabs/outtake/pull/141)
 - Update module github.com/onsi/ginkgo/v2 to v2.32.2 by @renovate[bot] in [#140](https://github.com/PapagoLabs/outtake/pull/140)
 - Update module golang.org/x/text to v0.42.0 by @renovate[bot] in [#139](https://github.com/PapagoLabs/outtake/pull/139)
 - Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.112.0 by @renovate[bot] in [#137](https://github.com/PapagoLabs/outtake/pull/137)
