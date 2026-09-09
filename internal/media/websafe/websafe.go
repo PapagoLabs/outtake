@@ -11,28 +11,28 @@ import (
 )
 
 const (
-	// FloatBits is the bit size for float parsing.
+	// floatBits is the bit size for float parsing.
 	floatBits = 64
-	// DefaultWebSafePeak is 400 nits relative to a 100-nit SDR white.
+	// DefaultPeak is 400 nits relative to a 100-nit SDR white.
 	// Used when luma cannot be measured. Do not use disc MaxCLL tags.
 	DefaultPeak = 4.0
-	// WebSafeNPL is zscale nominal peak luminance for SDR white in nits.
+	// webSafeNPL is zscale nominal peak luminance for SDR white in nits.
 	webSafeNPL = 100.0
-	// LimitedRangeOffset is TV-range luma black (code 16).
+	// limitedRangeOffset is TV-range luma black (code 16).
 	limitedRangeOffset = 16.0
-	// LimitedRangeSpan is TV-range luma extent (235 minus 16).
+	// limitedRangeSpan is TV-range luma extent (235 minus 16).
 	limitedRangeSpan = 219.0
-	// PQMaxNits is SMPTE ST 2084 peak luminance in nits.
+	// pqMaxNits is SMPTE ST 2084 peak luminance in nits.
 	pqMaxNits = 10000.0
-	// PqC1 is the SMPTE ST 2084 c1 coefficient (3424/4096).
+	// pqC1 is the SMPTE ST 2084 c1 coefficient (3424/4096).
 	pqC1 = 3424.0 / 4096.0
-	// PqC2 is the SMPTE ST 2084 c2 coefficient (2413/128).
+	// pqC2 is the SMPTE ST 2084 c2 coefficient (2413/128).
 	pqC2 = 2413.0 / 128.0
-	// PqC3 is the SMPTE ST 2084 c3 coefficient (2392/128).
+	// pqC3 is the SMPTE ST 2084 c3 coefficient (2392/128).
 	pqC3 = 2392.0 / 128.0
-	// PqM is the SMPTE ST 2084 m exponent (2523/32).
+	// pqM is the SMPTE ST 2084 m exponent (2523/32).
 	pqM = 2523.0 / 32.0
-	// PqN is the SMPTE ST 2084 n exponent (2610/16384).
+	// pqN is the SMPTE ST 2084 n exponent (2610/16384).
 	pqN = 2610.0 / 16384.0
 	// TransferPQ is ffprobe's HDR10 / PQ transfer name.
 	TransferPQ = "smpte2084"
@@ -42,14 +42,14 @@ const (
 	TransferPQAlias = "pq"
 	// TransferHLGAlias is a short name some probes use for HLG.
 	TransferHLGAlias = "hlg"
-	// PeakFormatPrec is the number of decimals on tonemap peak=.
+	// peakFormatPrec is the number of decimals on tonemap peak=.
 	peakFormatPrec = 4
 )
 
 // signalstatsYMaxPattern matches lavfi.signalstats YMAX lines.
 var signalstatsYMaxPattern = regexp.MustCompile(`YMAX=([0-9.]+)`)
 
-// isPQTransfer reports whether ffprobe color_transfer is HDR10/PQ.
+// IsPQTransfer reports whether ffprobe color_transfer is HDR10/PQ.
 //
 // Parameters:
 //   - transfer: ffprobe color_transfer value.
@@ -65,7 +65,7 @@ func IsPQTransfer(transfer string) bool {
 	}
 }
 
-// isHLGTransfer reports whether ffprobe color_transfer is HLG.
+// IsHLGTransfer reports whether ffprobe color_transfer is HLG.
 //
 // Parameters:
 //   - transfer: ffprobe color_transfer value.
@@ -81,7 +81,7 @@ func IsHLGTransfer(transfer string) bool {
 	}
 }
 
-// isHDRTransfer reports whether the stream is HDR (PQ or HLG).
+// IsHDRTransfer reports whether the stream is HDR (PQ or HLG).
 //
 // Parameters:
 //   - transfer: ffprobe color_transfer value.
@@ -92,7 +92,7 @@ func IsHDRTransfer(transfer string) bool {
 	return IsPQTransfer(transfer) || IsHLGTransfer(transfer)
 }
 
-// pqNitsFromLimitedY converts a limited-range 8-bit luma code to PQ nits.
+// PQNitsFromLimitedY converts a limited-range 8-bit luma code to PQ nits.
 //
 // Parameters:
 //   - ymax: Limited-range luma code (16–235 typical).
@@ -118,7 +118,7 @@ func PQNitsFromLimitedY(ymax float64) float64 {
 	return pqMaxNits * math.Pow(math.Max(raised-pqC1, 0)/den, 1/pqN)
 }
 
-// tonePeakFromNits maps nits onto zscale npl=100 linear peak.
+// TonePeakFromNits maps nits onto zscale npl=100 linear peak.
 //
 // Parameters:
 //   - nits: Measured PQ peak luminance.
@@ -134,7 +134,7 @@ func TonePeakFromNits(nits float64) float64 {
 	return peak
 }
 
-// parseSignalstatsYMax returns the highest YMAX in ffmpeg signalstats logs.
+// ParseSignalstatsYMax returns the highest YMAX in ffmpeg signalstats logs.
 //
 // Parameters:
 //   - log: ffmpeg stderr text from a signalstats pass.
@@ -166,7 +166,7 @@ func ParseSignalstatsYMax(log string) (float64, bool) {
 	return maxY, found
 }
 
-// webSafeToneMapFilter is a CPU HDR to SDR filter chain.
+// ToneMapFilter returns a CPU HDR to SDR filter chain.
 //
 // Parameters:
 //   - hdrKind: TransferPQAlias or TransferHLGAlias.
