@@ -10,7 +10,6 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/web/api"
 	pageerror "github.com/PapagoLabs/outtake/internal/web/pages/error"
 )
 
@@ -35,7 +34,7 @@ func PageError(ctx fiber.Ctx, err error) error {
 	}
 
 	if strings.HasPrefix(ctx.Path(), "/api/") {
-		return WriteJSON(ctx, view.code, api.ErrorResponse{
+		return WriteJSON(ctx, view.code, ErrorResponse{
 			Error:   "http_error",
 			Message: view.message,
 		})

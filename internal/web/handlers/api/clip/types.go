@@ -1,8 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Package api provides types for the outtake HTTP API.
-package api
+package clip
 
 import (
 	"time"

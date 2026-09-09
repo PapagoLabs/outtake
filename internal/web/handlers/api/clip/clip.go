@@ -22,7 +22,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/web/api"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
@@ -257,7 +256,7 @@ func (handler *ClipHandler) GetStatus(ctx fiber.Ctx) error {
 // List handles the list clips request.
 func (handler *ClipHandler) List(ctx fiber.Ctx) error {
 	jobs := handler.listJobs(ctx.Context())
-	clips := make([]api.ClipResponse, 0, len(jobs))
+	clips := make([]ClipResponse, 0, len(jobs))
 
 	for _, job := range jobs {
 		clips = append(clips, clipResponse(job))
@@ -366,7 +365,7 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 }
 
 // applyClipEdits writes editable clip fields onto a stored job.
-func applyClipEdits(job *queue.Job, req api.ClipRequest) {
+func applyClipEdits(job *queue.Job, req ClipRequest) {
 	jobType, ok := shared.NormalizeClipType(req.ClipType)
 	if ok {
 		job.Type = jobType
@@ -395,7 +394,7 @@ func applyClipEdits(job *queue.Job, req api.ClipRequest) {
 }
 
 // applyRequestQuality resolves a non-empty quality field onto a profile id.
-func (handler *ClipHandler) applyRequestQuality(ctx context.Context, req *api.ClipRequest) error {
+func (handler *ClipHandler) applyRequestQuality(ctx context.Context, req *ClipRequest) error {
 	if req.Quality == "" {
 		return nil
 	}
@@ -553,7 +552,7 @@ func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) 
 }
 
 // validateClipParams enforces duration and GIF encoder bounds.
-func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req api.ClipRequest) error {
+func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req ClipRequest) error {
 	err := handler.validateDuration(jobType, req.Duration)
 	if err != nil {
 		return fmt.Errorf("validate duration: %w", err)
@@ -621,13 +620,13 @@ func validateGIFParams(jobType queue.JobType, width, fps int) error {
 }
 
 // parseClipRequest binds JSON or form fields into a clip request.
-func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
+func parseClipRequest(ctx fiber.Ctx) (ClipRequest, error) {
 	if strings.Contains(ctx.Get(fiber.HeaderContentType), "json") {
-		var req api.ClipRequest
+		var req ClipRequest
 
 		err := ctx.Bind().Body(&req)
 		if err != nil {
-			return api.ClipRequest{}, fmt.Errorf("bind json: %w", err)
+			return ClipRequest{}, fmt.Errorf("bind json: %w", err)
 		}
 
 		return req, nil
@@ -642,7 +641,7 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		}
 	}
 
-	return api.ClipRequest{
+	return ClipRequest{
 		Name:          ctx.FormValue("name"),
 		MediaID:       ctx.FormValue("mediaId"),
 		MediaTitle:    ctx.FormValue("mediaTitle"),
@@ -710,7 +709,7 @@ func formSeconds(ctx fiber.Ctx, name string) float64 {
 }
 
 // clipName prefers the user-supplied name, then the media title.
-func clipName(req *api.ClipRequest) string {
+func clipName(req *ClipRequest) string {
 	if req.Name != "" {
 		return req.Name
 	}
@@ -742,7 +741,7 @@ func downloadName(job *queue.Job) string {
 }
 
 // buildJob constructs a pending queue job from a clip request.
-func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *queue.Job {
+func buildJob(req *ClipRequest, jobType queue.JobType, inputPath string) *queue.Job {
 	return &queue.Job{
 		ID:            uuid.New().String(),
 		Type:          jobType,
@@ -769,8 +768,8 @@ func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *qu
 }
 
 // clipResponse maps a job onto the public clip payload.
-func clipResponse(job *queue.Job) api.ClipResponse {
-	return api.ClipResponse{
+func clipResponse(job *queue.Job) ClipResponse {
+	return ClipResponse{
 		ID:            job.ID,
 		Name:          job.Name,
 		MediaID:       job.MediaID,

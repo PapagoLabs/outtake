@@ -19,9 +19,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/PapagoLabs/outtake/internal/web/api"
 	"github.com/PapagoLabs/outtake/internal/app"
 	"github.com/PapagoLabs/outtake/internal/config"
+	clipapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/clip"
+	mediaapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/media"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
 type e2eApp struct {
@@ -181,30 +183,30 @@ func doJSONRequest(body any) *http.Response {
 	return resp
 }
 
-func decodeClipResponse(body []byte) api.ClipResponse {
+func decodeClipResponse(body []byte) clipapi.ClipResponse {
 	GinkgoHelper()
 
-	var resp api.ClipResponse
+	var resp clipapi.ClipResponse
 
 	Expect(json.Unmarshal(body, &resp)).To(Succeed())
 
 	return resp
 }
 
-func decodeListResponse(body []byte) api.MediaListResponse {
+func decodeListResponse(body []byte) mediaapi.MediaListResponse {
 	GinkgoHelper()
 
-	var resp api.MediaListResponse
+	var resp mediaapi.MediaListResponse
 
 	Expect(json.Unmarshal(body, &resp)).To(Succeed())
 
 	return resp
 }
 
-func decodeErrorResponse(body []byte) api.ErrorResponse {
+func decodeErrorResponse(body []byte) shared.ErrorResponse {
 	GinkgoHelper()
 
-	var resp api.ErrorResponse
+	var resp shared.ErrorResponse
 
 	Expect(json.Unmarshal(body, &resp)).To(Succeed())
 
@@ -227,7 +229,7 @@ func waitForClipStatus(jobID, expectedStatus string, timeout time.Duration) {
 			continue
 		}
 
-		var clip api.ClipResponse
+		var clip clipapi.ClipResponse
 
 		jsonErr := json.Unmarshal(body, &clip)
 		if jsonErr != nil {

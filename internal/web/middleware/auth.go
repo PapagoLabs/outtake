@@ -12,7 +12,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/database"
-	"github.com/PapagoLabs/outtake/internal/web/api"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
 const (
@@ -70,7 +70,7 @@ func tokenFromSession(sess *session.Middleware) string {
 // unauthenticated rejects an anonymous request.
 func unauthenticated(ctx fiber.Ctx) error {
 	if strings.HasPrefix(ctx.Path(), "/api/") {
-		err := ctx.Status(fiber.StatusUnauthorized).JSON(api.ErrorResponse{
+		err := ctx.Status(fiber.StatusUnauthorized).JSON(shared.ErrorResponse{
 			Error:   "unauthorized",
 			Message: "authentication required",
 		})

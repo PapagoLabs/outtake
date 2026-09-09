@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
-	"github.com/PapagoLabs/outtake/internal/web/api"
 )
 
 func TestApplyClipEditsPreservesOmittedWebSafeColor(t *testing.T) {
@@ -20,7 +19,7 @@ func TestApplyClipEditsPreservesOmittedWebSafeColor(t *testing.T) {
 
 	job.WebSafeColor = true
 
-	applyClipEdits(job, api.ClipRequest{
+	applyClipEdits(job, ClipRequest{
 		StartTime: 1,
 		Duration:  5,
 	})
@@ -28,7 +27,7 @@ func TestApplyClipEditsPreservesOmittedWebSafeColor(t *testing.T) {
 	assert.True(t, job.WebSafeColor)
 
 	off := false
-	applyClipEdits(job, api.ClipRequest{
+	applyClipEdits(job, ClipRequest{
 		StartTime:    1,
 		Duration:     5,
 		WebSafeColor: &off,

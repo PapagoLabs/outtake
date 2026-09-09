@@ -16,8 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
-
-	"github.com/PapagoLabs/outtake/internal/web/api"
 )
 
 const formContentType = "application/x-www-form-urlencoded"
@@ -88,7 +86,7 @@ func TestWriteErrorJSON(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 
-	var payload api.ErrorResponse
+	var payload ErrorResponse
 
 	err := json.NewDecoder(resp.Body).Decode(&payload)
 	require.NoError(t, err)

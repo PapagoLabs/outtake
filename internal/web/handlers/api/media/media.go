@@ -8,7 +8,6 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/web/api"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
@@ -34,18 +33,18 @@ func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 	if sessions == nil {
 		plexClient, server, ok := handler.plexClient()
 		if !ok {
-			return shared.WriteJSON(ctx, fiber.StatusOK, []api.SessionResponse{})
+			return shared.WriteJSON(ctx, fiber.StatusOK, []SessionResponse{})
 		}
 
 		live, err := plexClient.GetSessionsOnServer(ctx.Context(), server)
 		if err != nil {
-			return shared.WriteJSON(ctx, fiber.StatusOK, []api.SessionResponse{})
+			return shared.WriteJSON(ctx, fiber.StatusOK, []SessionResponse{})
 		}
 
 		sessions = live
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, shared.SessionResponses(sessions))
+	return shared.WriteJSON(ctx, fiber.StatusOK, SessionResponses(sessions))
 }
 
 // Search handles the search media request.
@@ -57,8 +56,8 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 
 	plexClient, server, ok := handler.plexClient()
 	if !ok {
-		return shared.WriteJSON(ctx, fiber.StatusOK, api.MediaListResponse{
-			Items: []api.MediaItemResponse{},
+		return shared.WriteJSON(ctx, fiber.StatusOK, MediaListResponse{
+			Items: []MediaItemResponse{},
 			Total: 0,
 		})
 	}
@@ -68,11 +67,11 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 		return shared.WriteError(ctx, fiber.StatusInternalServerError, "search_failed", err.Error())
 	}
 
-	responses := make([]api.MediaItemResponse, 0, len(items))
+	responses := make([]MediaItemResponse, 0, len(items))
 	for index := range items {
 		item := items[index]
 
-		responses = append(responses, api.MediaItemResponse{
+		responses = append(responses, MediaItemResponse{
 			ID:           item.ID,
 			Title:        item.DisplayTitle(),
 			Type:         item.Type,
@@ -86,7 +85,7 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 		})
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, api.MediaListResponse{
+	return shared.WriteJSON(ctx, fiber.StatusOK, MediaListResponse{
 		Items: responses,
 		Total: len(responses),
 	})

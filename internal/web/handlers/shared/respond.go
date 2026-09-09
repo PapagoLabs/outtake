@@ -13,7 +13,6 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/web/api"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 )
 
@@ -148,7 +147,7 @@ func WriteError(ctx fiber.Ctx, status int, code, message string) error {
 		return RedirectTo(ctx, FormErrorLocation(ctx, message))
 	}
 
-	return WriteJSON(ctx, status, api.ErrorResponse{
+	return WriteJSON(ctx, status, ErrorResponse{
 		Error:   code,
 		Message: message,
 	})

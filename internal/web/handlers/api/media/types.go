@@ -1,7 +1,11 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package api
+package media
+
+import (
+	"github.com/PapagoLabs/outtake/internal/plex"
+)
 
 // MediaItemResponse represents a media item in API responses.
 type MediaItemResponse struct {
@@ -32,15 +36,21 @@ type SessionResponse struct {
 	ViewOffset float64 `json:"viewOffset,omitempty"`
 }
 
-// ErrorResponse represents an error response.
-type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-}
+// SessionResponses maps Plex sessions onto API payloads.
+func SessionResponses(sessions []plex.Session) []SessionResponse {
+	responses := make([]SessionResponse, 0, len(sessions))
 
-// AuthStatusResponse represents the authentication status response.
-type AuthStatusResponse struct {
-	Authenticated bool   `json:"authenticated"`
-	UserID        int    `json:"userId,omitempty"`
-	Username      string `json:"username,omitempty"`
+	for index := range sessions {
+		sess := &sessions[index]
+
+		responses = append(responses, SessionResponse{
+			ID:         sess.ID,
+			MediaID:    sess.MediaItem.ID,
+			Title:      sess.MediaItem.DisplayTitle(),
+			Duration:   sess.Duration,
+			ViewOffset: sess.ViewOffset,
+		})
+	}
+
+	return responses
 }
