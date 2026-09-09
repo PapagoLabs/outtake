@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/onsi/ginkgo/v2 to v2.32.2 by @renovate[bot] in [#140](https://github.com/PapagoLabs/outtake/pull/140)
 - Update module golang.org/x/text to v0.42.0 by @renovate[bot] in [#139](https://github.com/PapagoLabs/outtake/pull/139)
 - Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.112.0 by @renovate[bot] in [#137](https://github.com/PapagoLabs/outtake/pull/137)
 - Update golang.org/x/exp digest to 85c1c22 by @renovate[bot] in [#136](https://github.com/PapagoLabs/outtake/pull/136)
