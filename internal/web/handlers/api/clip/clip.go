@@ -39,45 +39,57 @@ type ClipHandler struct {
 }
 
 const (
-	// ErrorNotFound is the error code for not found.
+	// errorNotFound is the error code for not found.
 	errorNotFound = "not_found"
-	// MessageNotFound is the message for not found.
+	// messageNotFound is the message for not found.
 	messageNotFound = "clip not found"
-	// ParamID is the parameter name for ID.
+	// paramID is the parameter name for ID.
 	paramID = "id"
 
-	// GIFMinWidth is the lowest GIF export width accepted from the form.
+	// gifMinWidth is the lowest GIF export width accepted from the form.
 	gifMinWidth = 120
-	// GIFMaxWidth is the highest GIF export width accepted from the form.
+	// gifMaxWidth is the highest GIF export width accepted from the form.
 	gifMaxWidth = 1920
-	// GIFMinFPS is the lowest GIF frame rate accepted from the form.
+	// gifMinFPS is the lowest GIF frame rate accepted from the form.
 	gifMinFPS = 5
-	// GIFMaxFPS is the highest GIF frame rate accepted from the form.
+	// gifMaxFPS is the highest GIF frame rate accepted from the form.
 	gifMaxFPS = 30
-	// FormChecked is the value of a checked HTML checkbox.
+	// formChecked is the value of a checked HTML checkbox.
 	formChecked = "1"
 )
 
 var (
-	// ErrNoPlexServer is returned when no PMS is selected.
+	// errNoPlexServer is returned when no PMS is selected.
 	errNoPlexServer = errors.New("no plex server selected")
 
-	// ErrInvalidDuration is returned when a clip duration is out of range.
+	// errInvalidDuration is returned when a clip duration is out of range.
 	errInvalidDuration = errors.New("invalid duration")
 
-	// ErrUnknownQuality is returned when a clip profile id is not recognized.
+	// errUnknownQuality is returned when a clip profile id is not recognized.
 	errUnknownQuality = errors.New("unknown clip profile")
 
-	// ErrInvalidClipType is returned when clipType is set but not recognized.
+	// errInvalidClipType is returned when clipType is set but not recognized.
 	errInvalidClipType = errors.New("clip type must be one of: clip, video, screenshot, gif")
 
-	// ErrInvalidGIFWidth is returned when a GIF width is outside the form bounds.
+	// errInvalidGIFWidth is returned when a GIF width is outside the form bounds.
 	errInvalidGIFWidth = fmt.Errorf("gif width must be between %d and %d", gifMinWidth, gifMaxWidth)
-	// ErrInvalidGIFFPS is returned when a GIF fps is outside the form bounds.
+	// errInvalidGIFFPS is returned when a GIF fps is outside the form bounds.
 	errInvalidGIFFPS = fmt.Errorf("gif fps must be between %d and %d", gifMinFPS, gifMaxFPS)
 )
 
 // NewClipHandler creates a new clip handler.
+//
+// Parameters:
+//   - jobQueue: Job queue.
+//   - store: Store.
+//   - db: Database handle.
+//   - cfg: Application configuration.
+//   - bind: Bind.
+//   - product: Product.
+//   - clientID: Client id.
+//
+// Returns:
+//   - clipHandler: A new clip handler.
 func NewClipHandler(
 	jobQueue *queue.Queue,
 	store storage.Blob,
@@ -99,6 +111,12 @@ func NewClipHandler(
 }
 
 // Cancel stops a pending or processing clip.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -134,6 +152,12 @@ func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 }
 
 // Create handles the create clip request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
 	if err != nil {
@@ -184,6 +208,12 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 }
 
 // Delete handles the delete clip request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -214,6 +244,12 @@ func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 }
 
 // Download handles the download clip request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) Download(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -245,6 +281,12 @@ func (handler *ClipHandler) Download(ctx fiber.Ctx) error {
 }
 
 // GetStatus handles the get clip status request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) GetStatus(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
@@ -256,6 +298,12 @@ func (handler *ClipHandler) GetStatus(ctx fiber.Ctx) error {
 }
 
 // List handles the list clips request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) List(ctx fiber.Ctx) error {
 	jobs := handler.listJobs(ctx.Context())
 	clips := make([]ClipResponse, 0, len(jobs))
@@ -268,6 +316,12 @@ func (handler *ClipHandler) List(ctx fiber.Ctx) error {
 }
 
 // Preview renders a short low-quality segment without saving a clip.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
 	if err != nil {
@@ -325,6 +379,12 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 }
 
 // Update saves clip metadata and optionally regenerates the file.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 	job := handler.lookupJob(ctx.Context(), ctx.Params(paramID))
 	if job == nil {
@@ -367,6 +427,10 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 }
 
 // applyClipEdits writes editable clip fields onto a stored job.
+//
+// Parameters:
+//   - job: Job.
+//   - req: Req.
 func applyClipEdits(job *queue.Job, req ClipRequest) {
 	jobType, ok := sharedclip.NormalizeClipType(req.ClipType)
 	if ok {
@@ -396,6 +460,13 @@ func applyClipEdits(job *queue.Job, req ClipRequest) {
 }
 
 // applyRequestQuality resolves a non-empty quality field onto a profile id.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - req: Req.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) applyRequestQuality(ctx context.Context, req *ClipRequest) error {
 	if req.Quality == "" {
 		return nil
@@ -412,6 +483,12 @@ func (handler *ClipHandler) applyRequestQuality(ctx context.Context, req *ClipRe
 }
 
 // listJobs returns in-memory jobs, falling back to persisted clips.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - items: The in-memory jobs, falling back to persisted clips.
 func (handler *ClipHandler) listJobs(ctx context.Context) []*queue.Job {
 	jobs := handler.clipQueue.GetAllJobs()
 	if len(jobs) > 0 {
@@ -427,6 +504,13 @@ func (handler *ClipHandler) listJobs(ctx context.Context) []*queue.Job {
 }
 
 // lookupJob finds a job in the queue or the database.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - id: Identifier.
+//
+// Returns:
+//   - job: A job in the queue or the database.
 func (handler *ClipHandler) lookupJob(ctx context.Context, id string) *queue.Job {
 	job := handler.clipQueue.GetJob(id)
 	if job != nil {
@@ -442,6 +526,13 @@ func (handler *ClipHandler) lookupJob(ctx context.Context, id string) *queue.Job
 }
 
 // maybeRegenerate re-queues a clip when the regenerate form flag is set.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - job: Job.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error {
 	if ctx.FormValue("regenerate") != "1" {
 		return nil
@@ -456,6 +547,13 @@ func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error
 }
 
 // queueRegenerate re-queues a clip after metadata changes.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - job: Job.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job) error {
 	sharedclip.AssignOutputPaths(job, handler.clipStorage)
 
@@ -474,6 +572,14 @@ func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job)
 }
 
 // resolveInput maps a media id onto a local filesystem path.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - mediaID: Media id.
+//
+// Returns:
+//   - path: A media id onto a local filesystem path.
+//   - err: The error, if any.
 func (handler *ClipHandler) resolveInput(ctx context.Context, mediaID string) (string, error) {
 	path, err := ResolveMediaPath(
 		ctx,
@@ -495,6 +601,19 @@ type ServerBinder interface {
 	Get() (plex.Server, bool)
 }
 
+// ResolveMediaPath handles the HTTP request.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - cfg: Application configuration.
+//   - bind: Bind.
+//   - product: Product.
+//   - clientID: Client id.
+//   - mediaID: Media id.
+//
+// Returns:
+//   - value: The value.
+//   - err: The error, if any.
 func ResolveMediaPath(
 	ctx context.Context,
 	cfg *config.Config,
@@ -531,6 +650,14 @@ func ResolveMediaPath(
 }
 
 // resolveQuality maps an empty or named quality onto a stored profile id.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - quality: Quality.
+//
+// Returns:
+//   - id: An empty or named quality onto a stored profile id.
+//   - err: The error, if any.
 func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) (string, error) {
 	if quality == "" {
 		profile, err := handler.db.DefaultClipProfile(ctx)
@@ -558,6 +685,13 @@ func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) 
 }
 
 // validateClipParams enforces duration and GIF encoder bounds.
+//
+// Parameters:
+//   - jobType: Job type.
+//   - req: Req.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req ClipRequest) error {
 	err := handler.validateDuration(jobType, req.Duration)
 	if err != nil {
@@ -573,6 +707,13 @@ func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req ClipRe
 }
 
 // validateDuration enforces clip duration limits.
+//
+// Parameters:
+//   - jobType: Job type.
+//   - duration: Duration.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration float64) error {
 	if jobType == queue.JobTypeScreenshot {
 		if duration < 0 {
@@ -595,6 +736,14 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 }
 
 // clipJobType prefers the requested clip type, then the stored job type.
+//
+// Parameters:
+//   - clipType: Clip type.
+//   - fallback: Fallback.
+//
+// Returns:
+//   - jobType: The job type.
+//   - err: The error, if any.
 func clipJobType(clipType string, fallback queue.JobType) (queue.JobType, error) {
 	if clipType == "" {
 		return fallback, nil
@@ -609,6 +758,14 @@ func clipJobType(clipType string, fallback queue.JobType) (queue.JobType, error)
 }
 
 // validateGIFParams enforces the GIF width and fps bounds from the export form.
+//
+// Parameters:
+//   - jobType: Job type.
+//   - width: Width.
+//   - fps: Fps.
+//
+// Returns:
+//   - err: The error, if any.
 func validateGIFParams(jobType queue.JobType, width, fps int) error {
 	if jobType != queue.JobTypeGIF {
 		return nil
@@ -626,6 +783,13 @@ func validateGIFParams(jobType queue.JobType, width, fps int) error {
 }
 
 // parseClipRequest binds JSON or form fields into a clip request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - clipRequest: The clip request.
+//   - err: The error, if any.
 func parseClipRequest(ctx fiber.Ctx) (ClipRequest, error) {
 	if strings.Contains(ctx.Get(fiber.HeaderContentType), "json") {
 		var req ClipRequest
@@ -695,6 +859,13 @@ func webSafeQueryValue(value *bool) string {
 }
 
 // formInt parses a form field as int, or 0.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - name: Name.
+//
+// Returns:
+//   - n: A form field as int, or 0.
 func formInt(ctx fiber.Ctx, name string) int {
 	value, err := strconv.Atoi(ctx.FormValue(name))
 	if err != nil {
@@ -705,6 +876,13 @@ func formInt(ctx fiber.Ctx, name string) int {
 }
 
 // formSeconds parses a form field as a timecode or raw seconds.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - name: Name.
+//
+// Returns:
+//   - value: A form field as a timecode or raw seconds.
 func formSeconds(ctx fiber.Ctx, name string) float64 {
 	tc, err := media.Parse(ctx.FormValue(name))
 	if err != nil {
@@ -715,6 +893,12 @@ func formSeconds(ctx fiber.Ctx, name string) float64 {
 }
 
 // clipName prefers the user-supplied name, then the media title.
+//
+// Parameters:
+//   - req: Req.
+//
+// Returns:
+//   - value: The value.
 func clipName(req *ClipRequest) string {
 	if req.Name != "" {
 		return req.Name
@@ -724,6 +908,12 @@ func clipName(req *ClipRequest) string {
 }
 
 // downloadName builds a Content-Disposition filename for a completed clip.
+//
+// Parameters:
+//   - job: Job.
+//
+// Returns:
+//   - value: A Content-Disposition filename for a completed clip.
 func downloadName(job *queue.Job) string {
 	base := job.Name
 	if base == "" {
@@ -747,6 +937,14 @@ func downloadName(job *queue.Job) string {
 }
 
 // buildJob constructs a pending queue job from a clip request.
+//
+// Parameters:
+//   - req: Req.
+//   - jobType: Job type.
+//   - inputPath: Input path.
+//
+// Returns:
+//   - job: A pending queue job from a clip request.
 func buildJob(req *ClipRequest, jobType queue.JobType, inputPath string) *queue.Job {
 	return &queue.Job{
 		ID:            uuid.New().String(),
@@ -774,6 +972,12 @@ func buildJob(req *ClipRequest, jobType queue.JobType, inputPath string) *queue.
 }
 
 // clipResponse maps a job onto the public clip payload.
+//
+// Parameters:
+//   - job: Job.
+//
+// Returns:
+//   - clipResponse: A job onto the public clip payload.
 func clipResponse(job *queue.Job) ClipResponse {
 	return ClipResponse{
 		ID:            job.ID,

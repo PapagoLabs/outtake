@@ -22,6 +22,13 @@ type HttpErrorView struct {
 }
 
 // PageError renders HTML error pages for browser requests and JSON for the API.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - err: Error value.
+//
+// Returns:
+//   - err: The error, if any.
 func PageError(ctx fiber.Ctx, err error) error {
 	view := HttpErrorCopy(err)
 
@@ -57,6 +64,12 @@ func PageError(ctx fiber.Ctx, err error) error {
 }
 
 // HttpErrorCopy maps an error onto status, message, and title.
+//
+// Parameters:
+//   - err: Error value.
+//
+// Returns:
+//   - httpErrorView: An error onto status, message, and title.
 func HttpErrorCopy(err error) HttpErrorView {
 	view := HttpErrorView{
 		code:    fiber.StatusInternalServerError,

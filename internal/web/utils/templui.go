@@ -25,13 +25,29 @@ import (
 const ControlClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none"
 
 // TwMerge combines Tailwind classes and resolves conflicts.
-// Example: "bg-red-500 hover:bg-blue-500", "bg-green-500" → "hover:bg-blue-500 bg-green-500".
+//
+// Example: "bg-red-500 hover:bg-blue-500", "bg-green-500" → "hover:bg-blue-500
+// bg-green-500".
+//
+// Parameters:
+//   - classes: Classes.
+//
+// Returns:
+//   - value: The value.
 func TwMerge(classes ...string) string {
 	return twmerge.Merge(classes...)
 }
 
 // If returns value if condition is true, otherwise the zero value of T.
+//
 // Example: true, "bg-red-500" → "bg-red-500".
+//
+// Parameters:
+//   - condition: Whether condition.
+//   - value: Value.
+//
+// Returns:
+//   - t: The value if condition is true, otherwise the zero value of T.
 func If[T any](condition bool, value T) T {
 	var empty T
 
@@ -43,7 +59,16 @@ func If[T any](condition bool, value T) T {
 }
 
 // IfElse returns trueValue if condition is true, otherwise falseValue.
+//
 // Example: true, "bg-red-500", "bg-gray-300" → "bg-red-500".
+//
+// Parameters:
+//   - condition: Whether condition.
+//   - trueValue: True value.
+//   - falseValue: False value.
+//
+// Returns:
+//   - t: The trueValue if condition is true, otherwise falseValue.
 func IfElse[T any](condition bool, trueValue, falseValue T) T {
 	if condition {
 		return trueValue
@@ -53,7 +78,14 @@ func IfElse[T any](condition bool, trueValue, falseValue T) T {
 }
 
 // MergeAttributes combines multiple Attributes into one.
+//
 // Example: MergeAttributes(attr1, attr2) → combined attributes.
+//
+// Parameters:
+//   - attrs: Attrs.
+//
+// Returns:
+//   - attributes: The attributes.
 func MergeAttributes(attrs ...templ.Attributes) templ.Attributes {
 	merged := templ.Attributes{}
 
@@ -65,7 +97,11 @@ func MergeAttributes(attrs ...templ.Attributes) templ.Attributes {
 }
 
 // RandomID generates a random ID string.
+//
 // Example: RandomID() → "id-1a2b3c".
+//
+// Returns:
+//   - value: The value.
 func RandomID() string {
 	return "id-" + rand.Text()
 }
@@ -96,8 +132,17 @@ var componentScriptBasePath = "/internal/web/assets/js"
 // Leave this false in normal use and set it to true during app startup for debugging.
 var UseUnminifiedScripts = false
 
-// ComponentScript renders a deferred script tag for a component JavaScript file.
-// Example: ComponentScript("datepicker") → <script defer src="/templui/js/datepicker.min.js?..."></script>.
+// ComponentScript renders a deferred script tag for a component JavaScript
+// file.
+//
+// Example: ComponentScript("datepicker") → <script defer
+// src="/templui/js/datepicker.min.js?..."></script>.
+//
+// Parameters:
+//   - component: Component.
+//
+// Returns:
+//   - component: The component.
 func ComponentScript(component string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		nonce := templ.GetNonce(ctx)
@@ -136,8 +181,15 @@ func ComponentScript(component string) templ.Component {
 	})
 }
 
-// SetupScriptRoutes serves embedded component JavaScript files for the import workflow.
-// Example: SetupScriptRoutes(mux, true) mounts /templui/js/*.js with no-store caching in development.
+// SetupScriptRoutes serves embedded component JavaScript files for the import
+// workflow.
+//
+// Example: SetupScriptRoutes(mux, true) mounts /templui/js/*.js with no-store
+// caching in development.
+//
+// Parameters:
+//   - mux: Mux.
+//   - isDevelopment: Whether is development.
 func SetupScriptRoutes(mux *http.ServeMux, isDevelopment bool) {
 	if mux == nil || componentScriptBasePath != "/templui/js" {
 		return

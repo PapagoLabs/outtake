@@ -10,6 +10,9 @@ import (
 )
 
 // StaticConfig returns the static asset middleware configuration.
+//
+// Returns:
+//   - cfg: The static asset middleware configuration.
 func StaticConfig() static.Config {
 	return static.Config{
 		FS:              web.Assets,

@@ -44,6 +44,14 @@ func TestDerefBool(t *testing.T) {
 	assert.False(t, derefBool(new(false)))
 }
 
+// testClipJob returns the test clip job.
+//
+// Parameters:
+//   - id: Identifier.
+//   - jobType: Job type.
+//
+// Returns:
+//   - job: The test clip job.
 func testClipJob(id string, jobType queue.JobType) *queue.Job {
 	return &queue.Job{
 		ID:            id,

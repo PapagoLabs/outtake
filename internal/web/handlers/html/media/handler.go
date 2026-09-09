@@ -28,10 +28,23 @@ type Handler struct {
 }
 
 // New constructs a media HTML handler.
+//
+// Parameters:
+//   - rt: Shared HTML handler runtime.
+//
+// Returns:
+//   - handler: The media HTML handler.
 func New(rt *htmldeps.Runtime) *Handler {
 	return &Handler{rt: rt}
 }
 
+// Media renders the media library browse page.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) Media(ctx fiber.Ctx) error {
 	query := htmldeps.ParseMediaListQuery(ctx)
 	props := h.rt.MediaPageProps(ctx, query)
@@ -44,12 +57,13 @@ func (h *Handler) Media(ctx fiber.Ctx) error {
 	return nil
 }
 
-// htmldeps.MediaPageProps builds library browse props for the current request.
+// MediaItem renders the media item detail and clip editor page.
 //
 // Parameters:
-//   - h: HTML h with Plex access.
-//   - ctx: Request with library browse query.
-//   - query: Normalized browse state.
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(htmldeps.ParamID)
 	item, itemErr := h.rt.LoadMediaItem(ctx, id)
@@ -111,11 +125,13 @@ func (h *Handler) MediaItem(ctx fiber.Ctx) error {
 	})
 }
 
-// htmldeps.PreviewWebSafeColor prefers the preview redirect query over the config default.
+// MediaItemClips renders the HTMX clip list fragment for a media item.
 //
 // Parameters:
-//   - ctx: Incoming page request.
-//   - fallback: Config default when the query is omitted.
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) MediaItemClips(ctx fiber.Ctx) error {
 	id := ctx.Params(htmldeps.ParamID)
 	query := clipapi.ParseListQuery(ctx)
@@ -131,6 +147,13 @@ func (h *Handler) MediaItemClips(ctx fiber.Ctx) error {
 	})
 }
 
+// NavLibraries renders the sidebar library list fragment.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) NavLibraries(ctx fiber.Ctx) error {
 	selected := htmldeps.SelectedLibraryID(ctx.Get("HX-Current-URL"), ctx.Query(respond.QueryLibrary))
 
@@ -140,10 +163,13 @@ func (h *Handler) NavLibraries(ctx fiber.Ctx) error {
 	})
 }
 
-// htmldeps.WantsMediaResults reports whether the request should swap the media browse pane.
+// Playback renders the now-playing playback fragment for a media item.
 //
 // Parameters:
-//   - ctx: Request context with an optional HX-Target header.
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) Playback(ctx fiber.Ctx) error {
 	mediaID := ctx.Params(htmldeps.ParamID)
 	props := viewplayback.Playback{

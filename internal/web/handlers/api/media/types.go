@@ -38,6 +38,12 @@ type SessionResponse struct {
 }
 
 // SessionResponses maps Plex sessions onto API payloads.
+//
+// Parameters:
+//   - sessions: Sessions.
+//
+// Returns:
+//   - items: The Plex sessions onto API payloads.
 func SessionResponses(sessions []plex.Session) []SessionResponse {
 	responses := make([]SessionResponse, 0, len(sessions))
 

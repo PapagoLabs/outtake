@@ -60,6 +60,12 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	}
 }
 
+// assertAnchorSelectsMain assert anchor selects main.
+//
+// Parameters:
+//   - t: T.
+//   - body: Body.
+//   - marker: Marker.
 func assertAnchorSelectsMain(t *testing.T, body, marker string) {
 	t.Helper()
 

@@ -24,7 +24,15 @@ type Props struct {
 	Class string
 }
 
-// Icon returns a function that generates a templ.Component for the specified icon name.
+// Icon returns a function that generates a templ.Component for the specified
+// icon name.
+//
+// Parameters:
+//   - name: Name.
+//
+// Returns:
+//   - func: A function that generates a templ.Component for the specified icon
+//     name.
 func Icon(name string) func(...Props) templ.Component {
 	return func(props ...Props) templ.Component {
 		var p Props
@@ -74,8 +82,19 @@ func Icon(name string) func(...Props) templ.Component {
 	}
 }
 
-// generateSVG creates an SVG string for the specified icon with the given properties.
-// This function is called when an icon-prop combination is not yet in the cache.
+// generateSVG creates an SVG string for the specified icon with the given
+// properties.
+//
+// This function is called when an icon-prop combination is not yet in the
+// cache.
+//
+// Parameters:
+//   - name: Name.
+//   - props: Props.
+//
+// Returns:
+//   - value: An SVG string for the specified icon with the given properties.
+//   - err: The error, if any.
 func generateSVG(name string, props Props) (string, error) {
 	// Get the raw, inner SVG content for the icon name from our internal data map.
 	content, err := getIconContent(name) // This now reads from internalSvgData
@@ -93,7 +112,15 @@ func generateSVG(name string, props Props) (string, error) {
 }
 
 // getIconContent retrieves the raw inner SVG content for a given icon name.
+//
 // It reads from the pre-generated internalSvgData map from icon_data.go.
+//
+// Parameters:
+//   - name: Name.
+//
+// Returns:
+//   - value: The value.
+//   - err: The error, if any.
 func getIconContent(name string) (string, error) {
 	content, exists := internalSvgData[name]
 	if !exists {

@@ -15,12 +15,20 @@ import (
 )
 
 const (
-	// E2eEnv is the environment name that skips authentication.
+	// e2eEnv is the environment name that skips authentication.
 	e2eEnv = "e2e"
 )
 
-// AuthGuard provides authentication middleware that checks if the user has
-// a valid Plex token in their session before allowing access to protected routes.
+// AuthGuard provides authentication middleware that checks if the user has.
+//
+// a valid Plex token in their session before allowing access to protected
+// routes.
+//
+// Parameters:
+//   - env: Env.
+//
+// Returns:
+//   - handler: The authentication middleware that checks if the user has.
 func AuthGuard(env string) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if env == e2eEnv {
@@ -36,6 +44,12 @@ func AuthGuard(env string) fiber.Handler {
 }
 
 // RestoreToken loads a persisted Plex token into the session when missing.
+//
+// Parameters:
+//   - db: Database handle.
+//
+// Returns:
+//   - handler: A persisted Plex token into the session when missing.
 func RestoreToken(db *database.DB) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		sess := session.FromContext(ctx)
@@ -53,6 +67,12 @@ func RestoreToken(db *database.DB) fiber.Handler {
 }
 
 // tokenFromSession reads the Plex token from the Fiber session.
+//
+// Parameters:
+//   - sess: Sess.
+//
+// Returns:
+//   - value: The Plex token from the Fiber session.
 func tokenFromSession(sess *session.Middleware) string {
 	if sess == nil {
 		return ""
@@ -67,6 +87,12 @@ func tokenFromSession(sess *session.Middleware) string {
 }
 
 // unauthenticated rejects an anonymous request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func unauthenticated(ctx fiber.Ctx) error {
 	if strings.HasPrefix(ctx.Path(), "/api/") {
 		err := ctx.Status(fiber.StatusUnauthorized).JSON(respond.ErrorResponse{

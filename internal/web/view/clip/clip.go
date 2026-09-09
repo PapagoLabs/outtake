@@ -57,13 +57,19 @@ const (
 )
 
 const (
-	// DefaultGIFWidth is the New export GIF width when a clip has none stored.
+	// defaultGIFWidth is the New export GIF width when a clip has none stored.
 	defaultGIFWidth = 480
-	// DefaultGIFFPS is the New export GIF frame rate when a clip has none stored.
+	// defaultGIFFPS is the New export GIF frame rate when a clip has none stored.
 	defaultGIFFPS = 10
 )
 
 // ClipTypeLabel is the user-facing name for a clip type.
+//
+// Parameters:
+//   - clipType: Clip type.
+//
+// Returns:
+//   - value: The value.
 func ClipTypeLabel(clipType string) string {
 	switch clipType {
 	case "gif":

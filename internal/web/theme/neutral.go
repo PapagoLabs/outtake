@@ -4,13 +4,13 @@
 package theme
 
 const (
-	// NeutralInk is Neutral primary on light surfaces.
+	// neutralInk is Neutral primary on light surfaces.
 	neutralInk = "oklch(0.205 0 0)"
 
-	// NeutralSnow is Neutral near-white text and chrome.
+	// neutralSnow is Neutral near-white text and chrome.
 	neutralSnow = "oklch(0.985 0 0)"
 
-	// NeutralNight is Neutral canvas on dark surfaces.
+	// neutralNight is Neutral canvas on dark surfaces.
 	neutralNight = "oklch(0.145 0 0)"
 )
 

@@ -4,13 +4,13 @@
 package theme
 
 const (
-	// DraculaInk is Dracula background ink.
+	// draculaInk is Dracula background ink.
 	draculaInk = "oklch(0.288 0.022 277.509)"
 
-	// DraculaPurple is Dracula purple on light surfaces.
+	// draculaPurple is Dracula purple on light surfaces.
 	draculaPurple = "oklch(0.5 0.16 302)"
 
-	// DraculaGlow is Dracula purple on dark surfaces.
+	// draculaGlow is Dracula purple on dark surfaces.
 	draculaGlow = "oklch(0.742 0.149 301.883)"
 )
 

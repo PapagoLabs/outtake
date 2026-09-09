@@ -36,7 +36,11 @@ func NormalizeClipType(clipType string) (queue.JobType, bool) {
 	}
 }
 
-// assignOutputPaths sets the on-disk destination for a job.
+// AssignOutputPaths sets the on-disk destination for a job.
+//
+// Parameters:
+//   - job: Clip job to update.
+//   - store: Blob storage used to derive output paths.
 func AssignOutputPaths(job *queue.Job, store storage.Blob) {
 	switch job.Type {
 	case queue.JobTypeClip:
@@ -49,7 +53,10 @@ func AssignOutputPaths(job *queue.Job, store storage.Blob) {
 	}
 }
 
-// applyDefaults fills empty job fields with standard values.
+// ApplyDefaults fills empty job fields with standard values.
+//
+// Parameters:
+//   - job: Clip job to update in place.
 func ApplyDefaults(job *queue.Job) {
 	if job.Type == "" {
 		job.Type = queue.JobTypeClip

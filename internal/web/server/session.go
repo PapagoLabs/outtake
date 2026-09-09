@@ -16,6 +16,9 @@ const (
 )
 
 // SessionConfig returns the Fiber session middleware configuration.
+//
+// Returns:
+//   - cfg: The Fiber session middleware configuration.
 func SessionConfig() session.Config {
 	return session.Config{
 		Storage:           nil,

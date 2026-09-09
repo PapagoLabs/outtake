@@ -71,6 +71,11 @@ func TestPageErrorJSONForAPI(t *testing.T) {
 	assert.Contains(t, string(body), `"error":"http_error"`)
 }
 
+// closeBody closes resp.Body and ignores the error.
+//
+// Parameters:
+//   - t: T.
+//   - resp: Resp.
 func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 

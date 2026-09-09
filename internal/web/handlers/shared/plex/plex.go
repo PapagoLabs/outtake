@@ -9,6 +9,14 @@ import (
 )
 
 // NewBoundClient constructs a Plex client for the given token.
+//
+// Parameters:
+//   - product: Product.
+//   - clientID: Client id.
+//   - token: Token.
+//
+// Returns:
+//   - client: A Plex client for the given token.
 func NewBoundClient(product, clientID, token string) *plex.Client {
 	return plex.NewClient(plex.ClientConfig{
 		Product:  product,
@@ -20,6 +28,13 @@ func NewBoundClient(product, clientID, token string) *plex.Client {
 }
 
 // ClipMatchesStatus reports whether a clip belongs to a status filter.
+//
+// Parameters:
+//   - itemStatus: Item status.
+//   - want: Want.
+//
+// Returns:
+//   - ok: True when a clip belongs to a status filter.
 func ClipMatchesStatus(itemStatus, want string) bool {
 	switch want {
 	case viewclip.ClipStatusPending:

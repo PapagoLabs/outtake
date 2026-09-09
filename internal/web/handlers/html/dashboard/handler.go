@@ -19,10 +19,23 @@ type Handler struct {
 }
 
 // New constructs a dashboard HTML handler.
+//
+// Parameters:
+//   - rt: Rt.
+//
+// Returns:
+//   - handler: A dashboard HTML handler.
 func New(rt *htmldeps.Runtime) *Handler {
 	return &Handler{rt: rt}
 }
 
+// Dashboard renders the dashboard page.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) Dashboard(ctx fiber.Ctx) error {
 	jobs := h.rt.ListJobs(ctx)
 	stats := htmldeps.ClipStats(jobs)
@@ -38,6 +51,13 @@ func (h *Handler) Dashboard(ctx fiber.Ctx) error {
 	})
 }
 
+// DashboardSessions renders the dashboard sessions HTMX fragment.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) DashboardSessions(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return dashboard.LiveSessions(h.rt.SessionItems()).Render(ctx.Context(), writer)

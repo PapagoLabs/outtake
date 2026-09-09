@@ -12,6 +12,9 @@ const contentSecurityPolicy = "default-src 'self'; script-src 'self'; " +
 	"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 // HelmetConfig returns security headers including a same-origin CSP.
+//
+// Returns:
+//   - cfg: The security headers including a same-origin CSP.
 func HelmetConfig() helmet.Config {
 	return helmet.Config{
 		Next:                      nil,

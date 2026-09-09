@@ -49,6 +49,9 @@ type Deps struct {
 }
 
 // ClipMaxDur returns the configured maximum clip duration in seconds.
+//
+// Returns:
+//   - n: The configured maximum clip duration in seconds.
 func (d Deps) ClipMaxDur() int {
 	if d.Cfg != nil && d.Cfg.MaxClipDurSec > 0 {
 		return d.Cfg.MaxClipDurSec

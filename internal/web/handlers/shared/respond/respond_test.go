@@ -138,6 +138,16 @@ func TestRefererPathStripsHost(t *testing.T) {
 	assert.Equal(t, PathRoot, RefererPath("https://evil.example"))
 }
 
+// postWriteError returns the post write error.
+//
+// Parameters:
+//   - t: T.
+//   - contentType: Content type.
+//   - body: Body.
+//   - referer: Referer.
+//
+// Returns:
+//   - resp: The post write error.
 func postWriteError(t *testing.T, contentType, body, referer string) *http.Response {
 	t.Helper()
 
@@ -169,6 +179,13 @@ func postWriteError(t *testing.T, contentType, body, referer string) *http.Respo
 	return resp
 }
 
+// assertFormErrorLocation assert form error location.
+//
+// Parameters:
+//   - t: T.
+//   - resp: Resp.
+//   - wantPath: Want path.
+//   - wantError: Want error.
 func assertFormErrorLocation(t *testing.T, resp *http.Response, wantPath, wantError string) {
 	t.Helper()
 
@@ -179,6 +196,11 @@ func assertFormErrorLocation(t *testing.T, resp *http.Response, wantPath, wantEr
 	assert.Empty(t, parsed.Host)
 }
 
+// closeBody closes resp.Body and ignores the error.
+//
+// Parameters:
+//   - t: T.
+//   - resp: Resp.
 func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 

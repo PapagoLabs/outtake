@@ -23,10 +23,23 @@ type Handler struct {
 }
 
 // New constructs a settings HTML handler.
+//
+// Parameters:
+//   - rt: Rt.
+//
+// Returns:
+//   - handler: A settings HTML handler.
 func New(rt *htmldeps.Runtime) *Handler {
 	return &Handler{rt: rt}
 }
 
+// ClipProfiles renders the clip profiles settings page.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) ClipProfiles(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return settings.ClipProfiles(settings.ClipProfilesProps{
@@ -38,6 +51,13 @@ func (h *Handler) ClipProfiles(ctx fiber.Ctx) error {
 	})
 }
 
+// CreateClipProfile creates a clip profile from the submitted form.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) CreateClipProfile(ctx fiber.Ctx) error {
 	profile, err := htmldeps.ParseClipProfileForm(ctx, uuid.New().String())
 	if err != nil {
@@ -52,6 +72,13 @@ func (h *Handler) CreateClipProfile(ctx fiber.Ctx) error {
 	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
+// UpdateClipProfile updates a clip profile from the submitted form.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) UpdateClipProfile(ctx fiber.Ctx) error {
 	existing, err := h.rt.DB.GetClipProfile(ctx.Context(), ctx.Params(htmldeps.ParamID))
 	if err != nil {
@@ -74,6 +101,13 @@ func (h *Handler) UpdateClipProfile(ctx fiber.Ctx) error {
 	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
+// DeleteClipProfile deletes a clip profile.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) DeleteClipProfile(ctx fiber.Ctx) error {
 	err := h.rt.DB.DeleteClipProfile(ctx.Context(), ctx.Params(htmldeps.ParamID))
 	if err != nil {
@@ -83,6 +117,13 @@ func (h *Handler) DeleteClipProfile(ctx fiber.Ctx) error {
 	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
+// SetDefaultClipProfile marks a clip profile as the default.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) SetDefaultClipProfile(ctx fiber.Ctx) error {
 	err := h.rt.DB.SetDefaultClipProfile(ctx.Context(), ctx.Params(htmldeps.ParamID))
 	if err != nil {
@@ -92,6 +133,13 @@ func (h *Handler) SetDefaultClipProfile(ctx fiber.Ctx) error {
 	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
+// Appearance renders the appearance settings page.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (*Handler) Appearance(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return settings.Appearance().Render(ctx.Context(), writer)

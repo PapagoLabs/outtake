@@ -85,6 +85,11 @@ func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {
 	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
 }
 
+// closeBody closes resp.Body and ignores the error.
+//
+// Parameters:
+//   - t: T.
+//   - resp: Resp.
 func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 	if resp != nil && resp.Body != nil {

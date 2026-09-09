@@ -26,23 +26,26 @@ type Scheme struct {
 }
 
 const (
-	// White is an opaque white surface.
+	// white is an opaque white surface.
 	white = "oklch(1 0 0)"
 
-	// Gray97 is a near-white fill.
+	// gray97 is a near-white fill.
 	gray97 = "oklch(0.97 0 0)"
 
-	// Gray922 is a light hairline.
+	// gray922 is a light hairline.
 	gray922 = "oklch(0.922 0 0)"
 
-	// DarkHairline is a 10% white overlay used on dark surfaces.
+	// darkHairline is a 10% white overlay used on dark surfaces.
 	darkHairline = "oklch(1 0 0 / 10%)"
 
-	// DarkWell is a 15% white overlay used on dark inputs.
+	// darkWell is a 15% white overlay used on dark inputs.
 	darkWell = "oklch(1 0 0 / 15%)"
 )
 
 // complete reports whether every scheme color is set.
+//
+// Returns:
+//   - ok: True when every scheme color is set.
 func (scheme *Scheme) complete() bool {
 	fields := []string{
 		scheme.Background,
@@ -65,6 +68,9 @@ func (scheme *Scheme) complete() bool {
 }
 
 // tokens expands a scheme into the CSS variables the UI uses.
+//
+// Returns:
+//   - tokens: The tokens.
 func (scheme *Scheme) tokens() Tokens {
 	return Tokens{
 		Background:               scheme.Background,

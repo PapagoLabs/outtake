@@ -17,6 +17,12 @@ import (
 )
 
 // CSRFConfig returns CSRF middleware that accepts header or form tokens.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - cfg: The CSRF middleware that accepts header or form tokens.
 func CSRFConfig(cfg *config.Config) csrf.Config {
 	return csrf.Config{
 		Storage:        nil,
@@ -43,6 +49,12 @@ func CSRFConfig(cfg *config.Config) csrf.Config {
 }
 
 // CSRFTrustedOrigins returns Fiber CSRF TrustedOrigins from PublicBaseURL.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - items: The Fiber CSRF TrustedOrigins from PublicBaseURL.
 func CSRFTrustedOrigins(cfg *config.Config) []string {
 	if cfg.PublicBaseURL == "" {
 		return nil
@@ -57,10 +69,20 @@ func CSRFTrustedOrigins(cfg *config.Config) []string {
 }
 
 // CookieSecure reports whether cookies should set the Secure attribute.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - ok: True when cookies should set the Secure attribute.
 func CookieSecure(cfg *config.Config) bool {
 	return strings.HasPrefix(strings.ToLower(cfg.PublicURL()), "https://")
 }
 
+// csrfError renders a CSRF failure response.
+//
+// Returns:
+//   - err: The error, if any.
 func csrfError(_ fiber.Ctx, _ error) error {
 	return fiber.NewError(fiber.StatusForbidden, "invalid csrf token")
 }

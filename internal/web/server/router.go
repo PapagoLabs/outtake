@@ -26,6 +26,18 @@ import (
 )
 
 // New constructs the Fiber application and registers routes.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//   - db: Database handle.
+//   - jobQueue: Job queue.
+//   - store: Store.
+//   - bind: Bind.
+//   - plexProduct: Plex product.
+//   - plexClientID: Plex client id.
+//
+// Returns:
+//   - app: The Fiber application and registers routes.
 func New(
 	cfg *config.Config,
 	db *database.DB,

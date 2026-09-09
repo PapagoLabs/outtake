@@ -97,6 +97,14 @@ const (
 )
 
 // WriteJSON writes a JSON response and wraps Fiber errors.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - status: Status.
+//   - payload: Payload.
+//
+// Returns:
+//   - err: The error, if any.
 func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 	err := ctx.Status(status).JSON(payload)
 	if err != nil {
@@ -107,6 +115,13 @@ func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 }
 
 // SendRangedFile serves a media file with HTTP byte-range support.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - path: Filesystem path.
+//
+// Returns:
+//   - err: The error, if any.
 func SendRangedFile(ctx fiber.Ctx, path string) error {
 	err := ctx.SendFile(path, fiber.SendFile{
 		FS:            nil,
@@ -126,7 +141,7 @@ func SendRangedFile(ctx fiber.Ctx, path string) error {
 // WriteError writes a JSON error payload, or redirects HTML form posts.
 //
 // Parameters:
-//   - ctx: Request context.
+//   - ctx: HTTP request context.
 //   - status: HTTP status code.
 //   - code: Machine-readable API error code.
 //   - message: Human-readable error text.
@@ -156,7 +171,7 @@ func WriteError(ctx fiber.Ctx, status int, code, message string) error {
 // WriteHTMXFlash writes a pure hx-partial error banner for #flash.
 //
 // Parameters:
-//   - ctx: Request context.
+//   - ctx: HTTP request context.
 //   - status: HTTP status code.
 //   - message: Flash text.
 //
@@ -173,7 +188,7 @@ func WriteHTMXFlash(ctx fiber.Ctx, status int, message string) error {
 // IsHTMXRequest reports whether the client sent HX-Request.
 //
 // Parameters:
-//   - ctx: Request context.
+//   - ctx: HTTP request context.
 //
 // Returns:
 //   - True when HTMX issued the request.
@@ -198,6 +213,13 @@ func HxTargetID(raw string) string {
 }
 
 // FormErrorLocation returns the HTML page that should show a form error.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - message: Message.
+//
+// Returns:
+//   - value: The HTML page that should show a form error.
 func FormErrorLocation(ctx fiber.Ctx, message string) string {
 	mediaID := ctx.FormValue("mediaId")
 	if mediaID != "" {
@@ -213,6 +235,13 @@ func FormErrorLocation(ctx fiber.Ctx, message string) string {
 }
 
 // PathWithError appends an encoded error query to a path-only location.
+//
+// Parameters:
+//   - location: Location.
+//   - message: Message.
+//
+// Returns:
+//   - value: The value.
 func PathWithError(location, message string) string {
 	parsed, err := url.Parse(location)
 	if err != nil || parsed.Path == "" {
@@ -230,6 +259,12 @@ func PathWithError(location, message string) string {
 }
 
 // RefererPath keeps only the path and query of a Referer URL.
+//
+// Parameters:
+//   - raw: Raw.
+//
+// Returns:
+//   - value: The value.
 func RefererPath(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Path == "" {
@@ -244,6 +279,13 @@ func RefererPath(raw string) string {
 }
 
 // MediaItemError prefers a form-flash query over a Plex metadata load failure.
+//
+// Parameters:
+//   - itemErr: Error value.
+//   - queryErr: Query err.
+//
+// Returns:
+//   - value: The value.
 func MediaItemError(itemErr error, queryErr string) string {
 	if queryErr != "" {
 		return queryErr
@@ -257,6 +299,13 @@ func MediaItemError(itemErr error, queryErr string) string {
 }
 
 // RedirectTo issues a redirect and wraps Fiber errors.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - location: Location.
+//
+// Returns:
+//   - err: The error, if any.
 func RedirectTo(ctx fiber.Ctx, location string) error {
 	err := ctx.Redirect().To(location)
 	if err != nil {
@@ -267,6 +316,13 @@ func RedirectTo(ctx fiber.Ctx, location string) error {
 }
 
 // SendText writes a plain-text body and wraps Fiber errors.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - body: Body.
+//
+// Returns:
+//   - err: The error, if any.
 func SendText(ctx fiber.Ctx, body string) error {
 	err := ctx.SendString(body)
 	if err != nil {
@@ -277,6 +333,13 @@ func SendText(ctx fiber.Ctx, body string) error {
 }
 
 // SendStatusCode writes a status with no body and wraps Fiber errors.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - status: Status.
+//
+// Returns:
+//   - err: The error, if any.
 func SendStatusCode(ctx fiber.Ctx, status int) error {
 	err := ctx.SendStatus(status)
 	if err != nil {
@@ -287,6 +350,13 @@ func SendStatusCode(ctx fiber.Ctx, status int) error {
 }
 
 // RenderHTML writes a templ component and wraps render errors.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - render: Render.
+//
+// Returns:
+//   - err: The error, if any.
 func RenderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
 	ctx.Set(HeaderContentType, ContentTypeHTML)
 
@@ -299,6 +369,13 @@ func RenderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
 }
 
 // SessionString reads a string value from the Fiber session.
+//
+// Parameters:
+//   - sess: Sess.
+//   - key: Key.
+//
+// Returns:
+//   - value: A string value from the Fiber session.
 func SessionString(sess *session.Middleware, key string) string {
 	if sess == nil {
 		return ""
@@ -313,6 +390,13 @@ func SessionString(sess *session.Middleware, key string) string {
 }
 
 // SessionInt reads an int value from the Fiber session.
+//
+// Parameters:
+//   - sess: Sess.
+//   - key: Key.
+//
+// Returns:
+//   - n: An int value from the Fiber session.
 func SessionInt(sess *session.Middleware, key string) int {
 	if sess == nil {
 		return 0
@@ -327,11 +411,23 @@ func SessionInt(sess *session.Middleware, key string) int {
 }
 
 // IsFormRequest reports whether the request is urlencoded form data.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - ok: True when the request is urlencoded form data.
 func IsFormRequest(ctx fiber.Ctx) bool {
 	return strings.Contains(ctx.Get(fiber.HeaderContentType), "application/x-www-form-urlencoded")
 }
 
 // ClipReturnPath sends form posts back to the source media item when possible.
+//
+// Parameters:
+//   - mediaID: Media id.
+//
+// Returns:
+//   - value: The value.
 func ClipReturnPath(mediaID string) string {
 	if mediaID == "" {
 		return PathClips

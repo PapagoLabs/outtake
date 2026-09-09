@@ -26,10 +26,23 @@ type Handler struct {
 }
 
 // New constructs a clips HTML handler.
+//
+// Parameters:
+//   - rt: Rt.
+//
+// Returns:
+//   - handler: A clips HTML handler.
 func New(rt *htmldeps.Runtime) *Handler {
 	return &Handler{rt: rt}
 }
 
+// ClipFile handles the HTTP request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) ClipFile(ctx fiber.Ctx) error {
 	job := h.rt.LookupClip(ctx, ctx.Params(htmldeps.ParamID))
 	if job == nil || job.Status != queue.JobStatusCompleted || job.OutputPath == "" {
@@ -48,6 +61,13 @@ func (h *Handler) ClipFile(ctx fiber.Ctx) error {
 	return nil
 }
 
+// ClipRow handles the HTTP request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) ClipRow(ctx fiber.Ctx) error {
 	job := h.rt.LookupClip(ctx, ctx.Params(htmldeps.ParamID))
 	if job == nil {
@@ -61,6 +81,13 @@ func (h *Handler) ClipRow(ctx fiber.Ctx) error {
 	})
 }
 
+// Clips handles the HTTP request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) Clips(ctx fiber.Ctx) error {
 	query := clipapi.ParseListQuery(ctx)
 	props := clips.ClipsProps{
@@ -82,6 +109,13 @@ func (h *Handler) Clips(ctx fiber.Ctx) error {
 	})
 }
 
+// NewClip handles the HTTP request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (*Handler) NewClip(ctx fiber.Ctx) error {
 	mediaID := ctx.Query("mediaId")
 	if mediaID == "" {
@@ -96,6 +130,13 @@ func (*Handler) NewClip(ctx fiber.Ctx) error {
 	return respond.RedirectTo(ctx, htmldeps.MediaItemLocation(mediaID, values))
 }
 
+// PreviewFile handles the HTTP request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) PreviewFile(ctx fiber.Ctx) error {
 	id := ctx.Params(htmldeps.ParamID)
 	path := filepath.Join(h.rt.Cfg.StoragePath, "previews", id+".mp4")

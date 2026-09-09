@@ -308,6 +308,17 @@ func TestWantsClipList(t *testing.T) {
 	assert.Equal(t, "fragment", clipListKind(t, "div#clip-list"))
 }
 
+// hxTargetKind returns the hx target kind.
+//
+// Parameters:
+//   - t: T.
+//   - route: Route.
+//   - hxTarget: Hx target.
+//   - hit: Hit.
+//   - match: Match.
+//
+// Returns:
+//   - value: The hx target kind.
 func hxTargetKind(
 	t *testing.T,
 	route, hxTarget, hit string,
@@ -342,24 +353,56 @@ func hxTargetKind(
 	return string(body)
 }
 
+// mediaResultsKind returns the media results kind.
+//
+// Parameters:
+//   - t: T.
+//   - hxTarget: Hx target.
+//
+// Returns:
+//   - value: The media results kind.
 func mediaResultsKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
 	return hxTargetKind(t, "/media", hxTarget, "fragment", WantsMediaResults)
 }
 
+// mediaPrevKind returns the media prev kind.
+//
+// Parameters:
+//   - t: T.
+//   - hxTarget: Hx target.
+//
+// Returns:
+//   - value: The media prev kind.
 func mediaPrevKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
 	return hxTargetKind(t, "/media", hxTarget, "prev", WantsMediaPrev)
 }
 
+// mediaMoreKind returns the media more kind.
+//
+// Parameters:
+//   - t: T.
+//   - hxTarget: Hx target.
+//
+// Returns:
+//   - value: The media more kind.
 func mediaMoreKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
 	return hxTargetKind(t, "/media", hxTarget, "more", WantsMediaMore)
 }
 
+// clipListKind returns the clip list kind.
+//
+// Parameters:
+//   - t: T.
+//   - hxTarget: Hx target.
+//
+// Returns:
+//   - value: The clip list kind.
 func clipListKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
@@ -428,6 +471,11 @@ func TestAudioTrackLabel(t *testing.T) {
 	)
 }
 
+// closeBody closes resp.Body and ignores the error.
+//
+// Parameters:
+//   - t: T.
+//   - resp: Resp.
 func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 	if resp != nil && resp.Body != nil {

@@ -12,6 +12,9 @@ import (
 )
 
 // RequestLogger provides request logging middleware.
+//
+// Returns:
+//   - handler: The request logging middleware.
 func RequestLogger() fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		start := time.Now()

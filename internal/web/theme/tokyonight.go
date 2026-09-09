@@ -4,13 +4,13 @@
 package theme
 
 const (
-	// TokyoBlue is Tokyo Night blue on light surfaces.
+	// tokyoBlue is Tokyo Night blue on light surfaces.
 	tokyoBlue = "oklch(0.48 0.13 264)"
 
 	// TokyoNightBg is Tokyo Night background.
 	tokyoNight = "oklch(0.204 0.016 284.91)"
 
-	// TokyoGlow is Tokyo Night blue on dark surfaces.
+	// tokyoGlow is Tokyo Night blue on dark surfaces.
 	tokyoGlow = "oklch(0.719 0.132 264.202)"
 )
 

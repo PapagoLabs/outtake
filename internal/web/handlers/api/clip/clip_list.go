@@ -23,43 +23,43 @@ type ListQuery struct {
 }
 
 const (
-	// QueryType is the clip type filter query parameter.
+	// queryType is the clip type filter query parameter.
 	queryType = "type"
-	// QueryQ is the clip name search query parameter.
+	// queryQ is the clip name search query parameter.
 	queryQ = "q"
-	// QuerySort is the clip list sort query parameter.
+	// querySort is the clip list sort query parameter.
 	querySort = "sort"
 
-	// ClipSortCreatedDesc lists newest created clips first.
+	// clipSortCreatedDesc lists newest created clips first.
 	clipSortCreatedDesc = "created_desc"
-	// ClipSortCreatedAsc lists oldest created clips first.
+	// clipSortCreatedAsc lists oldest created clips first.
 	clipSortCreatedAsc = "created_asc"
-	// ClipSortUpdatedDesc lists recently modified clips first.
+	// clipSortUpdatedDesc lists recently modified clips first.
 	clipSortUpdatedDesc = "updated_desc"
-	// ClipSortUpdatedAsc lists oldest modified clips first.
+	// clipSortUpdatedAsc lists oldest modified clips first.
 	clipSortUpdatedAsc = "updated_asc"
-	// ClipSortNameAsc lists clips by display name A-Z.
+	// clipSortNameAsc lists clips by display name A-Z.
 	clipSortNameAsc = "name_asc"
-	// ClipSortNameDesc lists clips by display name Z-A.
+	// clipSortNameDesc lists clips by display name Z-A.
 	clipSortNameDesc = "name_desc"
 
-	// ClipTypeClip is the video clip type filter.
+	// clipTypeClip is the video clip type filter.
 	clipTypeClip = "clip"
-	// ClipTypeGIF is the GIF type filter.
+	// clipTypeGIF is the GIF type filter.
 	clipTypeGIF = "gif"
-	// ClipTypeScreenshot is the screenshot type filter.
+	// clipTypeScreenshot is the screenshot type filter.
 	clipTypeScreenshot = "screenshot"
 )
 
-// parseClipListQuery reads type, name, sort, and status from the request.
+// ParseListQuery reads type, name, sort, and status from the request.
 //
 // Invalid type or sort values are ignored and replaced with defaults.
 //
 // Parameters:
-//   - ctx: Request with optional type, q, sort, and status query parameters.
+//   - ctx: HTTP request context.
 //
 // Returns:
-//   - query: Normalized list filters and sort.
+//   - query: Parsed clip list toolbar state.
 func ParseListQuery(ctx fiber.Ctx) ListQuery {
 	return NormalizeListQuery(ListQuery{
 		Status: ctx.Query("status"),
@@ -70,6 +70,12 @@ func ParseListQuery(ctx fiber.Ctx) ListQuery {
 }
 
 // NormalizeListQuery drops unknown type and sort values.
+//
+// Parameters:
+//   - query: Raw clip list query values.
+//
+// Returns:
+//   - normalized: Query with invalid type or sort cleared.
 func NormalizeListQuery(query ListQuery) ListQuery {
 	switch query.Type {
 	case clipTypeClip, clipTypeGIF, clipTypeScreenshot:
@@ -90,19 +96,22 @@ func NormalizeListQuery(query ListQuery) ListQuery {
 	return query
 }
 
-// filtered reports whether any list filter is active.
+// Filtered reports whether any list filter is active.
+//
+// Returns:
+//   - ok: True when any list filter is active.
 func (query ListQuery) Filtered() bool {
 	return query.Status != "" || query.Type != "" || query.Query != ""
 }
 
-// applyClipListQuery filters then sorts jobs for the clips toolbar.
+// ApplyListQuery filters then sorts jobs for the clips toolbar.
 //
 // Parameters:
-//   - jobs: Unfiltered clip jobs.
-//   - query: Normalized filters and sort.
+//   - jobs: Clip jobs to filter and sort.
+//   - query: Active clips toolbar filters.
 //
 // Returns:
-//   - filtered: Matching jobs in the requested order.
+//   - filtered: Matching jobs in sort order.
 func ApplyListQuery(jobs []*queue.Job, query ListQuery) []*queue.Job {
 	needle := strings.ToLower(query.Query)
 	filtered := make([]*queue.Job, 0, len(jobs))
@@ -123,6 +132,14 @@ func ApplyListQuery(jobs []*queue.Job, query ListQuery) []*queue.Job {
 }
 
 // clipJobMatches reports whether a job passes status, type, and name filters.
+//
+// Parameters:
+//   - job: Job.
+//   - query: Query.
+//   - needle: Needle.
+//
+// Returns:
+//   - ok: True when a job passes status, type, and name filters.
 func clipJobMatches(job *queue.Job, query ListQuery, needle string) bool {
 	if query.Status != "" && !sharedplex.ClipMatchesStatus(string(job.Status), query.Status) {
 		return false
@@ -140,7 +157,16 @@ func clipJobMatches(job *queue.Job, query ListQuery, needle string) bool {
 		strings.Contains(strings.ToLower(job.MediaTitle), needle)
 }
 
-// compareClipListJobs orders two jobs by the requested sort, then id descending.
+// compareClipListJobs orders two jobs by the requested sort, then id
+// descending.
+//
+// Parameters:
+//   - left: Left.
+//   - right: Right.
+//   - sort: Sort.
+//
+// Returns:
+//   - n: The n.
 func compareClipListJobs(left, right *queue.Job, sort string) int {
 	var order int
 
@@ -167,6 +193,12 @@ func compareClipListJobs(left, right *queue.Job, sort string) int {
 }
 
 // jobDisplayName is the clip name, or the media title when the name is empty.
+//
+// Parameters:
+//   - job: Job.
+//
+// Returns:
+//   - value: The value.
 func jobDisplayName(job *queue.Job) string {
 	if job.Name != "" {
 		return job.Name
@@ -176,6 +208,12 @@ func jobDisplayName(job *queue.Job) string {
 }
 
 // clipNameKey is the case-insensitive display name used for name sorts.
+//
+// Parameters:
+//   - job: Job.
+//
+// Returns:
+//   - value: The value.
 func clipNameKey(job *queue.Job) string {
 	return strings.ToLower(jobDisplayName(job))
 }

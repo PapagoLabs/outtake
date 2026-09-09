@@ -32,35 +32,45 @@ type AuthHandler struct {
 }
 
 const (
-	// SessionKeyPinID stores the pending Plex PIN identifier.
+	// sessionKeyPinID stores the pending Plex PIN identifier.
 	sessionKeyPinID = "plex_pin_id"
 
-	// SessionKeyPinCode stores the pending Plex PIN code.
+	// sessionKeyPinCode stores the pending Plex PIN code.
 	sessionKeyPinCode = "plex_pin_code"
 
-	// SessionKeyUserID stores the authenticated Plex user id.
+	// sessionKeyUserID stores the authenticated Plex user id.
 	sessionKeyUserID = "plex_user_id"
 
-	// SessionKeyAuthURL stores the plex.tv authorization URL.
+	// sessionKeyAuthURL stores the plex.tv authorization URL.
 	sessionKeyAuthURL = "plex_auth_url"
 
-	// ClientIDLength is the random client identifier size in bytes.
+	// clientIDLength is the random client identifier size in bytes.
 	clientIDLength = 16
 
-	// StatusWaiting is shown while a PIN is outstanding.
+	// statusWaiting is shown while a PIN is outstanding.
 	statusWaiting = "Waiting for Plex authorization..."
 
-	// StatusAuthed is shown after PIN authorization succeeds.
+	// statusAuthed is shown after PIN authorization succeeds.
 	statusAuthed = "Authenticated! Redirecting..."
 
-	// PersistTokenMsg is logged when storing the Plex token fails.
+	// persistTokenMsg is logged when storing the Plex token fails.
 	persistTokenMsg = "failed to persist token"
 
-	// MsgPlexTokenRequired is shown when the login form is posted empty.
+	// msgPlexTokenRequired is shown when the login form is posted empty.
 	msgPlexTokenRequired = "Plex token is required"
 )
 
 // NewAuthHandler creates a new auth handler.
+//
+// Parameters:
+//   - product: Product.
+//   - clientID: Client id.
+//   - baseURL: Base url.
+//   - db: Database handle.
+//   - bind: Bind.
+//
+// Returns:
+//   - authHandler: A new auth handler.
 func NewAuthHandler(
 	product, clientID, baseURL string,
 	db *database.DB,
@@ -77,6 +87,12 @@ func NewAuthHandler(
 }
 
 // Callback completes PIN authorization.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	pinID := respond.SessionInt(sess, sessionKeyPinID)
@@ -107,6 +123,12 @@ func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 }
 
 // Login starts PIN auth or accepts a manual token.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 	token := ctx.FormValue("token")
 	if token != "" {
@@ -131,6 +153,12 @@ func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 }
 
 // Logout clears the session and persisted Plex credentials.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if sess != nil {
@@ -157,6 +185,12 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 }
 
 // Status polls PIN authorization for HTMX.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if respond.SessionString(sess, middleware.SessionKeyToken) != "" {
@@ -192,6 +226,9 @@ func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 }
 
 // GenerateClientID returns a random Plex client identifier.
+//
+// Returns:
+//   - value: A random Plex client identifier.
 func GenerateClientID() string {
 	var buf [clientIDLength]byte
 
@@ -204,6 +241,10 @@ func GenerateClientID() string {
 }
 
 // bindServer selects a PMS when exactly one server is discovered.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - token: Token.
 func (handler *AuthHandler) bindServer(ctx fiber.Ctx, token string) {
 	if _, ok := handler.bind.Get(); ok {
 		return
@@ -232,6 +273,13 @@ func (handler *AuthHandler) bindServer(ctx fiber.Ctx, token string) {
 }
 
 // finishAuth persists the token and redirects after login.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - token: Token.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *AuthHandler) finishAuth(ctx fiber.Ctx, token string) error {
 	err := handler.storeToken(ctx, token)
 	if err != nil {
@@ -244,11 +292,20 @@ func (handler *AuthHandler) finishAuth(ctx fiber.Ctx, token string) error {
 }
 
 // newClient builds a Plex client for this handler.
+//
+// Parameters:
+//   - token: Token.
+//
+// Returns:
+//   - client: A Plex client for this handler.
 func (handler *AuthHandler) newClient(token string) *plex.Client {
 	return sharedplex.NewBoundClient(handler.product, handler.clientID, token)
 }
 
 // postAuthPath returns the next page after authentication.
+//
+// Returns:
+//   - value: The next page after authentication.
 func (handler *AuthHandler) postAuthPath() string {
 	if _, ok := handler.bind.Get(); ok {
 		return respond.PathRoot
@@ -258,6 +315,14 @@ func (handler *AuthHandler) postAuthPath() string {
 }
 
 // startPIN creates a Plex PIN and returns the Auth App URL.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - sess: Sess.
+//
+// Returns:
+//   - url: A Plex PIN and returns the Auth App URL.
+//   - err: The error, if any.
 func (handler *AuthHandler) startPIN(ctx fiber.Ctx, sess *session.Middleware) (string, error) {
 	plexClient := handler.newClient("")
 
@@ -280,6 +345,13 @@ func (handler *AuthHandler) startPIN(ctx fiber.Ctx, sess *session.Middleware) (s
 }
 
 // storeToken writes the access token to the session and database.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - token: Token.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *AuthHandler) storeToken(ctx fiber.Ctx, token string) error {
 	sess := session.FromContext(ctx)
 	sess.Set(middleware.SessionKeyToken, token)
@@ -300,6 +372,9 @@ func (handler *AuthHandler) storeToken(ctx fiber.Ctx, token string) error {
 }
 
 // clearPIN removes pending PIN values from the session.
+//
+// Parameters:
+//   - sess: Sess.
 func clearPIN(sess *session.Middleware) {
 	sess.Delete(sessionKeyPinID)
 	sess.Delete(sessionKeyPinCode)
@@ -307,6 +382,13 @@ func clearPIN(sess *session.Middleware) {
 }
 
 // sendAuthComplete finishes popup or full-page login after Plex authorizes.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - next: Next.
+//
+// Returns:
+//   - err: The error, if any.
 func sendAuthComplete(ctx fiber.Ctx, next string) error {
 	ctx.Set(respond.HeaderContentType, respond.ContentTypeHTML)
 
@@ -336,6 +418,13 @@ func sendAuthComplete(ctx fiber.Ctx, next string) error {
 }
 
 // wrapAuth wraps a handler error with an operation name.
+//
+// Parameters:
+//   - err: Error value.
+//   - op: Op.
+//
+// Returns:
+//   - err: The error, if any.
 func wrapAuth(err error, op string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)

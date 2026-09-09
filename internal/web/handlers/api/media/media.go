@@ -21,6 +21,14 @@ type MediaHandler struct {
 }
 
 // NewMediaHandler creates a new media handler.
+//
+// Parameters:
+//   - product: Product.
+//   - clientID: Client id.
+//   - bind: Bind.
+//
+// Returns:
+//   - mediaHandler: A new media handler.
 func NewMediaHandler(product, clientID string, bind *binding.Binding) *MediaHandler {
 	return &MediaHandler{
 		product:  product,
@@ -30,6 +38,12 @@ func NewMediaHandler(product, clientID string, bind *binding.Binding) *MediaHand
 }
 
 // GetSessions handles the get sessions request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 	sessions := handler.bind.Sessions()
 	if sessions == nil {
@@ -50,6 +64,12 @@ func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 }
 
 // Search handles the search media request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 	query := ctx.Query("q")
 	if query == "" {
@@ -94,6 +114,11 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 }
 
 // plexClient returns a client for the selected PMS.
+//
+// Returns:
+//   - client: The client.
+//   - server: The server.
+//   - ok: True when the condition holds.
 func (handler *MediaHandler) plexClient() (*plex.Client, plex.Server, bool) {
 	server, ok := handler.bind.Get()
 	if !ok {

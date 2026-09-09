@@ -20,10 +20,23 @@ type Handler struct {
 }
 
 // New constructs a servers HTML handler.
+//
+// Parameters:
+//   - rt: Rt.
+//
+// Returns:
+//   - handler: A servers HTML handler.
 func New(rt *htmldeps.Runtime) *Handler {
 	return &Handler{rt: rt}
 }
 
+// SelectServer selects the active Plex server and redirects.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) SelectServer(ctx fiber.Ctx) error {
 	rawURL := ctx.FormValue("customUrl")
 	if rawURL == "" {
@@ -42,6 +55,13 @@ func (h *Handler) SelectServer(ctx fiber.Ctx) error {
 	return nil
 }
 
+// Servers renders the Plex server picker page.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (h *Handler) Servers(ctx fiber.Ctx) error {
 	current, _ := h.rt.Bind.Get()
 

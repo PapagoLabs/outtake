@@ -323,6 +323,14 @@ func TestToLetterIndexesOmitsEmpty(t *testing.T) {
 	}, got)
 }
 
+// parseMediaListQueryFrom returns the parse media list query from.
+//
+// Parameters:
+//   - t: T.
+//   - target: Target.
+//
+// Returns:
+//   - mediaListQuery: The parse media list query from.
 func parseMediaListQueryFrom(t *testing.T, target string) MediaListQuery {
 	t.Helper()
 
@@ -376,6 +384,15 @@ func TestLoadAddedAtIndexesCaches(t *testing.T) {
 	assert.Equal(t, maxAddedIndexPages, calls)
 }
 
+// addedAtPlexClient returns the added at plex client.
+//
+// Parameters:
+//   - t: T.
+//   - onRequest: On request.
+//
+// Returns:
+//   - client: The added at plex client.
+//   - server: The server.
 func addedAtPlexClient(
 	t *testing.T,
 	onRequest func(http.ResponseWriter, *http.Request),

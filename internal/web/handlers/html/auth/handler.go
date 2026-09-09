@@ -23,10 +23,23 @@ type Handler struct {
 }
 
 // New constructs a auth HTML handler.
+//
+// Parameters:
+//   - rt: Rt.
+//
+// Returns:
+//   - handler: A auth HTML handler.
 func New(rt *htmldeps.Runtime) *Handler {
 	return &Handler{rt: rt}
 }
 
+// Login renders the login page.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - err: The error, if any.
 func (*Handler) Login(ctx fiber.Ctx) error {
 	token := respond.SessionString(session.FromContext(ctx), middleware.SessionKeyToken)
 	if token != "" {

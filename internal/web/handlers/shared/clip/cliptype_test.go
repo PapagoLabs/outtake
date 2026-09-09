@@ -14,6 +14,14 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
 )
 
+// testClipJob returns the test clip job.
+//
+// Parameters:
+//   - id: Identifier.
+//   - jobType: Job type.
+//
+// Returns:
+//   - job: The test clip job.
 func testClipJob(id string, jobType queue.JobType) *queue.Job {
 	return &queue.Job{
 		ID:            id,

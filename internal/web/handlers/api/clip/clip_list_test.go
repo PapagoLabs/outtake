@@ -175,6 +175,14 @@ func TestClipListQueryFiltered(t *testing.T) {
 	assert.True(t, ListQuery{Status: viewclip.ClipStatusFailed}.Filtered())
 }
 
+// ParseListQueryFrom returns the parse list query from.
+//
+// Parameters:
+//   - t: T.
+//   - target: Target.
+//
+// Returns:
+//   - listQuery: The parse list query from.
 func ParseListQueryFrom(t *testing.T, target string) ListQuery {
 	t.Helper()
 
@@ -198,6 +206,19 @@ func ParseListQueryFrom(t *testing.T, target string) ListQuery {
 	return parsed
 }
 
+// listJob returns the list job.
+//
+// Parameters:
+//   - id: Identifier.
+//   - name: Name.
+//   - mediaTitle: Media title.
+//   - clipType: Clip type.
+//   - status: Status.
+//   - created: Created.
+//   - updated: Updated.
+//
+// Returns:
+//   - job: The list job.
 func listJob(
 	id, name, mediaTitle, clipType, status string,
 	created, updated time.Time,
@@ -226,6 +247,13 @@ func listJob(
 	}
 }
 
+// clipJobIDs returns the clip job i ds.
+//
+// Parameters:
+//   - jobs: Jobs.
+//
+// Returns:
+//   - items: The clip job i ds.
 func clipJobIDs(jobs []*queue.Job) []string {
 	ids := make([]string, 0, len(jobs))
 	for _, job := range jobs {

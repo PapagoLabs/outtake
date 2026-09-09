@@ -106,61 +106,58 @@ const (
 	// QueryLetter is the media library first-character jump parameter.
 	queryQ = "q"
 
-	// QuerySort is the media library sort parameter.
+	// querySort is the media library sort parameter.
 	querySort = "sort"
 
-	// QueryLetter is the media library first-character jump parameter.
+	// queryLetter is the media library first-character jump parameter.
 	queryLetter = "letter"
 
-	// QueryBefore is the exclusive end offset when prepending a previous page.
+	// queryBefore is the exclusive end offset when prepending a previous page.
 	queryBefore = "before"
 
-	// AddedIndexPageSize is the PMS page size used to build added-at buckets.
+	// addedIndexPageSize is the PMS page size used to build added-at buckets.
 	addedIndexPageSize = 200
-	// MaxAddedIndexPages caps added-at jump-rail collection.
+	// maxAddedIndexPages caps added-at jump-rail collection.
 	maxAddedIndexPages = 10
 
-	// MaxJumpLabels is the target number of marks on the jump rail.
+	// maxJumpLabels is the target number of marks on the jump rail.
 	maxJumpLabels = 28
 
-	// YearTickDenseMax is the year-count cutoff for five-year ticks.
+	// yearTickDenseMax is the year-count cutoff for five-year ticks.
 	yearTickDenseMax = 70
-	// YearTickDenseStep keeps every fifth year on a moderately long rail.
+	// yearTickDenseStep keeps every fifth year on a moderately long rail.
 	yearTickDenseStep = 5
-	// YearTickSparseStep keeps every tenth year on a long rail.
+	// yearTickSparseStep keeps every tenth year on a long rail.
 	yearTickSparseStep = 10
-	// MonthYearLen is the trailing year length in mm/yyyy labels.
+	// monthYearLen is the trailing year length in mm/yyyy labels.
 	monthYearLen = 4
-	// JumpSampleEnds is the first and last marks always kept when sampling.
+	// jumpSampleEnds is the first and last marks always kept when sampling.
 	jumpSampleEnds = 2
-	// JumpOtherKey is the catch-all jump title for unknown letters, years, or dates.
+	// jumpOtherKey is the catch-all jump title for unknown letters, years, or dates.
 	jumpOtherKey = "#"
 
-	// MediaSortTitleAsc lists titles A-Z.
+	// mediaSortTitleAsc lists titles A-Z.
 	mediaSortTitleAsc = "title_asc"
-	// MediaSortTitleDesc lists titles Z-A.
+	// mediaSortTitleDesc lists titles Z-A.
 	mediaSortTitleDesc = "title_desc"
-	// MediaSortYearDesc lists newest years first.
+	// mediaSortYearDesc lists newest years first.
 	mediaSortYearDesc = "year_desc"
-	// MediaSortYearAsc lists oldest years first.
+	// mediaSortYearAsc lists oldest years first.
 	mediaSortYearAsc = "year_asc"
-	// MediaSortAddedDesc lists recently added titles first.
+	// mediaSortAddedDesc lists recently added titles first.
 	mediaSortAddedDesc = "added_desc"
-	// MediaSortAddedAsc lists oldest added titles first.
+	// mediaSortAddedAsc lists oldest added titles first.
 	mediaSortAddedAsc = "added_asc"
 )
 
-// ParseMediaListQuery reads search, library, parent, sort, letter, start, and before.
-//
-// Invalid sort values fall back to title A-Z on a library root.
-// Nested containers drop sort and letter.
+// MediaPageProps builds library browse props for the current request.
 //
 // Parameters:
-//   - ctx: Request with optional q, library, parent, sort, letter, start, and before.
+//   - ctx: HTTP request context.
+//   - query: Normalized media list query.
 //
 // Returns:
-//   - query: Normalized browse state.
-
+//   - props: Library browse page props.
 func (rt *Runtime) MediaPageProps(
 	ctx fiber.Ctx,
 	query MediaListQuery,
@@ -204,10 +201,11 @@ func (rt *Runtime) MediaPageProps(
 // RenderMediaPage writes the media library page or an HTMX fragment.
 //
 // Parameters:
-//   - ctx: Request with an optional HX-Target.
+//   - ctx: HTTP request context.
 //   - props: Media library page model.
 //
-
+// Returns:
+//   - err: The error, if any.
 func RenderMediaPage(ctx fiber.Ctx, props *viewmedia.MediaProps) error {
 	switch {
 	case WantsMediaPrev(ctx):
@@ -229,6 +227,16 @@ func RenderMediaPage(ctx fiber.Ctx, props *viewmedia.MediaProps) error {
 	}
 }
 
+// PreviewWebSafeColor reports whether the preview should use web-safe color.
+//
+// Prefers the preview redirect query over the config default.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - fallback: Config default when the query omits web-safe color.
+//
+// Returns:
+//   - ok: True when the preview should use web-safe color.
 func PreviewWebSafeColor(ctx fiber.Ctx, fallback bool) bool {
 	raw := ctx.Query(respond.QueryWebSafeColor)
 	if raw == "" {
@@ -238,26 +246,37 @@ func PreviewWebSafeColor(ctx fiber.Ctx, fallback bool) bool {
 	return raw == FormChecked
 }
 
+// WantsMediaResults reports whether the request should swap the media browse pane.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - ok: True when HX-Target is the media browse pane.
 func WantsMediaResults(ctx fiber.Ctx) bool {
 	return respond.HxTargetID(ctx.Get(respond.HeaderHXTarget)) == "media-browse"
 }
 
-// WantsMediaMore reports whether the request should append the next poster page.
+// WantsMediaMore reports whether the request should append the next poster
+// page.
 //
 // Parameters:
-//   - ctx: Request context with an optional HX-Target header.
+//   - ctx: HTTP request context.
 //
-
+// Returns:
+//   - ok: True when the request should append the next poster page.
 func WantsMediaMore(ctx fiber.Ctx) bool {
 	return respond.HxTargetID(ctx.Get(respond.HeaderHXTarget)) == "media-more"
 }
 
-// WantsMediaPrev reports whether the request should prepend the previous poster page.
+// WantsMediaPrev reports whether the request should prepend the previous poster
+// page.
 //
 // Parameters:
-//   - ctx: Request context with an optional HX-Target header.
+//   - ctx: HTTP request context.
 //
-
+// Returns:
+//   - ok: True when the request should prepend the previous poster page.
 func WantsMediaPrev(ctx fiber.Ctx) bool {
 	return respond.HxTargetID(ctx.Get(respond.HeaderHXTarget)) == "media-prev"
 }
@@ -265,13 +284,22 @@ func WantsMediaPrev(ctx fiber.Ctx) bool {
 // WantsClipList reports whether the request should swap the clips list only.
 //
 // Parameters:
-//   - ctx: Request context with an optional HX-Target header.
+//   - ctx: HTTP request context.
 //
-
+// Returns:
+//   - ok: True when the request should swap the clips list only.
 func WantsClipList(ctx fiber.Ctx) bool {
 	return respond.HxTargetID(ctx.Get(respond.HeaderHXTarget)) == "clip-list"
 }
 
+// SelectedLibraryID returns the selected library id.
+//
+// Parameters:
+//   - currentURL: Current url.
+//   - fromQuery: From query.
+//
+// Returns:
+//   - id: The selected library id.
 func SelectedLibraryID(currentURL, fromQuery string) string {
 	if fromQuery != "" {
 		return fromQuery
@@ -289,6 +317,14 @@ func SelectedLibraryID(currentURL, fromQuery string) string {
 	return parsed.Query().Get(respond.QueryLibrary)
 }
 
+// MediaItemLocation returns the media item location.
+//
+// Parameters:
+//   - mediaID: Media id.
+//   - values: Values.
+//
+// Returns:
+//   - value: The media item location.
 func MediaItemLocation(mediaID string, values url.Values) string {
 	location := "/media/item/" + url.PathEscape(mediaID)
 	if encoded := values.Encode(); encoded != "" {
@@ -298,6 +334,14 @@ func MediaItemLocation(mediaID string, values url.Values) string {
 	return location
 }
 
+// BindSelectedURL sets the binding base URL from the selected server.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - rawURL: Raw url.
+//
+// Returns:
+//   - err: The error, if any.
 func (rt *Runtime) BindSelectedURL(ctx fiber.Ctx, rawURL string) error {
 	token := ctx.FormValue("token")
 	if token == "" {
@@ -324,10 +368,22 @@ func (rt *Runtime) BindSelectedURL(ctx fiber.Ctx, rawURL string) error {
 	return respond.RedirectTo(ctx, respond.PathRoot)
 }
 
+// ClipMaxDur returns the clip max dur.
+//
+// Returns:
+//   - n: The clip max dur.
 func (rt *Runtime) ClipMaxDur() int {
 	return rt.ClipMaxDur()
 }
 
+// ClipsForMedia returns the clips for media.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - mediaID: Media id.
+//
+// Returns:
+//   - items: The clips for media.
 func (rt *Runtime) ClipsForMedia(ctx fiber.Ctx, mediaID string) []viewclip.ClipItem {
 	jobs, err := rt.DB.ListClipsForMedia(ctx.Context(), mediaID)
 	if err != nil {
@@ -337,6 +393,13 @@ func (rt *Runtime) ClipsForMedia(ctx fiber.Ctx, mediaID string) []viewclip.ClipI
 	return rt.JobsToClipItems(ctx, clipapi.ApplyListQuery(jobs, clipapi.ParseListQuery(ctx)))
 }
 
+// DiscoverServers returns the discover servers.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - items: The discover servers.
 func (rt *Runtime) DiscoverServers(ctx fiber.Ctx) []plex.Server {
 	token := respond.SessionString(session.FromContext(ctx), middleware.SessionKeyToken)
 	if token == "" {
@@ -355,6 +418,14 @@ func (rt *Runtime) DiscoverServers(ctx fiber.Ctx) []plex.Server {
 	return servers
 }
 
+// JobsToClipItems returns the jobs to clip items.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - jobs: Jobs.
+//
+// Returns:
+//   - items: The jobs to clip items.
 func (rt *Runtime) JobsToClipItems(ctx fiber.Ctx, jobs []*queue.Job) []viewclip.ClipItem {
 	items := make([]viewclip.ClipItem, 0, len(jobs))
 
@@ -368,6 +439,13 @@ func (rt *Runtime) JobsToClipItems(ctx fiber.Ctx, jobs []*queue.Job) []viewclip.
 	return items
 }
 
+// ListJobs returns the list jobs.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - items: The list jobs.
 func (rt *Runtime) ListJobs(ctx fiber.Ctx) []*queue.Job {
 	jobs := rt.Queue.GetAllJobs()
 	if len(jobs) > 0 {
@@ -382,6 +460,15 @@ func (rt *Runtime) ListJobs(ctx fiber.Ctx) []*queue.Job {
 	return stored
 }
 
+// LoadMediaItem handles the HTTP request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - mediaID: Media id.
+//
+// Returns:
+//   - mediaItem: The media item.
+//   - err: The error, if any.
 func (rt *Runtime) LoadMediaItem(ctx fiber.Ctx, mediaID string) (plex.MediaItem, error) {
 	plexClient, server, ok := rt.PlexPair()
 	if !ok {
@@ -396,6 +483,14 @@ func (rt *Runtime) LoadMediaItem(ctx fiber.Ctx, mediaID string) (plex.MediaItem,
 	return *item, nil
 }
 
+// LookupClip returns the lookup clip.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - id: Identifier.
+//
+// Returns:
+//   - job: The lookup clip.
 func (rt *Runtime) LookupClip(ctx fiber.Ctx, id string) *queue.Job {
 	job := rt.Queue.GetJob(id)
 	if job != nil {
@@ -410,6 +505,14 @@ func (rt *Runtime) LookupClip(ctx fiber.Ctx, id string) *queue.Job {
 	return stored
 }
 
+// MediaAudioTracks returns the media audio tracks.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - mediaID: Media id.
+//
+// Returns:
+//   - items: The media audio tracks.
 func (rt *Runtime) MediaAudioTracks(
 	ctx fiber.Ctx,
 	mediaID string,
@@ -441,6 +544,13 @@ func (rt *Runtime) MediaAudioTracks(
 	return AudioTrackOptions(info.AudioTracks)
 }
 
+// AudioTrackOptions returns the audio track options.
+//
+// Parameters:
+//   - tracks: Tracks.
+//
+// Returns:
+//   - items: The audio track options.
 func AudioTrackOptions(tracks []media.AudioTrack) []viewclip.AudioTrackOption {
 	options := make([]viewclip.AudioTrackOption, 0, len(tracks))
 
@@ -454,6 +564,13 @@ func AudioTrackOptions(tracks []media.AudioTrack) []viewclip.AudioTrackOption {
 	return options
 }
 
+// AudioTrackLabel returns the audio track label.
+//
+// Parameters:
+//   - track: Track.
+//
+// Returns:
+//   - value: The audio track label.
 func AudioTrackLabel(track media.AudioTrack) string {
 	var parts []string
 
@@ -480,6 +597,15 @@ func AudioTrackLabel(track media.AudioTrack) string {
 	return strings.Join(parts, " · ")
 }
 
+// ChooserLibraries returns the chooser libraries.
+//
+// Parameters:
+//   - libraries: Libraries.
+//   - query: Query.
+//   - libraryID: Library id.
+//
+// Returns:
+//   - items: The chooser libraries.
 func ChooserLibraries(libraries []viewmedia.LibraryItem, query, libraryID string) []viewmedia.LibraryItem {
 	if query != "" || libraryID != "" {
 		return nil
@@ -491,12 +617,15 @@ func ChooserLibraries(libraries []viewmedia.LibraryItem, query, libraryID string
 // MediaContent loads libraries or media for the media page.
 //
 // Parameters:
-//   - ctx: Request context.
-//   - query: Normalized browse state.
-//   - start: Container offset.
-//   - size: Page size.
+//   - ctx: HTTP request context.
+//   - query: Query.
+//   - start: Start.
+//   - size: Size.
 //
-
+// Returns:
+//   - items: The items.
+//   - items2: The items.
+//   - n: The n.
 func (rt *Runtime) MediaContent(
 	ctx fiber.Ctx,
 	query MediaListQuery,
@@ -517,10 +646,11 @@ func (rt *Runtime) MediaContent(
 // MediaLetters loads jump-rail buckets for a library root.
 //
 // Parameters:
-//   - ctx: Request context.
-//   - query: Normalized browse state.
+//   - ctx: HTTP request context.
+//   - query: Query.
 //
-
+// Returns:
+//   - items: The jump-rail buckets for a library root.
 func (rt *Runtime) MediaLetters(
 	ctx fiber.Ctx,
 	query MediaListQuery,
@@ -565,6 +695,19 @@ func (rt *Runtime) MediaLetters(
 	}
 }
 
+// SearchMediaContent returns the search media content.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - plexClient: Plex client.
+//   - server: Server.
+//   - query: Query.
+//   - libraryID: Library id.
+//
+// Returns:
+//   - items: The items.
+//   - items2: The items.
+//   - n: The n.
 func SearchMediaContent(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
@@ -591,14 +734,17 @@ func SearchMediaContent(
 // ListMediaContent lists a library, a container, or the library chooser.
 //
 // Parameters:
-//   - ctx: Request context.
-//   - plexClient: PMS client.
-//   - server: PMS to query.
-//   - query: Normalized browse state.
-//   - start: Container offset.
-//   - size: Page size.
+//   - ctx: HTTP request context.
+//   - plexClient: Plex client.
+//   - server: Server.
+//   - query: Query.
+//   - start: Start.
+//   - size: Size.
 //
-
+// Returns:
+//   - items: The items.
+//   - items2: The items.
+//   - n: The n.
 func ListMediaContent(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
@@ -634,6 +780,12 @@ func ListMediaContent(
 		), page.Total
 }
 
+// PlexPair returns the plex pair.
+//
+// Returns:
+//   - client: The client.
+//   - server: The server.
+//   - ok: True when the condition holds.
 func (rt *Runtime) PlexPair() (*plex.Client, plex.Server, bool) {
 	server, ok := rt.Bind.Get()
 	if !ok {
@@ -643,6 +795,10 @@ func (rt *Runtime) PlexPair() (*plex.Client, plex.Server, bool) {
 	return sharedplex.NewBoundClient(rt.Product, rt.ClientID, server.Token), server, true
 }
 
+// SessionItems returns the session items.
+//
+// Returns:
+//   - items: The session items.
 func (rt *Runtime) SessionItems() []dashboard.SessionItem {
 	sessions := rt.Bind.Sessions()
 	items := make([]dashboard.SessionItem, 0, len(sessions))
@@ -665,6 +821,13 @@ func (rt *Runtime) SessionItems() []dashboard.SessionItem {
 	return items
 }
 
+// SidebarLibraries returns the sidebar libraries.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - items: The sidebar libraries.
 func (rt *Runtime) SidebarLibraries(ctx fiber.Ctx) []viewmedia.LibraryItem {
 	plexClient, server, ok := rt.PlexPair()
 	if !ok {
@@ -679,6 +842,13 @@ func (rt *Runtime) SidebarLibraries(ctx fiber.Ctx) []viewmedia.LibraryItem {
 	return ToLibraryItems(libs)
 }
 
+// ClipStats returns the clip stats.
+//
+// Parameters:
+//   - jobs: Jobs.
+//
+// Returns:
+//   - dashStats: The clip stats.
 func ClipStats(jobs []*queue.Job) DashStats {
 	stats := DashStats{
 		Total:     len(jobs),
@@ -702,6 +872,15 @@ func ClipStats(jobs []*queue.Job) DashStats {
 	return stats
 }
 
+// ConnectionURL returns the connection url.
+//
+// Parameters:
+//   - scheme: Scheme.
+//   - address: Address.
+//   - port: Port.
+//
+// Returns:
+//   - url: The connection url.
 func ConnectionURL(scheme, address, port string) string {
 	if address == "" {
 		return ""
@@ -718,6 +897,13 @@ func ConnectionURL(scheme, address, port string) string {
 	return scheme + "://" + address + ":" + port
 }
 
+// ClipFileExists reports whether clip file exists.
+//
+// Parameters:
+//   - path: Filesystem path.
+//
+// Returns:
+//   - ok: True when clip file exists.
 func ClipFileExists(path string) bool {
 	if path == "" {
 		return false
@@ -728,6 +914,14 @@ func ClipFileExists(path string) bool {
 	return err == nil
 }
 
+// ClipProfileName returns the clip profile name.
+//
+// Parameters:
+//   - quality: Quality.
+//   - profiles: Profiles.
+//
+// Returns:
+//   - name: The clip profile name.
 func ClipProfileName(quality string, profiles []viewclip.ClipProfileOption) string {
 	for _, profile := range profiles {
 		if profile.ID == quality {
@@ -738,6 +932,15 @@ func ClipProfileName(quality string, profiles []viewclip.ClipProfileOption) stri
 	return quality
 }
 
+// ToClipItem returns the to clip item.
+//
+// Parameters:
+//   - job: Job.
+//   - profiles: Profiles.
+//   - maxDur: Max dur.
+//
+// Returns:
+//   - clipItem: The to clip item.
 func ToClipItem(job *queue.Job, profiles []viewclip.ClipProfileOption, maxDur int) viewclip.ClipItem {
 	return viewclip.ClipItem{
 		ID:            job.ID,
@@ -765,6 +968,13 @@ func ToClipItem(job *queue.Job, profiles []viewclip.ClipProfileOption, maxDur in
 	}
 }
 
+// ToLibraryItems returns the to library items.
+//
+// Parameters:
+//   - libs: Libs.
+//
+// Returns:
+//   - items: The to library items.
 func ToLibraryItems(libs []plex.Library) []viewmedia.LibraryItem {
 	out := make([]viewmedia.LibraryItem, 0, len(libs))
 	for _, lib := range libs {
@@ -782,14 +992,16 @@ func ToLibraryItems(libs []plex.Library) []viewmedia.LibraryItem {
 // ListMediaPage loads one page of a library section or container children.
 //
 // Parameters:
-//   - ctx: Request context.
-//   - plexClient: PMS client.
-//   - server: PMS to query.
-//   - query: Normalized browse state.
-//   - start: Container offset.
-//   - size: Page size.
+//   - ctx: HTTP request context.
+//   - plexClient: Plex client.
+//   - server: Server.
+//   - query: Query.
+//   - start: Start.
+//   - size: Size.
 //
-
+// Returns:
+//   - mediaPage: The one page of a library section or container children.
+//   - err: The error, if any.
 func ListMediaPage(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
@@ -821,6 +1033,17 @@ func ListMediaPage(
 	return page, nil
 }
 
+// MediaCrumbs returns the media crumbs.
+//
+// Parameters:
+//   - libs: Libs.
+//   - libraryID: Library id.
+//   - upID: Up id.
+//   - upTitle: Up title.
+//   - title: Title.
+//
+// Returns:
+//   - items: The media crumbs.
 func MediaCrumbs(libs []viewmedia.LibraryItem, libraryID, upID, upTitle, title string) []viewmedia.Crumb {
 	crumbs := []viewmedia.Crumb{{Title: "Libraries", URL: respond.PathMedia}}
 	if libraryID == "" {
@@ -857,6 +1080,14 @@ func MediaCrumbs(libs []viewmedia.LibraryItem, libraryID, upID, upTitle, title s
 	return crumbs
 }
 
+// SessionTitleParts returns the session title parts.
+//
+// Parameters:
+//   - item: Item.
+//
+// Returns:
+//   - items: The session title parts.
+//   - n: The n.
 func SessionTitleParts(item plex.MediaItem) ([]viewmedia.Crumb, int) {
 	if item.Type != plex.TypeEpisode {
 		if item.Title == "" {
@@ -905,6 +1136,13 @@ func SessionTitleParts(item plex.MediaItem) ([]viewmedia.Crumb, int) {
 	return parts, 0
 }
 
+// DisplayTitleCrumb returns the display title crumb.
+//
+// Parameters:
+//   - item: Item.
+//
+// Returns:
+//   - items: The display title crumb.
 func DisplayTitleCrumb(item plex.MediaItem) []viewmedia.Crumb {
 	title := plextitle.Display(item)
 	if title == "" {
@@ -914,6 +1152,13 @@ func DisplayTitleCrumb(item plex.MediaItem) []viewmedia.Crumb {
 	return []viewmedia.Crumb{{Title: title}}
 }
 
+// SeasonSessionLabel returns the season session label.
+//
+// Parameters:
+//   - item: Item.
+//
+// Returns:
+//   - value: The season session label.
 func SeasonSessionLabel(item plex.MediaItem) string {
 	if item.ParentTitle != "" {
 		return item.ParentTitle
@@ -926,6 +1171,17 @@ func SeasonSessionLabel(item plex.MediaItem) string {
 	return ""
 }
 
+// SessionBrowseURL returns the session browse url.
+//
+// Parameters:
+//   - libraryID: Library id.
+//   - itemID: Item id.
+//   - itemTitle: Item title.
+//   - parentID: Parent id.
+//   - parentTitle: Parent title.
+//
+// Returns:
+//   - url: The session browse url.
 func SessionBrowseURL(libraryID, itemID, itemTitle, parentID, parentTitle string) string {
 	if libraryID == "" || itemID == "" {
 		return ""
@@ -934,6 +1190,13 @@ func SessionBrowseURL(libraryID, itemID, itemTitle, parentID, parentTitle string
 	return BrowseURL(libraryID, itemID, itemTitle, parentID, parentTitle)
 }
 
+// SessionItemURL returns the session item url.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - url: The session item url.
 func SessionItemURL(id string) string {
 	if id == "" {
 		return ""
@@ -942,6 +1205,17 @@ func SessionItemURL(id string) string {
 	return MediaItemLocation(id, url.Values{})
 }
 
+// BrowseURL returns the browse url.
+//
+// Parameters:
+//   - libraryID: Library id.
+//   - itemID: Item id.
+//   - itemTitle: Item title.
+//   - parentID: Parent id.
+//   - parentTitle: Parent title.
+//
+// Returns:
+//   - url: The browse url.
 func BrowseURL(libraryID, itemID, itemTitle, parentID, parentTitle string) string {
 	values := url.Values{}
 	values.Set(respond.QueryLibrary, libraryID)
@@ -956,6 +1230,13 @@ func BrowseURL(libraryID, itemID, itemTitle, parentID, parentTitle string) strin
 	return respond.PathMedia + "?" + values.Encode()
 }
 
+// ThumbSrc returns the thumb src.
+//
+// Parameters:
+//   - path: Filesystem path.
+//
+// Returns:
+//   - value: The thumb src.
 func ThumbSrc(path string) string {
 	if path == "" || !plex.ValidThumbPath(path) {
 		return ""
@@ -964,6 +1245,16 @@ func ThumbSrc(path string) string {
 	return "/thumbs?path=" + url.QueryEscape(path)
 }
 
+// ToMediaItems returns the to media items.
+//
+// Parameters:
+//   - items: Items.
+//   - libraryID: Library id.
+//   - parentID: Parent id.
+//   - parentTitle: Parent title.
+//
+// Returns:
+//   - items: The to media items.
 func ToMediaItems(
 	items []plex.MediaItem,
 	libraryID, parentID, parentTitle string,
@@ -1003,6 +1294,14 @@ func ToMediaItems(
 	return out
 }
 
+// ToServerItems returns the to server items.
+//
+// Parameters:
+//   - servers: Servers.
+//   - current: Current.
+//
+// Returns:
+//   - items: The to server items.
 func ToServerItems(servers []plex.Server, current plex.Server) []settings.ServerItem {
 	out := make([]settings.ServerItem, 0, len(servers))
 	for _, server := range servers {
@@ -1020,6 +1319,14 @@ func ToServerItems(servers []plex.Server, current plex.Server) []settings.Server
 	return out
 }
 
+// ClipMatchesStatus reports whether clip matches status.
+//
+// Parameters:
+//   - itemStatus: Item status.
+//   - want: Want.
+//
+// Returns:
+//   - ok: True when clip matches status.
 func ClipMatchesStatus(itemStatus, want string) bool {
 	switch want {
 	case viewclip.ClipStatusPending:
@@ -1029,6 +1336,13 @@ func ClipMatchesStatus(itemStatus, want string) bool {
 	}
 }
 
+// FormatClipCreated returns the format clip created.
+//
+// Parameters:
+//   - created: Created.
+//
+// Returns:
+//   - value: The format clip created.
 func FormatClipCreated(created time.Time) string {
 	if created.IsZero() {
 		return ""
@@ -1037,6 +1351,13 @@ func FormatClipCreated(created time.Time) string {
 	return created.UTC().Format("Jan 2, 2006 3:04 PM")
 }
 
+// PageStart returns the page start.
+//
+// Parameters:
+//   - raw: Raw.
+//
+// Returns:
+//   - n: The page start.
 func PageStart(raw string) int {
 	start, err := strconv.Atoi(raw)
 	if err != nil || start < 0 {
@@ -1046,6 +1367,14 @@ func PageStart(raw string) int {
 	return start
 }
 
+// ItemCrumbs returns the item crumbs.
+//
+// Parameters:
+//   - item: Item.
+//   - libs: Libs.
+//
+// Returns:
+//   - items: The item crumbs.
 func ItemCrumbs(item plex.MediaItem, libs []viewmedia.LibraryItem) []viewmedia.Crumb {
 	crumbs := []viewmedia.Crumb{{Title: "Libraries", URL: respond.PathMedia}}
 
@@ -1056,6 +1385,15 @@ func ItemCrumbs(item plex.MediaItem, libs []viewmedia.LibraryItem) []viewmedia.C
 	return crumbs
 }
 
+// AppendLibraryCrumb returns the append library crumb.
+//
+// Parameters:
+//   - crumbs: Crumbs.
+//   - item: Item.
+//   - libs: Libs.
+//
+// Returns:
+//   - items: The append library crumb.
 func AppendLibraryCrumb(
 	crumbs []viewmedia.Crumb,
 	item plex.MediaItem,
@@ -1084,6 +1422,14 @@ func AppendLibraryCrumb(
 	})
 }
 
+// AppendShowCrumbs returns the append show crumbs.
+//
+// Parameters:
+//   - crumbs: Crumbs.
+//   - item: Item.
+//
+// Returns:
+//   - items: The append show crumbs.
 func AppendShowCrumbs(crumbs []viewmedia.Crumb, item plex.MediaItem) []viewmedia.Crumb {
 	if item.GrandparentID != "" && item.GrandparentTitle != "" {
 		crumbs = append(crumbs, viewmedia.Crumb{
@@ -1113,6 +1459,14 @@ func AppendShowCrumbs(crumbs []viewmedia.Crumb, item plex.MediaItem) []viewmedia
 	})
 }
 
+// AppendSeasonShowCrumb returns the append season show crumb.
+//
+// Parameters:
+//   - crumbs: Crumbs.
+//   - item: Item.
+//
+// Returns:
+//   - items: The append season show crumb.
 func AppendSeasonShowCrumb(crumbs []viewmedia.Crumb, item plex.MediaItem) []viewmedia.Crumb {
 	if item.Type != plex.TypeSeason || item.ParentID == "" || item.ParentTitle == "" {
 		return crumbs
@@ -1124,6 +1478,16 @@ func AppendSeasonShowCrumb(crumbs []viewmedia.Crumb, item plex.MediaItem) []view
 	})
 }
 
+// ParseMediaListQuery reads search, library, parent, sort, letter, start, and before.
+//
+// Invalid sort values fall back to title A-Z on a library root.
+// Nested containers drop sort and letter.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - query: Normalized browse state.
 func ParseMediaListQuery(ctx fiber.Ctx) MediaListQuery {
 	return NormalizeMediaListQuery(MediaListQuery{
 		Query:     ctx.Query(queryQ),
@@ -1139,9 +1503,10 @@ func ParseMediaListQuery(ctx fiber.Ctx) MediaListQuery {
 // NormalizeMediaListQuery drops unknown sort values and nested letter jumps.
 //
 // Parameters:
-//   - query: Raw browse query from the request.
+//   - query: Query.
 //
-
+// Returns:
+//   - mediaListQuery: The media list query.
 func NormalizeMediaListQuery(query MediaListQuery) MediaListQuery {
 	if query.ParentID != "" {
 		query.Sort = ""
@@ -1176,7 +1541,8 @@ func NormalizeMediaListQuery(query MediaListQuery) MediaListQuery {
 
 // IsLibraryRoot reports whether the query is a section listing.
 //
-
+// Returns:
+//   - ok: True when the query is a section listing.
 func (query MediaListQuery) IsLibraryRoot() bool {
 	return query.LibraryID != "" && query.ParentID == "" && query.Query == ""
 }
@@ -1186,9 +1552,10 @@ func (query MediaListQuery) IsLibraryRoot() bool {
 // A positive start wins over letter so load-more URLs keep their offset.
 //
 // Parameters:
-//   - index: First-character buckets used when letter is set and start is 0.
+//   - index: Index.
 //
-
+// Returns:
+//   - n: The Plex container offset for this query.
 func (query MediaListQuery) ListStart(index []plex.LetterIndex) int {
 	if query.Start > 0 {
 		return query.Start
@@ -1203,7 +1570,8 @@ func (query MediaListQuery) ListStart(index []plex.LetterIndex) int {
 
 // ShowJumpIndex reports whether the library root has a jump rail.
 //
-
+// Returns:
+//   - ok: True when the library root has a jump rail.
 func (query MediaListQuery) ShowJumpIndex() bool {
 	return query.IsLibraryRoot()
 }
@@ -1211,9 +1579,10 @@ func (query MediaListQuery) ShowJumpIndex() bool {
 // Window returns the PMS offset and page size for this query.
 //
 // Parameters:
-//   - index: First-character buckets used when letter is set and start is 0.
+//   - index: Index.
 //
-
+// Returns:
+//   - mediaListWindow: The PMS offset and page size for this query.
 func (query MediaListQuery) Window(index []plex.LetterIndex) MediaListWindow {
 	if query.Before > 0 {
 		start := max(query.Before-respond.MediaPageSize, 0)
@@ -1227,9 +1596,10 @@ func (query MediaListQuery) Window(index []plex.LetterIndex) MediaListWindow {
 // PlexMediaSort maps an Outtake sort key onto a PMS sort value.
 //
 // Parameters:
-//   - sort: Normalized Outtake sort key.
+//   - sort: Sort.
 //
-
+// Returns:
+//   - value: An Outtake sort key onto a PMS sort value.
 func PlexMediaSort(sort string) string {
 	switch sort {
 	case mediaSortTitleAsc:
@@ -1254,9 +1624,10 @@ func PlexMediaSort(sort string) string {
 // Empty buckets are omitted. Start is the cumulative offset of each letter.
 //
 // Parameters:
-//   - index: PMS first-character directories.
+//   - index: Index.
 //
-
+// Returns:
+//   - items: The PMS first-character buckets onto page models.
 func ToLetterIndexes(index []plex.LetterIndex) []viewmedia.LetterIndex {
 	letters := make([]viewmedia.LetterIndex, 0, len(index))
 	start := 0
@@ -1279,10 +1650,11 @@ func ToLetterIndexes(index []plex.LetterIndex) []viewmedia.LetterIndex {
 // ThinJumpIndexes reduces rail marks to a readable set of nice ticks.
 //
 // Parameters:
-//   - letters: Jump targets for the active sort.
-//   - sort: Normalized Outtake sort key.
+//   - letters: Letters.
+//   - sort: Sort.
 //
-
+// Returns:
+//   - items: The items.
 func ThinJumpIndexes(letters []viewmedia.LetterIndex, sort string) []viewmedia.LetterIndex {
 	if len(letters) <= maxJumpLabels {
 		return letters
@@ -1301,9 +1673,10 @@ func ThinJumpIndexes(letters []viewmedia.LetterIndex, sort string) []viewmedia.L
 // YearTickStep chooses the year spacing for a crowded jump rail.
 //
 // Parameters:
-//   - n: Number of year buckets.
+//   - n: N.
 //
-
+// Returns:
+//   - n: The n.
 func YearTickStep(n int) int {
 	switch {
 	case n <= maxJumpLabels:
@@ -1318,10 +1691,11 @@ func YearTickStep(n int) int {
 // ThinNumericTitles keeps first, last, and step-aligned numeric titles.
 //
 // Parameters:
-//   - letters: Numeric jump targets in display order.
-//   - step: Year modulus to keep.
+//   - letters: Letters.
+//   - step: Step.
 //
-
+// Returns:
+//   - items: The items.
 func ThinNumericTitles(letters []viewmedia.LetterIndex, step int) []viewmedia.LetterIndex {
 	if step <= 1 || len(letters) <= jumpSampleEnds {
 		return letters
@@ -1346,12 +1720,13 @@ func ThinNumericTitles(letters []viewmedia.LetterIndex, step int) []viewmedia.Le
 // KeepNumericTitle reports whether a numeric jump mark should stay on the rail.
 //
 // Parameters:
-//   - index: Position in the ordered year list.
-//   - last: Last index in the list.
-//   - title: Year label.
-//   - step: Year modulus to keep.
+//   - index: Index.
+//   - last: Last.
+//   - title: Title.
+//   - step: Step.
 //
-
+// Returns:
+//   - ok: True when a numeric jump mark should stay on the rail.
 func KeepNumericTitle(index, last int, title string, step int) bool {
 	if index == 0 || index == last {
 		return true
@@ -1368,9 +1743,10 @@ func KeepNumericTitle(index, last int, title string, step int) bool {
 // ThinMonthTitles keeps one month mark per year, then samples if still long.
 //
 // Parameters:
-//   - letters: Month jump targets in display order.
+//   - letters: Letters.
 //
-
+// Returns:
+//   - items: The items.
 func ThinMonthTitles(letters []viewmedia.LetterIndex) []viewmedia.LetterIndex {
 	if len(letters) <= maxJumpLabels {
 		return letters
@@ -1399,9 +1775,10 @@ func ThinMonthTitles(letters []viewmedia.LetterIndex) []viewmedia.LetterIndex {
 // MonthJumpYear extracts the year from an mm/yyyy jump title.
 //
 // Parameters:
-//   - title: Jump label such as 03/2024.
+//   - title: Title.
 //
-
+// Returns:
+//   - value: The value.
 func MonthJumpYear(title string) string {
 	if len(title) >= monthYearLen {
 		return title[len(title)-monthYearLen:]
@@ -1413,10 +1790,11 @@ func MonthJumpYear(title string) string {
 // SampleJumpIndexes picks evenly spaced marks including the ends.
 //
 // Parameters:
-//   - letters: Jump targets in display order.
-//   - limit: Maximum number of marks to keep.
+//   - letters: Letters.
+//   - limit: Limit.
 //
-
+// Returns:
+//   - items: The items.
 func SampleJumpIndexes(letters []viewmedia.LetterIndex, limit int) []viewmedia.LetterIndex {
 	if len(letters) <= limit || limit < jumpSampleEnds {
 		return letters
@@ -1437,12 +1815,13 @@ func SampleJumpIndexes(letters []viewmedia.LetterIndex, limit int) []viewmedia.L
 // AppendInnerJumpMarks adds evenly spaced interior marks between the ends.
 //
 // Parameters:
-//   - out: Marks already kept, starting with the first letter.
-//   - letters: Jump targets in display order.
-//   - inner: Number of interior marks to attempt.
-//   - last: Last index in letters.
+//   - out: Out.
+//   - letters: Letters.
+//   - inner: Inner.
+//   - last: Last.
 //
-
+// Returns:
+//   - items: The items.
 func AppendInnerJumpMarks(
 	out, letters []viewmedia.LetterIndex,
 	inner, last int,
@@ -1462,10 +1841,11 @@ func AppendInnerJumpMarks(
 // OrderJumpIndex sorts or reverses buckets to match the active sort.
 //
 // Parameters:
-//   - index: PMS buckets in default order.
-//   - sort: Normalized Outtake sort key.
+//   - index: Index.
+//   - sort: Sort.
 //
-
+// Returns:
+//   - items: The items.
 func OrderJumpIndex(index []plex.LetterIndex, sort string) []plex.LetterIndex {
 	switch sort {
 	case mediaSortTitleDesc:
@@ -1482,9 +1862,10 @@ func OrderJumpIndex(index []plex.LetterIndex, sort string) []plex.LetterIndex {
 // AddedMonthKey formats a Plex addedAt unix timestamp as mm/yyyy.
 //
 // Parameters:
-//   - addedAt: Unix seconds, or 0 when unknown.
+//   - addedAt: Added at.
 //
-
+// Returns:
+//   - value: The value.
 func AddedMonthKey(addedAt int64) string {
 	if addedAt <= 0 {
 		return jumpOtherKey
@@ -1496,26 +1877,29 @@ func AddedMonthKey(addedAt int64) string {
 // AddedAtIndexes builds mm/yyyy buckets from a sorted library listing.
 //
 // Parameters:
-//   - items: Media items in added-at order.
+//   - items: Items.
 //
-
+// Returns:
+//   - items: The mm/yyyy buckets from a sorted library listing.
 func AddedAtIndexes(items []plex.MediaItem) []plex.LetterIndex {
 	return GroupIndexes(items, func(item plex.MediaItem) string {
 		return AddedMonthKey(item.AddedAt)
 	})
 }
 
-// LoadAddedAtIndexes returns cached added-at buckets, collecting them on a miss.
+// LoadAddedAtIndexes returns cached added-at buckets, collecting them on a
+// miss.
 //
 // Parameters:
-//   - ctx: Request context.
-//   - cache: Per-rt added-at jump cache.
-//   - client: PMS client.
-//   - server: PMS to query.
-//   - libraryID: Section key.
-//   - sort: Normalized Outtake sort key.
+//   - ctx: Cancellation context.
+//   - cache: Cache.
+//   - client: Client.
+//   - server: Server.
+//   - libraryID: Library id.
+//   - sort: Sort.
 //
-
+// Returns:
+//   - items: The cached added-at buckets, collecting them on a miss.
 func LoadAddedAtIndexes(
 	ctx context.Context,
 	cache *addedAtIndexCache,
@@ -1534,24 +1918,28 @@ func LoadAddedAtIndexes(
 	return index
 }
 
-// AddedAtCacheKey identifies an added-at jump rail by server, library, and sort.
+// AddedAtCacheKey identifies an added-at jump rail by server, library, and
+// sort.
 //
 // Parameters:
-//   - server: PMS identity.
-//   - libraryID: Section key.
-//   - sort: Normalized Outtake sort key.
+//   - server: Server.
+//   - libraryID: Library id.
+//   - sort: Sort.
 //
-
+// Returns:
+//   - value: The value.
 func AddedAtCacheKey(server plex.Server, libraryID, sort string) string {
 	return server.Address + ":" + strconv.Itoa(server.Port) + "|" + libraryID + "|" + sort
 }
 
-// Get returns a copy of cached buckets for key.
+// Get loads cached added-at jump indexes.
 //
 // Parameters:
-//   - key: Cache key.
+//   - key: Key.
 //
-
+// Returns:
+//   - items: The cached added-at jump indexes.
+//   - ok: True when the condition holds.
 func (cache *addedAtIndexCache) Get(key string) ([]plex.LetterIndex, bool) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -1561,9 +1949,11 @@ func (cache *addedAtIndexCache) Get(key string) ([]plex.LetterIndex, bool) {
 	return slices.Clone(index), ok
 }
 
-// Put stores a copy of index for key.
+// Put stores added-at jump indexes in the cache.
 //
-
+// Parameters:
+//   - key: Key.
+//   - index: Index.
 func (cache *addedAtIndexCache) Put(key string, index []plex.LetterIndex) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
@@ -1578,9 +1968,10 @@ func (cache *addedAtIndexCache) Put(key string, index []plex.LetterIndex) {
 // YearIndexes builds year buckets from a sorted library listing.
 //
 // Parameters:
-//   - items: Media items in year order.
+//   - items: Items.
 //
-
+// Returns:
+//   - items: The year buckets from a sorted library listing.
 func YearIndexes(items []plex.MediaItem) []plex.LetterIndex {
 	return GroupIndexes(items, func(item plex.MediaItem) string {
 		if item.Year <= 0 {
@@ -1594,9 +1985,10 @@ func YearIndexes(items []plex.MediaItem) []plex.LetterIndex {
 // TitleIndexes builds first-character buckets from a sorted library listing.
 //
 // Parameters:
-//   - items: Media items in title order.
+//   - items: Items.
 //
-
+// Returns:
+//   - items: The first-character buckets from a sorted library listing.
 func TitleIndexes(items []plex.MediaItem) []plex.LetterIndex {
 	return GroupIndexes(items, func(item plex.MediaItem) string {
 		return TitleJumpKey(item.TitleSort, item.Title)
@@ -1606,10 +1998,11 @@ func TitleIndexes(items []plex.MediaItem) []plex.LetterIndex {
 // TitleJumpKey returns the first-letter jump key for a title.
 //
 // Parameters:
-//   - titleSort: PMS titleSort value, preferred when set.
-//   - title: Display title used when titleSort is empty.
+//   - titleSort: Title sort.
+//   - title: Title.
 //
-
+// Returns:
+//   - value: The first-letter jump key for a title.
 func TitleJumpKey(titleSort, title string) string {
 	key := strings.TrimSpace(titleSort)
 	if key == "" {
@@ -1632,10 +2025,11 @@ func TitleJumpKey(titleSort, title string) string {
 // GroupIndexes collapses consecutive items that share a jump key.
 //
 // Parameters:
-//   - items: Media items in display order.
-//   - keyFn: Jump key for each item.
+//   - items: Items.
+//   - keyFn: Key fn.
 //
-
+// Returns:
+//   - items: The items.
 func GroupIndexes(items []plex.MediaItem, keyFn func(plex.MediaItem) string) []plex.LetterIndex {
 	index := make([]plex.LetterIndex, 0)
 	last := ""
@@ -1658,13 +2052,14 @@ func GroupIndexes(items []plex.MediaItem, keyFn func(plex.MediaItem) string) []p
 // CollectAddedAtItems pages a sorted library listing for jump-rail grouping.
 //
 // Parameters:
-//   - ctx: Request context.
-//   - client: PMS client.
-//   - server: PMS to query.
-//   - libraryID: Section key.
-//   - sort: Normalized Outtake sort key.
+//   - ctx: Cancellation context.
+//   - client: Client.
+//   - server: Server.
+//   - libraryID: Library id.
+//   - sort: Sort.
 //
-
+// Returns:
+//   - items: The items.
 func CollectAddedAtItems(
 	ctx context.Context,
 	client *plex.Client,
@@ -1699,6 +2094,13 @@ func CollectAddedAtItems(
 	}
 }
 
+// StoredClipProfiles returns the stored clip profiles.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - items: The stored clip profiles.
 func (rt *Runtime) StoredClipProfiles(ctx fiber.Ctx) []database.ClipProfile {
 	profiles, err := rt.DB.ListClipProfiles(ctx.Context())
 	if err != nil {
@@ -1708,6 +2110,13 @@ func (rt *Runtime) StoredClipProfiles(ctx fiber.Ctx) []database.ClipProfile {
 	return profiles
 }
 
+// ClipProfileOptions returns the clip profile options.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//
+// Returns:
+//   - items: The clip profile options.
 func (rt *Runtime) ClipProfileOptions(ctx fiber.Ctx) []viewclip.ClipProfileOption {
 	profiles := rt.StoredClipProfiles(ctx)
 	options := make([]viewclip.ClipProfileOption, 0, len(profiles))
@@ -1729,6 +2138,10 @@ func (rt *Runtime) ClipProfileOptions(ctx fiber.Ctx) []viewclip.ClipProfileOptio
 	return options
 }
 
+// BuiltinProfileOptions returns the builtin profile options.
+//
+// Returns:
+//   - items: The builtin profile options.
 func BuiltinProfileOptions() []viewclip.ClipProfileOption {
 	return []viewclip.ClipProfileOption{
 		{ID: string(mediaquality.ClipQualityLow), Name: "Low", IsDefault: false},
@@ -1737,6 +2150,15 @@ func BuiltinProfileOptions() []viewclip.ClipProfileOption {
 	}
 }
 
+// ParseClipProfileForm handles the HTTP request.
+//
+// Parameters:
+//   - ctx: HTTP request context.
+//   - id: Identifier.
+//
+// Returns:
+//   - clipProfile: The clip profile.
+//   - err: The error, if any.
 func ParseClipProfileForm(ctx fiber.Ctx, id string) (database.ClipProfile, error) {
 	profile, err := ClipProfileFromFields(
 		id,
@@ -1755,10 +2177,23 @@ func ParseClipProfileForm(ctx fiber.Ctx, id string) (database.ClipProfile, error
 	return profile, nil
 }
 
+// ClipProfileFromFields returns the clip profile from fields.
+//
+// Parameters:
+//   - id: Identifier.
+//   - name: Name.
+//   - crfRaw: Crf raw.
+//   - preset: Preset.
+//   - audioRaw: Audio raw.
+//   - widthRaw: Width raw.
+//
+// Returns:
+//   - clipProfile: The clip profile from fields.
+//   - err: The error, if any.
 func ClipProfileFromFields(
 	id, name, crfRaw, preset, audioRaw, widthRaw string,
 ) (database.ClipProfile, error) {
-	// Name is required and length-capped.
+	// name is required and length-capped.
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return database.ClipProfile{}, errProfileName
@@ -1802,6 +2237,15 @@ func ClipProfileFromFields(
 	}, nil
 }
 
+// ParseProfileInt returns the parse profile int.
+//
+// Parameters:
+//   - raw: Raw.
+//   - valid: Valid.
+//
+// Returns:
+//   - n: The parse profile int.
+//   - ok: True when the condition holds.
 func ParseProfileInt(raw string, valid func(int) bool) (int, bool) {
 	value, err := strconv.Atoi(raw)
 	if err != nil || !valid(value) {
@@ -1811,6 +2255,13 @@ func ParseProfileInt(raw string, valid func(int) bool) (int, bool) {
 	return value, true
 }
 
+// ToClipProfileItems returns the to clip profile items.
+//
+// Parameters:
+//   - profiles: Profiles.
+//
+// Returns:
+//   - items: The to clip profile items.
 func ToClipProfileItems(profiles []database.ClipProfile) []settings.ClipProfileItem {
 	items := make([]settings.ClipProfileItem, 0, len(profiles))
 
@@ -1831,6 +2282,10 @@ func ToClipProfileItems(profiles []database.ClipProfile) []settings.ClipProfileI
 	return items
 }
 
+// OutputWidthOptions returns the output width options.
+//
+// Returns:
+//   - items: The output width options.
 func OutputWidthOptions() []settings.OutputWidthOption {
 	options := make([]settings.OutputWidthOption, 0, len(mediaquality.OutputWidths))
 
