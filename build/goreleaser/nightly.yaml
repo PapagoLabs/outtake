@@ -40,9 +40,9 @@ builds:
       - -trimpath
     ldflags:
       - -s -w
-      - -X github.com/PapagoLabs/outtake/internal/cli/metadata.Version={{ .Version }}
-      - -X github.com/PapagoLabs/outtake/internal/cli/metadata.CommitSHA={{ .Commit }}
-      - -X github.com/PapagoLabs/outtake/internal/cli/metadata.BuildTime={{ .CommitDate }}
+      - -X github.com/PapagoLabs/outtake/internal/metadata.Version={{ .Version }}
+      - -X github.com/PapagoLabs/outtake/internal/metadata.CommitSHA={{ .Commit }}
+      - -X github.com/PapagoLabs/outtake/internal/metadata.BuildTime={{ .CommitDate }}
     env:
       - CGO_ENABLED=0
     goos:
