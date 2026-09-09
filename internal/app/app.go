@@ -17,7 +17,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/rs/zerolog/log"
 
-	apphttp "github.com/PapagoLabs/outtake/internal/app/http"
+	"github.com/PapagoLabs/outtake/internal/web/server"
 	"github.com/PapagoLabs/outtake/internal/app/wire"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
@@ -65,7 +65,7 @@ func New(cfg *config.Config) (*App, error) {
 
 	jobQueue := wire.StartQueue(cfg, db, ffmpeg, store)
 
-	router := apphttp.New(cfg, db, jobQueue, store, bind, plexProduct, plexClientID)
+	router := server.New(cfg, db, jobQueue, store, bind, plexProduct, plexClientID)
 
 	return &App{
 		cfg:    cfg,
