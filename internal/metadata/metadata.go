@@ -44,7 +44,7 @@ var (
 	// BuildTime is the timestamp of the build.
 	BuildTime = ""
 
-	// VersionOnce ensures version is initialized only once.
+	// versionOnce ensures version is initialized only once.
 	versionOnce sync.Once
 )
 

@@ -123,6 +123,14 @@ func TestCSRFAllowsHTTPSOriginBehindHTTP(t *testing.T) {
 	assert.Contains(t, string(evilBody), "invalid csrf token")
 }
 
+// testAppConfig returns the test app config.
+//
+// Parameters:
+//   - t: T.
+//   - publicBaseURL: Public base url.
+//
+// Returns:
+//   - cfg: The test app config.
 func testAppConfig(t *testing.T, publicBaseURL string) *config.Config {
 	t.Helper()
 
@@ -158,6 +166,17 @@ func testAppConfig(t *testing.T, publicBaseURL string) *config.Config {
 	}
 }
 
+// csrfOriginPost returns the csrf origin post.
+//
+// Parameters:
+//   - t: T.
+//   - application: Application.
+//   - loginResp: Login resp.
+//   - origin: Origin.
+//   - token: Token.
+//
+// Returns:
+//   - resp: The csrf origin post.
 func csrfOriginPost(
 	t *testing.T,
 	application *App,
@@ -182,6 +201,13 @@ func csrfOriginPost(
 	return resp
 }
 
+// csrfTokenFromLoginHTML returns the csrf token from login html.
+//
+// Parameters:
+//   - body: Body.
+//
+// Returns:
+//   - value: The csrf token from login html.
 func csrfTokenFromLoginHTML(body string) string {
 	const prefix = `name="csrf-token" content="`
 

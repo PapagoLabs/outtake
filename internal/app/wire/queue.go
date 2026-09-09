@@ -18,6 +18,15 @@ import (
 )
 
 // StartQueue creates the worker queue and restores persisted jobs.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//   - db: Database handle.
+//   - ffmpeg: Ffmpeg.
+//   - store: Store.
+//
+// Returns:
+//   - queue: The worker queue and restores persisted jobs.
 func StartQueue(
 	cfg *config.Config,
 	db *database.DB,
@@ -50,6 +59,10 @@ func StartQueue(
 }
 
 // restoreJobs reloads persisted clips into the in-memory queue.
+//
+// Parameters:
+//   - db: Database handle.
+//   - jobQueue: Job queue.
 func restoreJobs(db ClipPersister, jobQueue *queue.Queue) {
 	jobs, err := db.ListClips(context.Background())
 	if err != nil {

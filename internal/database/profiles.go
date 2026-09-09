@@ -27,7 +27,7 @@ type ClipProfile struct {
 }
 
 const (
-	// ClipProfileSelectCols is the clip_profiles projection used by read queries.
+	// clipProfileSelectCols is the clip_profiles projection used by read queries.
 	clipProfileSelectCols = `id, name, crf, preset, audio_kbps, max_width, is_default, created_at, updated_at`
 )
 
@@ -38,6 +38,13 @@ var ErrClipProfileNotFound = errors.New("clip profile not found")
 var ErrLastClipProfile = errors.New("cannot delete the last clip profile")
 
 // SaveClipProfile inserts or replaces a clip profile.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - profile: Profile.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 	isDefault := 0
 	if profile.IsDefault {
@@ -89,6 +96,14 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 }
 
 // GetClipProfile loads a clip profile by ID.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - id: Identifier.
+//
+// Returns:
+//   - clipProfile: A clip profile by ID.
+//   - err: The error, if any.
 func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
@@ -109,6 +124,13 @@ func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error
 }
 
 // ListClipProfiles returns clip profiles with the default first.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - items: The clip profiles with the default first.
+//   - err: The error, if any.
 func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -140,6 +162,13 @@ func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 }
 
 // DefaultClipProfile returns the profile marked default, or Medium built-in.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - clipProfile: The profile marked default, or Medium built-in.
+//   - err: The error, if any.
 func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
@@ -165,6 +194,13 @@ func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 }
 
 // SetDefaultClipProfile marks one profile as the default.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - id: Identifier.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) SetDefaultClipProfile(ctx context.Context, id string) error {
 	_, err := db.GetClipProfile(ctx, id)
 	if err != nil {
@@ -180,6 +216,13 @@ func (db *DB) SetDefaultClipProfile(ctx context.Context, id string) error {
 }
 
 // DeleteClipProfile removes a profile and keeps a default assigned.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - id: Identifier.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) DeleteClipProfile(ctx context.Context, id string) error {
 	count, err := db.clipProfileCount(ctx)
 	if err != nil {
@@ -209,6 +252,9 @@ func (db *DB) DeleteClipProfile(ctx context.Context, id string) error {
 }
 
 // QualityPreset returns ffmpeg settings for a stored profile.
+//
+// Returns:
+//   - qualityPreset: The ffmpeg settings for a stored profile.
 func (profile ClipProfile) QualityPreset() mediaquality.QualityPreset {
 	return mediaquality.QualityPreset{
 		CRF:       profile.CRF,
@@ -219,6 +265,13 @@ func (profile ClipProfile) QualityPreset() mediaquality.QualityPreset {
 }
 
 // clipProfileCount returns the number of stored profiles.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - n: The number of stored profiles.
+//   - err: The error, if any.
 func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 	var count int
 
@@ -234,6 +287,13 @@ func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 }
 
 // assignDefaultClipProfile sets one default in a single UPDATE.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - id: Identifier.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) assignDefaultClipProfile(ctx context.Context, id string) error {
 	_, err := db.conn.ExecContext(
 		ctx,
@@ -250,6 +310,12 @@ func (db *DB) assignDefaultClipProfile(ctx context.Context, id string) error {
 }
 
 // ensureDefaultClipProfile assigns a default when none is set.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 	var defaults int
 
@@ -280,6 +346,13 @@ func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 }
 
 // scanClipProfile reads one clip profile row.
+//
+// Parameters:
+//   - row: Row.
+//
+// Returns:
+//   - clipProfile: The one clip profile row.
+//   - err: The error, if any.
 func scanClipProfile(row Scannable) (ClipProfile, error) {
 	var profile ClipProfile
 	var isDefault int

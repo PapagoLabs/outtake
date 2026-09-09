@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/database/mocks"
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/clip/queue"
 )
 
 func TestClipPersistence(t *testing.T) {
@@ -119,6 +119,15 @@ func TestListClipsOrder(t *testing.T) {
 	assert.Equal(t, wantMedia, clipIDs(byMedia))
 }
 
+// testStoredClip returns the test stored clip.
+//
+// Parameters:
+//   - id: Identifier.
+//   - mediaID: Media id.
+//   - created: Created.
+//
+// Returns:
+//   - job: The test stored clip.
 func testStoredClip(id, mediaID string, created time.Time) *queue.Job {
 	return &queue.Job{
 		ID:            id,
@@ -144,6 +153,13 @@ func testStoredClip(id, mediaID string, created time.Time) *queue.Job {
 	}
 }
 
+// clipIDs returns the clip i ds.
+//
+// Parameters:
+//   - jobs: Jobs.
+//
+// Returns:
+//   - items: The clip i ds.
 func clipIDs(jobs []*queue.Job) []string {
 	ids := make([]string, 0, len(jobs))
 	for _, job := range jobs {

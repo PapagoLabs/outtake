@@ -13,6 +13,11 @@ import (
 )
 
 // RestoreBinding loads the selected Plex server from config or the database.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//   - servers: Servers.
+//   - bind: Bind.
 func RestoreBinding(cfg *config.Config, servers ServerSource, bind Binder) {
 	if server, ok := plexserver.ServerFromURL(cfg.PlexServerURL, cfg.PlexToken); ok {
 		bind.Set(server)

@@ -40,17 +40,24 @@ type s3Settings struct {
 }
 
 const (
-	// GetObjectErrFmt wraps S3 Get failures.
+	// getObjectErrFmt wraps S3 Get failures.
 	getObjectErrFmt = "get object: %w"
 )
 
 var (
-	// ErrPathOutsideScratch is returned when a path is outside the scratch dir.
+	// errPathOutsideScratch is returned when a path is outside the scratch dir.
 	errPathOutsideScratch      = errors.New("path is outside storage scratch directory")
 	_                     Blob = (*S3)(nil)
 )
 
 // newS3FromConfig builds an S3 backend from application configuration.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - s3: An S3 backend from application configuration.
+//   - err: The error, if any.
 func newS3FromConfig(cfg *config.Config) (*S3, error) {
 	if cfg.S3Bucket == "" {
 		return nil, errS3BucketRequired
@@ -82,6 +89,13 @@ func newS3FromConfig(cfg *config.Config) (*S3, error) {
 }
 
 // newS3 constructs an S3 backend with a filesystem scratch directory.
+//
+// Parameters:
+//   - settings: Settings.
+//
+// Returns:
+//   - s3: An S3 backend with a filesystem scratch directory.
+//   - err: The error, if any.
 func newS3(settings s3Settings) (*S3, error) {
 	fsStore, err := NewStorage(settings.scratch)
 	if err != nil {
@@ -113,11 +127,23 @@ func newS3(settings s3Settings) (*S3, error) {
 }
 
 // ClipPath returns the local scratch path for a clip file.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - value: The local scratch path for a clip file.
 func (store *S3) ClipPath(id string) string {
 	return store.fs.ClipPath(id)
 }
 
 // DeleteFile removes the object from S3 and the local scratch copy.
+//
+// Parameters:
+//   - path: Filesystem path.
+//
+// Returns:
+//   - err: The error, if any.
 func (store *S3) DeleteFile(path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -140,7 +166,14 @@ func (store *S3) DeleteFile(path string) error {
 	return nil
 }
 
-// FileExists reports whether the object exists, hydrating the local copy when needed.
+// FileExists reports whether the object exists, hydrating the local copy when
+// needed.
+//
+// Parameters:
+//   - path: Filesystem path.
+//
+// Returns:
+//   - ok: True when the object exists, hydrating the local copy when needed.
 func (store *S3) FileExists(path string) bool {
 	if store.fs.FileExists(path) {
 		return true
@@ -157,6 +190,13 @@ func (store *S3) FileExists(path string) bool {
 }
 
 // Get downloads the object from S3 onto the local scratch path.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - path: Filesystem path.
+//
+// Returns:
+//   - err: The error, if any.
 func (store *S3) Get(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -181,16 +221,35 @@ func (store *S3) Get(ctx context.Context, path string) error {
 }
 
 // GifPath returns the local scratch path for a GIF file.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - value: The local scratch path for a GIF file.
 func (store *S3) GifPath(id string) string {
 	return store.fs.GifPath(id)
 }
 
 // PreviewPath returns the local scratch path for a preview file.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - value: The local scratch path for a preview file.
 func (store *S3) PreviewPath(id string) string {
 	return store.fs.PreviewPath(id)
 }
 
 // Put uploads the local scratch file to S3.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - path: Filesystem path.
+//
+// Returns:
+//   - err: The error, if any.
 func (store *S3) Put(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -216,16 +275,35 @@ func (store *S3) Put(ctx context.Context, path string) error {
 }
 
 // ScreenshotPath returns the local scratch path for a screenshot file.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - value: The local scratch path for a screenshot file.
 func (store *S3) ScreenshotPath(id string) string {
 	return store.fs.ScreenshotPath(id)
 }
 
 // ThumbnailPath returns the local scratch path for a thumbnail file.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - value: The local scratch path for a thumbnail file.
 func (store *S3) ThumbnailPath(id string) string {
 	return store.fs.ThumbnailPath(id)
 }
 
 // WriteThumbnail stores thumbnail bytes locally and uploads them to S3.
+//
+// Parameters:
+//   - id: Identifier.
+//   - data: Data.
+//
+// Returns:
+//   - err: The error, if any.
 func (store *S3) WriteThumbnail(id string, data []byte) error {
 	err := store.fs.WriteThumbnail(id, data)
 	if err != nil {
@@ -241,6 +319,14 @@ func (store *S3) WriteThumbnail(id string, data []byte) error {
 }
 
 // head reports whether an object exists on S3.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - path: Filesystem path.
+//
+// Returns:
+//   - ok: True when an object exists on S3.
+//   - err: The error, if any.
 func (store *S3) head(ctx context.Context, path string) (bool, error) {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -263,6 +349,13 @@ func (store *S3) head(ctx context.Context, path string) (bool, error) {
 }
 
 // objectKey maps a local scratch path onto an S3 object key.
+//
+// Parameters:
+//   - path: Filesystem path.
+//
+// Returns:
+//   - value: A local scratch path onto an S3 object key.
+//   - err: The error, if any.
 func (store *S3) objectKey(path string) (string, error) {
 	rel, err := filepath.Rel(store.fs.BasePath(), path)
 	if err != nil {
@@ -277,6 +370,12 @@ func (store *S3) objectKey(path string) (string, error) {
 }
 
 // isNotFound reports whether err is an S3 missing-object error.
+//
+// Parameters:
+//   - err: Error value.
+//
+// Returns:
+//   - ok: True when err is an S3 missing-object error.
 func isNotFound(err error) bool {
 	apiErr, ok := errors.AsType[smithy.APIError](err)
 	if ok {
@@ -296,6 +395,13 @@ func isNotFound(err error) bool {
 }
 
 // writeObjectFile writes downloaded object bytes to path.
+//
+// Parameters:
+//   - path: Filesystem path.
+//   - body: Body.
+//
+// Returns:
+//   - err: The error, if any.
 func writeObjectFile(path string, body io.Reader) error {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, dirPermissions)

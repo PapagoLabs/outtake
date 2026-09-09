@@ -14,6 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// datedJob returns the dated job.
+//
+// Parameters:
+//   - id: Identifier.
+//   - created: Created.
+//
+// Returns:
+//   - job: The dated job.
 func datedJob(id string, created time.Time) *Job {
 	job := testJob(id, JobStatusCompleted)
 
@@ -22,6 +30,14 @@ func datedJob(id string, created time.Time) *Job {
 	return job
 }
 
+// testJob returns the test job.
+//
+// Parameters:
+//   - id: Identifier.
+//   - status: Status.
+//
+// Returns:
+//   - job: The test job.
 func testJob(id string, status JobStatus) *Job {
 	return &Job{
 		ID:            id,

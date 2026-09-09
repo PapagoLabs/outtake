@@ -59,6 +59,14 @@ func TestNewFromConfig_S3MissingBucket(t *testing.T) {
 	require.ErrorIs(t, err, errS3BucketRequired)
 }
 
+// testStorageConfig returns the test storage config.
+//
+// Parameters:
+//   - path: Filesystem path.
+//   - backend: Backend.
+//
+// Returns:
+//   - cfg: The test storage config.
 func testStorageConfig(path, backend string) *config.Config {
 	return &config.Config{
 		ListenAddr:      "",

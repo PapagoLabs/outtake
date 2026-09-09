@@ -20,6 +20,14 @@ const sqlFileExtensionLen = 4
 var migrationsFS embed.FS
 
 // Run creates the schema_migrations table and applies pending SQL files.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - conn: Database handle.
+//   - kind: Kind.
+//
+// Returns:
+//   - err: The error, if any.
 func Run(ctx context.Context, conn *sql.DB, kind dialect.Kind) error {
 	_, err := conn.ExecContext(ctx, kind.Rewrite(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -43,6 +51,15 @@ func Run(ctx context.Context, conn *sql.DB, kind dialect.Kind) error {
 	return nil
 }
 
+// appliedMigrations handles the HTTP request.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - conn: Database handle.
+//
+// Returns:
+//   - items: The items.
+//   - err: The error, if any.
 func appliedMigrations(ctx context.Context, conn *sql.DB) ([]string, error) {
 	rows, err := conn.QueryContext(ctx, `SELECT name FROM schema_migrations`)
 	if err != nil {
@@ -71,6 +88,16 @@ func appliedMigrations(ctx context.Context, conn *sql.DB) ([]string, error) {
 	return names, nil
 }
 
+// applyPending handles the HTTP request.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - conn: Database handle.
+//   - kind: Kind.
+//   - applied: Applied.
+//
+// Returns:
+//   - err: The error, if any.
 func applyPending(ctx context.Context, conn *sql.DB, kind dialect.Kind, applied []string) error {
 	entries, err := migrationsFS.ReadDir(migrationsDir(kind))
 	if err != nil {
@@ -91,6 +118,16 @@ func applyPending(ctx context.Context, conn *sql.DB, kind dialect.Kind, applied 
 	return nil
 }
 
+// applyOne handles the HTTP request.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - conn: Database handle.
+//   - kind: Kind.
+//   - name: Name.
+//
+// Returns:
+//   - err: The error, if any.
 func applyOne(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string) error {
 	err := execMigration(ctx, conn, kind, name)
 	if err != nil {
@@ -109,6 +146,16 @@ func applyOne(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string)
 	return nil
 }
 
+// execMigration handles the HTTP request.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - conn: Database handle.
+//   - kind: Kind.
+//   - name: Name.
+//
+// Returns:
+//   - err: The error, if any.
 func execMigration(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string) error {
 	content, err := migrationsFS.ReadFile(migrationsDir(kind) + "/" + name)
 	if err != nil {
@@ -123,6 +170,13 @@ func execMigration(ctx context.Context, conn *sql.DB, kind dialect.Kind, name st
 	return nil
 }
 
+// migrationsDir returns the migrations dir.
+//
+// Parameters:
+//   - kind: Kind.
+//
+// Returns:
+//   - value: The migrations dir.
 func migrationsDir(kind dialect.Kind) string {
 	if kind == dialect.Postgres {
 		return "migrations/postgres"
@@ -131,10 +185,25 @@ func migrationsDir(kind dialect.Kind) string {
 	return "migrations"
 }
 
+// isValidSQLFile reports whether valid sql file.
+//
+// Parameters:
+//   - name: Name.
+//
+// Returns:
+//   - ok: True when valid sql file.
 func isValidSQLFile(name string) bool {
 	return len(name) >= sqlFileExtensionLen && name[len(name)-sqlFileExtensionLen:] == ".sql"
 }
 
+// skipMigration reports whether skip migration.
+//
+// Parameters:
+//   - entry: Entry.
+//   - applied: Applied.
+//
+// Returns:
+//   - ok: True when skip migration.
 func skipMigration(entry fs.DirEntry, applied []string) bool {
 	return entry.IsDir() || !isValidSQLFile(entry.Name()) || slices.Contains(applied, entry.Name())
 }

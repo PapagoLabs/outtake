@@ -19,6 +19,15 @@ import (
 var errUnknownJobType = errors.New("unknown job type")
 
 // extractJob runs the FFmpeg extract for a clip, GIF, or screenshot job.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - job: Job.
+//   - ffmpeg: Ffmpeg.
+//   - db: Database handle.
+//
+// Returns:
+//   - err: The error, if any.
 func extractJob(
 	ctx context.Context,
 	job *queue.Job,
@@ -73,6 +82,16 @@ func extractJob(
 }
 
 // ProcessJob routes a job to the appropriate FFmpeg operation.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - job: Job.
+//   - ffmpeg: Ffmpeg.
+//   - db: Database handle.
+//   - store: Store.
+//
+// Returns:
+//   - err: The error, if any.
 func ProcessJob(
 	ctx context.Context,
 	job *queue.Job,
@@ -98,6 +117,14 @@ func ProcessJob(
 }
 
 // detectJobCrop runs cropdetect when the job requested black-bar trimming.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - ffmpeg: Ffmpeg.
+//   - job: Job.
+//
+// Returns:
+//   - crop: The crop.
 func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) media.CropRect {
 	if !job.CropBlackBars {
 		return media.CropRect{}
@@ -114,7 +141,7 @@ func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) med
 // clipEncodePreset resolves quality settings and the per-clip web-safe color flag.
 //
 // Parameters:
-//   - ctx: Database context.
+//   - ctx: Cancellation context.
 //   - db: Clip profile store; may be nil.
 //   - job: Clip job whose Quality and WebSafeColor are applied.
 //
@@ -129,6 +156,14 @@ func clipEncodePreset(ctx context.Context, db *database.DB, job *queue.Job) medi
 }
 
 // clipPreset resolves a stored quality id onto ffmpeg settings.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - db: Database handle.
+//   - quality: Quality.
+//
+// Returns:
+//   - qualityPreset: A stored quality id onto ffmpeg settings.
 func clipPreset(ctx context.Context, db *database.DB, quality string) mediaquality.QualityPreset {
 	if quality == "" {
 		return defaultClipPreset(ctx, db)
@@ -139,7 +174,15 @@ func clipPreset(ctx context.Context, db *database.DB, quality string) mediaquali
 	})
 }
 
-// defaultClipPreset loads the stored default profile, or the built-in medium preset.
+// defaultClipPreset loads the stored default profile, or the built-in medium
+// preset.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - db: Database handle.
+//
+// Returns:
+//   - qualityPreset: The stored default profile, or the built-in medium preset.
 func defaultClipPreset(ctx context.Context, db *database.DB) mediaquality.QualityPreset {
 	if db == nil {
 		return mediaquality.QualityPresets[mediaquality.ClipQualityMedium]
@@ -154,6 +197,15 @@ func defaultClipPreset(ctx context.Context, db *database.DB) mediaquality.Qualit
 }
 
 // lookupClipPreset loads one stored profile by id.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - db: Database handle.
+//   - id: Identifier.
+//
+// Returns:
+//   - qualityPreset: The one stored profile by id.
+//   - ok: True when the condition holds.
 func lookupClipPreset(ctx context.Context, db *database.DB, id string) (mediaquality.QualityPreset, bool) {
 	if db == nil {
 		return mediaquality.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false

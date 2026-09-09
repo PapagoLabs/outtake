@@ -15,6 +15,9 @@ import (
 )
 
 // Execute runs the CLI.
+//
+// Returns:
+//   - err: The error, if any.
 func Execute() error {
 	rootCmd := &cobra.Command{
 		Use:   "outtake",

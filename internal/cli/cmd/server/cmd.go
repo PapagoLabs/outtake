@@ -9,6 +9,9 @@ import (
 )
 
 // NewCommand creates the server command and its subcommands.
+//
+// Returns:
+//   - command: The server command and its subcommands.
 func NewCommand() *cobra.Command {
 	serverCmd := &cobra.Command{
 		Use:   "server",

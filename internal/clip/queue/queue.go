@@ -37,14 +37,21 @@ type Queue struct {
 type StatusFunc func(job *Job)
 
 const (
-	// JobChannelSize is the size of the job channel buffer.
+	// jobChannelSize is the size of the job channel buffer.
 	jobChannelSize = 100
 
-	// ProgressDone represents 100% progress.
+	// progressDone represents 100% progress.
 	progressDone = 100
 )
 
 // NewQueue creates a new job queue.
+//
+// Parameters:
+//   - workers: Workers.
+//   - handler: Handler.
+//
+// Returns:
+//   - queue: A new job queue.
 func NewQueue(workers int, handler JobHandler) *Queue {
 	_, cancel := context.WithCancel(context.Background())
 	queue := &Queue{
@@ -65,6 +72,12 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 }
 
 // Cancel stops a pending or processing job.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - ok: True when the condition holds.
 func (que *Queue) Cancel(id string) bool {
 	que.mu.Lock()
 
@@ -91,6 +104,9 @@ func (que *Queue) Cancel(id string) bool {
 }
 
 // Delete removes a job from the in-memory map.
+//
+// Parameters:
+//   - id: Identifier.
 func (que *Queue) Delete(id string) {
 	que.mu.Lock()
 	defer que.mu.Unlock()
@@ -105,6 +121,9 @@ func (que *Queue) Delete(id string) {
 }
 
 // Done returns a channel that is closed when the queue is stopped.
+//
+// Returns:
+//   - structType: A channel that is closed when the queue is stopped.
 func (que *Queue) Done() <-chan struct{} {
 	return que.done
 }
@@ -112,6 +131,9 @@ func (que *Queue) Done() <-chan struct{} {
 // GetAllJobs returns every job, newest first.
 //
 // Jobs with the same CreatedAt are ordered by ID descending.
+//
+// Returns:
+//   - items: The every job, newest first.
 func (que *Queue) GetAllJobs() []*Job {
 	que.mu.RLock()
 	defer que.mu.RUnlock()
@@ -122,7 +144,15 @@ func (que *Queue) GetAllJobs() []*Job {
 	return result
 }
 
-// compareJobsNewestFirst orders jobs by CreatedAt descending, then ID descending.
+// compareJobsNewestFirst orders jobs by CreatedAt descending, then ID
+// descending.
+//
+// Parameters:
+//   - left: Left.
+//   - right: Right.
+//
+// Returns:
+//   - n: The n.
 func compareJobsNewestFirst(left, right *Job) int {
 	if order := right.CreatedAt.Compare(left.CreatedAt); order != 0 {
 		return order
@@ -132,6 +162,12 @@ func compareJobsNewestFirst(left, right *Job) int {
 }
 
 // GetJob gets a job by ID.
+//
+// Parameters:
+//   - id: Identifier.
+//
+// Returns:
+//   - job: A job by ID.
 func (que *Queue) GetJob(id string) *Job {
 	que.mu.RLock()
 	defer que.mu.RUnlock()
@@ -140,6 +176,9 @@ func (que *Queue) GetJob(id string) *Job {
 }
 
 // Restore registers a job without enqueueing it.
+//
+// Parameters:
+//   - job: Job.
 func (que *Queue) Restore(job *Job) {
 	que.mu.Lock()
 	defer que.mu.Unlock()
@@ -148,6 +187,9 @@ func (que *Queue) Restore(job *Job) {
 }
 
 // SetStatusFunc registers a callback invoked on job status changes.
+//
+// Parameters:
+//   - fn: Fn.
 func (que *Queue) SetStatusFunc(fn StatusFunc) {
 	que.statusFn = fn
 }
@@ -172,6 +214,9 @@ func (que *Queue) Stop() {
 }
 
 // Submit submits a job to the queue.
+//
+// Parameters:
+//   - job: Job.
 func (que *Queue) Submit(job *Job) {
 	que.mu.Lock()
 
@@ -189,6 +234,9 @@ func (que *Queue) Submit(job *Job) {
 }
 
 // notify invokes the status callback when one is registered.
+//
+// Parameters:
+//   - job: Job.
 func (que *Queue) notify(job *Job) {
 	if que.statusFn != nil {
 		que.statusFn(job)
@@ -196,6 +244,9 @@ func (que *Queue) notify(job *Job) {
 }
 
 // processJob processes a single job.
+//
+// Parameters:
+//   - job: Job.
 func (que *Queue) processJob(job *Job) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

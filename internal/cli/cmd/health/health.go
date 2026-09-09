@@ -15,6 +15,9 @@ import (
 )
 
 // NewCommand creates the health command.
+//
+// Returns:
+//   - command: The health command.
 func NewCommand() *cobra.Command {
 	var serverFlags flags.ServerFlags
 
@@ -32,6 +35,12 @@ func NewCommand() *cobra.Command {
 }
 
 // runHealth executes the server health command.
+//
+// Parameters:
+//   - serverFlags: Server flags.
+//
+// Returns:
+//   - err: The error, if any.
 func runHealth(serverFlags *flags.ServerFlags) error {
 	cfg, err := config.Load("")
 	if err != nil {

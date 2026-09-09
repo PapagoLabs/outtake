@@ -98,6 +98,10 @@ func TestLoad_XDGPaths(t *testing.T) {
 	assert.Contains(t, cfg.StoragePath, "outtake/output")
 }
 
+// testConfig returns the test config.
+//
+// Returns:
+//   - cfg: The test config.
 func testConfig() Config {
 	return Config{
 		ListenAddr:      "",

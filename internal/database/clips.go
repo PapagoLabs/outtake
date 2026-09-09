@@ -19,7 +19,7 @@ type Scannable interface {
 }
 
 const (
-	// ClipSelectCols is the clip table projection used by read queries.
+	// clipSelectCols is the clip table projection used by read queries.
 	clipSelectCols = `id, media_id, media_title, media_type, clip_type, status, progress,
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
@@ -30,6 +30,13 @@ const (
 var ErrClipNotFound = errors.New("clip not found")
 
 // SaveClip inserts or replaces a clip job.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - job: Job.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 	query := db.rewrite(`
 		INSERT INTO clips (
@@ -86,6 +93,14 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 }
 
 // GetClip loads a clip by ID.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - id: Identifier.
+//
+// Returns:
+//   - job: A clip by ID.
+//   - err: The error, if any.
 func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 	query := db.rewrite(`SELECT ` + clipSelectCols + ` FROM clips WHERE id = ?`)
 
@@ -105,6 +120,13 @@ func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 }
 
 // ListClips returns all clips ordered by creation time, newest first.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - items: The all clips ordered by creation time, newest first.
+//   - err: The error, if any.
 func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -124,6 +146,13 @@ func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 }
 
 // ListPendingClips returns clips that still need processing.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - items: The clips that still need processing.
+//   - err: The error, if any.
 func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -147,6 +176,14 @@ func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 }
 
 // ListClipsForMedia returns clips created from a media item.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - mediaID: Media id.
+//
+// Returns:
+//   - items: The clips created from a media item.
+//   - err: The error, if any.
 func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -169,6 +206,13 @@ func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.J
 }
 
 // DeleteClip removes a clip row.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - id: Identifier.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) DeleteClip(ctx context.Context, id string) error {
 	query := db.rewrite(`DELETE FROM clips WHERE id = ?`)
 
@@ -182,6 +226,13 @@ func (db *DB) DeleteClip(ctx context.Context, id string) error {
 }
 
 // scanJob reads one clip row into a job.
+//
+// Parameters:
+//   - row: Row.
+//
+// Returns:
+//   - job: The one clip row into a job.
+//   - err: The error, if any.
 func scanJob(row Scannable) (*queue.Job, error) {
 	job := &queue.Job{}
 	var output sql.NullString
@@ -229,6 +280,13 @@ func scanJob(row Scannable) (*queue.Job, error) {
 }
 
 // scanJobs reads every remaining clip row.
+//
+// Parameters:
+//   - rows: Rows.
+//
+// Returns:
+//   - items: The every remaining clip row.
+//   - err: The error, if any.
 func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 	jobs := make([]*queue.Job, 0)
 
@@ -250,6 +308,12 @@ func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 }
 
 // cropBlackBarsColumn stores the clip crop setting as 0 or 1.
+//
+// Parameters:
+//   - job: Job.
+//
+// Returns:
+//   - n: The n.
 func cropBlackBarsColumn(job *queue.Job) int {
 	if job.CropBlackBars {
 		return 1
@@ -274,6 +338,12 @@ func webSafeColorColumn(job *queue.Job) int {
 }
 
 // nullString converts an empty string into a SQL NULL.
+//
+// Parameters:
+//   - value: Value.
+//
+// Returns:
+//   - nullString: The null string.
 func nullString(value string) sql.NullString {
 	if value == "" {
 		return sql.NullString{String: "", Valid: false}

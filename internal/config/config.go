@@ -73,50 +73,66 @@ type Config struct {
 }
 
 const (
-	// AppName is the application name.
+	// appName is the application name.
 	appName = "outtake"
-	// DefaultListenAddr is the default listen address.
+	// defaultListenAddr is the default listen address.
 	defaultListenAddr = "0.0.0.0:8080"
-	// DefaultLogLevel is the default log level.
+	// defaultLogLevel is the default log level.
 	defaultLogLevel = "info"
-	// DefaultEnv is the default environment.
+	// defaultEnv is the default environment.
 	defaultEnv = "production"
-	// DefaultFFmpegPath is the default FFmpeg path.
+	// defaultFFmpegPath is the default FFmpeg path.
 	defaultFFmpegPath = "ffmpeg"
-	// DefaultFFprobePath is the default FFprobe path.
+	// defaultFFprobePath is the default FFprobe path.
 	defaultFFprobePath = "ffprobe"
-	// DefaultSessionPoll is the default session poll interval in seconds.
+	// defaultSessionPoll is the default session poll interval in seconds.
 	defaultSessionPoll = 10
-	// DefaultNumWorkers is the default number of workers.
+	// defaultNumWorkers is the default number of workers.
 	defaultNumWorkers = 2
-	// DefaultMaxClipDur is the default maximum clip duration in seconds.
+	// defaultMaxClipDur is the default maximum clip duration in seconds.
 	defaultMaxClipDur = 600
-	// DefaultDirPerms is the default directory permissions.
+	// defaultDirPerms is the default directory permissions.
 	defaultDirPerms = 0o755
-	// DefaultDatabaseBackend is the default database backend.
+	// defaultDatabaseBackend is the default database backend.
 	defaultDatabaseBackend = "sqlite"
-	// DefaultStorageBackend is the default storage backend.
+	// defaultStorageBackend is the default storage backend.
 	defaultStorageBackend = "filesystem"
-	// DefaultS3Region is the default S3 region.
+	// defaultS3Region is the default S3 region.
 	defaultS3Region = "us-east-1"
 )
 
 // ConfigPath returns the configuration file path.
+//
+// Returns:
+//   - path: The configuration file path.
 func ConfigPath() string {
 	return filepath.Join(xdg.ConfigHome, appName, "config.yaml")
 }
 
 // DatabasePath returns the database file path.
+//
+// Returns:
+//   - path: The database file path.
 func DatabasePath() string {
 	return filepath.Join(xdg.DataHome, appName, "outtake.db")
 }
 
 // StoragePath returns the storage directory path.
+//
+// Returns:
+//   - path: The storage directory path.
 func StoragePath() string {
 	return filepath.Join(xdg.DataHome, appName, "output")
 }
 
 // Load loads the configuration.
+//
+// Parameters:
+//   - configFile: Optional path to a config file; empty uses defaults and env.
+//
+// Returns:
+//   - cfg: The configuration.
+//   - err: The error, if any.
 func Load(configFile string) (*Config, error) {
 	viperInstance := viper.New()
 
@@ -156,6 +172,9 @@ func Load(configFile string) (*Config, error) {
 }
 
 // emptyConfig returns a zero Config including S3 and database keys.
+//
+// Returns:
+//   - cfg: A zero Config including S3 and database keys.
 func emptyConfig() *Config {
 	return &Config{
 		ListenAddr:      "",
@@ -189,6 +208,9 @@ func emptyConfig() *Config {
 }
 
 // setDefaults sets the default configuration values.
+//
+// Parameters:
+//   - viperInstance: Viper instance.
 func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("listen-addr", defaultListenAddr)
 	viperInstance.SetDefault("database-path", DatabasePath())
@@ -216,6 +238,12 @@ func setDefaults(viperInstance *viper.Viper) {
 }
 
 // bindEnv registers OUTTAKE_* environment keys so Unmarshal can see them.
+//
+// Parameters:
+//   - viperInstance: Viper instance.
+//
+// Returns:
+//   - err: The error, if any.
 func bindEnv(viperInstance *viper.Viper) error {
 	keys := []string{
 		"listen-addr",
@@ -258,6 +286,9 @@ func bindEnv(viperInstance *viper.Viper) error {
 }
 
 // PublicURL returns the base URL used for Plex OAuth callbacks.
+//
+// Returns:
+//   - url: The base URL used for Plex OAuth callbacks.
 func (cfg *Config) PublicURL() string {
 	if cfg.PublicBaseURL != "" {
 		return strings.TrimRight(cfg.PublicBaseURL, "/")
@@ -278,6 +309,12 @@ func (cfg *Config) PublicURL() string {
 //
 // When only LocalMediaRoot is set, the Plex path is joined under that mount.
 // That covers servers that report library roots such as /Movies or /TV.
+//
+// Parameters:
+//   - plexPath: Path as reported by Plex.
+//
+// Returns:
+//   - path: Path on the local media mount.
 func (cfg *Config) RemapMediaPath(plexPath string) string {
 	if cfg.LocalMediaRoot == "" {
 		return plexPath
@@ -301,6 +338,12 @@ func (cfg *Config) RemapMediaPath(plexPath string) string {
 }
 
 // ensureDirs ensures the required directories exist.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - err: The error, if any.
 func ensureDirs(cfg *Config) error {
 	dirs := []string{
 		filepath.Dir(cfg.DatabasePath),
@@ -316,7 +359,13 @@ func ensureDirs(cfg *Config) error {
 	return nil
 }
 
-// fileExists checks if a file exists.
+// fileExists reports whether a file exists.
+//
+// Parameters:
+//   - path: Filesystem path.
+//
+// Returns:
+//   - ok: True when a file exists.
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 

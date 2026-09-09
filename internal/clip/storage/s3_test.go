@@ -144,6 +144,10 @@ func TestNewFromConfig_S3MissingEndpoint(t *testing.T) {
 	require.ErrorIs(t, err, errS3EndpointRequired)
 }
 
+// newFakeS3Server returns the new fake s3 server.
+//
+// Returns:
+//   - fakeS3Server: The new fake s3 server.
 func newFakeS3Server() *fakeS3Server {
 	return &fakeS3Server{
 		mu:      sync.Mutex{},
@@ -151,6 +155,11 @@ func newFakeS3Server() *fakeS3Server {
 	}
 }
 
+// ServeHTTP serve http.
+//
+// Parameters:
+//   - writer: Writer.
+//   - request: Request.
 func (server *fakeS3Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	_, key := splitS3Path(request.URL.Path)
 	switch request.Method {
@@ -167,6 +176,11 @@ func (server *fakeS3Server) ServeHTTP(writer http.ResponseWriter, request *http.
 	}
 }
 
+// deleteObject delete object.
+//
+// Parameters:
+//   - writer: Writer.
+//   - key: Key.
 func (server *fakeS3Server) deleteObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
 	delete(server.objects, key)
@@ -174,6 +188,11 @@ func (server *fakeS3Server) deleteObject(writer http.ResponseWriter, key string)
 	writer.WriteHeader(http.StatusNoContent)
 }
 
+// getObject get object.
+//
+// Parameters:
+//   - writer: Writer.
+//   - key: Key.
 func (server *fakeS3Server) getObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
 
@@ -193,6 +212,11 @@ func (server *fakeS3Server) getObject(writer http.ResponseWriter, key string) {
 	_, _ = writer.Write(data)
 }
 
+// headObject head object.
+//
+// Parameters:
+//   - writer: Writer.
+//   - key: Key.
 func (server *fakeS3Server) headObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
 
@@ -210,6 +234,12 @@ func (server *fakeS3Server) headObject(writer http.ResponseWriter, key string) {
 	writer.WriteHeader(http.StatusOK)
 }
 
+// putObject put object.
+//
+// Parameters:
+//   - writer: Writer.
+//   - request: Request.
+//   - key: Key.
 func (server *fakeS3Server) putObject(
 	writer http.ResponseWriter,
 	request *http.Request,
@@ -229,6 +259,14 @@ func (server *fakeS3Server) putObject(
 	writer.WriteHeader(http.StatusOK)
 }
 
+// splitS3Path returns the split s3 path.
+//
+// Parameters:
+//   - urlPath: Url path.
+//
+// Returns:
+//   - path: The split s3 path.
+//   - path2: The filesystem path.
 func splitS3Path(urlPath string) (string, string) {
 	trimmed := strings.TrimPrefix(urlPath, "/")
 	bucket, key, found := strings.Cut(trimmed, "/")
@@ -239,6 +277,10 @@ func splitS3Path(urlPath string) (string, string) {
 	return bucket, key
 }
 
+// writeS3NotFound write s3 not found.
+//
+// Parameters:
+//   - writer: Writer.
 func writeS3NotFound(writer http.ResponseWriter) {
 	writer.WriteHeader(http.StatusNotFound)
 

@@ -15,6 +15,9 @@ import (
 )
 
 // NewStartCommand creates the server start command.
+//
+// Returns:
+//   - command: The server start command.
 func NewStartCommand() *cobra.Command {
 	var serverFlags flags.ServerFlags
 
@@ -32,6 +35,12 @@ func NewStartCommand() *cobra.Command {
 }
 
 // runStart executes the server start command.
+//
+// Parameters:
+//   - serverFlags: Server flags.
+//
+// Returns:
+//   - err: The error, if any.
 func runStart(serverFlags *flags.ServerFlags) error {
 	cfg, err := config.Load("")
 	if err != nil {

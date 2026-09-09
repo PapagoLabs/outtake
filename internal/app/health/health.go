@@ -28,11 +28,20 @@ const defaultHealthTimeout = 5 * time.Second
 var errHealthStatus = errors.New("health check failed: unexpected status")
 
 // NewChecker creates a new health Checker.
+//
+// Returns:
+//   - checker: A new health Checker.
 func NewChecker() *Checker {
 	return &Checker{timeout: defaultHealthTimeout}
 }
 
 // Check performs a health check against the given address.
+//
+// Parameters:
+//   - addr: Addr.
+//
+// Returns:
+//   - err: The error, if any.
 func (chkr *Checker) Check(addr string) error {
 	resp, err := chkr.doHealthCheck(addr)
 	if err != nil {
@@ -54,6 +63,12 @@ func (chkr *Checker) Check(addr string) error {
 }
 
 // checkHealthResponse validates the health check response.
+//
+// Parameters:
+//   - resp: Resp.
+//
+// Returns:
+//   - err: The error, if any.
 func checkHealthResponse(resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -80,6 +95,13 @@ func checkHealthResponse(resp *http.Response) error {
 }
 
 // doHealthCheck sends a GET request to the health endpoint.
+//
+// Parameters:
+//   - addr: Addr.
+//
+// Returns:
+//   - resp: The resp.
+//   - err: The error, if any.
 func (chkr *Checker) doHealthCheck(addr string) (*http.Response, error) {
 	reqURL, err := url.Parse("http://" + addr + "/api/healthz")
 	if err != nil {

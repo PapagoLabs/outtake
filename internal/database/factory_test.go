@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/config"
 )
 
 func TestNewFromConfig_SQLite(t *testing.T) {
@@ -92,6 +92,15 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 	assert.Equal(t, job.MediaTitle, got.MediaTitle)
 }
 
+// testDatabaseConfig returns the test database config.
+//
+// Parameters:
+//   - path: Filesystem path.
+//   - backend: Backend.
+//   - url: Url.
+//
+// Returns:
+//   - cfg: The test database config.
 func testDatabaseConfig(path, backend, url string) *config.Config {
 	return &config.Config{
 		ListenAddr:      "",

@@ -14,6 +14,9 @@ type ServerFlags struct {
 }
 
 // Bind attaches server-specific flags to the provided flag set.
+//
+// Parameters:
+//   - flags: Flags.
 func (sf *ServerFlags) Bind(flags *pflag.FlagSet) {
 	flags.StringVar(
 		&sf.ListenAddr,

@@ -14,15 +14,22 @@ import (
 )
 
 const (
-	// PostgresMaxOpenConns is the maximum open connections for Postgres.
+	// postgresMaxOpenConns is the maximum open connections for Postgres.
 	postgresMaxOpenConns = 25
-	// PostgresMaxIdleConns is the maximum idle connections for Postgres.
+	// postgresMaxIdleConns is the maximum idle connections for Postgres.
 	postgresMaxIdleConns = 5
-	// PostgresConnMaxLifetime is the maximum connection lifetime for Postgres.
+	// postgresConnMaxLifetime is the maximum connection lifetime for Postgres.
 	postgresConnMaxLifetime = 5 * time.Minute
 )
 
 // newPostgres opens a Postgres-protocol database using pgx.
+//
+// Parameters:
+//   - dsn: Dsn.
+//
+// Returns:
+//   - db: A Postgres-protocol database using pgx.
+//   - err: The error, if any.
 func newPostgres(dsn string) (*DB, error) {
 	conn, err := sql.Open("pgx", dsn)
 	if err != nil {

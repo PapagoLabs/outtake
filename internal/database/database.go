@@ -28,14 +28,14 @@ type DB struct {
 }
 
 const (
-	// MigrateTimeout is the maximum time allowed to ping and apply migrations.
+	// migrateTimeout is the maximum time allowed to ping and apply migrations.
 	migrateTimeout = 30 * time.Second
 )
 
 var (
-	// ErrUnknownDatabaseBackend is returned when the database backend is unknown.
+	// errUnknownDatabaseBackend is returned when the database backend is unknown.
 	errUnknownDatabaseBackend = errors.New("unknown database backend")
-	// ErrDatabaseURLRequired is returned when postgres is selected without a DSN.
+	// errDatabaseURLRequired is returned when postgres is selected without a DSN.
 	errDatabaseURLRequired = errors.New("database-url is required")
 )
 
@@ -49,6 +49,13 @@ const (
 )
 
 // New creates a new SQLite database instance.
+//
+// Parameters:
+//   - dbPath: Db path.
+//
+// Returns:
+//   - db: A new SQLite database instance.
+//   - err: The error, if any.
 func New(dbPath string) (*DB, error) {
 	dsn := "file:" + filepath.Clean(dbPath)
 	conn, err := sql.Open("libsql", dsn)
@@ -68,6 +75,13 @@ func New(dbPath string) (*DB, error) {
 }
 
 // NewFromConfig constructs the database backend selected by configuration.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - db: The database backend selected by configuration.
+//   - err: The error, if any.
 func NewFromConfig(cfg *config.Config) (*DB, error) {
 	backend := strings.ToLower(strings.TrimSpace(cfg.DatabaseBackend))
 	switch backend {
@@ -95,6 +109,9 @@ func NewFromConfig(cfg *config.Config) (*DB, error) {
 }
 
 // Close closes the database connection.
+//
+// Returns:
+//   - err: The error, if any.
 func (db *DB) Close() error {
 	err := db.conn.Close()
 	if err != nil {
@@ -105,21 +122,41 @@ func (db *DB) Close() error {
 }
 
 // Conn returns the underlying database connection.
+//
+// Returns:
+//   - db: The underlying database connection.
 func (db *DB) Conn() *sql.DB {
 	return db.conn
 }
 
 // nameOrder returns an ORDER BY expression for case-insensitive names.
+//
+// Returns:
+//   - value: An ORDER BY expression for case-insensitive names.
 func (db *DB) nameOrder() string {
 	return db.dialect.NameOrder()
 }
 
 // rewrite translates SQL placeholders and SQLite collations for the dialect.
+//
+// Parameters:
+//   - query: Query.
+//
+// Returns:
+//   - value: The value.
 func (db *DB) rewrite(query string) string {
 	return db.dialect.Rewrite(query)
 }
 
 // finishOpen pings and migrates a newly opened connection.
+//
+// Parameters:
+//   - conn: Database handle.
+//   - kind: Kind.
+//
+// Returns:
+//   - db: The database handle.
+//   - err: The error, if any.
 func finishOpen(conn *sql.DB, kind dialect.Kind) (*DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), migrateTimeout)
 	defer cancel()

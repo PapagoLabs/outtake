@@ -17,7 +17,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/rs/zerolog/log"
 
-	"github.com/PapagoLabs/outtake/internal/web/server"
 	"github.com/PapagoLabs/outtake/internal/app/wire"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
@@ -26,6 +25,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	authapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/auth"
+	"github.com/PapagoLabs/outtake/internal/web/server"
 )
 
 // App holds the application state and dependencies.
@@ -40,6 +40,13 @@ type App struct {
 const shutdownTimeout = 10 * time.Second
 
 // New creates a new App with all dependencies initialized.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - app: A new App with all dependencies initialized.
+//   - err: The error, if any.
 func New(cfg *config.Config) (*App, error) {
 	db, err := database.NewFromConfig(cfg)
 	if err != nil {
@@ -88,6 +95,9 @@ func (app *App) Close() {
 }
 
 // Run starts the application server and blocks until shutdown.
+//
+// Returns:
+//   - err: The error, if any.
 func (app *App) Run() error {
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
