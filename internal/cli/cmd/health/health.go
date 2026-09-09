@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/PapagoLabs/outtake/internal/app/health"
-	clilib "github.com/PapagoLabs/outtake/internal/cli"
 	"github.com/PapagoLabs/outtake/internal/cli/flags"
 	"github.com/PapagoLabs/outtake/internal/config"
 )
@@ -19,12 +18,12 @@ import (
 func NewCommand() *cobra.Command {
 	var serverFlags flags.ServerFlags
 
-	cmd := clilib.Command()
-
-	cmd.Use = "health"
-	cmd.Short = "Check the health of the outtake server"
-	cmd.RunE = func(_ *cobra.Command, _ []string) error {
-		return runHealth(&serverFlags)
+	cmd := &cobra.Command{
+		Use:   "health",
+		Short: "Check the health of the outtake server",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runHealth(&serverFlags)
+		},
 	}
 
 	serverFlags.Bind(cmd.Flags())
