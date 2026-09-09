@@ -46,8 +46,8 @@ type LetterIndex struct {
 // LetterOffset returns the item offset of letter in index order.
 //
 // Parameters:
-//   - index: Index.
-//   - letter: Letter.
+//   - index: Ordered index used for paging or lookup.
+//   - letter: Title-index letter (A-Z or #).
 //
 // Returns:
 //   - n: The item offset of letter in index order.
@@ -68,7 +68,7 @@ func LetterOffset(index []LetterIndex, letter string) int {
 // ReverseIndexes returns index in reverse order.
 //
 // Parameters:
-//   - index: Index.
+//   - index: Ordered index used for paging or lookup.
 //
 // Returns:
 //   - items: The index in reverse order.
@@ -84,10 +84,10 @@ func ReverseIndexes(index []LetterIndex) []LetterIndex {
 // SortYearIndexes orders year buckets from oldest to newest.
 //
 // Parameters:
-//   - index: Index.
+//   - index: Ordered index used for paging or lookup.
 //
 // Returns:
-//   - items: The items.
+//   - items: Result slice; empty when none match.
 func SortYearIndexes(index []LetterIndex) []LetterIndex {
 	out := append([]LetterIndex(nil), index...)
 	slices.SortFunc(out, compareYearTitles)
@@ -98,8 +98,8 @@ func SortYearIndexes(index []LetterIndex) []LetterIndex {
 // compareYearTitles returns the compare year titles.
 //
 // Parameters:
-//   - left: Left.
-//   - right: Right.
+//   - left: Left operand for comparison.
+//   - right: Right operand for comparison.
 //
 // Returns:
 //   - n: The compare year titles.

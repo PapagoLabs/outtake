@@ -90,7 +90,7 @@ const metadataKeyPrefix = "/library/metadata/"
 //   - body: Raw XML bytes.
 //
 // Returns:
-//   - devices: Discovered devices.
+//   - devices: Result of Devices.
 //   - err: Non-nil when body is not valid plex.tv XML.
 func Devices(body []byte) ([]Device, error) {
 	var data deviceResponse

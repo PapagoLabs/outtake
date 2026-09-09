@@ -30,7 +30,7 @@ const (
 // newTestClient returns the new test client.
 //
 // Parameters:
-//   - t: T.
+//   - t: Test harness; callee should call t.Helper when wrapping.
 //   - mockHTTP: Mock http.
 //
 // Returns:
@@ -53,8 +53,8 @@ func newTestClient(t *testing.T, mockHTTP *mocks.MockHTTPClient) *plex.Client {
 // newResponse returns the new response.
 //
 // Parameters:
-//   - statusCode: Status code.
-//   - body: Body.
+//   - statusCode: Typed int argument for newResponse.
+//   - body: HTML or response body text to scan.
 //
 // Returns:
 //   - resp: The new response.

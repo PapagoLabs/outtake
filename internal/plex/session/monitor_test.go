@@ -39,8 +39,8 @@ var errUnavailable = errors.New("unavailable")
 // GetSessionsOnServer implements [Fetcher].
 //
 // Returns:
-//   - items: The items.
-//   - err: The error, if any.
+//   - items: Result slice; empty when none match.
+//   - err: Propagates errors from slices.Clone.
 func (stub *stubFetcher) GetSessionsOnServer(
 	_ context.Context,
 	_ plex.Server,
@@ -69,7 +69,7 @@ func (stub *stubFetcher) setError(err error) {
 // newStub returns a Fetcher stub that yields the given sessions.
 //
 // Parameters:
-//   - sessions: Sessions.
+//   - sessions: Active Plex playback sessions.
 //
 // Returns:
 //   - stubFetcher: A Fetcher stub that yields the given sessions.

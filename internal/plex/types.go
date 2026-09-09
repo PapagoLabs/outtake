@@ -71,7 +71,7 @@ func EmptyServer() Server {
 // IsContainerType reports whether the metadata type has children to browse.
 //
 // Parameters:
-//   - mediaType: Media type.
+//   - mediaType: Typed string argument for IsContainerType.
 //
 // Returns:
 //   - ok: True when the metadata type has children to browse.

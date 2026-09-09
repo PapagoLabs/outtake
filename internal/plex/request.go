@@ -13,10 +13,10 @@ import (
 // newURL builds a [*url.URL] with every field set.
 //
 // Parameters:
-//   - scheme: Scheme.
-//   - host: Host.
+//   - scheme: URL scheme (http or https).
+//   - host: Hostname or IP without port.
 //   - path: Filesystem path.
-//   - rawQuery: Raw query.
+//   - rawQuery: Typed string argument for newURL.
 //
 // Returns:
 //   - u: A [*url.URL] with every field set.
@@ -39,9 +39,9 @@ func newURL(scheme, host, path, rawQuery string) *url.URL {
 // newRequestConfig builds a fully populated Fiber client request config.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - headers: Headers.
-//   - body: Body.
+//   - ctx: Fiber request/response for this HTTP handler.
+//   - headers: Extra HTTP headers for the request.
+//   - body: Typed any argument for newRequestConfig.
 //
 // Returns:
 //   - cfg: A fully populated Fiber client request config.

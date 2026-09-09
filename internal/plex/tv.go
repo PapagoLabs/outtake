@@ -16,11 +16,11 @@ import (
 // DiscoverServers discovers Plex servers.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - items: The items.
-//   - err: The error, if any.
+//   - items: Result slice; empty when none match.
+//   - err: Wrapped failure such as "discover servers"; "decode servers".
 func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 	resp, err := client.doRequest(ctx, "/api/resources", "includeHttps=1")
 	if err != nil {
@@ -50,12 +50,12 @@ func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 // Plex.tv API.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - query: Query.
+//   - ctx: Cancels or deadlines this call.
+//   - query: Search or filter query string.
 //
 // Returns:
-//   - items: The items.
-//   - err: The error, if any.
+//   - items: Result slice; empty when none match.
+//   - err: Wrapped failure such as "search media"; "decode search".
 func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaItem, error) {
 	resp, err := client.doRequest(
 		ctx,
@@ -87,11 +87,11 @@ func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaIte
 // GetSessions fetches active sessions using the Plex.tv API.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
 //   - items: The active sessions using the Plex.tv API.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "get sessions"; "decode sessions".
 func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 	resp, err := client.doRequest(ctx, "/status/sessions", "")
 	if err != nil {
@@ -125,10 +125,10 @@ func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 // serversFromDevices flattens discovered devices into server connections.
 //
 // Parameters:
-//   - devices: Devices.
+//   - devices: Typed []plextv.Device argument for serversFromDevices.
 //
 // Returns:
-//   - items: The items.
+//   - items: Result slice; empty when none match.
 func serversFromDevices(devices []plextv.Device) []Server {
 	servers := make([]Server, 0, len(devices))
 
@@ -146,11 +146,11 @@ func serversFromDevices(devices []plextv.Device) []Server {
 // mediaItemFromEntry converts a Plex media listing entry.
 //
 // Parameters:
-//   - entry: Entry.
-//   - libraryTitle: Library title.
+//   - entry: Typed plextv.Media argument for mediaItemFromEntry.
+//   - libraryTitle: Typed string argument for mediaItemFromEntry.
 //
 // Returns:
-//   - mediaItem: The media item.
+//   - mediaItem: Result of mediaItemFromEntry.
 func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
 	return MediaItem{
 		ID:           entry.ID(),
@@ -165,9 +165,9 @@ func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
 // serverFromConnection maps a Plex Connection element onto a Server.
 //
 // Parameters:
-//   - name: Name.
-//   - token: Token.
-//   - conn: Conn.
+//   - name: Display or lookup name.
+//   - token: Plex or session access token.
+//   - conn: Typed plextv.Connection argument for serverFromConnection.
 //
 // Returns:
 //   - server: A Plex Connection element onto a Server.

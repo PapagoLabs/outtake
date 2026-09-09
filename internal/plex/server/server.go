@@ -45,10 +45,10 @@ func Empty() Server {
 // ones.
 //
 // Parameters:
-//   - servers: Servers.
+//   - servers: Source of saved or selected Plex servers.
 //
 // Returns:
-//   - items: The items.
+//   - items: Result slice; empty when none match.
 func PreferUniqueServers(servers []Server) []Server {
 	byName := make(map[string]Server, len(servers))
 	order := make([]string, 0, len(servers))
@@ -79,7 +79,7 @@ func PreferUniqueServers(servers []Server) []Server {
 //
 // Parameters:
 //   - rawURL: Raw url.
-//   - token: Token.
+//   - token: Plex or session access token.
 //
 // Returns:
 //   - server: A Server from a base URL and access token.
@@ -117,8 +117,8 @@ func ServerFromURL(rawURL, token string) (Server, bool) {
 // SameConnection reports whether two servers share scheme, host, and port.
 //
 // Parameters:
-//   - left: Left.
-//   - right: Right.
+//   - left: Left operand for comparison.
+//   - right: Right operand for comparison.
 //
 // Returns:
 //   - ok: True when two servers share scheme, host, and port.
@@ -129,7 +129,7 @@ func SameConnection(left, right Server) bool {
 // DefaultPortForScheme returns the default port for scheme.
 //
 // Parameters:
-//   - scheme: Scheme.
+//   - scheme: URL scheme (http or https).
 //
 // Returns:
 //   - n: The default port for scheme.
@@ -147,7 +147,7 @@ func DefaultPortForScheme(scheme string) int {
 // portFromURL returns the port from url.
 //
 // Parameters:
-//   - parsed: Parsed.
+//   - parsed: Typed *url.URL argument for portFromURL.
 //
 // Returns:
 //   - n: The port from url.

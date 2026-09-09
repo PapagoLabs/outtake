@@ -60,13 +60,12 @@ var plexTypeNames = map[string]string{
 // scheme.
 //
 // Parameters:
-//   - address: Address.
-//   - scheme: Scheme.
-//   - port: Port.
+//   - address: Host:port or host for the Plex server.
+//   - scheme: URL scheme (http or https).
+//   - port: TCP port; 0 means scheme default.
 //
 // Returns:
-//   - value: The host:port, omitting the port if it's the default for the
-//     scheme.
+//   - value: The host:port, omitting the port if it's the default for the.
 func formatHost(address, scheme string, port int) string {
 	if (scheme == defaultScheme && port == httpsPort) ||
 		(scheme == httpScheme && port == httpPort) {
@@ -80,12 +79,12 @@ func formatHost(address, scheme string, port int) string {
 // GetLibraries fetches libraries from the Plex server.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
 //   - items: The libraries from the Plex server.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "get libraries"; "decode libraries".
 func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Library, error) {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -128,13 +127,13 @@ func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Librar
 // GetMedia fetches media items from a library.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
-//   - libraryID: Library id.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
+//   - libraryID: Typed string argument for GetMedia.
 //
 // Returns:
 //   - items: The media items from a library.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "get media page".
 func (client *Client) GetMedia(
 	ctx context.Context,
 	server Server,
@@ -151,7 +150,7 @@ func (client *Client) GetMedia(
 // GetMediaPage fetches one page of media items from a library.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - server: PMS to query.
 //   - libraryID: Section key.
 //   - start: Container offset.
@@ -186,7 +185,7 @@ func (client *Client) GetMediaPage(
 // GetFirstCharacters fetches title first-character buckets for a library.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - server: PMS to query.
 //   - libraryID: Section key.
 //
@@ -209,7 +208,7 @@ func (client *Client) GetFirstCharacters(
 // GetYears fetches year buckets for a library section.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - server: PMS to query.
 //   - libraryID: Section key.
 //
@@ -231,10 +230,8 @@ func (client *Client) GetYears(
 
 // GetSectionIndex fetches directory buckets for a library facet.
 //
-// Facet must be firstCharacter or year.
-//
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - server: PMS to query.
 //   - libraryID: Section key.
 //   - facet: Directory facet name.
@@ -311,13 +308,13 @@ func directoryIndex(section pms.Section) LetterIndex {
 // GetMediaPath fetches the file path for a media item.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //   - mediaID: Media id.
 //
 // Returns:
 //   - value: The file path for a media item.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "get media path"; "decode media detail".
 func (client *Client) GetMediaPath(
 	ctx context.Context,
 	server Server,
@@ -356,11 +353,11 @@ func (client *Client) GetMediaPath(
 // Ping pings the server to check connectivity.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "ping server"; "... ...".
 func (client *Client) Ping(ctx context.Context, server Server) error {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -389,12 +386,13 @@ func (client *Client) Ping(ctx context.Context, server Server) error {
 // GetServerIdentity fetches the server identity.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
-//   - serverIdentity: The server identity.
-//   - err: The error, if any.
+//   - serverIdentity: Result of GetServerIdentity.
+//   - err: Wrapped failure such as "get server identity"; "decode server
+//     identity".
 func (client *Client) GetServerIdentity(
 	ctx context.Context,
 	server Server,
@@ -429,7 +427,7 @@ func (client *Client) GetServerIdentity(
 // MapPlexType maps Plex type strings to standardized types.
 //
 // Parameters:
-//   - plexType: Plex type.
+//   - plexType: Typed string argument for MapPlexType.
 //
 // Returns:
 //   - value: The Plex type strings to standardized types.
@@ -446,7 +444,7 @@ func MapPlexType(plexType string) string {
 // spec.
 //
 // Parameters:
-//   - token: Token.
+//   - token: Plex or session access token.
 //
 // Returns:
 //   - values: The PMS JSON request headers as documented by the OpenAPI spec.
@@ -460,10 +458,10 @@ func jsonHeaders(token string) map[string]string {
 // sectionThumb prefers a section thumb, then the composite image.
 //
 // Parameters:
-//   - section: Section.
+//   - section: Typed pms.Section argument for sectionThumb.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func sectionThumb(section pms.Section) string {
 	if section.Thumb != "" {
 		return section.Thumb
@@ -514,9 +512,9 @@ func mediaListQuery(start, size int, sort string) string {
 // mediaPage maps a PMS container onto a page of media items.
 //
 // Parameters:
-//   - container: Container.
-//   - start: Start.
-//   - size: Size.
+//   - container: Typed pms.Container argument for mediaPage.
+//   - start: Typed int argument for mediaPage.
+//   - size: Typed int argument for mediaPage.
 //
 // Returns:
 //   - mediaPage: A PMS container onto a page of media items.

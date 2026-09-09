@@ -17,7 +17,7 @@ const TypeEpisode = "episode"
 // Display returns a user-facing title, including show and episode codes.
 //
 // Parameters:
-//   - item: Item.
+//   - item: Plex media metadata item.
 //
 // Returns:
 //   - value: A user-facing title, including show and episode codes.
@@ -36,11 +36,11 @@ func Display(item page.MediaItem) string {
 // EpisodeCode formats a season and episode number as S01E03.
 //
 // Parameters:
-//   - season: Season.
-//   - episode: Episode.
+//   - season: TV season number.
+//   - episode: TV episode number.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func EpisodeCode(season, episode int) string {
 	if season <= 0 && episode <= 0 {
 		return ""
@@ -60,7 +60,7 @@ func EpisodeCode(season, episode int) string {
 // episodeDisplay returns the episode display.
 //
 // Parameters:
-//   - item: Item.
+//   - item: Plex media metadata item.
 //
 // Returns:
 //   - value: The episode display.

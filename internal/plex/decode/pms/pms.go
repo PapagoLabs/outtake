@@ -110,10 +110,10 @@ const (
 // UnmarshalJSON implements [json.Unmarshaler].
 //
 // Parameters:
-//   - raw: Raw.
+//   - raw: Raw JSON response body.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "decode string"; "decode number".
 func (value *flexString) UnmarshalJSON(raw []byte) error {
 	if string(raw) == "null" {
 		*value = ""

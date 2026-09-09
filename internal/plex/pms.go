@@ -18,7 +18,7 @@ import (
 // serverBaseURL returns the scheme://host:port origin for a PMS.
 //
 // Parameters:
-//   - server: Server.
+//   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
 //   - value: The scheme://host:port origin for a PMS.
@@ -34,14 +34,14 @@ func serverBaseURL(server Server) string {
 // getPMS performs an authenticated GET against a Plex Media Server.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //   - path: Filesystem path.
-//   - rawQuery: Raw query.
+//   - rawQuery: Typed string argument for getPMS.
 //
 // Returns:
-//   - resp: The resp.
-//   - err: The error, if any.
+//   - resp: HTTP response; caller must close the body.
+//   - err: Wrapped failure such as "pms request"; "... ...".
 func (client *Client) getPMS(
 	ctx context.Context,
 	server Server,
@@ -91,14 +91,14 @@ func ValidThumbPath(path string) bool {
 // GetThumb fetches a thumbnail from the Plex Media Server.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //   - path: Filesystem path.
 //
 // Returns:
-//   - items: The items.
-//   - value: The value.
-//   - err: The error, if any.
+//   - items: Result slice; empty when none match.
+//   - value: Result value; zero or empty when unavailable.
+//   - err: Wrapped failure such as "get thumb"; "... ...".
 func (client *Client) GetThumb(
 	ctx context.Context,
 	server Server,
@@ -137,14 +137,14 @@ func (client *Client) GetThumb(
 // SearchOnServer searches media via GET /hubs/search.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
-//   - query: Query.
-//   - sectionID: Section id.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
+//   - query: Search or filter query string.
+//   - sectionID: Typed string argument for SearchOnServer.
 //
 // Returns:
-//   - items: The items.
-//   - err: The error, if any.
+//   - items: Result slice; empty when none match.
+//   - err: Wrapped failure such as "search hubs"; "decode search".
 func (client *Client) SearchOnServer(
 	ctx context.Context,
 	server Server,
@@ -176,13 +176,13 @@ func (client *Client) SearchOnServer(
 // GetChildren lists one level of children for a show, season, artist, or album.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //   - mediaID: Media id.
 //
 // Returns:
-//   - items: The items.
-//   - err: The error, if any.
+//   - items: Result slice; empty when none match.
+//   - err: Wrapped failure such as "get children"; "decode children".
 func (client *Client) GetChildren(
 	ctx context.Context,
 	server Server,
@@ -215,15 +215,15 @@ func (client *Client) GetChildren(
 // GetChildrenPage fetches one page of children for a container.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //   - mediaID: Media id.
-//   - start: Start.
-//   - size: Size.
+//   - start: Typed int argument for GetChildrenPage.
+//   - size: Typed int argument for GetChildrenPage.
 //
 // Returns:
 //   - mediaPage: The one page of children for a container.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "get children"; "decode children".
 func (client *Client) GetChildrenPage(
 	ctx context.Context,
 	server Server,
@@ -256,13 +256,13 @@ func (client *Client) GetChildrenPage(
 // GetMediaItem fetches a single media item from a Plex Media Server.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //   - mediaID: Media id.
 //
 // Returns:
 //   - mediaItem: A single media item from a Plex Media Server.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "get media item"; "decode media item".
 func (client *Client) GetMediaItem(
 	ctx context.Context,
 	server Server,
@@ -293,12 +293,12 @@ func (client *Client) GetMediaItem(
 // GetSessionsOnServer fetches active sessions from a Plex Media Server.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
 //   - items: The active sessions from a Plex Media Server.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "get sessions"; "decode sessions".
 func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([]Session, error) {
 	resp, err := client.getPMS(ctx, server, "/status/sessions", "")
 	if err != nil {

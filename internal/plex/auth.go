@@ -29,11 +29,11 @@ const plexAuthAppBase = "https://app.plex.tv/auth#?"
 // GeneratePIN generates a new PIN for authentication.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - pinResponse: The pin response.
-//   - err: The error, if any.
+//   - pinResponse: Result of GeneratePIN.
+//   - err: Wrapped failure such as "generate PIN"; "decode PIN response".
 func (client *Client) GeneratePIN(ctx context.Context) (*PinResponse, error) {
 	cfg := newRequestConfig(ctx, map[string]string{
 		"Accept":                   acceptJSON,
@@ -63,13 +63,13 @@ func (client *Client) GeneratePIN(ctx context.Context) (*PinResponse, error) {
 // PollPIN polls for PIN authentication.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - pinID: Pin id.
-//   - pinCode: Pin code.
+//   - ctx: Cancels or deadlines this call.
+//   - pinID: Typed int argument for PollPIN.
+//   - pinCode: Typed string argument for PollPIN.
 //
 // Returns:
-//   - value: The value.
-//   - err: The error, if any.
+//   - value: Result value; zero or empty when unavailable.
+//   - err: Wrapped failure such as "poll PIN"; "decode token response".
 func (client *Client) PollPIN(ctx context.Context, pinID int, pinCode string) (string, error) {
 	resp, err := client.doRequest(
 		ctx,
@@ -99,12 +99,12 @@ func (client *Client) PollPIN(ctx context.Context, pinID int, pinCode string) (s
 // ValidateToken validates the current authentication token.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
 //   - ok: True when the condition holds.
-//   - userResponse: The user response.
-//   - err: The error, if any.
+//   - userResponse: Result of ValidateToken.
+//   - err: Wrapped failure such as "validate token"; "decode user response".
 func (client *Client) ValidateToken(ctx context.Context) (bool, *UserResponse, error) {
 	resp, err := client.doRequest(ctx, "/api/v2/user", "")
 	if err != nil {
@@ -127,15 +127,9 @@ func (client *Client) ValidateToken(ctx context.Context) (bool, *UserResponse, e
 
 // GetAuthURL builds the Plex Auth App URL.
 //
-// Plex requires parameters in the URL fragment after a literal "#?", not a
-// query string. [url.URL.String] encodes that "?" and re-encodes
-// already-escaped
-// values, so this concatenates the encoded parameters onto the documented
-// prefix.
-//
 // Parameters:
-//   - pinCode: Pin code.
-//   - clientID: Client id.
+//   - pinCode: Typed string argument for GetAuthURL.
+//   - clientID: Plex X-Plex-Client-Identifier.
 //   - forwardURL: Forward url.
 //
 // Returns:

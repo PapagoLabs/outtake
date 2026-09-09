@@ -71,8 +71,8 @@ var _ HTTPClient = (*FiberClient)(nil)
 //   - cfg: Application configuration.
 //
 // Returns:
-//   - resp: The resp.
-//   - err: The error, if any.
+//   - resp: HTTP response; caller must close the body.
+//   - err: Wrapped failure from "fiber get".
 func (client *FiberClient) Get(
 	requestURL string,
 	cfg ...fiberClient.Config,
@@ -93,8 +93,8 @@ func (client *FiberClient) Get(
 //   - cfg: Application configuration.
 //
 // Returns:
-//   - resp: The resp.
-//   - err: The error, if any.
+//   - resp: HTTP response; caller must close the body.
+//   - err: Wrapped failure from "fiber post".
 func (client *FiberClient) Post(
 	requestURL string,
 	cfg ...fiberClient.Config,
@@ -134,7 +134,7 @@ func NewClient(cfg ClientConfig) *Client {
 //
 // Parameters:
 //   - cfg: Application configuration.
-//   - httpClient: Http client.
+//   - httpClient: HTTPClient for this call.
 //
 // Returns:
 //   - client: A new Plex client with a custom HTTP client.
@@ -152,7 +152,7 @@ func NewClientWithHTTPClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 //   - rawURL: Raw url.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "parse base URL".
 func (client *Client) SetBaseURL(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -167,7 +167,7 @@ func (client *Client) SetBaseURL(rawURL string) error {
 // SetToken sets the authentication token.
 //
 // Parameters:
-//   - token: Token.
+//   - token: Plex or session access token.
 func (client *Client) SetToken(token string) {
 	client.Token = token
 }
@@ -176,7 +176,7 @@ func (client *Client) SetToken(token string) {
 //
 // Parameters:
 //   - cfg: Application configuration.
-//   - httpClient: Http client.
+//   - httpClient: HTTPClient for this call.
 //
 // Returns:
 //   - client: A client and applies an optional custom base URL.
@@ -206,11 +206,11 @@ func newPlexClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 // decodeResponse unmarshals a JSON Plex response.
 //
 // Parameters:
-//   - resp: Resp.
-//   - target: Target.
+//   - resp: HTTP response to validate or close.
+//   - target: URL or object under test.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "... ...: ..."; "decode response".
 func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 	if resp.StatusCode() >= errorStatusThreshold {
 		return fmt.Errorf("%w %d: %s", ErrPlexError, resp.StatusCode(), string(resp.Body()))
@@ -236,13 +236,13 @@ func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 // doRequest sends a GET request to the Plex API.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - path: Filesystem path.
-//   - rawQuery: Raw query.
+//   - rawQuery: Typed string argument for doRequest.
 //
 // Returns:
-//   - resp: The resp.
-//   - err: The error, if any.
+//   - resp: HTTP response; caller must close the body.
+//   - err: Failure from execute request.
 func (client *Client) doRequest(
 	ctx context.Context,
 	path, rawQuery string,
