@@ -82,7 +82,7 @@ const (
 //
 // Returns:
 //   - mediaInfo: Duration, codecs, dimensions, and audio tracks when present.
-//   - err: JSON unmarshal failure, wrapped as "parse probe output".
+//   - err: Non-nil when data is not valid ffprobe JSON.
 func ParseOutput(data []byte) (MediaInfo, error) {
 	var output probeOutput
 

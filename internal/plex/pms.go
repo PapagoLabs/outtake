@@ -41,7 +41,7 @@ func serverBaseURL(server Server) string {
 //
 // Returns:
 //   - resp: HTTP response. Caller must close the body.
-//   - err: Wrapped failure such as "pms request" or "... ...".
+//   - err: Non-nil when the PMS request fails or returns an error status.
 func (client *Client) getPMS(
 	ctx context.Context,
 	server Server,
@@ -98,7 +98,7 @@ func ValidThumbPath(path string) bool {
 // Returns:
 //   - items: Result slice. Empty when none match.
 //   - value: Result value. Zero or empty when unavailable.
-//   - err: Wrapped failure such as "get thumb" or "... ...".
+//   - err: Non-nil when the thumbnail cannot be fetched.
 func (client *Client) GetThumb(
 	ctx context.Context,
 	server Server,
@@ -144,7 +144,7 @@ func (client *Client) GetThumb(
 //
 // Returns:
 //   - items: Result slice. Empty when none match.
-//   - err: Wrapped failure such as "search hubs" or "decode search".
+//   - err: Non-nil when hub search fails or the response cannot be decoded.
 func (client *Client) SearchOnServer(
 	ctx context.Context,
 	server Server,
@@ -182,7 +182,7 @@ func (client *Client) SearchOnServer(
 //
 // Returns:
 //   - items: Result slice. Empty when none match.
-//   - err: Wrapped failure such as "get children" or "decode children".
+//   - err: Non-nil when children cannot be fetched or decoded.
 func (client *Client) GetChildren(
 	ctx context.Context,
 	server Server,
@@ -223,7 +223,7 @@ func (client *Client) GetChildren(
 //
 // Returns:
 //   - mediaPage: The one page of children for a container.
-//   - err: Wrapped failure such as "get children" or "decode children".
+//   - err: Non-nil when a children page cannot be fetched or decoded.
 func (client *Client) GetChildrenPage(
 	ctx context.Context,
 	server Server,
@@ -262,7 +262,7 @@ func (client *Client) GetChildrenPage(
 //
 // Returns:
 //   - mediaItem: A single media item from a Plex Media Server.
-//   - err: Wrapped failure such as "get media item" or "decode media item".
+//   - err: Non-nil when the media item cannot be fetched or decoded.
 func (client *Client) GetMediaItem(
 	ctx context.Context,
 	server Server,
@@ -298,7 +298,7 @@ func (client *Client) GetMediaItem(
 //
 // Returns:
 //   - items: The active sessions from a Plex Media Server.
-//   - err: Wrapped failure such as "get sessions" or "decode sessions".
+//   - err: Non-nil when sessions cannot be fetched or decoded.
 func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([]Session, error) {
 	resp, err := client.getPMS(ctx, server, "/status/sessions", "")
 	if err != nil {

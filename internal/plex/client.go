@@ -72,7 +72,7 @@ var _ HTTPClient = (*FiberClient)(nil)
 //
 // Returns:
 //   - resp: HTTP response. Caller must close the body.
-//   - err: Wrapped failure from "fiber get".
+//   - err: Non-nil when the GET request fails.
 func (client *FiberClient) Get(
 	requestURL string,
 	cfg ...fiberClient.Config,
@@ -94,7 +94,7 @@ func (client *FiberClient) Get(
 //
 // Returns:
 //   - resp: HTTP response. Caller must close the body.
-//   - err: Wrapped failure from "fiber post".
+//   - err: Non-nil when the POST request fails.
 func (client *FiberClient) Post(
 	requestURL string,
 	cfg ...fiberClient.Config,
@@ -152,7 +152,7 @@ func NewClientWithHTTPClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 //   - rawURL: Raw url.
 //
 // Returns:
-//   - err: Wrapped failure from "parse base URL".
+//   - err: Non-nil when baseURL is not a valid URL.
 func (client *Client) SetBaseURL(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -210,7 +210,7 @@ func newPlexClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 //   - target: URL or object under test.
 //
 // Returns:
-//   - err: Wrapped failure such as "... ...: ..." or "decode response".
+//   - err: Non-nil when the HTTP response is an error status or the body cannot be decoded.
 func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 	if resp.StatusCode() >= errorStatusThreshold {
 		return fmt.Errorf("%w %d: %s", ErrPlexError, resp.StatusCode(), string(resp.Body()))
@@ -242,7 +242,7 @@ func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 //
 // Returns:
 //   - resp: HTTP response. Caller must close the body.
-//   - err: Failure from execute request.
+//   - err: Non-nil when the HTTP request cannot be executed.
 func (client *Client) doRequest(
 	ctx context.Context,
 	path, rawQuery string,

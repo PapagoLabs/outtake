@@ -36,7 +36,7 @@ func New(rt *htmldeps.Runtime) *Handler {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Failure from select server.
+//   - err: Non-nil when selecting the server fails.
 func (h *Handler) SelectServer(ctx fiber.Ctx) error {
 	rawURL := ctx.FormValue("customUrl")
 	if rawURL == "" {
@@ -61,7 +61,7 @@ func (h *Handler) SelectServer(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RenderHTML.
+//   - err: Non-nil when the servers page HTML cannot be rendered.
 func (h *Handler) Servers(ctx fiber.Ctx) error {
 	current, _ := h.rt.Bind.Get()
 

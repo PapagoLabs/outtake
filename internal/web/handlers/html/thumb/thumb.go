@@ -58,7 +58,7 @@ func NewThumbHandler(
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Wrapped failure such as "get cached thumb" or "fetch thumb".
+//   - err: Non-nil when the thumbnail cannot be loaded from cache or fetched from Plex.
 func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 	path := ctx.Query("path")
 	if !plex.ValidThumbPath(path) {
@@ -93,7 +93,7 @@ func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 //   - cached: Typed string argument for fetchAndCache.
 //
 // Returns:
-//   - err: Failure from send thumb.
+//   - err: Non-nil when the thumbnail cannot be fetched or sent.
 func (handler *ThumbHandler) fetchAndCache(
 	ctx fiber.Ctx,
 	path, cacheID, cached string,
@@ -131,7 +131,7 @@ func (handler *ThumbHandler) fetchAndCache(
 //   - contentType: Typed string argument for sendThumbBytes.
 //
 // Returns:
-//   - err: Failure from send thumb.
+//   - err: Non-nil when the thumbnail bytes cannot be sent.
 func sendThumbBytes(ctx fiber.Ctx, body []byte, contentType string) error {
 	ctx.Type("jpg")
 	ctx.Set("Cache-Control", thumbCacheControl)
@@ -152,7 +152,7 @@ func sendThumbBytes(ctx fiber.Ctx, body []byte, contentType string) error {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: Failure from send thumb.
+//   - err: Non-nil when the cached thumbnail cannot be sent.
 func sendCachedThumb(ctx fiber.Ctx, path string) error {
 	ctx.Set("Cache-Control", thumbCacheControl)
 

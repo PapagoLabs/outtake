@@ -92,7 +92,7 @@ func NewAuthHandler(
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RedirectTo.
+//   - err: Non-nil when the post-callback redirect cannot be issued.
 func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	pinID := respond.SessionInt(sess, sessionKeyPinID)
@@ -128,7 +128,7 @@ func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RedirectTo.
+//   - err: Non-nil when the login redirect cannot be issued.
 func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 	token := ctx.FormValue("token")
 	if token != "" {
@@ -158,7 +158,7 @@ func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.WriteError.
+//   - err: Non-nil when the logout error response cannot be written.
 func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if sess != nil {
@@ -190,7 +190,7 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.SendText.
+//   - err: Non-nil when the auth status body cannot be sent.
 func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if respond.SessionString(sess, middleware.SessionKeyToken) != "" {
@@ -322,7 +322,7 @@ func (handler *AuthHandler) postAuthPath() string {
 //
 // Returns:
 //   - url: A Plex PIN and returns the Auth App URL.
-//   - err: Wrapped failure from "generate pin".
+//   - err: Non-nil when a Plex PIN cannot be generated.
 func (handler *AuthHandler) startPIN(ctx fiber.Ctx, sess *session.Middleware) (string, error) {
 	plexClient := handler.newClient("")
 
@@ -351,7 +351,7 @@ func (handler *AuthHandler) startPIN(ctx fiber.Ctx, sess *session.Middleware) (s
 //   - token: Plex or session access token.
 //
 // Returns:
-//   - err: Wrapped failure from "save token".
+//   - err: Non-nil when the access token cannot be saved.
 func (handler *AuthHandler) storeToken(ctx fiber.Ctx, token string) error {
 	sess := session.FromContext(ctx)
 	sess.Set(middleware.SessionKeyToken, token)
@@ -388,7 +388,7 @@ func clearPIN(sess *session.Middleware) {
 //   - next: Typed string argument for sendAuthComplete.
 //
 // Returns:
-//   - err: Wrapped failure from "send auth complete".
+//   - err: Non-nil when the auth-complete response cannot be sent.
 func sendAuthComplete(ctx fiber.Ctx, next string) error {
 	ctx.Set(respond.HeaderContentType, respond.ContentTypeHTML)
 
@@ -420,11 +420,11 @@ func sendAuthComplete(ctx fiber.Ctx, next string) error {
 // wrapAuth wraps a handler error with an operation name.
 //
 // Parameters:
-//   - err: Error value.
+//   - err: Underlying failure to wrap with op.
 //   - op: Typed string argument for wrapAuth.
 //
 // Returns:
-//   - err: Failure from .
+//   - err: Non-nil when err is non-nil. The result wraps err with op.
 func wrapAuth(err error, op string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)

@@ -35,7 +35,7 @@ func New(rt *htmldeps.Runtime) *Handler {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RenderHTML.
+//   - err: Non-nil when the dashboard HTML cannot be rendered.
 func (h *Handler) Dashboard(ctx fiber.Ctx) error {
 	jobs := h.rt.ListJobs(ctx)
 	stats := htmldeps.ClipStats(jobs)
@@ -57,7 +57,7 @@ func (h *Handler) Dashboard(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RenderHTML.
+//   - err: Non-nil when the dashboard sessions HTML cannot be rendered.
 func (h *Handler) DashboardSessions(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return dashboard.LiveSessions(h.rt.SessionItems()).Render(ctx.Context(), writer)

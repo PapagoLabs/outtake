@@ -39,7 +39,7 @@ func New(rt *htmldeps.Runtime) *Handler {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RenderHTML.
+//   - err: Non-nil when the clip profiles HTML cannot be rendered.
 func (h *Handler) ClipProfiles(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return settings.ClipProfiles(settings.ClipProfilesProps{
@@ -57,7 +57,7 @@ func (h *Handler) ClipProfiles(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RedirectTo.
+//   - err: Non-nil when the create-profile redirect cannot be issued.
 func (h *Handler) CreateClipProfile(ctx fiber.Ctx) error {
 	profile, err := htmldeps.ParseClipProfileForm(ctx, uuid.New().String())
 	if err != nil {
@@ -78,7 +78,7 @@ func (h *Handler) CreateClipProfile(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RedirectTo.
+//   - err: Non-nil when the update-profile redirect cannot be issued.
 func (h *Handler) UpdateClipProfile(ctx fiber.Ctx) error {
 	existing, err := h.rt.DB.GetClipProfile(ctx.Context(), ctx.Params(htmldeps.ParamID))
 	if err != nil {
@@ -107,7 +107,7 @@ func (h *Handler) UpdateClipProfile(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RedirectTo.
+//   - err: Non-nil when the delete-profile redirect cannot be issued.
 func (h *Handler) DeleteClipProfile(ctx fiber.Ctx) error {
 	err := h.rt.DB.DeleteClipProfile(ctx.Context(), ctx.Params(htmldeps.ParamID))
 	if err != nil {
@@ -123,7 +123,7 @@ func (h *Handler) DeleteClipProfile(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RedirectTo.
+//   - err: Non-nil when the set-default redirect cannot be issued.
 func (h *Handler) SetDefaultClipProfile(ctx fiber.Ctx) error {
 	err := h.rt.DB.SetDefaultClipProfile(ctx.Context(), ctx.Params(htmldeps.ParamID))
 	if err != nil {
@@ -139,7 +139,7 @@ func (h *Handler) SetDefaultClipProfile(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.RenderHTML.
+//   - err: Non-nil when the appearance HTML cannot be rendered.
 func (*Handler) Appearance(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return settings.Appearance().Render(ctx.Context(), writer)

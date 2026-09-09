@@ -25,10 +25,10 @@ type HttpErrorView struct {
 //
 // Parameters:
 //   - ctx: HTTP request context.
-//   - err: Error value.
+//   - err: Failure to present as an HTML or JSON error page.
 //
 // Returns:
-//   - err: Wrapped failure such as "write htmx flash" or "render error page".
+//   - err: Non-nil when the HTMX flash or error page cannot be written.
 func PageError(ctx fiber.Ctx, err error) error {
 	view := HttpErrorCopy(err)
 
@@ -66,7 +66,7 @@ func PageError(ctx fiber.Ctx, err error) error {
 // HttpErrorCopy maps an error onto status, message, and title.
 //
 // Parameters:
-//   - err: Error value.
+//   - err: Fiber HTTP error to copy.
 //
 // Returns:
 //   - httpErrorView: An error onto status, message, and title.

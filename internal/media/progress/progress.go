@@ -109,7 +109,7 @@ func (writer *Writer) String() string {
 //
 // Returns:
 //   - n: Numeric result for this call.
-//   - err: Failure from progress write.
+//   - err: Non-nil when the progress update cannot be written.
 func (writer *Writer) Write(p []byte) (int, error) {
 	written, err := writer.buf.Write(p)
 	if err != nil {

@@ -29,7 +29,7 @@ const (
 //
 // Returns:
 //   - db: A Postgres-protocol database using pgx.
-//   - err: Wrapped failure such as "open database" or "open postgres".
+//   - err: Non-nil when the Postgres database cannot be opened.
 func newPostgres(dsn string) (*DB, error) {
 	conn, err := sql.Open("pgx", dsn)
 	if err != nil {

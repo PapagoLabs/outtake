@@ -113,7 +113,7 @@ const (
 //   - raw: Raw JSON response body.
 //
 // Returns:
-//   - err: Wrapped failure such as "decode string" or "decode number".
+//   - err: Non-nil when the JSON value is not a string or number.
 func (value *flexString) UnmarshalJSON(raw []byte) error {
 	if string(raw) == "null" {
 		*value = ""

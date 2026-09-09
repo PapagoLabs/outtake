@@ -55,7 +55,7 @@ const (
 //
 // Returns:
 //   - db: A new SQLite database instance.
-//   - err: Wrapped failure such as "open database" or "open sqlite".
+//   - err: Non-nil when the SQLite database cannot be opened.
 func New(dbPath string) (*DB, error) {
 	dsn := "file:" + filepath.Clean(dbPath)
 	conn, err := sql.Open("libsql", dsn)
@@ -81,8 +81,7 @@ func New(dbPath string) (*DB, error) {
 //
 // Returns:
 //   - db: The database backend selected by configuration.
-//   - err: Wrapped failure such as "sqlite database", "postgres database", or
-//     "...: ...".
+//   - err: Non-nil when the configured database backend cannot be opened.
 func NewFromConfig(cfg *config.Config) (*DB, error) {
 	backend := strings.ToLower(strings.TrimSpace(cfg.DatabaseBackend))
 	switch backend {
@@ -112,7 +111,7 @@ func NewFromConfig(cfg *config.Config) (*DB, error) {
 // Close closes the database connection.
 //
 // Returns:
-//   - err: Wrapped failure from "close database".
+//   - err: Non-nil when closing the database connection fails.
 func (db *DB) Close() error {
 	err := db.conn.Close()
 	if err != nil {
@@ -157,7 +156,7 @@ func (db *DB) rewrite(query string) string {
 //
 // Returns:
 //   - db: The database handle.
-//   - err: Wrapped failure such as "ping database" or "migrate".
+//   - err: Non-nil when the database ping or migration fails.
 func finishOpen(conn *sql.DB, kind dialect.Kind) (*DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), migrateTimeout)
 	defer cancel()

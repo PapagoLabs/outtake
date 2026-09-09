@@ -114,7 +114,7 @@ func generateSVG(name string, props Props) (string, error) {
 //
 // Returns:
 //   - value: Result value. Zero or empty when unavailable.
-//   - err: Wrapped failure from "icon '...' not found in internalSvgData map".
+//   - err: Non-nil when name is not a registered icon.
 func getIconContent(name string) (string, error) {
 	content, exists := internalSvgData[name]
 	if !exists {

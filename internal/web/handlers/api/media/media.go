@@ -43,7 +43,7 @@ func NewMediaHandler(product, clientID string, bind *binding.Binding) *MediaHand
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.WriteJSON.
+//   - err: Non-nil when the sessions JSON response cannot be written.
 func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 	sessions := handler.bind.Sessions()
 	if sessions == nil {
@@ -69,7 +69,7 @@ func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.WriteError.
+//   - err: Non-nil when the search error response cannot be written.
 func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 	query := ctx.Query("q")
 	if query == "" {

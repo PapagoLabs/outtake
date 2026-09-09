@@ -36,7 +36,7 @@ var ErrClipNotFound = errors.New("clip not found")
 //   - job: Clip job to process or persist.
 //
 // Returns:
-//   - err: Wrapped failure from "save clip".
+//   - err: Non-nil when the clip cannot be saved.
 func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 	query := db.rewrite(`
 		INSERT INTO clips (
@@ -100,7 +100,7 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 //
 // Returns:
 //   - job: A clip by ID.
-//   - err: Wrapped failure from "get clip".
+//   - err: Non-nil when the clip cannot be loaded.
 func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 	query := db.rewrite(`SELECT ` + clipSelectCols + ` FROM clips WHERE id = ?`)
 
@@ -126,7 +126,7 @@ func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 //
 // Returns:
 //   - items: The all clips ordered by creation time, newest first.
-//   - err: Wrapped failure from "list clips".
+//   - err: Non-nil when clips cannot be listed.
 func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -152,7 +152,7 @@ func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 //
 // Returns:
 //   - items: The clips that still need processing.
-//   - err: Wrapped failure from "list pending clips".
+//   - err: Non-nil when pending clips cannot be listed.
 func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -183,7 +183,7 @@ func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 //
 // Returns:
 //   - items: The clips created from a media item.
-//   - err: Wrapped failure from "list media clips".
+//   - err: Non-nil when clips for the media item cannot be listed.
 func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -212,7 +212,7 @@ func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.J
 //   - id: Identifier.
 //
 // Returns:
-//   - err: Wrapped failure from "delete clip".
+//   - err: Non-nil when the clip cannot be deleted.
 func (db *DB) DeleteClip(ctx context.Context, id string) error {
 	query := db.rewrite(`DELETE FROM clips WHERE id = ?`)
 
@@ -232,7 +232,7 @@ func (db *DB) DeleteClip(ctx context.Context, id string) error {
 //
 // Returns:
 //   - job: The one clip row into a job.
-//   - err: Wrapped failure from "scan clip".
+//   - err: Non-nil when the clip row cannot be scanned.
 func scanJob(row Scannable) (*queue.Job, error) {
 	job := &queue.Job{}
 	var output sql.NullString
@@ -286,7 +286,7 @@ func scanJob(row Scannable) (*queue.Job, error) {
 //
 // Returns:
 //   - items: The every remaining clip row.
-//   - err: Wrapped failure such as "scan clip" or "iterate clips".
+//   - err: Non-nil when a clip row cannot be scanned or row iteration fails.
 func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 	jobs := make([]*queue.Job, 0)
 

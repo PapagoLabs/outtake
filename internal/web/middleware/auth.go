@@ -89,7 +89,7 @@ func tokenFromSession(sess *session.Middleware) string {
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Wrapped failure such as "write unauthorized" or "redirect login".
+//   - err: Non-nil when the unauthorized response or login redirect cannot be written.
 func unauthenticated(ctx fiber.Ctx) error {
 	if strings.HasPrefix(ctx.Path(), "/api/") {
 		err := ctx.Status(fiber.StatusUnauthorized).JSON(respond.ErrorResponse{

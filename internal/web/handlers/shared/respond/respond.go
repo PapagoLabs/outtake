@@ -104,7 +104,7 @@ const (
 //   - payload: JSON-serializable response body.
 //
 // Returns:
-//   - err: Wrapped failure from "write json".
+//   - err: Non-nil when the JSON response cannot be written.
 func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 	err := ctx.Status(status).JSON(payload)
 	if err != nil {
@@ -121,7 +121,7 @@ func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: Wrapped failure from "send ranged file".
+//   - err: Non-nil when the ranged file cannot be sent.
 func SendRangedFile(ctx fiber.Ctx, path string) error {
 	err := ctx.SendFile(path, fiber.SendFile{
 		FS:            nil,
@@ -281,11 +281,11 @@ func RefererPath(raw string) string {
 // MediaItemError prefers a form-flash query over a Plex metadata load failure.
 //
 // Parameters:
-//   - itemErr: Error value.
-//   - queryErr: Typed string argument for MediaItemError.
+//   - itemErr: Plex metadata load failure, if any.
+//   - queryErr: Form-flash error query string. Preferred when non-empty.
 //
 // Returns:
-//   - value: Result value. Zero or empty when unavailable.
+//   - value: Flash or load-failure message. Empty when neither applies.
 func MediaItemError(itemErr error, queryErr string) string {
 	if queryErr != "" {
 		return queryErr
@@ -305,7 +305,7 @@ func MediaItemError(itemErr error, queryErr string) string {
 //   - location: Typed string argument for RedirectTo.
 //
 // Returns:
-//   - err: Wrapped failure from "redirect".
+//   - err: Non-nil when the redirect cannot be issued.
 func RedirectTo(ctx fiber.Ctx, location string) error {
 	err := ctx.Redirect().To(location)
 	if err != nil {
@@ -322,7 +322,7 @@ func RedirectTo(ctx fiber.Ctx, location string) error {
 //   - body: HTML or response body text to scan.
 //
 // Returns:
-//   - err: Wrapped failure from "send string".
+//   - err: Non-nil when the plain-text body cannot be sent.
 func SendText(ctx fiber.Ctx, body string) error {
 	err := ctx.SendString(body)
 	if err != nil {
@@ -339,7 +339,7 @@ func SendText(ctx fiber.Ctx, body string) error {
 //   - status: HTTP status code to write.
 //
 // Returns:
-//   - err: Wrapped failure from "send status".
+//   - err: Non-nil when the status response cannot be sent.
 func SendStatusCode(ctx fiber.Ctx, status int) error {
 	err := ctx.SendStatus(status)
 	if err != nil {
@@ -356,7 +356,7 @@ func SendStatusCode(ctx fiber.Ctx, status int) error {
 //   - render: Typed error argument for RenderHTML.
 //
 // Returns:
-//   - err: Failure from render html.
+//   - err: Non-nil when the HTML template cannot be rendered.
 func RenderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
 	ctx.Set(HeaderContentType, ContentTypeHTML)
 

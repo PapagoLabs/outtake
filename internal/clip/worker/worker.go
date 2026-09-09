@@ -27,8 +27,7 @@ var errUnknownJobType = errors.New("unknown job type")
 //   - db: Database handle.
 //
 // Returns:
-//   - err: Wrapped failure such as "extract clip", "extract gif", or "extract
-//     screenshot".
+//   - err: Non-nil when FFmpeg clip, GIF, or screenshot extraction fails.
 func extractJob(
 	ctx context.Context,
 	job *queue.Job,
@@ -92,7 +91,7 @@ func extractJob(
 //   - store: Blob storage backend for clip artifacts.
 //
 // Returns:
-//   - err: Wrapped failure such as "extract" or "store output".
+//   - err: Non-nil when extraction or storing the output fails.
 func ProcessJob(
 	ctx context.Context,
 	job *queue.Job,

@@ -205,7 +205,7 @@ func (rt *Runtime) MediaPageProps(
 //   - props: Media library page model.
 //
 // Returns:
-//   - err: Propagates errors from respond.RenderHTML.
+//   - err: Non-nil when the media page HTML cannot be rendered.
 func RenderMediaPage(ctx fiber.Ctx, props *viewmedia.MediaProps) error {
 	switch {
 	case WantsMediaPrev(ctx):
@@ -341,7 +341,7 @@ func MediaItemLocation(mediaID string, values url.Values) string {
 //   - rawURL: Raw url.
 //
 // Returns:
-//   - err: Propagates errors from respond.RedirectTo.
+//   - err: Non-nil when the selected-server redirect cannot be issued.
 func (rt *Runtime) BindSelectedURL(ctx fiber.Ctx, rawURL string) error {
 	token := ctx.FormValue("token")
 	if token == "" {
@@ -468,7 +468,7 @@ func (rt *Runtime) ListJobs(ctx fiber.Ctx) []*queue.Job {
 //
 // Returns:
 //   - mediaItem: Result of LoadMediaItem.
-//   - err: Failure from load media item.
+//   - err: Non-nil when the media item cannot be loaded.
 func (rt *Runtime) LoadMediaItem(ctx fiber.Ctx, mediaID string) (plex.MediaItem, error) {
 	plexClient, server, ok := rt.PlexPair()
 	if !ok {
@@ -1002,7 +1002,7 @@ func ToLibraryItems(libs []plex.Library) []viewmedia.LibraryItem {
 //
 // Returns:
 //   - mediaPage: The one page of a library section or container children.
-//   - err: Wrapped failure such as "list children" or "list section".
+//   - err: Non-nil when a library section or container children page cannot be listed.
 func ListMediaPage(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
@@ -2155,7 +2155,7 @@ func BuiltinProfileOptions() []viewclip.ClipProfileOption {
 //
 // Returns:
 //   - clipProfile: Result of ParseClipProfileForm.
-//   - err: Failure from parse clip profile.
+//   - err: Non-nil when the clip profile form cannot be parsed.
 func ParseClipProfileForm(ctx fiber.Ctx, id string) (database.ClipProfile, error) {
 	profile, err := ClipProfileFromFields(
 		id,

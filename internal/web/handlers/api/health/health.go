@@ -26,7 +26,7 @@ func NewHealthHandler() *HealthHandler {
 //   - c: HTTP request context.
 //
 // Returns:
-//   - err: Propagates errors from respond.WriteJSON.
+//   - err: Non-nil when the health JSON response cannot be written.
 func (*HealthHandler) Health(c fiber.Ctx) error {
 	return respond.WriteJSON(c, fiber.StatusOK, fiber.Map{
 		"status":  "ok",

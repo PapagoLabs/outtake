@@ -44,8 +44,7 @@ var ErrLastClipProfile = errors.New("cannot delete the last clip profile")
 //   - profile: Quality profile row to insert or update.
 //
 // Returns:
-//   - err: Wrapped failure such as "save clip profile" or "ensure default after
-//     save".
+//   - err: Non-nil when the clip profile cannot be saved or the default cannot be ensured.
 func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 	isDefault := 0
 	if profile.IsDefault {
@@ -104,7 +103,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 //
 // Returns:
 //   - clipProfile: A clip profile by ID.
-//   - err: Wrapped failure from "get clip profile".
+//   - err: Non-nil when the clip profile cannot be loaded.
 func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
@@ -131,8 +130,7 @@ func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error
 //
 // Returns:
 //   - items: The clip profiles with the default first.
-//   - err: Wrapped failure such as "list clip profiles", "scan clip profiles",
-//     or "iterate clip profiles".
+//   - err: Non-nil when clip profiles cannot be listed or scanned.
 func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -170,7 +168,7 @@ func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 //
 // Returns:
 //   - clipProfile: The profile marked default, or Medium built-in.
-//   - err: Wrapped failure from "default clip profile".
+//   - err: Non-nil when the default clip profile cannot be loaded.
 func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
@@ -202,7 +200,7 @@ func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 //   - id: Identifier.
 //
 // Returns:
-//   - err: Wrapped failure from "set default clip profile".
+//   - err: Non-nil when the default clip profile cannot be set.
 func (db *DB) SetDefaultClipProfile(ctx context.Context, id string) error {
 	_, err := db.GetClipProfile(ctx, id)
 	if err != nil {
@@ -224,8 +222,7 @@ func (db *DB) SetDefaultClipProfile(ctx context.Context, id string) error {
 //   - id: Identifier.
 //
 // Returns:
-//   - err: Wrapped failure such as "delete clip profile", "lookup clip
-//     profile", or "exec delete clip profile".
+//   - err: Non-nil when the clip profile cannot be looked up or deleted.
 func (db *DB) DeleteClipProfile(ctx context.Context, id string) error {
 	count, err := db.clipProfileCount(ctx)
 	if err != nil {
@@ -274,7 +271,7 @@ func (profile ClipProfile) QualityPreset() mediaquality.QualityPreset {
 //
 // Returns:
 //   - n: The number of stored profiles.
-//   - err: Wrapped failure from "count clip profiles".
+//   - err: Non-nil when clip profiles cannot be counted.
 func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 	var count int
 
@@ -296,7 +293,7 @@ func (db *DB) clipProfileCount(ctx context.Context) (int, error) {
 //   - id: Identifier.
 //
 // Returns:
-//   - err: Wrapped failure from "assign default clip profile".
+//   - err: Non-nil when a default clip profile cannot be assigned.
 func (db *DB) assignDefaultClipProfile(ctx context.Context, id string) error {
 	_, err := db.conn.ExecContext(
 		ctx,
@@ -318,8 +315,7 @@ func (db *DB) assignDefaultClipProfile(ctx context.Context, id string) error {
 //   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - err: Wrapped failure such as "count default clip profiles" or "ensure
-//     default clip profile".
+//   - err: Non-nil when default clip profiles cannot be counted or ensured.
 func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 	var defaults int
 
@@ -356,7 +352,7 @@ func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 //
 // Returns:
 //   - clipProfile: The one clip profile row.
-//   - err: Failure from scan clip profile.
+//   - err: Non-nil when the clip profile row cannot be scanned.
 func scanClipProfile(row Scannable) (ClipProfile, error) {
 	var profile ClipProfile
 	var isDefault int

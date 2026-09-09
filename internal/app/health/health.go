@@ -41,7 +41,7 @@ func NewChecker() *Checker {
 //   - addr: Host:port of the listening HTTP server.
 //
 // Returns:
-//   - err: Wrapped failure from "health check".
+//   - err: Non-nil when the health endpoint is unreachable or unhealthy.
 func (chkr *Checker) Check(addr string) error {
 	resp, err := chkr.doHealthCheck(addr)
 	if err != nil {
@@ -68,8 +68,7 @@ func (chkr *Checker) Check(addr string) error {
 //   - resp: HTTP response to validate or close.
 //
 // Returns:
-//   - err: Wrapped failure such as "health check: read response" or "...:
-//     status ...".
+//   - err: Non-nil when the response body cannot be read or the status is not OK.
 func checkHealthResponse(resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -102,8 +101,7 @@ func checkHealthResponse(resp *http.Response) error {
 //
 // Returns:
 //   - resp: HTTP response. Caller must close the body.
-//   - err: Wrapped failure such as "health check: parse URL", "health check:
-//     create request", or "health check failed".
+//   - err: Non-nil when the health request cannot be built or the HTTP call fails.
 func (chkr *Checker) doHealthCheck(addr string) (*http.Response, error) {
 	reqURL, err := url.Parse("http://" + addr + "/api/healthz")
 	if err != nil {

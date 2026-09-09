@@ -84,7 +84,7 @@ func formatHost(address, scheme string, port int) string {
 //
 // Returns:
 //   - items: The libraries from the Plex server.
-//   - err: Wrapped failure such as "get libraries" or "decode libraries".
+//   - err: Non-nil when libraries cannot be fetched or decoded.
 func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Library, error) {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -133,7 +133,7 @@ func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Librar
 //
 // Returns:
 //   - items: The media items from a library.
-//   - err: Wrapped failure from "get media page".
+//   - err: Non-nil when a media page cannot be fetched.
 func (client *Client) GetMedia(
 	ctx context.Context,
 	server Server,
@@ -314,7 +314,7 @@ func directoryIndex(section pms.Section) LetterIndex {
 //
 // Returns:
 //   - value: The file path for a media item.
-//   - err: Wrapped failure such as "get media path" or "decode media detail".
+//   - err: Non-nil when the media path cannot be fetched or decoded.
 func (client *Client) GetMediaPath(
 	ctx context.Context,
 	server Server,
@@ -357,7 +357,7 @@ func (client *Client) GetMediaPath(
 //   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
-//   - err: Wrapped failure such as "ping server" or "... ...".
+//   - err: Non-nil when the server ping fails.
 func (client *Client) Ping(ctx context.Context, server Server) error {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -391,8 +391,7 @@ func (client *Client) Ping(ctx context.Context, server Server) error {
 //
 // Returns:
 //   - serverIdentity: Result of GetServerIdentity.
-//   - err: Wrapped failure such as "get server identity" or "decode server
-//     identity".
+//   - err: Non-nil when the server identity cannot be fetched or decoded.
 func (client *Client) GetServerIdentity(
 	ctx context.Context,
 	server Server,

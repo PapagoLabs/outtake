@@ -57,7 +57,7 @@ var (
 //
 // Returns:
 //   - s3: An S3 backend from application configuration.
-//   - err: Wrapped failure from "new s3".
+//   - err: Non-nil when the S3 backend cannot be constructed from configuration.
 func newS3FromConfig(cfg *config.Config) (*S3, error) {
 	if cfg.S3Bucket == "" {
 		return nil, errS3BucketRequired
@@ -95,7 +95,7 @@ func newS3FromConfig(cfg *config.Config) (*S3, error) {
 //
 // Returns:
 //   - s3: An S3 backend with a filesystem scratch directory.
-//   - err: Wrapped failure from "create scratch dir".
+//   - err: Non-nil when the local scratch directory cannot be created.
 func newS3(settings s3Settings) (*S3, error) {
 	fsStore, err := NewStorage(settings.scratch)
 	if err != nil {
@@ -143,8 +143,7 @@ func (store *S3) ClipPath(id string) string {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: Wrapped failure such as "delete file", "delete object", or "delete
-//     local file".
+//   - err: Non-nil when the S3 object or local scratch copy cannot be deleted.
 func (store *S3) DeleteFile(path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -197,7 +196,7 @@ func (store *S3) FileExists(path string) bool {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: Propagates errors from fmt.Errorf.
+//   - err: Non-nil when the object key is invalid or the S3 download fails.
 func (store *S3) Get(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -250,7 +249,7 @@ func (store *S3) PreviewPath(id string) string {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: Wrapped failure such as "put object" or "open local file".
+//   - err: Non-nil when the local file cannot be opened or the S3 upload fails.
 func (store *S3) Put(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -304,7 +303,7 @@ func (store *S3) ThumbnailPath(id string) string {
 //   - data: Raw bytes to parse.
 //
 // Returns:
-//   - err: Wrapped failure such as "write thumbnail" or "upload thumbnail".
+//   - err: Non-nil when the thumbnail cannot be written locally or uploaded to S3.
 func (store *S3) WriteThumbnail(id string, data []byte) error {
 	err := store.fs.WriteThumbnail(id, data)
 	if err != nil {
@@ -327,7 +326,7 @@ func (store *S3) WriteThumbnail(id string, data []byte) error {
 //
 // Returns:
 //   - ok: True when an object exists on S3.
-//   - err: Wrapped failure from "head object".
+//   - err: Non-nil when the S3 head request fails.
 func (store *S3) head(ctx context.Context, path string) (bool, error) {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -356,7 +355,7 @@ func (store *S3) head(ctx context.Context, path string) (bool, error) {
 //
 // Returns:
 //   - value: A local scratch path onto an S3 object key.
-//   - err: Wrapped failure such as "object key" or "...: ...".
+//   - err: Non-nil when path is outside the scratch directory or cannot be mapped to an object key.
 func (store *S3) objectKey(path string) (string, error) {
 	rel, err := filepath.Rel(store.fs.BasePath(), path)
 	if err != nil {
@@ -373,7 +372,7 @@ func (store *S3) objectKey(path string) (string, error) {
 // isNotFound reports whether err is an S3 missing-object error.
 //
 // Parameters:
-//   - err: Error value.
+//   - err: Candidate error to classify as a missing S3 object.
 //
 // Returns:
 //   - ok: True when err is an S3 missing-object error.
@@ -402,8 +401,7 @@ func isNotFound(err error) bool {
 //   - body: Readable request or object body.
 //
 // Returns:
-//   - err: Wrapped failure such as "create object dir", "create temp file", or
-//     "write local file".
+//   - err: Non-nil when the object directory, temp file, or local write fails.
 func writeObjectFile(path string, body io.Reader) error {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, dirPermissions)

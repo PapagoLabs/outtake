@@ -655,7 +655,7 @@ func gifEncodeArgs(
 //   - rect: Optional black-bar crop. Ignored when invalid.
 //
 // Returns:
-//   - err: Wrapped failure such as "palettegen" or "extract GIF".
+//   - err: Non-nil when palette generation or GIF extraction fails.
 func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	ctx context.Context,
 	input, output string,
@@ -724,7 +724,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 //   - preset: Encode quality profile (CRF, bitrate, scale).
 //
 // Returns:
-//   - err: Wrapped failure from "extract preview".
+//   - err: Non-nil when preview extraction fails.
 func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 	ctx context.Context,
 	input, output string,
@@ -801,7 +801,7 @@ func screenshotEncodeArgs(
 //   - rect: Optional black-bar crop. Ignored when invalid.
 //
 // Returns:
-//   - err: Wrapped failure from "extract screenshot".
+//   - err: Non-nil when screenshot extraction fails.
 func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 	ctx context.Context,
 	input, output string,

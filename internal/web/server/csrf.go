@@ -82,7 +82,7 @@ func CookieSecure(cfg *config.Config) bool {
 // csrfError renders a CSRF failure response.
 //
 // Returns:
-//   - err: Propagates errors from fiber.NewError.
+//   - err: Non-nil when CSRF validation fails.
 func csrfError(_ fiber.Ctx, _ error) error {
 	return fiber.NewError(fiber.StatusForbidden, "invalid csrf token")
 }

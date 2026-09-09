@@ -20,7 +20,7 @@ import (
 //   - accessToken: Typed string argument for SaveToken.
 //
 // Returns:
-//   - err: Wrapped failure from "save token".
+//   - err: Non-nil when the token cannot be saved.
 func (db *DB) SaveToken(ctx context.Context, clientID, accessToken string) error {
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO plex_tokens (client_id, access_token, created_at, updated_at)
@@ -42,8 +42,7 @@ func (db *DB) SaveToken(ctx context.Context, clientID, accessToken string) error
 //   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - err: Wrapped failure such as "begin clear auth", "clear tokens", or
-//     "clear selected server".
+//   - err: Non-nil when auth tokens or the selected server cannot be cleared.
 func (db *DB) ClearAuth(ctx context.Context) error {
 	tx, err := db.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -82,7 +81,7 @@ func (db *DB) ClearAuth(ctx context.Context) error {
 //
 // Returns:
 //   - token: The most recently stored Plex token.
-//   - err: Wrapped failure from "latest token".
+//   - err: Non-nil when the latest token cannot be loaded.
 func (db *DB) LatestToken(ctx context.Context) (string, error) {
 	var token string
 
@@ -110,7 +109,7 @@ func (db *DB) LatestToken(ctx context.Context) (string, error) {
 //   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
-//   - err: Wrapped failure from "save selected server".
+//   - err: Non-nil when the selected server cannot be saved.
 func (db *DB) SaveSelectedServer(ctx context.Context, server plex.Server) error {
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO selected_server (id, name, address, port, scheme, token, updated_at)
@@ -138,7 +137,7 @@ func (db *DB) SaveSelectedServer(ctx context.Context, server plex.Server) error 
 // Returns:
 //   - server: Selected or loaded Plex server.
 //   - ok: True when the condition holds.
-//   - err: Failure from selected server.
+//   - err: Non-nil when the selected server cannot be loaded.
 func (db *DB) SelectedServer(ctx context.Context) (plex.Server, bool, error) {
 	var server plex.Server
 

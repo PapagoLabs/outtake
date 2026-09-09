@@ -40,7 +40,7 @@ var errUnavailable = errors.New("unavailable")
 //
 // Returns:
 //   - items: Result slice. Empty when none match.
-//   - err: Propagates errors from slices.Clone.
+//   - err: Non-nil when cloning the session snapshot fails.
 func (stub *stubFetcher) GetSessionsOnServer(
 	_ context.Context,
 	_ plex.Server,
@@ -58,7 +58,7 @@ func (stub *stubFetcher) GetSessionsOnServer(
 // setError sets the error returned by the next fetch.
 //
 // Parameters:
-//   - err: Error value.
+//   - err: Synthetic failure to inject into the monitor.
 func (stub *stubFetcher) setError(err error) {
 	stub.mu.Lock()
 	defer stub.mu.Unlock()

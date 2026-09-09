@@ -16,7 +16,7 @@ import (
 //
 // Returns:
 //   - container: Result of decodePMS.
-//   - err: Failure from pms.
+//   - err: Non-nil when body is not valid PMS JSON.
 func decodePMS(body []byte) (pms.Container, error) {
 	if len(body) == 0 {
 		return pms.Container{}, errEmptyBody
