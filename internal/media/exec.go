@@ -45,67 +45,67 @@ type h264EncodeRequest struct {
 }
 
 const (
-	// DefaultFPS is the default frames per second.
+	// defaultFPS is the default frames per second.
 	defaultFPS = 10
-	// DefaultWidth is the default width.
+	// defaultWidth is the default width.
 	defaultWidth = 480
-	// ProbeTimeoutSec is the probe timeout in seconds.
+	// probeTimeoutSec is the probe timeout in seconds.
 	probeTimeoutSec = 30
-	// OutputFlag is the FFmpeg output flag.
+	// outputFlag is the FFmpeg output flag.
 	outputFlag = "-y"
-	// SsFlag is the FFmpeg seek flag.
+	// ssFlag is the FFmpeg seek flag.
 	ssFlag = "-ss"
-	// InputFlag is the FFmpeg input flag.
+	// inputFlag is the FFmpeg input flag.
 	inputFlag = "-i"
-	// DurationFlag is the FFmpeg duration flag.
+	// durationFlag is the FFmpeg duration flag.
 	durationFlag = "-t"
-	// FramesFlag is the FFmpeg frames flag.
+	// framesFlag is the FFmpeg frames flag.
 	framesFlag = "-frames:v"
-	// QualityFlag is the FFmpeg quality flag.
+	// qualityFlag is the FFmpeg quality flag.
 	qualityFlag = "-q:v"
-	// OverwriteFlag is the FFmpeg overwrite flag.
+	// overwriteFlag is the FFmpeg overwrite flag.
 	overwriteFlag = "+faststart"
-	// CommandDir is the working directory for ffmpeg child processes.
+	// commandDir is the working directory for ffmpeg child processes.
 	commandDir = "/"
-	// WebSafeMovFlags writes a colr atom so browsers agree on Rec.709.
+	// webSafeMovFlags writes a colr atom so browsers agree on Rec.709.
 	webSafeMovFlags = "+faststart+write_colr"
-	// WebSafePeakSecs caps how long a luma-peak pass may sample.
+	// webSafePeakSecs caps how long a luma-peak pass may sample.
 	webSafePeakSecs = 8
-	// SignalstatsFilter prints lavfi.signalstats.YMAX to stderr for peak detect.
+	// signalstatsFilter prints lavfi.signalstats.YMAX to stderr for peak detect.
 	signalstatsFilter = "signalstats,metadata=mode=print"
-	// DefaultVideoCodec is the default video codec.
+	// defaultVideoCodec is the default video codec.
 	defaultVideoCodec = "libx264"
-	// DefaultAudioCodec is the default audio codec.
+	// defaultAudioCodec is the default audio codec.
 	defaultAudioCodec = "aac"
-	// PixelFormatYUV420P is the browser-safe 8-bit 4:2:0 pixel format.
+	// pixelFormatYUV420P is the browser-safe 8-bit 4:2:0 pixel format.
 	pixelFormatYUV420P = "yuv420p"
-	// PixelFormatFlag is the FFmpeg pixel-format flag.
+	// pixelFormatFlag is the FFmpeg pixel-format flag.
 	pixelFormatFlag = "-pix_fmt"
-	// VideoFilterFlag is the FFmpeg video-filter flag.
+	// videoFilterFlag is the FFmpeg video-filter flag.
 	videoFilterFlag = "-vf"
-	// ScaleFlagsLanczos is used for saved clip scaling.
+	// scaleFlagsLanczos is used for saved clip scaling.
 	scaleFlagsLanczos = "lanczos"
-	// ScaleFlagsFast is used for preview scaling.
+	// scaleFlagsFast is used for preview scaling.
 	scaleFlagsFast = "fast_bilinear"
-	// PreviewMaxWidth is the maximum width for preview encodes.
+	// previewMaxWidth is the maximum width for preview encodes.
 	previewMaxWidth = 1280
-	// PreviewCRF is the libx264 CRF for previews.
+	// previewCRF is the libx264 CRF for previews.
 	previewCRF = 30
-	// PreviewPreset is the libx264 preset for previews.
+	// previewPreset is the libx264 preset for previews.
 	previewPreset = "ultrafast"
-	// PreviewAudioKbps is the AAC bitrate for previews.
+	// previewAudioKbps is the AAC bitrate for previews.
 	previewAudioKbps = 96
-	// PreviewMaxSecs caps how long a preview encode may run.
+	// previewMaxSecs caps how long a preview encode may run.
 	previewMaxSecs = 30
-	// AnFlag disables audio decoding.
+	// anFlag disables audio decoding.
 	anFlag = "-an"
-	// UpdateFlag tells image2 to overwrite a single still.
+	// updateFlag tells image2 to overwrite a single still.
 	updateFlag = "-update"
-	// UpdateEnabled is the image2 single-file update value.
+	// updateEnabled is the image2 single-file update value.
 	updateEnabled = "1"
-	// FilterComplexFlag is the FFmpeg filter_complex flag.
+	// filterComplexFlag is the FFmpeg filter_complex flag.
 	filterComplexFlag = "-filter_complex"
-	// GIFScaleHeight keeps GIF scale height even.
+	// gifScaleHeight keeps GIF scale height even.
 	gifScaleHeight = "-2"
 )
 
@@ -113,6 +113,13 @@ const (
 var _ FFmpeg = (*ExecFFmpeg)(nil)
 
 // NewExecFFmpeg creates a new FFmpeg executor.
+//
+// Parameters:
+//   - ffmpegPath: Ffmpeg path.
+//   - ffprobePath: Ffprobe path.
+//
+// Returns:
+//   - execFFmpeg: A new FFmpeg executor.
 func NewExecFFmpeg(ffmpegPath, ffprobePath string) *ExecFFmpeg {
 	return &ExecFFmpeg{
 		ffmpegPath:  ffmpegPath,
@@ -122,6 +129,16 @@ func NewExecFFmpeg(ffmpegPath, ffprobePath string) *ExecFFmpeg {
 }
 
 // DetectCrop samples the source with cropdetect and returns a crop rectangle.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - input: Input text or path.
+//   - start: Start.
+//   - duration: Duration.
+//
+// Returns:
+//   - crop: The crop.
+//   - err: The error, if any.
 func (execFFmpeg *ExecFFmpeg) DetectCrop(
 	ctx context.Context,
 	input string,
@@ -161,6 +178,19 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 }
 
 // ExtractClip extracts a clip from a video.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - input: Input text or path.
+//   - output: Captured command or tool output text.
+//   - start: Start.
+//   - duration: Duration.
+//   - preset: Preset.
+//   - audioIndex: Audio index.
+//   - rect: Rect.
+//
+// Returns:
+//   - err: The error, if any.
 func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	ctx context.Context,
 	input, output string,
@@ -354,6 +384,12 @@ func previewEncodeRequest(
 }
 
 // previewDuration caps a preview window so encodes stay cheap.
+//
+// Parameters:
+//   - duration: Duration.
+//
+// Returns:
+//   - value: The value.
 func previewDuration(duration float64) float64 {
 	if duration < 0 {
 		return 0
@@ -363,11 +399,25 @@ func previewDuration(duration float64) float64 {
 }
 
 // scaleFilter downscales to maxWidth while keeping even dimensions.
+//
+// Parameters:
+//   - maxWidth: Max width.
+//   - flags: Flags.
+//
+// Returns:
+//   - value: The value.
 func scaleFilter(maxWidth int, flags string) string {
 	return fmt.Sprintf("scale=w='trunc(min(%d,iw)/2)*2':h=-2:flags=%s", maxWidth, flags)
 }
 
 // prependCrop puts a valid crop filter in front of an ffmpeg filter chain.
+//
+// Parameters:
+//   - rect: Rect.
+//   - chain: Chain.
+//
+// Returns:
+//   - value: The value.
 func prependCrop(rect CropRect, chain string) string {
 	if !rect.Valid() {
 		return chain
@@ -593,6 +643,19 @@ func gifEncodeArgs(
 }
 
 // ExtractGIF extracts a GIF from a video.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - input: Input text or path.
+//   - output: Captured command or tool output text.
+//   - start: Start.
+//   - duration: Duration.
+//   - width: Width.
+//   - fps: Fps.
+//   - rect: Rect.
+//
+// Returns:
+//   - err: The error, if any.
 func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	ctx context.Context,
 	input, output string,
@@ -649,6 +712,19 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 }
 
 // ExtractPreview writes a short, downscaled, browser-safe preview segment.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - input: Input text or path.
+//   - output: Captured command or tool output text.
+//   - start: Start.
+//   - duration: Duration.
+//   - audioIndex: Audio index.
+//   - rect: Rect.
+//   - preset: Preset.
+//
+// Returns:
+//   - err: The error, if any.
 func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 	ctx context.Context,
 	input, output string,
@@ -685,6 +761,16 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 }
 
 // screenshotEncodeArgs builds the ffmpeg argv for a still frame.
+//
+// Parameters:
+//   - ffmpegPath: Ffmpeg path.
+//   - input: Input text or path.
+//   - output: Captured command or tool output text.
+//   - timestamp: Timestamp.
+//   - rect: Rect.
+//
+// Returns:
+//   - items: The ffmpeg argv for a still frame.
 func screenshotEncodeArgs(
 	ffmpegPath, input, output string,
 	timestamp float64,
@@ -706,6 +792,16 @@ func screenshotEncodeArgs(
 }
 
 // ExtractScreenshot extracts a screenshot from a video.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - input: Input text or path.
+//   - output: Captured command or tool output text.
+//   - timestamp: Timestamp.
+//   - rect: Rect.
+//
+// Returns:
+//   - err: The error, if any.
 func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 	ctx context.Context,
 	input, output string,
@@ -729,6 +825,14 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 }
 
 // Probe probes a media file for information.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - path: Filesystem path.
+//
+// Returns:
+//   - mediaInfo: The media info.
+//   - err: The error, if any.
 func (execFFmpeg *ExecFFmpeg) Probe(ctx context.Context, path string) (MediaInfo, error) {
 	cleanPath := filepath.Clean(path)
 
@@ -760,6 +864,9 @@ func (execFFmpeg *ExecFFmpeg) Probe(ctx context.Context, path string) (MediaInfo
 }
 
 // SetTimeout sets the FFmpeg timeout.
+//
+// Parameters:
+//   - d: D.
 func (execFFmpeg *ExecFFmpeg) SetTimeout(d time.Duration) {
 	execFFmpeg.timeout = d
 }
@@ -770,7 +877,7 @@ func (execFFmpeg *ExecFFmpeg) SetTimeout(d time.Duration) {
 // without a remaster.
 //
 // Parameters:
-//   - ctx: Cancellation and deadline for probe and luma sampling.
+//   - ctx: Cancellation context.
 //   - req: Encode request to update in place.
 func (execFFmpeg *ExecFFmpeg) applyWebSafe(ctx context.Context, req *h264EncodeRequest) {
 	info, err := execFFmpeg.Probe(ctx, req.input)
@@ -804,6 +911,14 @@ func (execFFmpeg *ExecFFmpeg) applyWebSafe(ctx context.Context, req *h264EncodeR
 }
 
 // run executes the FFmpeg command.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - duration: Duration.
+//   - args: Args.
+//
+// Returns:
+//   - err: The error, if any.
 func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ...string) error {
 	logging.Logger.Debug().
 		Strs("args", args).
@@ -845,7 +960,7 @@ func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ..
 // signalstatsYMax samples luma on a short window of the clip.
 //
 // Parameters:
-//   - ctx: Cancellation and deadline for the ffmpeg pass.
+//   - ctx: Cancellation context.
 //   - input: Source media path.
 //   - start: Seek offset in seconds.
 //   - duration: Clip duration in seconds; capped at webSafePeakSecs.
@@ -895,11 +1010,20 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 }
 
 // formatDuration formats a duration in seconds to a string.
+//
+// Parameters:
+//   - seconds: Seconds.
+//
+// Returns:
+//   - value: The value.
 func formatDuration(seconds float64) string {
 	return fmt.Sprintf("%.3f", seconds)
 }
 
 // osRemove removes a file and logs any errors.
+//
+// Parameters:
+//   - path: Filesystem path.
 func osRemove(path string) {
 	err := os.Remove(path)
 	if err != nil {

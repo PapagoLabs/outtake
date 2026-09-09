@@ -15,8 +15,23 @@ type stubClock struct {
 	parse time.Duration
 }
 
+// Format returns the format.
+//
+// Parameters:
+//   - duration: Duration.
+//
+// Returns:
+//   - value: The format.
 func (stubClock) Format(time.Duration) string { return "stub" }
 
+// Parse returns the parse.
+//
+// Parameters:
+//   - string: String.
+//
+// Returns:
+//   - dur: The parse.
+//   - err: The error, if any.
 func (clock stubClock) Parse(string) (time.Duration, error) {
 	return clock.parse, nil
 }

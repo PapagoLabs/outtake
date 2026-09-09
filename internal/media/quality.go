@@ -48,46 +48,101 @@ var QualityPresets = quality.QualityPresets
 var OutputWidths = quality.OutputWidths
 
 // ValidEncoderPreset reports whether name is a supported libx264 preset.
+//
+// Parameters:
+//   - name: Name.
+//
+// Returns:
+//   - ok: True when name is a supported libx264 preset.
 func ValidEncoderPreset(name string) bool {
 	return quality.ValidEncoderPreset(name)
 }
 
 // ValidCRF reports whether crf is in the libx264 range.
+//
+// Parameters:
+//   - crf: Crf.
+//
+// Returns:
+//   - ok: True when crf is in the libx264 range.
 func ValidCRF(crf int) bool {
 	return quality.ValidCRF(crf)
 }
 
 // ValidAudioKbps reports whether kbps is in the allowed AAC range.
+//
+// Parameters:
+//   - kbps: Kbps.
+//
+// Returns:
+//   - ok: True when kbps is in the allowed AAC range.
 func ValidAudioKbps(kbps int) bool {
 	return quality.ValidAudioKbps(kbps)
 }
 
 // NormalizePreset fills missing or invalid encode settings with Medium.
+//
+// Parameters:
+//   - preset: Preset.
+//
+// Returns:
+//   - qualityPreset: The quality preset.
 func NormalizePreset(preset QualityPreset) QualityPreset {
 	return quality.NormalizePreset(preset)
 }
 
 // ValidOutputWidth reports whether width is a supported export width.
+//
+// Parameters:
+//   - width: Width.
+//
+// Returns:
+//   - ok: True when width is a supported export width.
 func ValidOutputWidth(width int) bool {
 	return quality.ValidOutputWidth(width)
 }
 
 // NormalizeOutputWidth returns width if supported, otherwise 1080p.
+//
+// Parameters:
+//   - width: Width.
+//
+// Returns:
+//   - n: The width if supported, otherwise 1080p.
 func NormalizeOutputWidth(width int) int {
 	return quality.NormalizeOutputWidth(width)
 }
 
 // OutputWidthLabel is the UI label for an export width.
+//
+// Parameters:
+//   - width: Width.
+//
+// Returns:
+//   - value: The value.
 func OutputWidthLabel(width int) string {
 	return quality.OutputWidthLabel(width)
 }
 
 // ResolvePreset maps a stored quality id onto ffmpeg settings.
+//
+// Parameters:
+//   - qualityID: Quality id.
+//   - lookup: Lookup.
+//
+// Returns:
+//   - qualityPreset: A stored quality id onto ffmpeg settings.
 func ResolvePreset(qualityID string, lookup func(string) (QualityPreset, bool)) QualityPreset {
 	return quality.ResolvePreset(qualityID, lookup)
 }
 
 // ChannelLayoutName names common speaker layouts.
+//
+// Parameters:
+//   - channels: Channels.
+//
+// Returns:
+//   - value: The value.
 func ChannelLayoutName(channels int) string {
 	return quality.ChannelLayoutName(channels)
 }

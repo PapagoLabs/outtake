@@ -27,10 +27,10 @@ const (
 	// ClipQualityMedium is the medium quality preset.
 	ClipQualityMedium ClipQuality = "medium"
 	// ClipQualityHigh is the high quality preset.
-	ClipQualityHigh ClipQuality = "high"
-	crfLowQuality      = 28
-	crfMediumQuality   = 23
-	crfHighQuality     = 18
+	ClipQualityHigh  ClipQuality = "high"
+	crfLowQuality                = 28
+	crfMediumQuality             = 23
+	crfHighQuality               = 18
 	// MinCRF is the lowest allowed libx264 CRF.
 	MinCRF = 0
 	// MaxCRF is the highest allowed libx264 CRF.
@@ -38,7 +38,7 @@ const (
 	// MinAudioKbps is the lowest allowed AAC bitrate.
 	MinAudioKbps = 64
 	// MaxAudioKbps is the highest allowed AAC bitrate.
-	MaxAudioKbps = 640
+	MaxAudioKbps       = 640
 	audioKbpsLow       = 128
 	audioKbpsMedium    = 192
 	audioKbpsHigh      = 320
@@ -100,21 +100,45 @@ var OutputWidths = []int{
 }
 
 // ValidEncoderPreset reports whether name is a supported libx264 preset.
+//
+// Parameters:
+//   - name: Name.
+//
+// Returns:
+//   - ok: True when name is a supported libx264 preset.
 func ValidEncoderPreset(name string) bool {
 	return slices.Contains(EncoderPresets, name)
 }
 
 // ValidCRF reports whether crf is in the libx264 range.
+//
+// Parameters:
+//   - crf: Crf.
+//
+// Returns:
+//   - ok: True when crf is in the libx264 range.
 func ValidCRF(crf int) bool {
 	return crf >= MinCRF && crf <= MaxCRF
 }
 
 // ValidAudioKbps reports whether kbps is in the allowed AAC range.
+//
+// Parameters:
+//   - kbps: Kbps.
+//
+// Returns:
+//   - ok: True when kbps is in the allowed AAC range.
 func ValidAudioKbps(kbps int) bool {
 	return kbps >= MinAudioKbps && kbps <= MaxAudioKbps
 }
 
 // NormalizePreset fills missing or invalid encode settings with Medium.
+//
+// Parameters:
+//   - preset: Preset.
+//
+// Returns:
+//   - qualityPreset: The quality preset.
 func NormalizePreset(preset QualityPreset) QualityPreset {
 	if !ValidCRF(preset.CRF) || !ValidEncoderPreset(preset.Preset) {
 		return QualityPresets[ClipQualityMedium]
@@ -130,11 +154,23 @@ func NormalizePreset(preset QualityPreset) QualityPreset {
 }
 
 // ValidOutputWidth reports whether width is a supported export width.
+//
+// Parameters:
+//   - width: Width.
+//
+// Returns:
+//   - ok: True when width is a supported export width.
 func ValidOutputWidth(width int) bool {
 	return slices.Contains(OutputWidths, width)
 }
 
 // NormalizeOutputWidth returns width if supported, otherwise 1080p.
+//
+// Parameters:
+//   - width: Width.
+//
+// Returns:
+//   - n: The width if supported, otherwise 1080p.
 func NormalizeOutputWidth(width int) int {
 	if ValidOutputWidth(width) {
 		return width
@@ -144,6 +180,12 @@ func NormalizeOutputWidth(width int) int {
 }
 
 // OutputWidthLabel is the UI label for an export width.
+//
+// Parameters:
+//   - width: Width.
+//
+// Returns:
+//   - value: The value.
 func OutputWidthLabel(width int) string {
 	switch width {
 	case OutputWidth720p:
@@ -160,6 +202,13 @@ func OutputWidthLabel(width int) string {
 }
 
 // ResolvePreset maps a stored quality id onto ffmpeg settings.
+//
+// Parameters:
+//   - qualityID: Quality id.
+//   - lookup: Lookup.
+//
+// Returns:
+//   - qualityPreset: A stored quality id onto ffmpeg settings.
 func ResolvePreset(qualityID string, lookup func(string) (QualityPreset, bool)) QualityPreset {
 	if lookup != nil {
 		if preset, ok := lookup(qualityID); ok {
@@ -175,6 +224,12 @@ func ResolvePreset(qualityID string, lookup func(string) (QualityPreset, bool)) 
 }
 
 // ChannelLayoutName names common speaker layouts.
+//
+// Parameters:
+//   - channels: Channels.
+//
+// Returns:
+//   - value: The value.
 func ChannelLayoutName(channels int) string {
 	switch channels {
 	case channelsMono:

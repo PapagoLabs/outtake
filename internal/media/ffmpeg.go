@@ -46,6 +46,9 @@ type FFmpeg interface {
 const defaultFFmpegTimeoutMinutes = 30
 
 // DefaultFFmpegTimeout returns the default FFmpeg timeout.
+//
+// Returns:
+//   - dur: The default FFmpeg timeout.
 func DefaultFFmpegTimeout() time.Duration {
 	return defaultFFmpegTimeoutMinutes * time.Minute
 }

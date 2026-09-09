@@ -22,19 +22,19 @@ type Writer struct {
 }
 
 const (
-	// PercentScale converts a duration ratio into a percentage.
+	// percentScale converts a duration ratio into a percentage.
 	percentScale = 100
 
-	// MaxReportedPercent caps in-progress reports below completion.
+	// maxReportedPercent caps in-progress reports below completion.
 	maxReportedPercent = 99
 
-	// SecondsBitSize is the bit size used when parsing ffmpeg seconds.
+	// secondsBitSize is the bit size used when parsing ffmpeg seconds.
 	secondsBitSize = 64
 
-	// SecondsPerHour is the number of seconds in one hour.
+	// secondsPerHour is the number of seconds in one hour.
 	secondsPerHour = 3600
 
-	// SecondsPerMinute is the number of seconds in one minute.
+	// secondsPerMinute is the number of seconds in one minute.
 	secondsPerMinute = 60
 )
 
@@ -44,11 +44,11 @@ var timePattern = regexp.MustCompile(`time=(\d+):(\d+):(\d+(?:\.\d+)?)`)
 // WithProgress attaches a progress callback to the context.
 //
 // Parameters:
-//   - ctx: Parent context.
+//   - ctx: Cancellation context.
 //   - fn: Callback that receives a 0-99 percent complete value.
 //
 // Returns:
-//   - ctx: A child context that carries fn.
+//   - ctx: Cancellation context.
 func WithProgress(ctx context.Context, fn func(percent int)) context.Context {
 	return context.WithValue(ctx, key{}, fn)
 }
@@ -56,7 +56,7 @@ func WithProgress(ctx context.Context, fn func(percent int)) context.Context {
 // From returns the progress callback stored on ctx, if any.
 //
 // Parameters:
-//   - ctx: Context that may carry a [WithProgress] callback.
+//   - ctx: Cancellation context.
 //
 // Returns:
 //   - fn: The callback, or nil when none is stored.
@@ -103,6 +103,13 @@ func (writer *Writer) String() string {
 }
 
 // Write implements [io.Writer] and reports ffmpeg time= progress.
+//
+// Parameters:
+//   - p: P.
+//
+// Returns:
+//   - n: The n.
+//   - err: The error, if any.
 func (writer *Writer) Write(p []byte) (int, error) {
 	written, err := writer.buf.Write(p)
 	if err != nil {
@@ -135,6 +142,14 @@ func (writer *Writer) report() {
 }
 
 // parseHMS converts an ffmpeg timestamp into seconds.
+//
+// Parameters:
+//   - hours: Hours.
+//   - minutes: Minutes.
+//   - seconds: Seconds.
+//
+// Returns:
+//   - value: The value.
 func parseHMS(hours, minutes, seconds string) float64 {
 	parsedHours, err := strconv.Atoi(hours)
 	if err != nil {

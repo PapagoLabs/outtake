@@ -24,27 +24,27 @@ type Size struct {
 }
 
 const (
-	// CropdetectLimit is the 8-bit black threshold used as limit=N/255.
+	// cropdetectLimit is the 8-bit black threshold used as limit=N/255.
 	cropdetectLimit = 24
-	// CropdetectLimitDen is the 8-bit range for the cropdetect limit.
+	// cropdetectLimitDen is the 8-bit range for the cropdetect limit.
 	cropdetectLimitDen = 255
-	// CropdetectRound rounds crop dimensions to even values.
+	// cropdetectRound rounds crop dimensions to even values.
 	cropdetectRound = 2
-	// CropdetectReset keeps running bounds across sampled frames.
+	// cropdetectReset keeps running bounds across sampled frames.
 	cropdetectReset = 0
-	// CropdetectMaxSecs is how long a cropdetect pass may sample.
+	// cropdetectMaxSecs is how long a cropdetect pass may sample.
 	cropdetectMaxSecs = 3
-	// NullOutput is ffmpeg's null muxer sink.
+	// nullOutput is ffmpeg's null muxer sink.
 	nullOutput = "-"
-	// OutputFlag is the FFmpeg overwrite flag.
+	// outputFlag is the FFmpeg overwrite flag.
 	outputFlag = "-y"
-	// SsFlag is the FFmpeg seek flag.
+	// ssFlag is the FFmpeg seek flag.
 	ssFlag = "-ss"
-	// InputFlag is the FFmpeg input flag.
+	// inputFlag is the FFmpeg input flag.
 	inputFlag = "-i"
-	// DurationFlag is the FFmpeg duration flag.
+	// durationFlag is the FFmpeg duration flag.
 	durationFlag = "-t"
-	// VideoFilterFlag is the FFmpeg video-filter flag.
+	// videoFilterFlag is the FFmpeg video-filter flag.
 	videoFilterFlag = "-vf"
 )
 
@@ -180,6 +180,12 @@ func DetectArgs(ffmpegPath, input string, start, duration float64) []string {
 }
 
 // cropdetectDuration caps how long cropdetect samples the source.
+//
+// Parameters:
+//   - duration: Duration.
+//
+// Returns:
+//   - value: The value.
 func cropdetectDuration(duration float64) float64 {
 	if duration <= 0 {
 		return cropdetectMaxSecs
@@ -211,6 +217,12 @@ func ParseStreamSize(output string) Size {
 }
 
 // formatDuration formats a duration in seconds to a string.
+//
+// Parameters:
+//   - seconds: Seconds.
+//
+// Returns:
+//   - value: The value.
 func formatDuration(seconds float64) string {
 	return fmt.Sprintf("%.3f", seconds)
 }

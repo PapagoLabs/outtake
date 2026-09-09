@@ -65,17 +65,24 @@ type probeOutput struct {
 }
 
 const (
-	// BitRateBits is the bit size for integer parsing.
+	// bitRateBits is the bit size for integer parsing.
 	bitRateBits = 64
-	// DecimalBase is the base 10 for integer parsing.
+	// decimalBase is the base 10 for integer parsing.
 	decimalBase = 10
-	// EmptyVideoCodec is an empty video codec placeholder.
+	// emptyVideoCodec is an empty video codec placeholder.
 	emptyVideoCodec = ""
-	// EmptyAudioCodec is an empty audio codec placeholder.
+	// emptyAudioCodec is an empty audio codec placeholder.
 	emptyAudioCodec = ""
 )
 
 // ParseOutput parses the ffprobe output.
+//
+// Parameters:
+//   - data: Data.
+//
+// Returns:
+//   - mediaInfo: The ffprobe output.
+//   - err: The error, if any.
 func ParseOutput(data []byte) (MediaInfo, error) {
 	var output probeOutput
 
@@ -103,6 +110,10 @@ func ParseOutput(data []byte) (MediaInfo, error) {
 }
 
 // parseDuration parses the duration from the probe output.
+//
+// Parameters:
+//   - output: Output.
+//   - info: Info.
 func parseDuration(output probeOutput, info *MediaInfo) {
 	if output.Format.Duration == "" {
 		return
@@ -115,6 +126,10 @@ func parseDuration(output probeOutput, info *MediaInfo) {
 }
 
 // parseBitRate parses the bit rate from the probe output.
+//
+// Parameters:
+//   - output: Output.
+//   - info: Info.
 func parseBitRate(output probeOutput, info *MediaInfo) {
 	if output.Format.BitRate == "" {
 		return
@@ -127,6 +142,10 @@ func parseBitRate(output probeOutput, info *MediaInfo) {
 }
 
 // parseStreams parses the streams from the probe output.
+//
+// Parameters:
+//   - output: Output.
+//   - info: Info.
 func parseStreams(output probeOutput, info *MediaInfo) {
 	for index := range output.Streams {
 		parseStream(output.Streams[index], info)
@@ -134,6 +153,10 @@ func parseStreams(output probeOutput, info *MediaInfo) {
 }
 
 // parseStream parses a single stream from the probe output.
+//
+// Parameters:
+//   - stream: Stream.
+//   - info: Info.
 func parseStream(stream probeStream, info *MediaInfo) {
 	switch stream.CodecType {
 	case "video":
@@ -160,6 +183,12 @@ func parseStream(stream probeStream, info *MediaInfo) {
 }
 
 // audioTitle prefers a stream title, then the handler name tag.
+//
+// Parameters:
+//   - tags: Tags.
+//
+// Returns:
+//   - value: The value.
 func audioTitle(tags probeTags) string {
 	if tags.Title != "" {
 		return tags.Title
