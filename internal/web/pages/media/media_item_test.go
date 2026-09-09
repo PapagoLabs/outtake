@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package pages
+package media
 
 import (
 	"strings"
@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const testMovie = "Movie"
 
 func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	t.Parallel()

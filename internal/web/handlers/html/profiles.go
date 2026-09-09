@@ -17,7 +17,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
-	"github.com/PapagoLabs/outtake/internal/web/pages"
+	"github.com/PapagoLabs/outtake/internal/web/pages/settings"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -48,7 +48,7 @@ var (
 // ClipProfiles renders the clip profile settings page.
 func (handler *HTMLHandler) ClipProfiles(ctx fiber.Ctx) error {
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.ClipProfiles(pages.ClipProfilesProps{
+		return settings.ClipProfiles(settings.ClipProfilesProps{
 			Profiles: toClipProfileItems(handler.storedClipProfiles(ctx)),
 			Presets:  media.EncoderPresets,
 			Widths:   outputWidthOptions(),
@@ -234,13 +234,13 @@ func parseProfileInt(raw string, valid func(int) bool) (int, bool) {
 }
 
 // toClipProfileItems maps stored profiles onto page view models.
-func toClipProfileItems(profiles []database.ClipProfile) []pages.ClipProfileItem {
-	items := make([]pages.ClipProfileItem, 0, len(profiles))
+func toClipProfileItems(profiles []database.ClipProfile) []settings.ClipProfileItem {
+	items := make([]settings.ClipProfileItem, 0, len(profiles))
 
 	for i := range profiles {
 		profile := profiles[i]
 
-		items = append(items, pages.ClipProfileItem{
+		items = append(items, settings.ClipProfileItem{
 			ID:        profile.ID,
 			Name:      profile.Name,
 			CRF:       profile.CRF,
@@ -255,11 +255,11 @@ func toClipProfileItems(profiles []database.ClipProfile) []pages.ClipProfileItem
 }
 
 // outputWidthOptions lists selectable clip export widths.
-func outputWidthOptions() []pages.OutputWidthOption {
-	options := make([]pages.OutputWidthOption, 0, len(media.OutputWidths))
+func outputWidthOptions() []settings.OutputWidthOption {
+	options := make([]settings.OutputWidthOption, 0, len(media.OutputWidths))
 
 	for _, width := range media.OutputWidths {
-		options = append(options, pages.OutputWidthOption{
+		options = append(options, settings.OutputWidthOption{
 			Width: width,
 			Label: media.OutputWidthLabel(width),
 		})

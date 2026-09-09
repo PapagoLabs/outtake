@@ -31,7 +31,12 @@ import (
 	clipapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/clip"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
-	"github.com/PapagoLabs/outtake/internal/web/pages"
+
+	"github.com/PapagoLabs/outtake/internal/web/pages/auth"
+	"github.com/PapagoLabs/outtake/internal/web/pages/clips"
+	"github.com/PapagoLabs/outtake/internal/web/pages/dashboard"
+	mediapage "github.com/PapagoLabs/outtake/internal/web/pages/media"
+	"github.com/PapagoLabs/outtake/internal/web/pages/settings"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -109,7 +114,7 @@ func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 // Clips handles the clips list page request.
 func (handler *HTMLHandler) Clips(ctx fiber.Ctx) error {
 	query := clipapi.ParseListQuery(ctx)
-	props := pages.ClipsProps{
+	props := clips.ClipsProps{
 		Items:  handler.jobsToClipItems(ctx, clipapi.ApplyListQuery(handler.listJobs(ctx), query)),
 		Status: query.Status,
 		Type:   query.Type,
@@ -119,12 +124,12 @@ func (handler *HTMLHandler) Clips(ctx fiber.Ctx) error {
 
 	if wantsClipList(ctx) {
 		return shared.RenderHTML(ctx, func(writer io.Writer) error {
-			return pages.ClipsList(props).Render(ctx.Context(), writer)
+			return clips.ClipsList(props).Render(ctx.Context(), writer)
 		})
 	}
 
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.Clips(props).Render(ctx.Context(), writer)
+		return clips.Clips(props).Render(ctx.Context(), writer)
 	})
 }
 
@@ -134,7 +139,7 @@ func (handler *HTMLHandler) Dashboard(ctx fiber.Ctx) error {
 	stats := clipStats(jobs)
 
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.Dashboard(pages.DashboardProps{
+		return dashboard.Dashboard(dashboard.DashboardProps{
 			TotalClips:   stats.total,
 			PendingClips: stats.pending,
 			Completed:    stats.completed,
@@ -147,7 +152,7 @@ func (handler *HTMLHandler) Dashboard(ctx fiber.Ctx) error {
 // DashboardSessions renders the live-sessions fragment for HTMX polling.
 func (handler *HTMLHandler) DashboardSessions(ctx fiber.Ctx) error {
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.LiveSessions(handler.sessionItems()).Render(ctx.Context(), writer)
+		return dashboard.LiveSessions(handler.sessionItems()).Render(ctx.Context(), writer)
 	})
 }
 
@@ -159,7 +164,7 @@ func (*HTMLHandler) Login(ctx fiber.Ctx) error {
 	}
 
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.Login(pages.LoginProps{
+		return auth.Login(auth.LoginProps{
 			AuthURL: ctx.Query("authUrl"),
 			Error:   ctx.Query(shared.QueryError),
 		}).Render(ctx.Context(), writer)
@@ -259,7 +264,7 @@ func renderMediaPage(ctx fiber.Ctx, props *view.MediaProps) error {
 		})
 	default:
 		return shared.RenderHTML(ctx, func(writer io.Writer) error {
-			return pages.Media(*props).Render(ctx.Context(), writer)
+			return mediapage.Media(*props).Render(ctx.Context(), writer)
 		})
 	}
 }
@@ -291,7 +296,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		end = start + shared.DefaultSegmentSecs
 	}
 
-	props := pages.MediaItemPageProps{
+	props := mediapage.MediaItemPageProps{
 		ID:            id,
 		Title:         id,
 		Type:          "",
@@ -322,7 +327,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	}
 
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.MediaItemPage(props).Render(ctx.Context(), writer)
+		return mediapage.MediaItemPage(props).Render(ctx.Context(), writer)
 	})
 }
 
@@ -355,7 +360,7 @@ func (handler *HTMLHandler) MediaItemClips(ctx fiber.Ctx) error {
 	}
 
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.ItemClipList(clips, query.Filtered()).Render(ctx.Context(), writer)
+		return mediapage.ItemClipList(clips, query.Filtered()).Render(ctx.Context(), writer)
 	})
 }
 
@@ -520,7 +525,7 @@ func (handler *HTMLHandler) Servers(ctx fiber.Ctx) error {
 	current, _ := handler.bind.Get()
 
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.Servers(pages.ServersProps{
+		return settings.Servers(settings.ServersProps{
 			Servers: toServerItems(handler.discoverServers(ctx), current),
 			Error:   ctx.Query(shared.QueryError),
 		}).Render(ctx.Context(), writer)
@@ -898,16 +903,16 @@ func (handler *HTMLHandler) plexPair() (*plex.Client, plex.Server, bool) {
 }
 
 // sessionItems converts live Plex sessions into page models.
-func (handler *HTMLHandler) sessionItems() []pages.SessionItem {
+func (handler *HTMLHandler) sessionItems() []dashboard.SessionItem {
 	sessions := handler.bind.Sessions()
-	items := make([]pages.SessionItem, 0, len(sessions))
+	items := make([]dashboard.SessionItem, 0, len(sessions))
 
 	for index := range sessions {
 		sess := &sessions[index]
 
 		parts, year := sessionTitleParts(sess.MediaItem)
 
-		items = append(items, pages.SessionItem{
+		items = append(items, dashboard.SessionItem{
 			ID:         sess.ID,
 			MediaID:    sess.MediaItem.ID,
 			Parts:      parts,
@@ -1278,10 +1283,10 @@ func toMediaItems(
 }
 
 // toServerItems maps discovered servers onto page models.
-func toServerItems(servers []plex.Server, current plex.Server) []pages.ServerItem {
-	out := make([]pages.ServerItem, 0, len(servers))
+func toServerItems(servers []plex.Server, current plex.Server) []settings.ServerItem {
+	out := make([]settings.ServerItem, 0, len(servers))
 	for _, server := range servers {
-		out = append(out, pages.ServerItem{
+		out = append(out, settings.ServerItem{
 			Name:     server.Name,
 			Address:  server.Address,
 			Port:     server.Port,

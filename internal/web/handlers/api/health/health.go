@@ -4,8 +4,9 @@
 package health
 
 import (
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	fiber "github.com/gofiber/fiber/v3"
+
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
 // HealthHandler handles health check requests.

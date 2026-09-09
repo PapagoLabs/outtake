@@ -11,7 +11,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/web/api"
-	"github.com/PapagoLabs/outtake/internal/web/pages"
+	pageerror "github.com/PapagoLabs/outtake/internal/web/pages/error"
 )
 
 // HttpErrorView is the status and copy for an HTML or JSON error response.
@@ -44,7 +44,7 @@ func PageError(ctx fiber.Ctx, err error) error {
 	ctx.Set(HeaderContentType, ContentTypeHTML)
 	ctx.Status(view.code)
 
-	err = pages.ErrorPage(pages.ErrorPageProps{
+	err = pageerror.ErrorPage(pageerror.ErrorPageProps{
 		Title:   view.title,
 		Message: view.message,
 		Status:  view.code,

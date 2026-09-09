@@ -9,12 +9,12 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
-	"github.com/PapagoLabs/outtake/internal/web/pages"
+	"github.com/PapagoLabs/outtake/internal/web/pages/settings"
 )
 
 // Appearance renders the color palette settings page.
 func (*HTMLHandler) Appearance(ctx fiber.Ctx) error {
 	return shared.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.Appearance().Render(ctx.Context(), writer)
+		return settings.Appearance().Render(ctx.Context(), writer)
 	})
 }
