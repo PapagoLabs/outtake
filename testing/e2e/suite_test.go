@@ -21,6 +21,7 @@ func TestE2E(t *testing.T) {
 	RunSpecs(t, "Outtake E2E Suite")
 }
 
+// loadEnv loads e2e environment variables from testing/e2e/.env.
 func loadEnv() {
 	paths := []string{"testing/e2e/.env", ".env"}
 	var file *os.File

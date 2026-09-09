@@ -434,6 +434,10 @@ var _ = Describe("Plex", func() {
 	})
 })
 
+// getPlexServerConfig loads Plex server settings from the e2e environment.
+//
+// Returns:
+//   - server: Configured Plex server.
 func getPlexServerConfig() plex.Server {
 	GinkgoHelper()
 
@@ -461,6 +465,13 @@ func getPlexServerConfig() plex.Server {
 	}
 }
 
+// newPlexClient constructs a Plex API client for server.
+//
+// Parameters:
+//   - server: Plex server connection details.
+//
+// Returns:
+//   - client: Plex API client.
 func newPlexClient(server plex.Server) *plex.Client {
 	GinkgoHelper()
 

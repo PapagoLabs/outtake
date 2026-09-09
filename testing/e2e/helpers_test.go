@@ -106,6 +106,10 @@ var _ = AfterSuite(func() {
 	}
 })
 
+// resolveFFmpegPath returns the ffmpeg binary path for e2e tests.
+//
+// Returns:
+//   - path: Path to ffmpeg.
 func resolveFFmpegPath() string {
 	path, err := exec.LookPath("ffmpeg")
 	if err == nil {
@@ -115,6 +119,10 @@ func resolveFFmpegPath() string {
 	return "ffmpeg"
 }
 
+// resolveFFprobePath returns the ffprobe binary path for e2e tests.
+//
+// Returns:
+//   - path: Path to ffprobe.
 func resolveFFprobePath() string {
 	path, err := exec.LookPath("ffprobe")
 	if err == nil {
@@ -124,6 +132,13 @@ func resolveFFprobePath() string {
 	return "ffprobe"
 }
 
+// generateTestVideo writes a short synthetic test video under mediaDir.
+//
+// Parameters:
+//   - mediaDir: Directory for the generated file.
+//
+// Returns:
+//   - path: Absolute path to the generated video.
 func generateTestVideo(mediaDir string) string {
 	Expect(os.MkdirAll(mediaDir, 0o755)).To(Succeed())
 
@@ -146,10 +161,25 @@ func generateTestVideo(mediaDir string) string {
 	return testVideo
 }
 
+// testMediaID returns a stable synthetic media ID for absPath.
+//
+// Parameters:
+//   - absPath: Absolute media file path.
+//
+// Returns:
+//   - id: Media identifier.
 func testMediaID(absPath string) string {
 	return absPath
 }
 
+// doRequest performs an HTTP request against the e2e server.
+//
+// Parameters:
+//   - method: HTTP method.
+//   - path: Request path.
+//
+// Returns:
+//   - resp: HTTP response.
 func doRequest(method, path string) *http.Response {
 	GinkgoHelper()
 
@@ -162,6 +192,13 @@ func doRequest(method, path string) *http.Response {
 	return resp
 }
 
+// doJSONRequest posts JSON body to the e2e create-clip endpoint.
+//
+// Parameters:
+//   - body: Value encoded as JSON.
+//
+// Returns:
+//   - resp: HTTP response.
 func doJSONRequest(body any) *http.Response {
 	GinkgoHelper()
 
@@ -183,6 +220,13 @@ func doJSONRequest(body any) *http.Response {
 	return resp
 }
 
+// decodeClipResponse decodes a clip JSON response body.
+//
+// Parameters:
+//   - body: Response body bytes.
+//
+// Returns:
+//   - clip: Decoded clip payload.
 func decodeClipResponse(body []byte) clipapi.ClipResponse {
 	GinkgoHelper()
 
@@ -193,6 +237,13 @@ func decodeClipResponse(body []byte) clipapi.ClipResponse {
 	return resp
 }
 
+// decodeListResponse decodes a media list JSON response body.
+//
+// Parameters:
+//   - body: Response body bytes.
+//
+// Returns:
+//   - list: Decoded list payload.
 func decodeListResponse(body []byte) mediaapi.MediaListResponse {
 	GinkgoHelper()
 
@@ -203,6 +254,13 @@ func decodeListResponse(body []byte) mediaapi.MediaListResponse {
 	return resp
 }
 
+// decodeErrorResponse decodes an error JSON response body.
+//
+// Parameters:
+//   - body: Response body bytes.
+//
+// Returns:
+//   - payload: Decoded error payload.
 func decodeErrorResponse(body []byte) respond.ErrorResponse {
 	GinkgoHelper()
 
@@ -213,6 +271,12 @@ func decodeErrorResponse(body []byte) respond.ErrorResponse {
 	return resp
 }
 
+// waitForClipStatus polls until the clip reaches expectedStatus or times out.
+//
+// Parameters:
+//   - jobID: Clip job ID.
+//   - expectedStatus: Desired status string.
+//   - timeout: Maximum time to wait.
 func waitForClipStatus(jobID, expectedStatus string, timeout time.Duration) {
 	GinkgoHelper()
 

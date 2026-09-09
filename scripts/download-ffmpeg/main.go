@@ -20,6 +20,7 @@ const (
 	defaultDest = "/build"
 )
 
+// main downloads static ffmpeg and ffprobe into FFMPEG_DEST (default /build).
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -27,6 +28,10 @@ func main() {
 	}
 }
 
+// run downloads, verifies, extracts, and installs ffmpeg and ffprobe.
+//
+// Returns:
+//   - err: The error, if any.
 func run() error {
 	ctx := context.Background()
 
@@ -92,6 +97,14 @@ func run() error {
 	return nil
 }
 
+// download fetches url into a temporary file.
+//
+// Parameters:
+//   - url: Remote file URL.
+//
+// Returns:
+//   - path: Local temporary file path.
+//   - err: The error, if any.
 func download(url string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -115,6 +128,12 @@ func download(url string) (string, error) {
 	return f.Name(), nil
 }
 
+// targetArch returns the ffmpeg build architecture.
+//
+// Uses FFMPEG_ARCH when set; otherwise [runtime.GOARCH].
+//
+// Returns:
+//   - arch: Target architecture name (amd64 or arm64).
 func targetArch() string {
 	if arch := os.Getenv("FFMPEG_ARCH"); arch != "" {
 		return arch
@@ -122,6 +141,15 @@ func targetArch() string {
 	return runtime.GOARCH
 }
 
+// releaseURLs builds johnvansickle release URLs for goarch.
+//
+// Parameters:
+//   - goarch: Go architecture (amd64 or arm64).
+//
+// Returns:
+//   - archiveURL: Archive download URL.
+//   - checksumURL: MD5 checksum file URL.
+//   - filename: Archive basename.
 func releaseURLs(goarch string) (archiveURL, checksumURL, filename string) {
 	arch := "amd64"
 	if goarch == "arm64" {
@@ -135,6 +163,15 @@ func releaseURLs(goarch string) (archiveURL, checksumURL, filename string) {
 	return archiveURL, checksumURL, filename
 }
 
+// parseChecksum reads the MD5 hex digest for filename from a checksum file.
+//
+// Parameters:
+//   - path: Local checksum file path.
+//   - filename: Archive basename to match.
+//
+// Returns:
+//   - sum: Expected MD5 hex digest.
+//   - err: The error, if any.
 func parseChecksum(path, filename string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -153,6 +190,14 @@ func parseChecksum(path, filename string) (string, error) {
 	return "", fmt.Errorf("checksum for %s not found", filename)
 }
 
+// md5File returns the MD5 hex digest of a file.
+//
+// Parameters:
+//   - path: File to hash.
+//
+// Returns:
+//   - sum: MD5 hex digest.
+//   - err: The error, if any.
 func md5File(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -166,6 +211,15 @@ func md5File(path string) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+// extractTarXz extracts a .tar.xz archive into dest.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - archivePath: Path to the archive file.
+//   - dest: Destination directory.
+//
+// Returns:
+//   - err: The error, if any.
 func extractTarXz(ctx context.Context, archivePath, dest string) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
@@ -216,6 +270,17 @@ func extractTarXz(ctx context.Context, archivePath, dest string) error {
 	})
 }
 
+// findBin locates an executable named name under root.
+//
+// Prefers a bin/ directory when multiple matches exist.
+//
+// Parameters:
+//   - root: Directory tree to search.
+//   - name: Executable basename (ffmpeg or ffprobe).
+//
+// Returns:
+//   - path: Absolute path to the binary.
+//   - err: The error, if any.
 func findBin(root, name string) (string, error) {
 	var found string
 
@@ -249,6 +314,14 @@ func findBin(root, name string) (string, error) {
 	return found, nil
 }
 
+// copyFile copies src to dst with executable permissions.
+//
+// Parameters:
+//   - src: Source file path.
+//   - dst: Destination file path.
+//
+// Returns:
+//   - err: The error, if any.
 func copyFile(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
