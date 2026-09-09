@@ -12,10 +12,10 @@ package clip
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
 import (
-	"strconv"
-
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
+
+	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/badge"
@@ -23,18 +23,18 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
-	"github.com/PapagoLabs/outtake/internal/web/view"
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
 func statusBadgeVariant(status string) badge.Variant {
 	switch status {
-	case view.ClipStatusCompleted:
+	case viewclip.ClipStatusCompleted:
 		return badge.VariantDefault
-	case view.ClipStatusPending, view.ClipStatusProcessing:
+	case viewclip.ClipStatusPending, viewclip.ClipStatusProcessing:
 		return badge.VariantSecondary
-	case view.ClipStatusFailed:
+	case viewclip.ClipStatusFailed:
 		return badge.VariantDestructive
-	case view.ClipStatusCancelled:
+	case viewclip.ClipStatusCancelled:
 		return badge.VariantOutline
 	default:
 		return badge.VariantOutline
@@ -45,7 +45,7 @@ func clipFileURL(id string) templ.SafeURL {
 	return templ.SafeURL("/clips/" + id + "/file")
 }
 
-func clipPlayback(item view.ClipItem) templ.Component {
+func clipPlayback(item viewclip.ClipItem) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -130,7 +130,7 @@ func clipPlayback(item view.ClipItem) templ.Component {
 	})
 }
 
-func clipFileBadge(item view.ClipItem) templ.Component {
+func clipFileBadge(item viewclip.ClipItem) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -151,7 +151,7 @@ func clipFileBadge(item view.ClipItem) templ.Component {
 			templ_7745c5c3_Var5 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		if !item.IsActive() && !item.FileExists && item.Status != view.ClipStatusCancelled {
+		if !item.IsActive() && !item.FileExists && item.Status != viewclip.ClipStatusCancelled {
 			templ_7745c5c3_Var6 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
@@ -179,7 +179,7 @@ func clipFileBadge(item view.ClipItem) templ.Component {
 	})
 }
 
-func ClipCard(item view.ClipItem) templ.Component {
+func ClipCard(item viewclip.ClipItem) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -364,9 +364,9 @@ func ClipCard(item view.ClipItem) templ.Component {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var18 string
-				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(view.ClipTypeLabel(item.ClipType))
+				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(viewclip.ClipTypeLabel(item.ClipType))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 85, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/clip/clip.templ`, Line: 85, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {

@@ -12,13 +12,14 @@ import (
 	"time"
 	"uuid"
 
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/pages/settings"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 const (
@@ -126,14 +127,14 @@ func (handler *HTMLHandler) storedClipProfiles(ctx fiber.Ctx) []database.ClipPro
 }
 
 // clipProfileOptions maps stored profiles onto form select options.
-func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []view.ClipProfileOption {
+func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []viewclip.ClipProfileOption {
 	profiles := handler.storedClipProfiles(ctx)
-	options := make([]view.ClipProfileOption, 0, len(profiles))
+	options := make([]viewclip.ClipProfileOption, 0, len(profiles))
 
 	for i := range profiles {
 		profile := profiles[i]
 
-		options = append(options, view.ClipProfileOption{
+		options = append(options, viewclip.ClipProfileOption{
 			ID:        profile.ID,
 			Name:      profile.Name,
 			IsDefault: profile.IsDefault,
@@ -148,8 +149,8 @@ func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []view.ClipProfile
 }
 
 // builtinProfileOptions is used when the profile table cannot be read.
-func builtinProfileOptions() []view.ClipProfileOption {
-	return []view.ClipProfileOption{
+func builtinProfileOptions() []viewclip.ClipProfileOption {
+	return []viewclip.ClipProfileOption{
 		{ID: string(media.ClipQualityLow), Name: "Low", IsDefault: false},
 		{ID: string(media.ClipQualityMedium), Name: "Medium", IsDefault: true},
 		{ID: string(media.ClipQualityHigh), Name: "High", IsDefault: false},

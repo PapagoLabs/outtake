@@ -5,12 +5,12 @@
 package quality
 
 import (
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 	"strconv"
 
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-func qualityOptionSelected(profile view.ClipProfileOption, selected string) bool {
+func qualityOptionSelected(profile viewclip.ClipProfileOption, selected string) bool {
 	if selected == "" {
 		return profile.IsDefault
 	}
@@ -18,7 +18,7 @@ func qualityOptionSelected(profile view.ClipProfileOption, selected string) bool
 	return profile.ID == selected
 }
 
-templ AudioSelect(id string, tracks []view.AudioTrackOption, selected int) {
+templ AudioSelect(id string, tracks []viewclip.AudioTrackOption, selected int) {
 	if len(tracks) == 0 {
 		<input type="hidden" name="audioIndex" value={ strconv.Itoa(selected) }/>
 	} else {
@@ -34,7 +34,7 @@ templ AudioSelect(id string, tracks []view.AudioTrackOption, selected int) {
 	}
 }
 
-templ QualitySelect(id string, profiles []view.ClipProfileOption, selected string) {
+templ QualitySelect(id string, profiles []viewclip.ClipProfileOption, selected string) {
 	<select id={ id } name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30">
 		for _, profile := range profiles {
 			if qualityOptionSelected(profile, selected) {

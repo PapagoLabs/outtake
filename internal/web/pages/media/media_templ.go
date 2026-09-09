@@ -17,7 +17,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
-	"github.com/PapagoLabs/outtake/internal/web/view"
+
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 func mediaNavActive(libraryID string) string {
@@ -28,7 +29,7 @@ func mediaNavActive(libraryID string) string {
 	return ""
 }
 
-func Media(props view.MediaProps) templ.Component {
+func Media(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

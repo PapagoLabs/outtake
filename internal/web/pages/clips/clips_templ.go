@@ -16,11 +16,12 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
-	"github.com/PapagoLabs/outtake/internal/web/view"
+
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
 type ClipsProps struct {
-	Items  []view.ClipItem
+	Items  []viewclip.ClipItem
 	Status string
 	Type   string
 	Query  string

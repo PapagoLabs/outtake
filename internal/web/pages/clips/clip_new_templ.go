@@ -22,7 +22,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
-	"github.com/PapagoLabs/outtake/internal/web/view"
+
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
 type NewClipProps struct {
@@ -32,8 +33,8 @@ type NewClipProps struct {
 	StartTime     float64
 	Duration      float64
 	MaxDur        int
-	Profiles      []view.ClipProfileOption
-	AudioTracks   []view.AudioTrackOption
+	Profiles      []viewclip.ClipProfileOption
+	AudioTracks   []viewclip.AudioTrackOption
 	CropBlackBars bool
 	WebSafeColor  bool
 }

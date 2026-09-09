@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	viewplayback "github.com/PapagoLabs/outtake/internal/web/view/playback"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestPlaybackPanelMarkButtons(t *testing.T) {
@@ -18,7 +18,7 @@ func TestPlaybackPanelMarkButtons(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := PlaybackPanel(view.Playback{
+	err := PlaybackPanel(viewplayback.Playback{
 		Playing:    true,
 		ViewOffset: 90,
 		Title:      "",

@@ -4,6 +4,7 @@
 package clips
 
 import (
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
@@ -13,7 +14,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type NewClipProps struct {
@@ -23,8 +23,8 @@ type NewClipProps struct {
 	StartTime     float64
 	Duration      float64
 	MaxDur        int
-	Profiles      []view.ClipProfileOption
-	AudioTracks   []view.AudioTrackOption
+	Profiles      []viewclip.ClipProfileOption
+	AudioTracks   []viewclip.AudioTrackOption
 	CropBlackBars bool
 	WebSafeColor  bool
 }

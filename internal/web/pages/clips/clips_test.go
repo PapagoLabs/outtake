@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestClipsToolbar(t *testing.T) {
@@ -20,7 +20,7 @@ func TestClipsToolbar(t *testing.T) {
 
 	err := Clips(ClipsProps{
 		Items:  nil,
-		Status: view.ClipStatusPending,
+		Status: viewclip.ClipStatusPending,
 		Type:   "gif",
 		Query:  "intro",
 		Sort:   "name_asc",

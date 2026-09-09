@@ -13,11 +13,12 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // mediaListQuery is the media library browse query state.
@@ -241,13 +242,13 @@ func plexMediaSort(sort string) string {
 //
 // Returns:
 //   - letters: Non-empty letters with jump offsets.
-func toLetterIndexes(index []plex.LetterIndex) []view.LetterIndex {
-	letters := make([]view.LetterIndex, 0, len(index))
+func toLetterIndexes(index []plex.LetterIndex) []viewmedia.LetterIndex {
+	letters := make([]viewmedia.LetterIndex, 0, len(index))
 	start := 0
 
 	for _, entry := range index {
 		if entry.Size > 0 {
-			letters = append(letters, view.LetterIndex{
+			letters = append(letters, viewmedia.LetterIndex{
 				Title: entry.Title,
 				Size:  entry.Size,
 				Start: start,
@@ -268,7 +269,7 @@ func toLetterIndexes(index []plex.LetterIndex) []view.LetterIndex {
 //
 // Returns:
 //   - letters: A thinned list of rail marks.
-func thinJumpIndexes(letters []view.LetterIndex, sort string) []view.LetterIndex {
+func thinJumpIndexes(letters []viewmedia.LetterIndex, sort string) []viewmedia.LetterIndex {
 	if len(letters) <= maxJumpLabels {
 		return letters
 	}
@@ -309,12 +310,12 @@ func yearTickStep(n int) int {
 //
 // Returns:
 //   - letters: Thinned numeric marks.
-func thinNumericTitles(letters []view.LetterIndex, step int) []view.LetterIndex {
+func thinNumericTitles(letters []viewmedia.LetterIndex, step int) []viewmedia.LetterIndex {
 	if step <= 1 || len(letters) <= jumpSampleEnds {
 		return letters
 	}
 
-	out := make([]view.LetterIndex, 0, maxJumpLabels)
+	out := make([]viewmedia.LetterIndex, 0, maxJumpLabels)
 	last := len(letters) - 1
 
 	for i, letter := range letters {
@@ -360,12 +361,12 @@ func keepNumericTitle(index, last int, title string, step int) bool {
 //
 // Returns:
 //   - letters: Thinned month marks.
-func thinMonthTitles(letters []view.LetterIndex) []view.LetterIndex {
+func thinMonthTitles(letters []viewmedia.LetterIndex) []viewmedia.LetterIndex {
 	if len(letters) <= maxJumpLabels {
 		return letters
 	}
 
-	yearly := make([]view.LetterIndex, 0)
+	yearly := make([]viewmedia.LetterIndex, 0)
 	lastYear := ""
 
 	for _, letter := range letters {
@@ -408,13 +409,13 @@ func monthJumpYear(title string) string {
 //
 // Returns:
 //   - letters: Sampled marks.
-func sampleJumpIndexes(letters []view.LetterIndex, limit int) []view.LetterIndex {
+func sampleJumpIndexes(letters []viewmedia.LetterIndex, limit int) []viewmedia.LetterIndex {
 	if len(letters) <= limit || limit < jumpSampleEnds {
 		return letters
 	}
 
 	last := len(letters) - 1
-	out := []view.LetterIndex{letters[0]}
+	out := []viewmedia.LetterIndex{letters[0]}
 
 	out = appendInnerJumpMarks(out, letters, limit-jumpSampleEnds, last)
 
@@ -436,9 +437,9 @@ func sampleJumpIndexes(letters []view.LetterIndex, limit int) []view.LetterIndex
 // Returns:
 //   - out: Marks with interior samples appended.
 func appendInnerJumpMarks(
-	out, letters []view.LetterIndex,
+	out, letters []viewmedia.LetterIndex,
 	inner, last int,
-) []view.LetterIndex {
+) []viewmedia.LetterIndex {
 	for i := 1; i <= inner; i++ {
 		idx := i * last / (inner + 1)
 		if idx <= 0 || idx >= last || out[len(out)-1].Title == letters[idx].Title {

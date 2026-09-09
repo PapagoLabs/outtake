@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package view
+package clip
 
 // ClipItem is one clip card on the clips list and media item pages.
 type ClipItem struct {

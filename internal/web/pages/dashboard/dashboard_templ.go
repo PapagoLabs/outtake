@@ -10,21 +10,21 @@ package dashboard
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
 import (
-	"strconv"
-
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
+
+	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
-	"github.com/PapagoLabs/outtake/internal/web/view"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 type SessionItem struct {
 	ID         string
 	MediaID    string
-	Parts      []view.Crumb
+	Parts      []viewmedia.Crumb
 	Year       int
 	ViewOffset float64
 	Duration   float64

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -19,7 +21,6 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestParseMediaListQuery(t *testing.T) {
@@ -205,10 +206,10 @@ func TestYearIndexes(t *testing.T) {
 func TestThinJumpIndexesYearsUseDecades(t *testing.T) {
 	t.Parallel()
 
-	letters := make([]view.LetterIndex, 0, 93)
+	letters := make([]viewmedia.LetterIndex, 0, 93)
 	start := 0
 	for year := 2026; year >= 1934; year-- {
-		letters = append(letters, view.LetterIndex{
+		letters = append(letters, viewmedia.LetterIndex{
 			Title: strconv.Itoa(year),
 			Size:  1,
 			Start: start,
@@ -234,7 +235,7 @@ func TestThinJumpIndexesYearsUseDecades(t *testing.T) {
 func TestThinJumpIndexesKeepsShortLists(t *testing.T) {
 	t.Parallel()
 
-	letters := []view.LetterIndex{
+	letters := []viewmedia.LetterIndex{
 		{Title: "2026", Size: 4, Start: 0},
 		{Title: "2025", Size: 2, Start: 4},
 		{Title: "2024", Size: 1, Start: 6},
@@ -246,13 +247,13 @@ func TestThinJumpIndexesKeepsShortLists(t *testing.T) {
 func TestThinMonthTitlesKeepsOnePerYear(t *testing.T) {
 	t.Parallel()
 
-	letters := make([]view.LetterIndex, 0, 40)
+	letters := make([]viewmedia.LetterIndex, 0, 40)
 
 	for i := range 40 {
 		year := 2026 - i/12
 		month := 12 - i%12
 
-		letters = append(letters, view.LetterIndex{
+		letters = append(letters, viewmedia.LetterIndex{
 			Title: time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC).Format("01/2006"),
 			Size:  1,
 			Start: i,
@@ -317,7 +318,7 @@ func TestToLetterIndexesOmitsEmpty(t *testing.T) {
 		{Title: "B", Size: 12},
 	})
 
-	assert.Equal(t, []view.LetterIndex{
+	assert.Equal(t, []viewmedia.LetterIndex{
 		{Title: "#", Size: 3, Start: 0},
 		{Title: "B", Size: 12, Start: 3},
 	}, got)

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestMediaResultsEmptyLibraryHidesChooser(t *testing.T) {
@@ -19,12 +19,12 @@ func TestMediaResultsEmptyLibraryHidesChooser(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaResults(view.MediaProps{
+	err := MediaResults(viewmedia.MediaProps{
 		Items: nil,
-		Libraries: []view.LibraryItem{
+		Libraries: []viewmedia.LibraryItem{
 			{ID: "1", Title: "Movies", Type: "movie"},
 		},
-		Crumbs: []view.Crumb{
+		Crumbs: []viewmedia.Crumb{
 			{Title: "Libraries", URL: "/media"},
 			{Title: "Movies", URL: "/media?library=1"},
 		},
@@ -44,12 +44,12 @@ func TestMediaResultsEmptyFolderHidesChooser(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaResults(view.MediaProps{
+	err := MediaResults(viewmedia.MediaProps{
 		Items: nil,
-		Libraries: []view.LibraryItem{
+		Libraries: []viewmedia.LibraryItem{
 			{ID: "1", Title: "Movies", Type: "movie"},
 		},
-		Crumbs: []view.Crumb{
+		Crumbs: []viewmedia.Crumb{
 			{Title: "Libraries", URL: "/media"},
 			{Title: "Movies", URL: "/media?library=1"},
 			{Title: "Show", URL: "/media?library=1&parent=2"},
@@ -71,13 +71,13 @@ func TestMediaBrowseLibraryRoot(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaBrowse(view.MediaProps{
-		Items: []view.MediaItem{
+	err := MediaBrowse(viewmedia.MediaProps{
+		Items: []viewmedia.MediaItem{
 			{ID: "10", Title: "Movie", Type: "movie"},
 		},
 		LibraryID: "1",
 		Sort:      "title_asc",
-		Letters: []view.LetterIndex{
+		Letters: []viewmedia.LetterIndex{
 			{Title: "#", Size: 3, Start: 0},
 			{Title: "A", Size: 40, Start: 3},
 			{Title: "M", Size: 8, Start: 43},
@@ -127,13 +127,13 @@ func TestMediaBrowseShowsYearsForYearSort(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaBrowse(view.MediaProps{
-		Items: []view.MediaItem{
+	err := MediaBrowse(viewmedia.MediaProps{
+		Items: []viewmedia.MediaItem{
 			{ID: "10", Title: "Movie", Type: "movie", Year: 1995},
 		},
 		LibraryID: "1",
 		Sort:      "year_desc",
-		Letters: []view.LetterIndex{
+		Letters: []viewmedia.LetterIndex{
 			{Title: "1995", Size: 40, Start: 0},
 		},
 		Start:     0,
@@ -158,14 +158,14 @@ func TestMediaBrowseOmitsLettersOnSearch(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaBrowse(view.MediaProps{
-		Items: []view.MediaItem{
+	err := MediaBrowse(viewmedia.MediaProps{
+		Items: []viewmedia.MediaItem{
 			{ID: "10", Title: "Movie", Type: "movie"},
 		},
 		LibraryID: "1",
 		Query:     "movie",
 		Sort:      "title_asc",
-		Letters: []view.LetterIndex{
+		Letters: []viewmedia.LetterIndex{
 			{Title: "M", Size: 8, Start: 43},
 		},
 		Total:     1,
@@ -186,8 +186,8 @@ func TestMediaBrowseOmitsLettersOnParent(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaBrowse(view.MediaProps{
-		Items: []view.MediaItem{
+	err := MediaBrowse(viewmedia.MediaProps{
+		Items: []viewmedia.MediaItem{
 			{ID: "11", Title: "Season 1", Type: "season"},
 		},
 		LibraryID: "1",
@@ -211,8 +211,8 @@ func TestMediaBrowseParentInfiniteScroll(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaBrowse(view.MediaProps{
-		Items: []view.MediaItem{
+	err := MediaBrowse(viewmedia.MediaProps{
+		Items: []viewmedia.MediaItem{
 			{ID: "11", Title: "Episode 1", Type: "episode"},
 		},
 		LibraryID: "1",
@@ -236,8 +236,8 @@ func TestMediaResultsChooserLinksLibraries(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaResults(view.MediaProps{
-		Libraries: []view.LibraryItem{
+	err := MediaResults(viewmedia.MediaProps{
+		Libraries: []viewmedia.LibraryItem{
 			{ID: "1", Title: "Movies", Type: "movie"},
 			{ID: "2", Title: "TV Shows", Type: "show"},
 		},
@@ -258,18 +258,18 @@ func TestMediaResultsChooserLinksLibraries(t *testing.T) {
 func TestJumpKey(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "M", jumpKey(view.MediaItem{Title: "The Movie", TitleSort: "Movie"}, "title_asc"))
-	assert.Equal(t, "#", jumpKey(view.MediaItem{Title: "2 Movie"}, "title_asc"))
-	assert.Equal(t, "1995", jumpKey(view.MediaItem{Year: 1995}, "year_desc"))
-	assert.Equal(t, "#", jumpKey(view.MediaItem{}, "year_asc"))
-	assert.Equal(t, "03/2024", jumpKey(view.MediaItem{AddedAt: time.Date(2024, 3, 15, 0, 0, 0, 0, time.Local).Unix()}, "added_desc"))
+	assert.Equal(t, "M", jumpKey(viewmedia.MediaItem{Title: "The Movie", TitleSort: "Movie"}, "title_asc"))
+	assert.Equal(t, "#", jumpKey(viewmedia.MediaItem{Title: "2 Movie"}, "title_asc"))
+	assert.Equal(t, "1995", jumpKey(viewmedia.MediaItem{Year: 1995}, "year_desc"))
+	assert.Equal(t, "#", jumpKey(viewmedia.MediaItem{}, "year_asc"))
+	assert.Equal(t, "03/2024", jumpKey(viewmedia.MediaItem{AddedAt: time.Date(2024, 3, 15, 0, 0, 0, 0, time.Local).Unix()}, "added_desc"))
 }
 
 func TestItemURL(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "/media/item/10", string(itemURL(view.MediaItem{ID: "10", Title: "Movie"})))
-	assert.Equal(t, "/media?library=1&parent=9", string(itemURL(view.MediaItem{
+	assert.Equal(t, "/media/item/10", string(itemURL(viewmedia.MediaItem{ID: "10", Title: "Movie"})))
+	assert.Equal(t, "/media?library=1&parent=9", string(itemURL(viewmedia.MediaItem{
 		ID:        "9",
 		Browsable: true,
 		BrowseURL: "/media?library=1&parent=9",
@@ -281,7 +281,7 @@ func TestMediaCardPosterLinksToItem(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := mediaCard(view.MediaItem{
+	err := mediaCard(viewmedia.MediaItem{
 		ID:        "10",
 		Title:     "Movie",
 		Type:      "movie",
@@ -300,7 +300,7 @@ func TestMediaCardPosterLinksToBrowse(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := mediaCard(view.MediaItem{
+	err := mediaCard(viewmedia.MediaItem{
 		ID:        "9",
 		Title:     "Show",
 		Type:      "show",
@@ -318,11 +318,11 @@ func TestMediaCardPosterLinksToBrowse(t *testing.T) {
 func TestNextPageURLKeepsSortOmitsLetter(t *testing.T) {
 	t.Parallel()
 
-	got := nextPageURL(view.MediaProps{
+	got := nextPageURL(viewmedia.MediaProps{
 		LibraryID: "1",
 		Sort:      "title_asc",
 		Letter:    "M",
-		Items:     []view.MediaItem{{ID: "1"}, {ID: "2"}},
+		Items:     []viewmedia.MediaItem{{ID: "1"}, {ID: "2"}},
 		Start:     43,
 	})
 
@@ -337,11 +337,11 @@ func TestMediaMoreOmitsCrumbs(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := MediaMore(view.MediaProps{
-		Items: []view.MediaItem{
+	err := MediaMore(viewmedia.MediaProps{
+		Items: []viewmedia.MediaItem{
 			{ID: "10", Title: "Movie", Type: "movie"},
 		},
-		Crumbs: []view.Crumb{
+		Crumbs: []viewmedia.Crumb{
 			{Title: "Libraries", URL: "/media"},
 			{Title: "Movies", URL: "/media?library=1"},
 		},

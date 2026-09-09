@@ -13,6 +13,10 @@ import (
 	"strings"
 	"time"
 
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+	viewplayback "github.com/PapagoLabs/outtake/internal/web/view/playback"
+
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/rs/zerolog/log"
 
@@ -37,7 +41,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/pages/dashboard"
 	mediapage "github.com/PapagoLabs/outtake/internal/web/pages/media"
 	"github.com/PapagoLabs/outtake/internal/web/pages/settings"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // HTMLHandler handles HTML page requests.
@@ -203,7 +206,7 @@ func mediaPageProps(
 	handler *HTMLHandler,
 	ctx fiber.Ctx,
 	query mediaListQuery,
-) view.MediaProps {
+) viewmedia.MediaProps {
 	var letters []plex.LetterIndex
 
 	if !wantsMediaMore(ctx) && !wantsMediaPrev(ctx) {
@@ -214,7 +217,7 @@ func mediaPageProps(
 	_, _, hasServer := handler.plexPair()
 	items, libraries, total := handler.mediaContent(ctx, query, window.Start, window.Size)
 
-	return view.MediaProps{
+	return viewmedia.MediaProps{
 		Items:     items,
 		Libraries: chooserLibraries(libraries, query.Query, query.LibraryID),
 		Crumbs: mediaCrumbs(
@@ -248,7 +251,7 @@ func mediaPageProps(
 //
 // Returns:
 //   - err: Non-nil when rendering fails.
-func renderMediaPage(ctx fiber.Ctx, props *view.MediaProps) error {
+func renderMediaPage(ctx fiber.Ctx, props *viewmedia.MediaProps) error {
 	switch {
 	case wantsMediaPrev(ctx):
 		return shared.RenderHTML(ctx, func(writer io.Writer) error {
@@ -464,7 +467,7 @@ func mediaItemLocation(mediaID string, values url.Values) string {
 // Playback renders live Plex playback for a media item.
 func (handler *HTMLHandler) Playback(ctx fiber.Ctx) error {
 	mediaID := ctx.Params(paramID)
-	props := view.Playback{
+	props := viewplayback.Playback{
 		Playing:    false,
 		ViewOffset: 0,
 		Title:      "",
@@ -569,7 +572,7 @@ func (handler *HTMLHandler) clipMaxDur() int {
 }
 
 // clipsForMedia returns clip cards for one media id.
-func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []view.ClipItem {
+func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []viewclip.ClipItem {
 	jobs, err := handler.db.ListClipsForMedia(ctx.Context(), mediaID)
 	if err != nil {
 		return nil
@@ -598,8 +601,8 @@ func (handler *HTMLHandler) discoverServers(ctx fiber.Ctx) []plex.Server {
 }
 
 // jobsToClipItems converts jobs into page models.
-func (handler *HTMLHandler) jobsToClipItems(ctx fiber.Ctx, jobs []*queue.Job) []view.ClipItem {
-	items := make([]view.ClipItem, 0, len(jobs))
+func (handler *HTMLHandler) jobsToClipItems(ctx fiber.Ctx, jobs []*queue.Job) []viewclip.ClipItem {
+	items := make([]viewclip.ClipItem, 0, len(jobs))
 
 	for _, job := range jobs {
 		items = append(
@@ -660,7 +663,7 @@ func (handler *HTMLHandler) lookupClip(ctx fiber.Ctx, id string) *queue.Job {
 func (handler *HTMLHandler) mediaAudioTracks(
 	ctx fiber.Ctx,
 	mediaID string,
-) []view.AudioTrackOption {
+) []viewclip.AudioTrackOption {
 	// Skip probing when the media id is missing.
 	if mediaID == "" {
 		return nil
@@ -689,11 +692,11 @@ func (handler *HTMLHandler) mediaAudioTracks(
 }
 
 // audioTrackOptions maps probed streams onto select options.
-func audioTrackOptions(tracks []media.AudioTrack) []view.AudioTrackOption {
-	options := make([]view.AudioTrackOption, 0, len(tracks))
+func audioTrackOptions(tracks []media.AudioTrack) []viewclip.AudioTrackOption {
+	options := make([]viewclip.AudioTrackOption, 0, len(tracks))
 
 	for _, track := range tracks {
-		options = append(options, view.AudioTrackOption{
+		options = append(options, viewclip.AudioTrackOption{
 			Index: track.Index,
 			Label: audioTrackLabel(track),
 		})
@@ -730,7 +733,7 @@ func audioTrackLabel(track media.AudioTrack) string {
 }
 
 // chooserLibraries returns library cards only for the root media view.
-func chooserLibraries(libraries []view.LibraryItem, query, libraryID string) []view.LibraryItem {
+func chooserLibraries(libraries []viewmedia.LibraryItem, query, libraryID string) []viewmedia.LibraryItem {
 	if query != "" || libraryID != "" {
 		return nil
 	}
@@ -754,7 +757,7 @@ func (handler *HTMLHandler) mediaContent(
 	ctx fiber.Ctx,
 	query mediaListQuery,
 	start, size int,
-) ([]view.MediaItem, []view.LibraryItem, int) {
+) ([]viewmedia.MediaItem, []viewmedia.LibraryItem, int) {
 	plexClient, server, ok := handler.plexPair()
 	if !ok {
 		return nil, nil, 0
@@ -825,7 +828,7 @@ func searchMediaContent(
 	plexClient *plex.Client,
 	server plex.Server,
 	query, libraryID string,
-) ([]view.MediaItem, []view.LibraryItem, int) {
+) ([]viewmedia.MediaItem, []viewmedia.LibraryItem, int) {
 	found, err := plexClient.SearchOnServer(ctx.Context(), server, query, libraryID)
 	if err != nil {
 		log.Warn().Err(err).Msg("media search failed")
@@ -863,7 +866,7 @@ func listMediaContent(
 	server plex.Server,
 	query mediaListQuery,
 	start, size int,
-) ([]view.MediaItem, []view.LibraryItem, int) {
+) ([]viewmedia.MediaItem, []viewmedia.LibraryItem, int) {
 	libs, err := plexClient.GetLibraries(ctx.Context(), server)
 	if err != nil {
 		log.Warn().Err(err).Msg("list libraries failed")
@@ -926,7 +929,7 @@ func (handler *HTMLHandler) sessionItems() []dashboard.SessionItem {
 }
 
 // sidebarLibraries lists libraries for the sidebar.
-func (handler *HTMLHandler) sidebarLibraries(ctx fiber.Ctx) []view.LibraryItem {
+func (handler *HTMLHandler) sidebarLibraries(ctx fiber.Ctx) []viewmedia.LibraryItem {
 	plexClient, server, ok := handler.plexPair()
 	if !ok {
 		return nil
@@ -994,7 +997,7 @@ func clipFileExists(path string) bool {
 }
 
 // clipProfileName returns a stored profile's display name.
-func clipProfileName(quality string, profiles []view.ClipProfileOption) string {
+func clipProfileName(quality string, profiles []viewclip.ClipProfileOption) string {
 	for _, profile := range profiles {
 		if profile.ID == quality {
 			return profile.Name
@@ -1005,8 +1008,8 @@ func clipProfileName(quality string, profiles []view.ClipProfileOption) string {
 }
 
 // toClipItem maps a job onto a clips-page card.
-func toClipItem(job *queue.Job, profiles []view.ClipProfileOption, maxDur int) view.ClipItem {
-	return view.ClipItem{
+func toClipItem(job *queue.Job, profiles []viewclip.ClipProfileOption, maxDur int) viewclip.ClipItem {
+	return viewclip.ClipItem{
 		ID:            job.ID,
 		Name:          job.Name,
 		MediaID:       job.MediaID,
@@ -1033,10 +1036,10 @@ func toClipItem(job *queue.Job, profiles []view.ClipProfileOption, maxDur int) v
 }
 
 // toLibraryItems maps Plex libraries onto page models.
-func toLibraryItems(libs []plex.Library) []view.LibraryItem {
-	out := make([]view.LibraryItem, 0, len(libs))
+func toLibraryItems(libs []plex.Library) []viewmedia.LibraryItem {
+	out := make([]viewmedia.LibraryItem, 0, len(libs))
 	for _, lib := range libs {
-		out = append(out, view.LibraryItem{
+		out = append(out, viewmedia.LibraryItem{
 			ID:        lib.ID,
 			Title:     lib.Title,
 			Type:      lib.Type,
@@ -1092,8 +1095,8 @@ func listMediaPage(
 }
 
 // mediaCrumbs builds the library / show / season trail.
-func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string) []view.Crumb {
-	crumbs := []view.Crumb{{Title: "Libraries", URL: shared.PathMedia}}
+func mediaCrumbs(libs []viewmedia.LibraryItem, libraryID, upID, upTitle, title string) []viewmedia.Crumb {
+	crumbs := []viewmedia.Crumb{{Title: "Libraries", URL: shared.PathMedia}}
 	if libraryID == "" {
 		return crumbs
 	}
@@ -1109,7 +1112,7 @@ func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string
 
 	libURL := shared.PathMedia + "?library=" + url.QueryEscape(libraryID)
 
-	crumbs = append(crumbs, view.Crumb{Title: libTitle, URL: libURL})
+	crumbs = append(crumbs, viewmedia.Crumb{Title: libTitle, URL: libURL})
 
 	if upID != "" {
 		upURL := libURL + "&parent=" + url.QueryEscape(
@@ -1118,30 +1121,30 @@ func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string
 			upTitle,
 		)
 
-		crumbs = append(crumbs, view.Crumb{Title: upTitle, URL: upURL})
+		crumbs = append(crumbs, viewmedia.Crumb{Title: upTitle, URL: upURL})
 	}
 
 	if title != "" {
-		crumbs = append(crumbs, view.Crumb{Title: title, URL: ""})
+		crumbs = append(crumbs, viewmedia.Crumb{Title: title, URL: ""})
 	}
 
 	return crumbs
 }
 
 // sessionTitleParts builds dashboard title crumbs for a live session.
-func sessionTitleParts(item plex.MediaItem) ([]view.Crumb, int) {
+func sessionTitleParts(item plex.MediaItem) ([]viewmedia.Crumb, int) {
 	if item.Type != plex.TypeEpisode {
 		if item.Title == "" {
 			return displayTitleCrumb(item), 0
 		}
 
-		return []view.Crumb{{Title: item.Title, URL: sessionItemURL(item.ID)}}, item.Year
+		return []viewmedia.Crumb{{Title: item.Title, URL: sessionItemURL(item.ID)}}, item.Year
 	}
 
-	var parts []view.Crumb
+	var parts []viewmedia.Crumb
 
 	if item.GrandparentTitle != "" {
-		parts = append(parts, view.Crumb{
+		parts = append(parts, viewmedia.Crumb{
 			Title: item.GrandparentTitle,
 			URL: sessionBrowseURL(
 				item.LibraryID,
@@ -1154,7 +1157,7 @@ func sessionTitleParts(item plex.MediaItem) ([]view.Crumb, int) {
 	}
 
 	if label := seasonSessionLabel(item); label != "" {
-		parts = append(parts, view.Crumb{
+		parts = append(parts, viewmedia.Crumb{
 			Title: label,
 			URL: sessionBrowseURL(
 				item.LibraryID,
@@ -1167,7 +1170,7 @@ func sessionTitleParts(item plex.MediaItem) ([]view.Crumb, int) {
 	}
 
 	if item.Title != "" {
-		parts = append(parts, view.Crumb{Title: item.Title, URL: sessionItemURL(item.ID)})
+		parts = append(parts, viewmedia.Crumb{Title: item.Title, URL: sessionItemURL(item.ID)})
 	}
 
 	if len(parts) == 0 {
@@ -1178,13 +1181,13 @@ func sessionTitleParts(item plex.MediaItem) ([]view.Crumb, int) {
 }
 
 // displayTitleCrumb is a plain-text fallback when structured parts are missing.
-func displayTitleCrumb(item plex.MediaItem) []view.Crumb {
+func displayTitleCrumb(item plex.MediaItem) []viewmedia.Crumb {
 	title := item.DisplayTitle()
 	if title == "" {
 		return nil
 	}
 
-	return []view.Crumb{{Title: title}}
+	return []viewmedia.Crumb{{Title: title}}
 }
 
 // seasonSessionLabel returns ParentTitle, or Season N from ParentIndex.
@@ -1246,9 +1249,9 @@ func thumbSrc(path string) string {
 func toMediaItems(
 	items []plex.MediaItem,
 	libraryID, parentID, parentTitle string,
-) []view.MediaItem {
+) []viewmedia.MediaItem {
 	// Preserve input order while mapping onto page models.
-	out := make([]view.MediaItem, 0, len(items))
+	out := make([]viewmedia.MediaItem, 0, len(items))
 	for index := range items {
 		item := items[index]
 		libID := libraryID
@@ -1261,7 +1264,7 @@ func toMediaItems(
 			episodeLabel = plex.EpisodeCode(item.ParentIndex, item.Index)
 		}
 
-		out = append(out, view.MediaItem{
+		out = append(out, viewmedia.MediaItem{
 			ID:           item.ID,
 			Title:        item.Title,
 			Type:         item.Type,
@@ -1303,8 +1306,8 @@ func toServerItems(servers []plex.Server, current plex.Server) []settings.Server
 // clipMatchesStatus reports whether a clip belongs to a status filter.
 func clipMatchesStatus(itemStatus, want string) bool {
 	switch want {
-	case view.ClipStatusPending:
-		return itemStatus == view.ClipStatusPending || itemStatus == view.ClipStatusProcessing
+	case viewclip.ClipStatusPending:
+		return itemStatus == viewclip.ClipStatusPending || itemStatus == viewclip.ClipStatusProcessing
 	default:
 		return itemStatus == want
 	}
@@ -1330,22 +1333,22 @@ func pageStart(raw string) int {
 }
 
 // itemCrumbs builds Libraries / library / show / season / title for a media item.
-func itemCrumbs(item plex.MediaItem, libs []view.LibraryItem) []view.Crumb {
-	crumbs := []view.Crumb{{Title: "Libraries", URL: shared.PathMedia}}
+func itemCrumbs(item plex.MediaItem, libs []viewmedia.LibraryItem) []viewmedia.Crumb {
+	crumbs := []viewmedia.Crumb{{Title: "Libraries", URL: shared.PathMedia}}
 
 	crumbs = appendLibraryCrumb(crumbs, item, libs)
 	crumbs = appendShowCrumbs(crumbs, item)
-	crumbs = append(crumbs, view.Crumb{Title: item.Title, URL: ""})
+	crumbs = append(crumbs, viewmedia.Crumb{Title: item.Title, URL: ""})
 
 	return crumbs
 }
 
 // appendLibraryCrumb adds the owning library when its id is known.
 func appendLibraryCrumb(
-	crumbs []view.Crumb,
+	crumbs []viewmedia.Crumb,
 	item plex.MediaItem,
-	libs []view.LibraryItem,
-) []view.Crumb {
+	libs []viewmedia.LibraryItem,
+) []viewmedia.Crumb {
 	if item.LibraryID == "" {
 		return crumbs
 	}
@@ -1363,16 +1366,16 @@ func appendLibraryCrumb(
 		title = item.LibraryID
 	}
 
-	return append(crumbs, view.Crumb{
+	return append(crumbs, viewmedia.Crumb{
 		Title: title,
 		URL:   shared.PathMedia + "?library=" + url.QueryEscape(item.LibraryID),
 	})
 }
 
 // appendShowCrumbs adds show and season links for episodes.
-func appendShowCrumbs(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
+func appendShowCrumbs(crumbs []viewmedia.Crumb, item plex.MediaItem) []viewmedia.Crumb {
 	if item.GrandparentID != "" && item.GrandparentTitle != "" {
-		crumbs = append(crumbs, view.Crumb{
+		crumbs = append(crumbs, viewmedia.Crumb{
 			Title: item.GrandparentTitle,
 			URL:   browseURL(item.LibraryID, item.GrandparentID, item.GrandparentTitle, "", ""),
 		})
@@ -1387,7 +1390,7 @@ func appendShowCrumbs(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
 		seasonTitle = "Season"
 	}
 
-	return append(crumbs, view.Crumb{
+	return append(crumbs, viewmedia.Crumb{
 		Title: seasonTitle,
 		URL: browseURL(
 			item.LibraryID,
@@ -1400,12 +1403,12 @@ func appendShowCrumbs(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
 }
 
 // appendSeasonShowCrumb adds the parent show for a season item.
-func appendSeasonShowCrumb(crumbs []view.Crumb, item plex.MediaItem) []view.Crumb {
+func appendSeasonShowCrumb(crumbs []viewmedia.Crumb, item plex.MediaItem) []viewmedia.Crumb {
 	if item.Type != plex.TypeSeason || item.ParentID == "" || item.ParentTitle == "" {
 		return crumbs
 	}
 
-	return append(crumbs, view.Crumb{
+	return append(crumbs, viewmedia.Crumb{
 		Title: item.ParentTitle,
 		URL:   browseURL(item.LibraryID, item.ParentID, item.ParentTitle, "", ""),
 	})

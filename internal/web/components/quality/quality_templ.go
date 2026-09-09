@@ -12,15 +12,15 @@ package quality
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
 import (
-	"strconv"
-
 	"github.com/a-h/templ"
 	templruntime "github.com/a-h/templ/runtime"
 
-	"github.com/PapagoLabs/outtake/internal/web/view"
+	"strconv"
+
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
-func qualityOptionSelected(profile view.ClipProfileOption, selected string) bool {
+func qualityOptionSelected(profile viewclip.ClipProfileOption, selected string) bool {
 	if selected == "" {
 		return profile.IsDefault
 	}
@@ -28,7 +28,7 @@ func qualityOptionSelected(profile view.ClipProfileOption, selected string) bool
 	return profile.ID == selected
 }
 
-func AudioSelect(id string, tracks []view.AudioTrackOption, selected int) templ.Component {
+func AudioSelect(id string, tracks []viewclip.AudioTrackOption, selected int) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -159,7 +159,7 @@ func AudioSelect(id string, tracks []view.AudioTrackOption, selected int) templ.
 	})
 }
 
-func QualitySelect(id string, profiles []view.ClipProfileOption, selected string) templ.Component {
+func QualitySelect(id string, profiles []viewclip.ClipProfileOption, selected string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

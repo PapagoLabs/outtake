@@ -7,29 +7,29 @@ import (
 	"strings"
 	"testing"
 
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestClipCard(t *testing.T) {
 	t.Parallel()
 
-	base := view.ClipItem{
+	base := viewclip.ClipItem{
 		ID:          "c1",
 		Name:        "Intro",
 		MediaID:     "42",
 		MediaTitle:  "Movie",
 		ClipType:    "clip",
-		Status:      view.ClipStatusCompleted,
+		Status:      viewclip.ClipStatusCompleted,
 		Progress:    100,
 		CreatedAt:   "2026-01-01T00:00:00Z",
 		StartTime:   1,
 		Duration:    5,
 		Quality:     "archive",
 		ProfileName: "Archive",
-		Profiles: []view.ClipProfileOption{
+		Profiles: []viewclip.ClipProfileOption{
 			{ID: "archive", Name: "Archive", IsDefault: false},
 		},
 		FileExists:    true,
@@ -41,7 +41,7 @@ func TestClipCard(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		tweak       func(*view.ClipItem)
+		tweak       func(*viewclip.ClipItem)
 		contains    []string
 		notContains []string
 	}{
@@ -66,7 +66,7 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "falls back to media title",
-			tweak: func(item *view.ClipItem) {
+			tweak: func(item *viewclip.ClipItem) {
 				item.Name = ""
 			},
 			contains: []string{
@@ -77,7 +77,7 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "missing file",
-			tweak: func(item *view.ClipItem) {
+			tweak: func(item *viewclip.ClipItem) {
 				item.FileExists = false
 			},
 			contains: []string{"Missing file"},
@@ -89,7 +89,7 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "failed status",
-			tweak: func(item *view.ClipItem) {
+			tweak: func(item *viewclip.ClipItem) {
 				item.Status = "failed"
 				item.FileExists = false
 				item.Error = "ffmpeg exited 1"
@@ -99,11 +99,11 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "canceled status",
-			tweak: func(item *view.ClipItem) {
-				item.Status = view.ClipStatusCancelled
+			tweak: func(item *viewclip.ClipItem) {
+				item.Status = viewclip.ClipStatusCancelled
 				item.FileExists = false
 			},
-			contains: []string{view.ClipStatusCancelled},
+			contains: []string{viewclip.ClipStatusCancelled},
 			notContains: []string{
 				"Missing file",
 				"On disk",
@@ -112,7 +112,7 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "gif preview",
-			tweak: func(item *view.ClipItem) {
+			tweak: func(item *viewclip.ClipItem) {
 				item.ClipType = "gif"
 				item.Width = 640
 				item.FPS = 12
@@ -133,7 +133,7 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "screenshot preview",
-			tweak: func(item *view.ClipItem) {
+			tweak: func(item *viewclip.ClipItem) {
 				item.ClipType = "screenshot"
 			},
 			contains: []string{
@@ -149,8 +149,8 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "active polling hides preview",
-			tweak: func(item *view.ClipItem) {
-				item.Status = view.ClipStatusProcessing
+			tweak: func(item *viewclip.ClipItem) {
+				item.Status = viewclip.ClipStatusProcessing
 				item.Progress = 40
 				item.FileExists = false
 			},
@@ -171,8 +171,8 @@ func TestClipCard(t *testing.T) {
 		},
 		{
 			name: "audio tracks",
-			tweak: func(item *view.ClipItem) {
-				item.AudioTracks = []view.AudioTrackOption{
+			tweak: func(item *viewclip.ClipItem) {
+				item.AudioTracks = []viewclip.AudioTrackOption{
 					{Index: 0, Label: "eng · aac"},
 				}
 			},
@@ -221,7 +221,7 @@ func TestListToolbar(t *testing.T) {
 		Action:  "/clips",
 		Target:  "clip-list",
 		PushURL: true,
-		Status:  view.ClipStatusCompleted,
+		Status:  viewclip.ClipStatusCompleted,
 		Type:    "gif",
 		Query:   "intro",
 		Sort:    "name_asc",

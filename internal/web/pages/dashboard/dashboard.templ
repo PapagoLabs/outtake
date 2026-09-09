@@ -4,18 +4,18 @@
 package dashboard
 
 import (
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type SessionItem struct {
 	ID         string
 	MediaID    string
-	Parts      []view.Crumb
+	Parts      []viewmedia.Crumb
 	Year       int
 	ViewOffset float64
 	Duration   float64

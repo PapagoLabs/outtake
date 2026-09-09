@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,7 +19,6 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 const testMovie = "Movie"
@@ -43,7 +44,7 @@ func TestParseClipListQuery(t *testing.T) {
 		{
 			give: "/clips?type=gif&q=Intro&sort=name_asc&status=completed",
 			want: ListQuery{
-				Status: view.ClipStatusCompleted,
+				Status: viewclip.ClipStatusCompleted,
 				Type:   clipTypeGIF,
 				Query:  "Intro",
 				Sort:   clipSortNameAsc,
@@ -81,13 +82,13 @@ func TestApplyClipListQuery(t *testing.T) {
 			"Alpha",
 			testMovie,
 			clipTypeClip,
-			view.ClipStatusCompleted,
+			viewclip.ClipStatusCompleted,
 			older,
 			latest,
 		),
-		listJob(idNewGIF, "bravo", "Other", clipTypeGIF, view.ClipStatusPending, newer, older),
-		listJob(idTieZ, "", testMovie, clipTypeClip, view.ClipStatusProcessing, newer, newer),
-		listJob(idTieA, "", testMovie, clipTypeScreenshot, view.ClipStatusFailed, newer, newer),
+		listJob(idNewGIF, "bravo", "Other", clipTypeGIF, viewclip.ClipStatusPending, newer, older),
+		listJob(idTieZ, "", testMovie, clipTypeClip, viewclip.ClipStatusProcessing, newer, newer),
+		listJob(idTieA, "", testMovie, clipTypeScreenshot, viewclip.ClipStatusFailed, newer, newer),
 	}
 
 	tests := []struct {
@@ -142,13 +143,13 @@ func TestApplyClipListQuery(t *testing.T) {
 		},
 		{
 			name:  "pending includes processing",
-			query: ListQuery{Status: view.ClipStatusPending, Sort: clipSortCreatedDesc},
+			query: ListQuery{Status: viewclip.ClipStatusPending, Sort: clipSortCreatedDesc},
 			want:  []string{idTieZ, idNewGIF},
 		},
 		{
 			name: "status and type together",
 			query: ListQuery{
-				Status: view.ClipStatusPending,
+				Status: viewclip.ClipStatusPending,
 				Type:   clipTypeGIF,
 				Sort:   clipSortCreatedDesc,
 			},
@@ -173,7 +174,7 @@ func TestClipListQueryFiltered(t *testing.T) {
 	assert.False(t, ListQuery{Sort: clipSortCreatedDesc}.Filtered())
 	assert.True(t, ListQuery{Type: clipTypeGIF}.Filtered())
 	assert.True(t, ListQuery{Query: "x"}.Filtered())
-	assert.True(t, ListQuery{Status: view.ClipStatusFailed}.Filtered())
+	assert.True(t, ListQuery{Status: viewclip.ClipStatusFailed}.Filtered())
 }
 
 func ParseListQueryFrom(t *testing.T, target string) ListQuery {

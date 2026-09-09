@@ -5,13 +5,13 @@
 package playback
 
 import (
+	viewplayback "github.com/PapagoLabs/outtake/internal/web/view/playback"
 	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/media"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-templ PlaybackPanel(props view.Playback) {
+templ PlaybackPanel(props viewplayback.Playback) {
 	<div>
 		if props.Playing {
 			<p class="text-sm">Plex is at <span class="font-medium">{ media.FromSeconds(props.ViewOffset).String() }</span>.</p>

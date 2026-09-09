@@ -5,7 +5,7 @@ package shared
 
 import (
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/web/view"
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
 // NewBoundClient constructs a Plex client for the given token.
@@ -22,8 +22,8 @@ func NewBoundClient(product, clientID, token string) *plex.Client {
 // ClipMatchesStatus reports whether a clip belongs to a status filter.
 func ClipMatchesStatus(itemStatus, want string) bool {
 	switch want {
-	case view.ClipStatusPending:
-		return itemStatus == view.ClipStatusPending || itemStatus == view.ClipStatusProcessing
+	case viewclip.ClipStatusPending:
+		return itemStatus == viewclip.ClipStatusPending || itemStatus == viewclip.ClipStatusProcessing
 	default:
 		return itemStatus == want
 	}

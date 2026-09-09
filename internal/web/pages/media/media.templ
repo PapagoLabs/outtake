@@ -4,11 +4,11 @@
 package media
 
 import (
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/browse"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func mediaNavActive(libraryID string) string {
@@ -19,7 +19,7 @@ func mediaNavActive(libraryID string) string {
 	return ""
 }
 
-templ Media(props view.MediaProps) {
+templ Media(props viewmedia.MediaProps) {
 	@layout.Layout(layout.Props{Title: "Media Library", Active: mediaNavActive(props.LibraryID), Library: props.LibraryID}) {
 		<div class="flex min-h-0 flex-1 flex-col gap-6">
 			<div class="shrink-0">

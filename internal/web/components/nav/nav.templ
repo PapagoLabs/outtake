@@ -5,11 +5,11 @@
 package nav
 
 import (
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-templ NavLibraries(libs []view.LibraryItem, selected string) {
+templ NavLibraries(libs []viewmedia.LibraryItem, selected string) {
 	for _, lib := range libs {
 		<a
 			href={ templ.SafeURL("/media?library=" + lib.ID) }

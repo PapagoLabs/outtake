@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestMediaSearchPreservesLibrary(t *testing.T) {
@@ -18,7 +18,7 @@ func TestMediaSearchPreservesLibrary(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := Media(view.MediaProps{
+	err := Media(viewmedia.MediaProps{
 		LibraryID: "7",
 		Query:     "movie",
 	}).Render(t.Context(), &buf)
@@ -36,7 +36,7 @@ func TestMediaLibraryRootHasSort(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := Media(view.MediaProps{
+	err := Media(viewmedia.MediaProps{
 		LibraryID: "7",
 		Sort:      "year_desc",
 	}).Render(t.Context(), &buf)

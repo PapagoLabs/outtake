@@ -5,6 +5,7 @@
 package browse
 
 import (
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 	"net/url"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func thumbAspect(mediaType string) string {
@@ -29,7 +29,7 @@ func thumbAspect(mediaType string) string {
 	}
 }
 
-func emptyMediaMessage(props view.MediaProps) string {
+func emptyMediaMessage(props viewmedia.MediaProps) string {
 	if !props.HasServer {
 		return "No media found. Connect your Plex server and try again."
 	}
@@ -48,7 +48,7 @@ func emptyMediaMessage(props view.MediaProps) string {
 //
 // Returns:
 //   - ok: True when a library is selected without a parent or search.
-func showSort(props view.MediaProps) bool {
+func showSort(props viewmedia.MediaProps) bool {
 	return props.LibraryID != "" && props.ParentID == "" && props.Query == ""
 }
 
@@ -59,7 +59,7 @@ func showSort(props view.MediaProps) bool {
 //
 // Returns:
 //   - ok: True when sort is shown and letter buckets exist.
-func showLetters(props view.MediaProps) bool {
+func showLetters(props viewmedia.MediaProps) bool {
 	return showSort(props) && len(props.Letters) > 0
 }
 
@@ -125,7 +125,7 @@ func jumpKind(sort string) string {
 //
 // Returns:
 //   - key: Letter, year, month, or #.
-func jumpKey(item view.MediaItem, sort string) string {
+func jumpKey(item viewmedia.MediaItem, sort string) string {
 	switch sort {
 	case "year_desc", "year_asc":
 		if item.Year <= 0 {
@@ -177,15 +177,15 @@ func titleJumpKey(titleSort, title string) string {
 //
 // Returns:
 //   - ok: True when start is past the first page and search is empty.
-func hasPrev(props view.MediaProps) bool {
+func hasPrev(props viewmedia.MediaProps) bool {
 	return props.Query == "" && props.Start > 0
 }
 
-func showChooser(props view.MediaProps) bool {
+func showChooser(props viewmedia.MediaProps) bool {
 	return props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == ""
 }
 
-func hasMore(props view.MediaProps) bool {
+func hasMore(props viewmedia.MediaProps) bool {
 	return props.Query == "" && props.PageSize > 0 && props.Start+len(props.Items) < props.Total
 }
 
@@ -212,7 +212,7 @@ func sortSelected(current, value string) bool {
 //
 // Returns:
 //   - values: Library, parent, crumb, and sort parameters.
-func browseValues(props view.MediaProps) url.Values {
+func browseValues(props viewmedia.MediaProps) url.Values {
 	values := url.Values{}
 	if props.LibraryID != "" {
 		values.Set("library", props.LibraryID)
@@ -264,7 +264,7 @@ func encodeMediaURL(values url.Values) string {
 //
 // Returns:
 //   - url: /media URL with start set past the current items.
-func nextPageURL(props view.MediaProps) string {
+func nextPageURL(props viewmedia.MediaProps) string {
 	values := browseValues(props)
 	start := props.Start + len(props.Items)
 	if start > 0 {
@@ -281,7 +281,7 @@ func nextPageURL(props view.MediaProps) string {
 //
 // Returns:
 //   - url: /media URL with before set to the current start.
-func prevPageURL(props view.MediaProps) string {
+func prevPageURL(props viewmedia.MediaProps) string {
 	values := browseValues(props)
 	if props.Start > 0 {
 		values.Set("before", strconv.Itoa(props.Start))
@@ -298,7 +298,7 @@ func prevPageURL(props view.MediaProps) string {
 //
 // Returns:
 //   - url: /media URL with library, sort, and letter.
-func letterURL(props view.MediaProps, letter string) string {
+func letterURL(props viewmedia.MediaProps, letter string) string {
 	values := url.Values{}
 	if props.LibraryID != "" {
 		values.Set("library", props.LibraryID)
@@ -329,7 +329,7 @@ func libraryURL(id string) templ.SafeURL {
 //
 // Returns:
 //   - url: Browse URL for containers, or the item editor otherwise.
-func itemURL(item view.MediaItem) templ.SafeURL {
+func itemURL(item viewmedia.MediaItem) templ.SafeURL {
 	if item.Browsable {
 		return templ.SafeURL(item.BrowseURL)
 	}
@@ -357,7 +357,7 @@ func libraryInitial(title string) string {
 // Parameters:
 //   - item: Media card being rendered.
 //   - sort: Normalized Outtake sort key used for the jump marker.
-templ mediaCard(item view.MediaItem, sort string) {
+templ mediaCard(item viewmedia.MediaItem, sort string) {
 	@card.Card(card.Props{Attributes: templ.Attributes{"data-jump": jumpKey(item, sort)}}) {
 		@card.Content(card.ContentProps{Class: "p-3"}) {
 			<div class="flex flex-col gap-2">
@@ -401,7 +401,7 @@ templ mediaCard(item view.MediaItem, sort string) {
 //
 // Parameters:
 //   - lib: Library to link.
-templ libraryCard(lib view.LibraryItem) {
+templ libraryCard(lib viewmedia.LibraryItem) {
 	<a
 		href={ libraryURL(lib.ID) }
 		class="flex items-center gap-4 self-start rounded-lg border bg-card p-4 text-card-foreground shadow-xs transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
@@ -420,7 +420,7 @@ templ libraryCard(lib view.LibraryItem) {
 	</a>
 }
 
-templ mediaCrumbs(crumbs []view.Crumb) {
+templ mediaCrumbs(crumbs []viewmedia.Crumb) {
 	if len(crumbs) > 0 {
 		<nav class="col-span-full flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
 			for i, crumb := range crumbs {
@@ -441,7 +441,7 @@ templ mediaCrumbs(crumbs []view.Crumb) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ mediaSortToolbar(props view.MediaProps) {
+templ mediaSortToolbar(props viewmedia.MediaProps) {
 	<form class="w-52">
 		<input type="hidden" name="library" value={ props.LibraryID }/>
 		<div class="w-52">
@@ -473,7 +473,7 @@ templ mediaSortToolbar(props view.MediaProps) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ letterJumpSelect(props view.MediaProps) {
+templ letterJumpSelect(props viewmedia.MediaProps) {
 	<form class="w-36 md:hidden">
 		<input type="hidden" name="library" value={ props.LibraryID }/>
 		if props.Sort != "" {
@@ -504,7 +504,7 @@ templ letterJumpSelect(props view.MediaProps) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ letterLinks(props view.MediaProps) {
+templ letterLinks(props viewmedia.MediaProps) {
 	for _, letter := range props.Letters {
 		<a
 			href={ templ.SafeURL(letterURL(props, letter.Title)) }
@@ -525,7 +525,7 @@ templ letterLinks(props view.MediaProps) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ mediaMoreSentinel(props view.MediaProps) {
+templ mediaMoreSentinel(props viewmedia.MediaProps) {
 	if hasMore(props) {
 		<div
 			id="media-more"
@@ -543,7 +543,7 @@ templ mediaMoreSentinel(props view.MediaProps) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ mediaPrevSentinel(props view.MediaProps) {
+templ mediaPrevSentinel(props viewmedia.MediaProps) {
 	if hasPrev(props) {
 		<div
 			id="media-prev"
@@ -561,7 +561,7 @@ templ mediaPrevSentinel(props view.MediaProps) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ MediaBrowse(props view.MediaProps) {
+templ MediaBrowse(props viewmedia.MediaProps) {
 	<div class="flex h-full min-h-0 flex-col gap-4">
 		if showSort(props) {
 			<div class="flex shrink-0 flex-wrap items-end gap-3">
@@ -584,7 +584,7 @@ templ MediaBrowse(props view.MediaProps) {
 	</div>
 }
 
-templ MediaResults(props view.MediaProps) {
+templ MediaResults(props viewmedia.MediaProps) {
 	if showChooser(props) {
 		<div class="col-span-full flex flex-col gap-3">
 			@mediaCrumbs(props.Crumbs)
@@ -613,7 +613,7 @@ templ MediaResults(props view.MediaProps) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ MediaMore(props view.MediaProps) {
+templ MediaMore(props viewmedia.MediaProps) {
 	for _, item := range props.Items {
 		@mediaCard(item, props.Sort)
 	}
@@ -624,7 +624,7 @@ templ MediaMore(props view.MediaProps) {
 //
 // Parameters:
 //   - props: Media library page state.
-templ MediaPrev(props view.MediaProps) {
+templ MediaPrev(props viewmedia.MediaProps) {
 	@mediaPrevSentinel(props)
 	for _, item := range props.Items {
 		@mediaCard(item, props.Sort)

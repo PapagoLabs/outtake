@@ -12,20 +12,20 @@ package browse
 //lint:file-ignore SA4006 This context is only used if a nested component is present.
 
 import (
+	"github.com/a-h/templ"
+	templruntime "github.com/a-h/templ/runtime"
+
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/a-h/templ"
-	templruntime "github.com/a-h/templ/runtime"
-
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
-	"github.com/PapagoLabs/outtake/internal/web/view"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 func thumbAspect(mediaType string) string {
@@ -39,7 +39,7 @@ func thumbAspect(mediaType string) string {
 	}
 }
 
-func emptyMediaMessage(props view.MediaProps) string {
+func emptyMediaMessage(props viewmedia.MediaProps) string {
 	if !props.HasServer {
 		return "No media found. Connect your Plex server and try again."
 	}
@@ -58,7 +58,7 @@ func emptyMediaMessage(props view.MediaProps) string {
 //
 // Returns:
 //   - ok: True when a library is selected without a parent or search.
-func showSort(props view.MediaProps) bool {
+func showSort(props viewmedia.MediaProps) bool {
 	return props.LibraryID != "" && props.ParentID == "" && props.Query == ""
 }
 
@@ -69,7 +69,7 @@ func showSort(props view.MediaProps) bool {
 //
 // Returns:
 //   - ok: True when sort is shown and letter buckets exist.
-func showLetters(props view.MediaProps) bool {
+func showLetters(props viewmedia.MediaProps) bool {
 	return showSort(props) && len(props.Letters) > 0
 }
 
@@ -135,7 +135,7 @@ func jumpKind(sort string) string {
 //
 // Returns:
 //   - key: Letter, year, month, or #.
-func jumpKey(item view.MediaItem, sort string) string {
+func jumpKey(item viewmedia.MediaItem, sort string) string {
 	switch sort {
 	case "year_desc", "year_asc":
 		if item.Year <= 0 {
@@ -187,15 +187,15 @@ func titleJumpKey(titleSort, title string) string {
 //
 // Returns:
 //   - ok: True when start is past the first page and search is empty.
-func hasPrev(props view.MediaProps) bool {
+func hasPrev(props viewmedia.MediaProps) bool {
 	return props.Query == "" && props.Start > 0
 }
 
-func showChooser(props view.MediaProps) bool {
+func showChooser(props viewmedia.MediaProps) bool {
 	return props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == ""
 }
 
-func hasMore(props view.MediaProps) bool {
+func hasMore(props viewmedia.MediaProps) bool {
 	return props.Query == "" && props.PageSize > 0 && props.Start+len(props.Items) < props.Total
 }
 
@@ -222,7 +222,7 @@ func sortSelected(current, value string) bool {
 //
 // Returns:
 //   - values: Library, parent, crumb, and sort parameters.
-func browseValues(props view.MediaProps) url.Values {
+func browseValues(props viewmedia.MediaProps) url.Values {
 	values := url.Values{}
 	if props.LibraryID != "" {
 		values.Set("library", props.LibraryID)
@@ -274,7 +274,7 @@ func encodeMediaURL(values url.Values) string {
 //
 // Returns:
 //   - url: /media URL with start set past the current items.
-func nextPageURL(props view.MediaProps) string {
+func nextPageURL(props viewmedia.MediaProps) string {
 	values := browseValues(props)
 	start := props.Start + len(props.Items)
 	if start > 0 {
@@ -291,7 +291,7 @@ func nextPageURL(props view.MediaProps) string {
 //
 // Returns:
 //   - url: /media URL with before set to the current start.
-func prevPageURL(props view.MediaProps) string {
+func prevPageURL(props viewmedia.MediaProps) string {
 	values := browseValues(props)
 	if props.Start > 0 {
 		values.Set("before", strconv.Itoa(props.Start))
@@ -308,7 +308,7 @@ func prevPageURL(props view.MediaProps) string {
 //
 // Returns:
 //   - url: /media URL with library, sort, and letter.
-func letterURL(props view.MediaProps, letter string) string {
+func letterURL(props viewmedia.MediaProps, letter string) string {
 	values := url.Values{}
 	if props.LibraryID != "" {
 		values.Set("library", props.LibraryID)
@@ -339,7 +339,7 @@ func libraryURL(id string) templ.SafeURL {
 //
 // Returns:
 //   - url: Browse URL for containers, or the item editor otherwise.
-func itemURL(item view.MediaItem) templ.SafeURL {
+func itemURL(item viewmedia.MediaItem) templ.SafeURL {
 	if item.Browsable {
 		return templ.SafeURL(item.BrowseURL)
 	}
@@ -367,7 +367,7 @@ func libraryInitial(title string) string {
 // Parameters:
 //   - item: Media card being rendered.
 //   - sort: Normalized Outtake sort key used for the jump marker.
-func mediaCard(item view.MediaItem, sort string) templ.Component {
+func mediaCard(item viewmedia.MediaItem, sort string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -645,7 +645,7 @@ func mediaCard(item view.MediaItem, sort string) templ.Component {
 //
 // Parameters:
 //   - lib: Library to link.
-func libraryCard(lib view.LibraryItem) templ.Component {
+func libraryCard(lib viewmedia.LibraryItem) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -754,7 +754,7 @@ func libraryCard(lib view.LibraryItem) templ.Component {
 	})
 }
 
-func mediaCrumbs(crumbs []view.Crumb) templ.Component {
+func mediaCrumbs(crumbs []viewmedia.Crumb) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -855,7 +855,7 @@ func mediaCrumbs(crumbs []view.Crumb) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func mediaSortToolbar(props view.MediaProps) templ.Component {
+func mediaSortToolbar(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1005,7 +1005,7 @@ func mediaSortToolbar(props view.MediaProps) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func letterJumpSelect(props view.MediaProps) templ.Component {
+func letterJumpSelect(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1170,7 +1170,7 @@ func letterJumpSelect(props view.MediaProps) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func letterLinks(props view.MediaProps) templ.Component {
+func letterLinks(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1278,7 +1278,7 @@ func letterLinks(props view.MediaProps) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func mediaMoreSentinel(props view.MediaProps) templ.Component {
+func mediaMoreSentinel(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1326,7 +1326,7 @@ func mediaMoreSentinel(props view.MediaProps) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func mediaPrevSentinel(props view.MediaProps) templ.Component {
+func mediaPrevSentinel(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1374,7 +1374,7 @@ func mediaPrevSentinel(props view.MediaProps) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func MediaBrowse(props view.MediaProps) templ.Component {
+func MediaBrowse(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1497,7 +1497,7 @@ func MediaBrowse(props view.MediaProps) templ.Component {
 	})
 }
 
-func MediaResults(props view.MediaProps) templ.Component {
+func MediaResults(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1600,7 +1600,7 @@ func MediaResults(props view.MediaProps) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func MediaMore(props view.MediaProps) templ.Component {
+func MediaMore(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1639,7 +1639,7 @@ func MediaMore(props view.MediaProps) templ.Component {
 //
 // Parameters:
 //   - props: Media library page state.
-func MediaPrev(props view.MediaProps) templ.Component {
+func MediaPrev(props viewmedia.MediaProps) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {

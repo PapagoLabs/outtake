@@ -13,6 +13,9 @@ import (
 	"testing"
 	"time"
 
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,7 +24,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 const (
@@ -38,7 +40,7 @@ const (
 func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
 	t.Parallel()
 
-	libs := []view.LibraryItem{{ID: "2", Title: testTVShows, Type: "show"}}
+	libs := []viewmedia.LibraryItem{{ID: "2", Title: testTVShows, Type: "show"}}
 	crumbs := mediaCrumbs(libs, "2", "", "", "")
 	require.Len(t, crumbs, 2)
 	assert.Equal(t, testTVShows, crumbs[1].Title)
@@ -105,7 +107,7 @@ func TestSessionTitleParts(t *testing.T) {
 	tests := []struct {
 		name     string
 		give     plex.MediaItem
-		want     []view.Crumb
+		want     []viewmedia.Crumb
 		wantYear int
 	}{
 		{
@@ -120,7 +122,7 @@ func TestSessionTitleParts(t *testing.T) {
 				GrandparentID:    "9",
 				GrandparentTitle: testShow,
 			},
-			want: []view.Crumb{
+			want: []viewmedia.Crumb{
 				{Title: testShow, URL: testShowURL},
 				{Title: testSeason, URL: testSeasonURL},
 				{Title: testEpisode, URL: testEpisodeURL},
@@ -137,7 +139,7 @@ func TestSessionTitleParts(t *testing.T) {
 				GrandparentID:    "9",
 				GrandparentTitle: testShow,
 			},
-			want: []view.Crumb{
+			want: []viewmedia.Crumb{
 				{Title: testShow},
 				{Title: testSeason},
 				{Title: testEpisode, URL: testEpisodeURL},
@@ -155,7 +157,7 @@ func TestSessionTitleParts(t *testing.T) {
 				GrandparentID:    "9",
 				GrandparentTitle: testShow,
 			},
-			want: []view.Crumb{
+			want: []viewmedia.Crumb{
 				{Title: testShow, URL: testShowURL},
 				{Title: testSeason, URL: testSeasonURL},
 				{Title: testEpisode, URL: testEpisodeURL},
@@ -172,7 +174,7 @@ func TestSessionTitleParts(t *testing.T) {
 				GrandparentID:    "9",
 				GrandparentTitle: testShow,
 			},
-			want: []view.Crumb{
+			want: []viewmedia.Crumb{
 				{Title: testShow, URL: testShowURL},
 				{Title: testEpisode, URL: testEpisodeURL},
 			},
@@ -184,7 +186,7 @@ func TestSessionTitleParts(t *testing.T) {
 				Title: testMovie,
 				Year:  1995,
 			},
-			want:     []view.Crumb{{Title: testMovie, URL: "/media/item/100"}},
+			want:     []viewmedia.Crumb{{Title: testMovie, URL: "/media/item/100"}},
 			wantYear: 1995,
 		},
 		{
@@ -193,12 +195,12 @@ func TestSessionTitleParts(t *testing.T) {
 				ID:    "101",
 				Title: testMovie,
 			},
-			want: []view.Crumb{{Title: testMovie, URL: "/media/item/101"}},
+			want: []viewmedia.Crumb{{Title: testMovie, URL: "/media/item/101"}},
 		},
 		{
 			name: "non-episode without id",
 			give: plex.MediaItem{Title: "Concert", Type: "clip"},
-			want: []view.Crumb{{Title: "Concert"}},
+			want: []viewmedia.Crumb{{Title: "Concert"}},
 		},
 	}
 
@@ -227,7 +229,7 @@ func TestMediaItemLocationEscapesID(t *testing.T) {
 func TestChooserLibraries(t *testing.T) {
 	t.Parallel()
 
-	libs := []view.LibraryItem{{ID: "1", Title: "Movies", Type: shared.DefaultMediaType}}
+	libs := []viewmedia.LibraryItem{{ID: "1", Title: "Movies", Type: shared.DefaultMediaType}}
 
 	assert.Equal(t, libs, chooserLibraries(libs, "", ""))
 	assert.Nil(t, chooserLibraries(libs, "", "1"))
@@ -379,7 +381,7 @@ func TestMediaItemError(t *testing.T) {
 func TestClipProfileName(t *testing.T) {
 	t.Parallel()
 
-	profiles := []view.ClipProfileOption{
+	profiles := []viewclip.ClipProfileOption{
 		{ID: "medium", Name: "Medium", IsDefault: true},
 		{ID: "archive", Name: "Archive", IsDefault: false},
 	}

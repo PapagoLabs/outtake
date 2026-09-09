@@ -5,6 +5,7 @@
 package clip
 
 import (
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/media"
@@ -13,18 +14,17 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func statusBadgeVariant(status string) badge.Variant {
 	switch status {
-	case view.ClipStatusCompleted:
+	case viewclip.ClipStatusCompleted:
 		return badge.VariantDefault
-	case view.ClipStatusPending, view.ClipStatusProcessing:
+	case viewclip.ClipStatusPending, viewclip.ClipStatusProcessing:
 		return badge.VariantSecondary
-	case view.ClipStatusFailed:
+	case viewclip.ClipStatusFailed:
 		return badge.VariantDestructive
-	case view.ClipStatusCancelled:
+	case viewclip.ClipStatusCancelled:
 		return badge.VariantOutline
 	default:
 		return badge.VariantOutline
@@ -35,7 +35,7 @@ func clipFileURL(id string) templ.SafeURL {
 	return templ.SafeURL("/clips/" + id + "/file")
 }
 
-templ clipPlayback(item view.ClipItem) {
+templ clipPlayback(item viewclip.ClipItem) {
 	if item.CanPlay() {
 		<details class="rounded-md border">
 			<summary class="cursor-pointer select-none px-3 py-1.5 text-sm font-medium">Preview</summary>
@@ -50,15 +50,15 @@ templ clipPlayback(item view.ClipItem) {
 	}
 }
 
-templ clipFileBadge(item view.ClipItem) {
-	if !item.IsActive() && !item.FileExists && item.Status != view.ClipStatusCancelled {
+templ clipFileBadge(item viewclip.ClipItem) {
+	if !item.IsActive() && !item.FileExists && item.Status != viewclip.ClipStatusCancelled {
 		@badge.Badge(badge.Props{Variant: badge.VariantOutline}) {
 			Missing file
 		}
 	}
 }
 
-templ ClipCard(item view.ClipItem) {
+templ ClipCard(item viewclip.ClipItem) {
 	<div
 		id={ "clip-" + item.ID }
 		if item.IsActive() {
@@ -82,7 +82,7 @@ templ ClipCard(item view.ClipItem) {
 								@clipFileBadge(item)
 							</div>
 							<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-								<span>{ view.ClipTypeLabel(item.ClipType) }</span>
+								<span>{ viewclip.ClipTypeLabel(item.ClipType) }</span>
 								if item.ProfileName != "" {
 									<span>&middot;</span>
 									<span>{ item.ProfileName }</span>

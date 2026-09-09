@@ -7,16 +7,16 @@ import (
 	"strings"
 	"testing"
 
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestNavLibrariesHighlightsSelected(t *testing.T) {
 	t.Parallel()
 
-	libs := []view.LibraryItem{
+	libs := []viewmedia.LibraryItem{
 		{ID: "1", Title: "Movies", Type: "movie"},
 		{ID: "2", Title: "TV Shows", Type: "show"},
 	}

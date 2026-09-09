@@ -4,6 +4,8 @@
 package media
 
 import (
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/media"
@@ -17,7 +19,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type MediaItemPageProps struct {
@@ -26,20 +27,20 @@ type MediaItemPageProps struct {
 	Type          string
 	Duration      float64
 	MaxDur        int
-	Clips         []view.ClipItem
+	Clips         []viewclip.ClipItem
 	ClipStatus    string
 	ClipType      string
 	ClipQuery     string
 	ClipSort      string
-	Profiles      []view.ClipProfileOption
-	AudioTracks   []view.AudioTrackOption
+	Profiles      []viewclip.ClipProfileOption
+	AudioTracks   []viewclip.AudioTrackOption
 	Error         string
 	PreviewID     string
 	StartTime     float64
 	EndTime       float64
 	CropBlackBars bool
 	WebSafeColor  bool
-	Crumbs        []view.Crumb
+	Crumbs        []viewmedia.Crumb
 	LibraryID     string
 }
 
@@ -208,7 +209,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 	}
 }
 
-templ ItemClipList(items []view.ClipItem, filtered bool) {
+templ ItemClipList(items []viewclip.ClipItem, filtered bool) {
 	if len(items) == 0 {
 		if filtered {
 			<p class="text-sm text-muted-foreground">No clips match these filters.</p>

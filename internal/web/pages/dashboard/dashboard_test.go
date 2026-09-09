@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 const testMovie = "Movie"
@@ -29,7 +29,7 @@ func TestLiveSessions(t *testing.T) {
 			give: []SessionItem{{
 				ID:      "sess-1",
 				MediaID: "42",
-				Parts: []view.Crumb{
+				Parts: []viewmedia.Crumb{
 					{Title: "Show", URL: "/media?library=2&parent=9&title=Show"},
 					{
 						Title: "Season 3",
@@ -57,7 +57,7 @@ func TestLiveSessions(t *testing.T) {
 			give: []SessionItem{{
 				ID:         "sess-2",
 				MediaID:    "100",
-				Parts:      []view.Crumb{{Title: testMovie, URL: "/media/item/100"}},
+				Parts:      []viewmedia.Crumb{{Title: testMovie, URL: "/media/item/100"}},
 				Year:       1995,
 				ViewOffset: 30,
 				Duration:   600,
