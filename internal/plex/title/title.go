@@ -40,7 +40,7 @@ func Display(item page.MediaItem) string {
 //   - episode: TV episode number.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func EpisodeCode(season, episode int) string {
 	if season <= 0 && episode <= 0 {
 		return ""

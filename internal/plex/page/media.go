@@ -87,7 +87,7 @@ func ReverseIndexes(index []LetterIndex) []LetterIndex {
 //   - index: Ordered index used for paging or lookup.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func SortYearIndexes(index []LetterIndex) []LetterIndex {
 	out := append([]LetterIndex(nil), index...)
 	slices.SortFunc(out, compareYearTitles)

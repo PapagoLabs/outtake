@@ -113,7 +113,8 @@ func ParseOutput(data []byte) (MediaInfo, error) {
 //
 // Parameters:
 //   - output: Decoded ffprobe JSON container.
-//   - info: Destination; Duration stays 0 when the field is missing or invalid.
+//   - info: Destination for the parsed duration. Duration stays 0 when the
+//     field is missing or invalid.
 func parseDuration(output probeOutput, info *MediaInfo) {
 	if output.Format.Duration == "" {
 		return
@@ -129,7 +130,8 @@ func parseDuration(output probeOutput, info *MediaInfo) {
 //
 // Parameters:
 //   - output: Decoded ffprobe JSON container.
-//   - info: Destination; BitRate stays 0 when the field is missing or invalid.
+//   - info: Destination for the parsed bit rate. BitRate stays 0 when the field
+//     is missing or invalid.
 func parseBitRate(output probeOutput, info *MediaInfo) {
 	if output.Format.BitRate == "" {
 		return
@@ -156,7 +158,8 @@ func parseStreams(output probeOutput, info *MediaInfo) {
 //
 // Parameters:
 //   - stream: One entry from ffprobe streams[].
-//   - info: Destination; video fields fill once, audio tracks accumulate.
+//   - info: Destination updated in place. Video fields fill once. Audio tracks
+//     accumulate.
 func parseStream(stream probeStream, info *MediaInfo) {
 	switch stream.CodecType {
 	case "video":
@@ -188,7 +191,8 @@ func parseStream(stream probeStream, info *MediaInfo) {
 //   - tags: ffprobe stream tags (title and name/handler_name).
 //
 // Returns:
-//   - title: Non-empty title, else name; empty when both are unset.
+//   - title: Non-empty stream title when set, otherwise the name/handler tag.
+//     Empty when both title and name are unset.
 func audioTitle(tags probeTags) string {
 	if tags.Title != "" {
 		return tags.Title

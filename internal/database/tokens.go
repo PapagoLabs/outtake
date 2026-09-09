@@ -42,8 +42,8 @@ func (db *DB) SaveToken(ctx context.Context, clientID, accessToken string) error
 //   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - err: Wrapped failure such as "begin clear auth"; "clear tokens"; "clear
-//     selected server".
+//   - err: Wrapped failure such as "begin clear auth", "clear tokens", or
+//     "clear selected server".
 func (db *DB) ClearAuth(ctx context.Context) error {
 	tx, err := db.conn.BeginTx(ctx, nil)
 	if err != nil {

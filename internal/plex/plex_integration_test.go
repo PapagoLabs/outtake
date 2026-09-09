@@ -30,7 +30,7 @@ const (
 // newTestClient returns the new test client.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - mockHTTP: Mock http.
 //
 // Returns:

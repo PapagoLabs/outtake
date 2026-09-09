@@ -612,7 +612,7 @@ type ServerBinder interface {
 //   - mediaID: Media id.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 //   - err: Wrapped failure from "resolve media path".
 func ResolveMediaPath(
 	ctx context.Context,
@@ -691,7 +691,7 @@ func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) 
 //   - req: Encode request with crop, scale, and color fields.
 //
 // Returns:
-//   - err: Wrapped failure such as "validate duration"; "validate gif".
+//   - err: Wrapped failure such as "validate duration" or "validate gif".
 func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req ClipRequest) error {
 	err := handler.validateDuration(jobType, req.Duration)
 	if err != nil {
@@ -713,7 +713,7 @@ func (handler *ClipHandler) validateClipParams(jobType queue.JobType, req ClipRe
 //   - duration: Length in seconds.
 //
 // Returns:
-//   - err: Wrapped failure such as "...: must be zero or greater"; "...: must
+//   - err: Wrapped failure such as "...: must be zero or greater" or "...: must
 //     be between 0 and ... seconds".
 func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration float64) error {
 	if jobType == queue.JobTypeScreenshot {
@@ -899,7 +899,7 @@ func formSeconds(ctx fiber.Ctx, name string) float64 {
 //   - req: Encode request with crop, scale, and color fields.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func clipName(req *ClipRequest) string {
 	if req.Name != "" {
 		return req.Name

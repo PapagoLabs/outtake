@@ -62,7 +62,7 @@ var plexTypeNames = map[string]string{
 // Parameters:
 //   - address: Host:port or host for the Plex server.
 //   - scheme: URL scheme (http or https).
-//   - port: TCP port; 0 means scheme default.
+//   - port: TCP port. Zero means the scheme default.
 //
 // Returns:
 //   - value: The host:port, omitting the port if it's the default for the.
@@ -84,7 +84,7 @@ func formatHost(address, scheme string, port int) string {
 //
 // Returns:
 //   - items: The libraries from the Plex server.
-//   - err: Wrapped failure such as "get libraries"; "decode libraries".
+//   - err: Wrapped failure such as "get libraries" or "decode libraries".
 func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Library, error) {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -314,7 +314,7 @@ func directoryIndex(section pms.Section) LetterIndex {
 //
 // Returns:
 //   - value: The file path for a media item.
-//   - err: Wrapped failure such as "get media path"; "decode media detail".
+//   - err: Wrapped failure such as "get media path" or "decode media detail".
 func (client *Client) GetMediaPath(
 	ctx context.Context,
 	server Server,
@@ -357,7 +357,7 @@ func (client *Client) GetMediaPath(
 //   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
-//   - err: Wrapped failure such as "ping server"; "... ...".
+//   - err: Wrapped failure such as "ping server" or "... ...".
 func (client *Client) Ping(ctx context.Context, server Server) error {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -391,7 +391,7 @@ func (client *Client) Ping(ctx context.Context, server Server) error {
 //
 // Returns:
 //   - serverIdentity: Result of GetServerIdentity.
-//   - err: Wrapped failure such as "get server identity"; "decode server
+//   - err: Wrapped failure such as "get server identity" or "decode server
 //     identity".
 func (client *Client) GetServerIdentity(
 	ctx context.Context,
@@ -461,7 +461,7 @@ func jsonHeaders(token string) map[string]string {
 //   - section: Typed pms.Section argument for sectionThumb.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func sectionThumb(section pms.Section) string {
 	if section.Thumb != "" {
 		return section.Thumb

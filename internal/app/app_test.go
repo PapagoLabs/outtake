@@ -126,7 +126,7 @@ func TestCSRFAllowsHTTPSOriginBehindHTTP(t *testing.T) {
 // testAppConfig returns the test app config.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - publicBaseURL: Public base url.
 //
 // Returns:
@@ -169,7 +169,7 @@ func testAppConfig(t *testing.T, publicBaseURL string) *config.Config {
 // csrfOriginPost returns the csrf origin post.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - application: Bootstrapped App under test.
 //   - loginResp: Prior login response providing session cookies.
 //   - origin: HTTP Origin header for CSRF checks.

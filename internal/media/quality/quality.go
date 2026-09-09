@@ -185,7 +185,7 @@ func NormalizeOutputWidth(width int) int {
 //   - width: Target max width in pixels (even dimensions).
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func OutputWidthLabel(width int) string {
 	switch width {
 	case OutputWidth720p:
@@ -229,7 +229,7 @@ func ResolvePreset(qualityID string, lookup func(string) (QualityPreset, bool)) 
 //   - channels: Typed int argument for ChannelLayoutName.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func ChannelLayoutName(channels int) string {
 	switch channels {
 	case channelsMono:

@@ -19,8 +19,8 @@ import (
 //   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
-//   - err: Wrapped failure such as "discover servers"; "decode servers".
+//   - items: Result slice. Empty when none match.
+//   - err: Wrapped failure such as "discover servers" or "decode servers".
 func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 	resp, err := client.doRequest(ctx, "/api/resources", "includeHttps=1")
 	if err != nil {
@@ -54,8 +54,8 @@ func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 //   - query: Search or filter query string.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
-//   - err: Wrapped failure such as "search media"; "decode search".
+//   - items: Result slice. Empty when none match.
+//   - err: Wrapped failure such as "search media" or "decode search".
 func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaItem, error) {
 	resp, err := client.doRequest(
 		ctx,
@@ -91,7 +91,7 @@ func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaIte
 //
 // Returns:
 //   - items: The active sessions using the Plex.tv API.
-//   - err: Wrapped failure such as "get sessions"; "decode sessions".
+//   - err: Wrapped failure such as "get sessions" or "decode sessions".
 func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 	resp, err := client.doRequest(ctx, "/status/sessions", "")
 	if err != nil {
@@ -128,7 +128,7 @@ func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 //   - devices: Typed []plextv.Device argument for serversFromDevices.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func serversFromDevices(devices []plextv.Device) []Server {
 	servers := make([]Server, 0, len(devices))
 

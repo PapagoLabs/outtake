@@ -178,7 +178,7 @@ func TestClipListQueryFiltered(t *testing.T) {
 // ParseListQueryFrom returns the parse list query from.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - target: URL or object under test.
 //
 // Returns:

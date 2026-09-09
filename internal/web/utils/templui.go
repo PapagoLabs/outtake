@@ -30,7 +30,7 @@ const ControlClass = "flex h-9 w-full rounded-md border border-input bg-transpar
 //   - classes: CSS class names to join.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func TwMerge(classes ...string) string {
 	return twmerge.Merge(classes...)
 }
@@ -90,7 +90,7 @@ func MergeAttributes(attrs ...templ.Attributes) templ.Attributes {
 // RandomID generates a random ID string.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func RandomID() string {
 	return "id-" + rand.Text()
 }

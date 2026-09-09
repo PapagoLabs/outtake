@@ -30,7 +30,7 @@ const (
 // extractAddrPort returns the extract addr port.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
@@ -52,7 +52,7 @@ func extractAddrPort(t *testing.T, server *httptest.Server) (string, int) {
 // testPMSClient returns the test pms client.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - ts: Typed *httptest.Server argument for testPMSClient.
 //
 // Returns:

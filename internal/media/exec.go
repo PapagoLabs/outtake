@@ -131,13 +131,13 @@ func NewExecFFmpeg(ffmpegPath, ffprobePath string) *ExecFFmpeg {
 // DetectCrop samples the source with cropdetect and returns a crop rectangle.
 //
 // Parameters:
-//   - ctx: Cancels cropdetect; also bounded by the executor timeout.
+//   - ctx: Cancels cropdetect. Also bounded by the executor timeout.
 //   - input: Source media filesystem path.
 //   - start: Sample window start offset in seconds.
 //   - duration: Sample window length in seconds (capped internally).
 //
 // Returns:
-//   - crop: Detected crop rectangle; zero when cropdetect finds none.
+//   - crop: Detected crop rectangle. Zero when cropdetect finds none.
 //   - err: Non-nil when ffmpeg cropdetect fails without a usable rectangle.
 func (execFFmpeg *ExecFFmpeg) DetectCrop(
 	ctx context.Context,
@@ -187,7 +187,7 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 //   - duration: Length in seconds.
 //   - preset: Encode quality profile (CRF, bitrate, scale).
 //   - audioIndex: Zero-based audio stream index to map.
-//   - rect: Optional black-bar crop; ignored when invalid.
+//   - rect: Optional black-bar crop. Ignored when invalid.
 //
 // Returns:
 //   - err: Non-nil when the H.264 clip encode fails.
@@ -311,7 +311,7 @@ func clipEncodeRequest(
 //   - duration: Preview duration in seconds.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only WebSafeColor is read.
+//   - preset: Encode options. Only WebSafeColor is read.
 //
 // Returns:
 //   - args: ffmpeg argv including the binary path.
@@ -344,7 +344,7 @@ func previewEncodeArgs(
 //   - duration: Preview duration in seconds.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only WebSafeColor is read.
+//   - preset: Encode options. Only WebSafeColor is read.
 //
 // Returns:
 //   - req: Populated encode request. HDR peak is filled later by applyWebSafe.
@@ -389,7 +389,7 @@ func previewEncodeRequest(
 //   - duration: Length in seconds.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func previewDuration(duration float64) float64 {
 	if duration < 0 {
 		return 0
@@ -405,7 +405,7 @@ func previewDuration(duration float64) float64 {
 //   - flags: ffmpeg scale flags (for example bicubic).
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func scaleFilter(maxWidth int, flags string) string {
 	return fmt.Sprintf("scale=w='trunc(min(%d,iw)/2)*2':h=-2:flags=%s", maxWidth, flags)
 }
@@ -413,11 +413,11 @@ func scaleFilter(maxWidth int, flags string) string {
 // prependCrop puts a valid crop filter in front of an ffmpeg filter chain.
 //
 // Parameters:
-//   - rect: Optional black-bar crop; ignored when invalid.
+//   - rect: Optional black-bar crop. Ignored when invalid.
 //   - chain: Existing -vf filter chain to prepend to.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func prependCrop(rect CropRect, chain string) string {
 	if !rect.Valid() {
 		return chain
@@ -652,10 +652,10 @@ func gifEncodeArgs(
 //   - duration: Length in seconds.
 //   - width: Width in pixels.
 //   - fps: Output frames per second.
-//   - rect: Optional black-bar crop; ignored when invalid.
+//   - rect: Optional black-bar crop. Ignored when invalid.
 //
 // Returns:
-//   - err: Wrapped failure such as "palettegen"; "extract GIF".
+//   - err: Wrapped failure such as "palettegen" or "extract GIF".
 func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	ctx context.Context,
 	input, output string,
@@ -720,7 +720,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 //   - start: Clip start offset in seconds.
 //   - duration: Length in seconds.
 //   - audioIndex: Zero-based audio stream index to map.
-//   - rect: Optional black-bar crop; ignored when invalid.
+//   - rect: Optional black-bar crop. Ignored when invalid.
 //   - preset: Encode quality profile (CRF, bitrate, scale).
 //
 // Returns:
@@ -767,7 +767,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 //   - input: Source media filesystem path.
 //   - output: Destination media filesystem path.
 //   - timestamp: Typed float64 argument for screenshotEncodeArgs.
-//   - rect: Optional black-bar crop; ignored when invalid.
+//   - rect: Optional black-bar crop. Ignored when invalid.
 //
 // Returns:
 //   - items: The ffmpeg argv for a still frame.
@@ -798,7 +798,7 @@ func screenshotEncodeArgs(
 //   - input: Source media filesystem path.
 //   - output: Destination media filesystem path.
 //   - timestamp: Typed float64 argument for ExtractScreenshot.
-//   - rect: Optional black-bar crop; ignored when invalid.
+//   - rect: Optional black-bar crop. Ignored when invalid.
 //
 // Returns:
 //   - err: Wrapped failure from "extract screenshot".
@@ -960,7 +960,7 @@ func (execFFmpeg *ExecFFmpeg) run(ctx context.Context, duration float64, args ..
 //   - ctx: Cancels or deadlines this call.
 //   - input: Source media path.
 //   - start: Seek offset in seconds.
-//   - duration: Clip duration in seconds; capped at webSafePeakSecs.
+//   - duration: Clip duration in seconds. Capped at webSafePeakSecs.
 //
 // Returns:
 //   - ymax: Highest limited-range luma code observed.
@@ -1012,7 +1012,7 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 //   - seconds: Duration in seconds.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func formatDuration(seconds float64) string {
 	return fmt.Sprintf("%.3f", seconds)
 }

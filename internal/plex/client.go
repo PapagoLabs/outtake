@@ -71,7 +71,7 @@ var _ HTTPClient = (*FiberClient)(nil)
 //   - cfg: Application configuration.
 //
 // Returns:
-//   - resp: HTTP response; caller must close the body.
+//   - resp: HTTP response. Caller must close the body.
 //   - err: Wrapped failure from "fiber get".
 func (client *FiberClient) Get(
 	requestURL string,
@@ -93,7 +93,7 @@ func (client *FiberClient) Get(
 //   - cfg: Application configuration.
 //
 // Returns:
-//   - resp: HTTP response; caller must close the body.
+//   - resp: HTTP response. Caller must close the body.
 //   - err: Wrapped failure from "fiber post".
 func (client *FiberClient) Post(
 	requestURL string,
@@ -210,7 +210,7 @@ func newPlexClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 //   - target: URL or object under test.
 //
 // Returns:
-//   - err: Wrapped failure such as "... ...: ..."; "decode response".
+//   - err: Wrapped failure such as "... ...: ..." or "decode response".
 func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 	if resp.StatusCode() >= errorStatusThreshold {
 		return fmt.Errorf("%w %d: %s", ErrPlexError, resp.StatusCode(), string(resp.Body()))
@@ -241,7 +241,7 @@ func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 //   - rawQuery: Typed string argument for doRequest.
 //
 // Returns:
-//   - resp: HTTP response; caller must close the body.
+//   - resp: HTTP response. Caller must close the body.
 //   - err: Failure from execute request.
 func (client *Client) doRequest(
 	ctx context.Context,

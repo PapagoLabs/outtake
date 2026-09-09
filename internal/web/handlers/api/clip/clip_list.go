@@ -198,7 +198,7 @@ func compareClipListJobs(left, right *queue.Job, sort string) int {
 //   - job: Clip job to process or persist.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func jobDisplayName(job *queue.Job) string {
 	if job.Name != "" {
 		return job.Name
@@ -213,7 +213,7 @@ func jobDisplayName(job *queue.Job) string {
 //   - job: Clip job to process or persist.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func clipNameKey(job *queue.Job) string {
 	return strings.ToLower(jobDisplayName(job))
 }

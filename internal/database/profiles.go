@@ -44,7 +44,7 @@ var ErrLastClipProfile = errors.New("cannot delete the last clip profile")
 //   - profile: Quality profile row to insert or update.
 //
 // Returns:
-//   - err: Wrapped failure such as "save clip profile"; "ensure default after
+//   - err: Wrapped failure such as "save clip profile" or "ensure default after
 //     save".
 func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 	isDefault := 0
@@ -131,8 +131,8 @@ func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error
 //
 // Returns:
 //   - items: The clip profiles with the default first.
-//   - err: Wrapped failure such as "list clip profiles"; "scan clip profiles";
-//     "iterate clip profiles".
+//   - err: Wrapped failure such as "list clip profiles", "scan clip profiles",
+//     or "iterate clip profiles".
 func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -224,8 +224,8 @@ func (db *DB) SetDefaultClipProfile(ctx context.Context, id string) error {
 //   - id: Identifier.
 //
 // Returns:
-//   - err: Wrapped failure such as "delete clip profile"; "lookup clip
-//     profile"; "exec delete clip profile".
+//   - err: Wrapped failure such as "delete clip profile", "lookup clip
+//     profile", or "exec delete clip profile".
 func (db *DB) DeleteClipProfile(ctx context.Context, id string) error {
 	count, err := db.clipProfileCount(ctx)
 	if err != nil {
@@ -318,7 +318,7 @@ func (db *DB) assignDefaultClipProfile(ctx context.Context, id string) error {
 //   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - err: Wrapped failure such as "count default clip profiles"; "ensure
+//   - err: Wrapped failure such as "count default clip profiles" or "ensure
 //     default clip profile".
 func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 	var defaults int

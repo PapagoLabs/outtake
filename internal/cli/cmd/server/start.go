@@ -40,7 +40,7 @@ func NewStartCommand() *cobra.Command {
 //   - serverFlags: Typed *flags.ServerFlags argument for runStart.
 //
 // Returns:
-//   - err: Wrapped failure such as "load config"; "init app"; "run app".
+//   - err: Wrapped failure such as "load config", "init app", or "run app".
 func runStart(serverFlags *flags.ServerFlags) error {
 	cfg, err := config.Load("")
 	if err != nil {

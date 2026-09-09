@@ -623,7 +623,7 @@ func ChooserLibraries(libraries []viewmedia.LibraryItem, query, libraryID string
 //   - size: Typed int argument for MediaContent.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 //   - items2: Result of MediaContent.
 //   - n: Numeric result for this call.
 func (rt *Runtime) MediaContent(
@@ -705,7 +705,7 @@ func (rt *Runtime) MediaLetters(
 //   - libraryID: Typed string argument for SearchMediaContent.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 //   - items2: the search media content.
 //   - n: Numeric result for this call.
 func SearchMediaContent(
@@ -742,7 +742,7 @@ func SearchMediaContent(
 //   - size: Typed int argument for ListMediaContent.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 //   - items2: Result of ListMediaContent.
 //   - n: Numeric result for this call.
 func ListMediaContent(
@@ -877,7 +877,7 @@ func ClipStats(jobs []*queue.Job) DashStats {
 // Parameters:
 //   - scheme: URL scheme (http or https).
 //   - address: Host:port or host for the Plex server.
-//   - port: TCP port; 0 means scheme default.
+//   - port: TCP port. Zero means the scheme default.
 //
 // Returns:
 //   - url: The connection url.
@@ -1002,7 +1002,7 @@ func ToLibraryItems(libs []plex.Library) []viewmedia.LibraryItem {
 //
 // Returns:
 //   - mediaPage: The one page of a library section or container children.
-//   - err: Wrapped failure such as "list children"; "list section".
+//   - err: Wrapped failure such as "list children" or "list section".
 func ListMediaPage(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
@@ -1375,7 +1375,7 @@ func PageStart(raw string) int {
 //   - libs: Typed []viewmedia.LibraryItem argument for ItemCrumbs.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func ItemCrumbs(item plex.MediaItem, libs []viewmedia.LibraryItem) []viewmedia.Crumb {
 	crumbs := []viewmedia.Crumb{{Title: "Libraries", URL: respond.PathMedia}}
 
@@ -1651,7 +1651,7 @@ func ToLetterIndexes(index []plex.LetterIndex) []viewmedia.LetterIndex {
 //   - sort: Typed string argument for ThinJumpIndexes.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func ThinJumpIndexes(letters []viewmedia.LetterIndex, sort string) []viewmedia.LetterIndex {
 	if len(letters) <= maxJumpLabels {
 		return letters
@@ -1692,7 +1692,7 @@ func YearTickStep(n int) int {
 //   - step: Typed int argument for ThinNumericTitles.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func ThinNumericTitles(letters []viewmedia.LetterIndex, step int) []viewmedia.LetterIndex {
 	if step <= 1 || len(letters) <= jumpSampleEnds {
 		return letters
@@ -1743,7 +1743,7 @@ func KeepNumericTitle(index, last int, title string, step int) bool {
 //   - letters: Typed []viewmedia.LetterIndex argument for ThinMonthTitles.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func ThinMonthTitles(letters []viewmedia.LetterIndex) []viewmedia.LetterIndex {
 	if len(letters) <= maxJumpLabels {
 		return letters
@@ -1775,7 +1775,7 @@ func ThinMonthTitles(letters []viewmedia.LetterIndex) []viewmedia.LetterIndex {
 //   - title: Typed string argument for MonthJumpYear.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func MonthJumpYear(title string) string {
 	if len(title) >= monthYearLen {
 		return title[len(title)-monthYearLen:]
@@ -1791,7 +1791,7 @@ func MonthJumpYear(title string) string {
 //   - limit: Typed int argument for SampleJumpIndexes.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func SampleJumpIndexes(letters []viewmedia.LetterIndex, limit int) []viewmedia.LetterIndex {
 	if len(letters) <= limit || limit < jumpSampleEnds {
 		return letters
@@ -1818,7 +1818,7 @@ func SampleJumpIndexes(letters []viewmedia.LetterIndex, limit int) []viewmedia.L
 //   - last: Typed int argument for AppendInnerJumpMarks.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func AppendInnerJumpMarks(
 	out, letters []viewmedia.LetterIndex,
 	inner, last int,
@@ -1842,7 +1842,7 @@ func AppendInnerJumpMarks(
 //   - sort: Typed string argument for OrderJumpIndex.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func OrderJumpIndex(index []plex.LetterIndex, sort string) []plex.LetterIndex {
 	switch sort {
 	case mediaSortTitleDesc:
@@ -1862,7 +1862,7 @@ func OrderJumpIndex(index []plex.LetterIndex, sort string) []plex.LetterIndex {
 //   - addedAt: Typed int64 argument for AddedMonthKey.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func AddedMonthKey(addedAt int64) string {
 	if addedAt <= 0 {
 		return jumpOtherKey
@@ -1924,7 +1924,7 @@ func LoadAddedAtIndexes(
 //   - sort: Typed string argument for AddedAtCacheKey.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func AddedAtCacheKey(server plex.Server, libraryID, sort string) string {
 	return server.Address + ":" + strconv.Itoa(server.Port) + "|" + libraryID + "|" + sort
 }
@@ -2026,7 +2026,7 @@ func TitleJumpKey(titleSort, title string) string {
 //   - keyFn: Typed string argument for GroupIndexes.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func GroupIndexes(items []plex.MediaItem, keyFn func(plex.MediaItem) string) []plex.LetterIndex {
 	index := make([]plex.LetterIndex, 0)
 	last := ""
@@ -2056,7 +2056,7 @@ func GroupIndexes(items []plex.MediaItem, keyFn func(plex.MediaItem) string) []p
 //   - sort: Typed string argument for CollectAddedAtItems.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func CollectAddedAtItems(
 	ctx context.Context,
 	client *plex.Client,

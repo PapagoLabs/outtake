@@ -121,7 +121,7 @@ func (t Timecode) Seconds() float64 {
 // String renders HH:MM:SS.mmm.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func (t Timecode) String() string {
 	return DefaultClock.Format(t.d)
 }
@@ -132,7 +132,7 @@ func (t Timecode) String() string {
 //   - duration: Timeout or interval duration.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func (FFmpegClock) Format(duration time.Duration) string {
 	if duration < 0 {
 		duration = 0
@@ -187,7 +187,7 @@ func (clock FFmpegClock) Parse(value string) (time.Duration, error) {
 //
 // Returns:
 //   - dur: The [HH:]MM:SS[.m...].
-//   - err: Wrapped failure such as "seconds"; "minutes"; "hours".
+//   - err: Wrapped failure such as "seconds", "minutes", or "hours".
 func (FFmpegClock) parseClock(value string) (time.Duration, error) {
 	parts := strings.Split(value, ":")
 	count := len(parts)
@@ -232,7 +232,7 @@ func (FFmpegClock) parseClock(value string) (time.Duration, error) {
 //
 // Returns:
 //   - dur: Result of clockToDuration.
-//   - err: Wrapped failure such as "hour scale"; "minute scale"; "second
+//   - err: Wrapped failure such as "hour scale", "minute scale", or "second
 //     scale".
 func clockToDuration(hours, minutes int, sec float64) (time.Duration, error) {
 	hourDur, err := scaleDuration(hours, time.Hour)
@@ -352,7 +352,7 @@ func (clock FFmpegClock) parseUnsigned(value string) (time.Duration, error) {
 //
 // Returns:
 //   - dur: A numeric duration in the given unit.
-//   - err: Wrapped failure such as "quantity"; "unit".
+//   - err: Wrapped failure such as "quantity" or "unit".
 func parseUnit(field string, unit time.Duration) (time.Duration, error) {
 	quantity, err := parseFiniteFloat(field)
 	if err != nil {

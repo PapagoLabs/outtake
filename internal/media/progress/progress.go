@@ -149,7 +149,7 @@ func (writer *Writer) report() {
 //   - seconds: Typed string argument for parseHMS.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func parseHMS(hours, minutes, seconds string) float64 {
 	parsedHours, err := strconv.Atoi(hours)
 	if err != nil {

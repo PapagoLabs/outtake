@@ -326,7 +326,7 @@ func TestToLetterIndexesOmitsEmpty(t *testing.T) {
 // parseMediaListQueryFrom returns the parse media list query from.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - target: URL or object under test.
 //
 // Returns:
@@ -387,7 +387,7 @@ func TestLoadAddedAtIndexesCaches(t *testing.T) {
 // addedAtPlexClient returns the added at plex client.
 //
 // Parameters:
-//   - t: Test harness; callee should call t.Helper when wrapping.
+//   - t: Test harness. Callee should call t.Helper when wrapping.
 //   - onRequest: Typed *http.Request) argument for addedAtPlexClient.
 //
 // Returns:

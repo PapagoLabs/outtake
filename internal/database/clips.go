@@ -286,7 +286,7 @@ func scanJob(row Scannable) (*queue.Job, error) {
 //
 // Returns:
 //   - items: The every remaining clip row.
-//   - err: Wrapped failure such as "scan clip"; "iterate clips".
+//   - err: Wrapped failure such as "scan clip" or "iterate clips".
 func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 	jobs := make([]*queue.Job, 0)
 

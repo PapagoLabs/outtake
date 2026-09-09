@@ -154,7 +154,7 @@ func ParseCropdetect(output string) (CropRect, bool) {
 //   - ffmpegPath: Path to the ffmpeg binary.
 //   - input: Source media path.
 //   - start: Seek offset in seconds.
-//   - duration: Clip duration in seconds; capped at three seconds.
+//   - duration: Clip duration in seconds. Capped at three seconds.
 //
 // Returns:
 //   - args: ffmpeg argv including the binary path.
@@ -185,7 +185,7 @@ func DetectArgs(ffmpegPath, input string, start, duration float64) []string {
 //   - duration: Length in seconds.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func cropdetectDuration(duration float64) float64 {
 	if duration <= 0 {
 		return cropdetectMaxSecs
@@ -222,7 +222,7 @@ func ParseStreamSize(output string) Size {
 //   - seconds: Duration in seconds.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func formatDuration(seconds float64) string {
 	return fmt.Sprintf("%.3f", seconds)
 }

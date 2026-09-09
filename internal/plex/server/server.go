@@ -48,7 +48,7 @@ func Empty() Server {
 //   - servers: Source of saved or selected Plex servers.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 func PreferUniqueServers(servers []Server) []Server {
 	byName := make(map[string]Server, len(servers))
 	order := make([]string, 0, len(servers))

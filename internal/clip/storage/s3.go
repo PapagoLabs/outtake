@@ -143,7 +143,7 @@ func (store *S3) ClipPath(id string) string {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: Wrapped failure such as "delete file"; "delete object"; "delete
+//   - err: Wrapped failure such as "delete file", "delete object", or "delete
 //     local file".
 func (store *S3) DeleteFile(path string) error {
 	key, err := store.objectKey(path)
@@ -250,7 +250,7 @@ func (store *S3) PreviewPath(id string) string {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: Wrapped failure such as "put object"; "open local file".
+//   - err: Wrapped failure such as "put object" or "open local file".
 func (store *S3) Put(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -304,7 +304,7 @@ func (store *S3) ThumbnailPath(id string) string {
 //   - data: Raw bytes to parse.
 //
 // Returns:
-//   - err: Wrapped failure such as "write thumbnail"; "upload thumbnail".
+//   - err: Wrapped failure such as "write thumbnail" or "upload thumbnail".
 func (store *S3) WriteThumbnail(id string, data []byte) error {
 	err := store.fs.WriteThumbnail(id, data)
 	if err != nil {
@@ -356,7 +356,7 @@ func (store *S3) head(ctx context.Context, path string) (bool, error) {
 //
 // Returns:
 //   - value: A local scratch path onto an S3 object key.
-//   - err: Wrapped failure such as "object key"; "...: ...".
+//   - err: Wrapped failure such as "object key" or "...: ...".
 func (store *S3) objectKey(path string) (string, error) {
 	rel, err := filepath.Rel(store.fs.BasePath(), path)
 	if err != nil {
@@ -402,7 +402,7 @@ func isNotFound(err error) bool {
 //   - body: Readable request or object body.
 //
 // Returns:
-//   - err: Wrapped failure such as "create object dir"; "create temp file";
+//   - err: Wrapped failure such as "create object dir", "create temp file", or
 //     "write local file".
 func writeObjectFile(path string, body io.Reader) error {
 	dir := filepath.Dir(path)

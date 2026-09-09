@@ -31,7 +31,7 @@ const (
 //
 // Returns:
 //   - storage: A new storage instance.
-//   - err: Wrapped failure such as "create storage dir"; "create ... dir".
+//   - err: Wrapped failure such as "create storage dir" or "create ... dir".
 func NewStorage(basePath string) (*Storage, error) {
 	err := os.MkdirAll(basePath, dirPermissions)
 	if err != nil {

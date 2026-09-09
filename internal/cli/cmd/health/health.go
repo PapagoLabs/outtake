@@ -40,7 +40,7 @@ func NewCommand() *cobra.Command {
 //   - serverFlags: Typed *flags.ServerFlags argument for runHealth.
 //
 // Returns:
-//   - err: Wrapped failure such as "load config"; "health check".
+//   - err: Wrapped failure such as "load config" or "health check".
 func runHealth(serverFlags *flags.ServerFlags) error {
 	cfg, err := config.Load("")
 	if err != nil {

@@ -40,8 +40,8 @@ func serverBaseURL(server Server) string {
 //   - rawQuery: Typed string argument for getPMS.
 //
 // Returns:
-//   - resp: HTTP response; caller must close the body.
-//   - err: Wrapped failure such as "pms request"; "... ...".
+//   - resp: HTTP response. Caller must close the body.
+//   - err: Wrapped failure such as "pms request" or "... ...".
 func (client *Client) getPMS(
 	ctx context.Context,
 	server Server,
@@ -96,9 +96,9 @@ func ValidThumbPath(path string) bool {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
-//   - value: Result value; zero or empty when unavailable.
-//   - err: Wrapped failure such as "get thumb"; "... ...".
+//   - items: Result slice. Empty when none match.
+//   - value: Result value. Zero or empty when unavailable.
+//   - err: Wrapped failure such as "get thumb" or "... ...".
 func (client *Client) GetThumb(
 	ctx context.Context,
 	server Server,
@@ -143,8 +143,8 @@ func (client *Client) GetThumb(
 //   - sectionID: Typed string argument for SearchOnServer.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
-//   - err: Wrapped failure such as "search hubs"; "decode search".
+//   - items: Result slice. Empty when none match.
+//   - err: Wrapped failure such as "search hubs" or "decode search".
 func (client *Client) SearchOnServer(
 	ctx context.Context,
 	server Server,
@@ -181,8 +181,8 @@ func (client *Client) SearchOnServer(
 //   - mediaID: Media id.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
-//   - err: Wrapped failure such as "get children"; "decode children".
+//   - items: Result slice. Empty when none match.
+//   - err: Wrapped failure such as "get children" or "decode children".
 func (client *Client) GetChildren(
 	ctx context.Context,
 	server Server,
@@ -223,7 +223,7 @@ func (client *Client) GetChildren(
 //
 // Returns:
 //   - mediaPage: The one page of children for a container.
-//   - err: Wrapped failure such as "get children"; "decode children".
+//   - err: Wrapped failure such as "get children" or "decode children".
 func (client *Client) GetChildrenPage(
 	ctx context.Context,
 	server Server,
@@ -262,7 +262,7 @@ func (client *Client) GetChildrenPage(
 //
 // Returns:
 //   - mediaItem: A single media item from a Plex Media Server.
-//   - err: Wrapped failure such as "get media item"; "decode media item".
+//   - err: Wrapped failure such as "get media item" or "decode media item".
 func (client *Client) GetMediaItem(
 	ctx context.Context,
 	server Server,
@@ -298,7 +298,7 @@ func (client *Client) GetMediaItem(
 //
 // Returns:
 //   - items: The active sessions from a Plex Media Server.
-//   - err: Wrapped failure such as "get sessions"; "decode sessions".
+//   - err: Wrapped failure such as "get sessions" or "decode sessions".
 func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([]Session, error) {
 	resp, err := client.getPMS(ctx, server, "/status/sessions", "")
 	if err != nil {

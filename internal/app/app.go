@@ -46,7 +46,7 @@ const shutdownTimeout = 10 * time.Second
 //
 // Returns:
 //   - app: A new App with all dependencies initialized.
-//   - err: Wrapped failure such as "init database"; "init storage".
+//   - err: Wrapped failure such as "init database" or "init storage".
 func New(cfg *config.Config) (*App, error) {
 	db, err := database.NewFromConfig(cfg)
 	if err != nil {

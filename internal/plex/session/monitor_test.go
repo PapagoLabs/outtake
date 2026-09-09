@@ -39,7 +39,7 @@ var errUnavailable = errors.New("unavailable")
 // GetSessionsOnServer implements [Fetcher].
 //
 // Returns:
-//   - items: Result slice; empty when none match.
+//   - items: Result slice. Empty when none match.
 //   - err: Propagates errors from slices.Clone.
 func (stub *stubFetcher) GetSessionsOnServer(
 	_ context.Context,

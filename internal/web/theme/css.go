@@ -10,7 +10,7 @@ import (
 // CSS renders :root/.dark for the default palette and data-palette overrides.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func CSS() string {
 	var buf strings.Builder
 

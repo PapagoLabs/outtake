@@ -128,7 +128,7 @@ func StoragePath() string {
 // Load loads the configuration.
 //
 // Parameters:
-//   - configFile: Optional path to a config file; empty uses defaults and env.
+//   - configFile: Optional path to a config file. Empty uses defaults and env.
 //
 // Returns:
 //   - cfg: Merged file, env (OUTTAKE_*), and default settings.

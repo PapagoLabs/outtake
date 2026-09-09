@@ -42,7 +42,7 @@ func (kind Kind) NameOrder() string {
 //   - query: Search or filter query string.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func (kind Kind) Rewrite(query string) string {
 	if kind != Postgres {
 		return query

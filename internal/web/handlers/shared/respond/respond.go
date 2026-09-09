@@ -241,7 +241,7 @@ func FormErrorLocation(ctx fiber.Ctx, message string) string {
 //   - message: Typed string argument for PathWithError.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func PathWithError(location, message string) string {
 	parsed, err := url.Parse(location)
 	if err != nil || parsed.Path == "" {
@@ -264,7 +264,7 @@ func PathWithError(location, message string) string {
 //   - raw: Raw JSON response body.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func RefererPath(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Path == "" {
@@ -285,7 +285,7 @@ func RefererPath(raw string) string {
 //   - queryErr: Typed string argument for MediaItemError.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func MediaItemError(itemErr error, queryErr string) string {
 	if queryErr != "" {
 		return queryErr
@@ -427,7 +427,7 @@ func IsFormRequest(ctx fiber.Ctx) bool {
 //   - mediaID: Media id.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func ClipReturnPath(mediaID string) string {
 	if mediaID == "" {
 		return PathClips

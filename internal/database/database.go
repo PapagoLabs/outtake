@@ -55,7 +55,7 @@ const (
 //
 // Returns:
 //   - db: A new SQLite database instance.
-//   - err: Wrapped failure such as "open database"; "open sqlite".
+//   - err: Wrapped failure such as "open database" or "open sqlite".
 func New(dbPath string) (*DB, error) {
 	dsn := "file:" + filepath.Clean(dbPath)
 	conn, err := sql.Open("libsql", dsn)
@@ -81,7 +81,7 @@ func New(dbPath string) (*DB, error) {
 //
 // Returns:
 //   - db: The database backend selected by configuration.
-//   - err: Wrapped failure such as "sqlite database"; "postgres database";
+//   - err: Wrapped failure such as "sqlite database", "postgres database", or
 //     "...: ...".
 func NewFromConfig(cfg *config.Config) (*DB, error) {
 	backend := strings.ToLower(strings.TrimSpace(cfg.DatabaseBackend))
@@ -144,7 +144,7 @@ func (db *DB) nameOrder() string {
 //   - query: Search or filter query string.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func (db *DB) rewrite(query string) string {
 	return db.dialect.Rewrite(query)
 }
@@ -157,7 +157,7 @@ func (db *DB) rewrite(query string) string {
 //
 // Returns:
 //   - db: The database handle.
-//   - err: Wrapped failure such as "ping database"; "migrate".
+//   - err: Wrapped failure such as "ping database" or "migrate".
 func finishOpen(conn *sql.DB, kind dialect.Kind) (*DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), migrateTimeout)
 	defer cancel()

@@ -69,7 +69,7 @@ const (
 //   - clipType: Typed string argument for ClipTypeLabel.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func ClipTypeLabel(clipType string) string {
 	switch clipType {
 	case "gif":

@@ -27,8 +27,8 @@ var migrationsFS embed.FS
 //   - kind: Migration or dialect kind identifier.
 //
 // Returns:
-//   - err: Wrapped failure such as "create schema_migrations"; "list applied
-//     migrations"; "apply pending".
+//   - err: Wrapped failure such as "create schema_migrations", "list applied
+//     migrations", or "apply pending".
 func Run(ctx context.Context, conn *sql.DB, kind dialect.Kind) error {
 	_, err := conn.ExecContext(ctx, kind.Rewrite(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -59,8 +59,8 @@ func Run(ctx context.Context, conn *sql.DB, kind dialect.Kind) error {
 //   - conn: Database handle.
 //
 // Returns:
-//   - items: Result slice; empty when none match.
-//   - err: Wrapped failure such as "list migrations"; "scan migration";
+//   - items: Result slice. Empty when none match.
+//   - err: Wrapped failure such as "list migrations", "scan migration", or
 //     "iterate migrations".
 func appliedMigrations(ctx context.Context, conn *sql.DB) ([]string, error) {
 	rows, err := conn.QueryContext(ctx, `SELECT name FROM schema_migrations`)
@@ -99,7 +99,7 @@ func appliedMigrations(ctx context.Context, conn *sql.DB) ([]string, error) {
 //   - applied: Already-applied migration ids.
 //
 // Returns:
-//   - err: Wrapped failure such as "read migrations"; "apply pending".
+//   - err: Wrapped failure such as "read migrations" or "apply pending".
 func applyPending(ctx context.Context, conn *sql.DB, kind dialect.Kind, applied []string) error {
 	entries, err := migrationsFS.ReadDir(migrationsDir(kind))
 	if err != nil {
@@ -129,7 +129,7 @@ func applyPending(ctx context.Context, conn *sql.DB, kind dialect.Kind, applied 
 //   - name: Display or lookup name.
 //
 // Returns:
-//   - err: Wrapped failure such as "migrate"; "record migration ...".
+//   - err: Wrapped failure such as "migrate" or "record migration ...".
 func applyOne(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string) error {
 	err := execMigration(ctx, conn, kind, name)
 	if err != nil {
@@ -157,7 +157,8 @@ func applyOne(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string)
 //   - name: Display or lookup name.
 //
 // Returns:
-//   - err: Wrapped failure such as "read migration ..."; "exec migration ...".
+//   - err: Wrapped failure such as "read migration ..." or "exec migration
+//     ...".
 func execMigration(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string) error {
 	content, err := migrationsFS.ReadFile(migrationsDir(kind) + "/" + name)
 	if err != nil {

@@ -33,7 +33,7 @@ const plexAuthAppBase = "https://app.plex.tv/auth#?"
 //
 // Returns:
 //   - pinResponse: Result of GeneratePIN.
-//   - err: Wrapped failure such as "generate PIN"; "decode PIN response".
+//   - err: Wrapped failure such as "generate PIN" or "decode PIN response".
 func (client *Client) GeneratePIN(ctx context.Context) (*PinResponse, error) {
 	cfg := newRequestConfig(ctx, map[string]string{
 		"Accept":                   acceptJSON,
@@ -68,8 +68,8 @@ func (client *Client) GeneratePIN(ctx context.Context) (*PinResponse, error) {
 //   - pinCode: Typed string argument for PollPIN.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
-//   - err: Wrapped failure such as "poll PIN"; "decode token response".
+//   - value: Result value. Zero or empty when unavailable.
+//   - err: Wrapped failure such as "poll PIN" or "decode token response".
 func (client *Client) PollPIN(ctx context.Context, pinID int, pinCode string) (string, error) {
 	resp, err := client.doRequest(
 		ctx,
@@ -104,7 +104,7 @@ func (client *Client) PollPIN(ctx context.Context, pinID int, pinCode string) (s
 // Returns:
 //   - ok: True when the condition holds.
 //   - userResponse: Result of ValidateToken.
-//   - err: Wrapped failure such as "validate token"; "decode user response".
+//   - err: Wrapped failure such as "validate token" or "decode user response".
 func (client *Client) ValidateToken(ctx context.Context) (bool, *UserResponse, error) {
 	resp, err := client.doRequest(ctx, "/api/v2/user", "")
 	if err != nil {

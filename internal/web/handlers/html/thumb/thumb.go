@@ -58,7 +58,7 @@ func NewThumbHandler(
 //   - ctx: HTTP request context.
 //
 // Returns:
-//   - err: Wrapped failure such as "get cached thumb"; "fetch thumb".
+//   - err: Wrapped failure such as "get cached thumb" or "fetch thumb".
 func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 	path := ctx.Query("path")
 	if !plex.ValidThumbPath(path) {
@@ -170,7 +170,7 @@ func sendCachedThumb(ctx fiber.Ctx, path string) error {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - value: Result value; zero or empty when unavailable.
+//   - value: Result value. Zero or empty when unavailable.
 func thumbCacheID(path string) string {
 	sum := sha256.Sum256([]byte(path))
 

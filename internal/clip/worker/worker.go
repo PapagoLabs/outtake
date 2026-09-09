@@ -27,7 +27,7 @@ var errUnknownJobType = errors.New("unknown job type")
 //   - db: Database handle.
 //
 // Returns:
-//   - err: Wrapped failure such as "extract clip"; "extract gif"; "extract
+//   - err: Wrapped failure such as "extract clip", "extract gif", or "extract
 //     screenshot".
 func extractJob(
 	ctx context.Context,
@@ -92,7 +92,7 @@ func extractJob(
 //   - store: Blob storage backend for clip artifacts.
 //
 // Returns:
-//   - err: Wrapped failure such as "extract"; "store output".
+//   - err: Wrapped failure such as "extract" or "store output".
 func ProcessJob(
 	ctx context.Context,
 	job *queue.Job,
@@ -125,7 +125,7 @@ func ProcessJob(
 //   - job: Clip job to process or persist.
 //
 // Returns:
-//   - crop: Detected crop rectangle; zero when undetectable.
+//   - crop: Detected crop rectangle. Zero when undetectable.
 func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) media.CropRect {
 	if !job.CropBlackBars {
 		return media.CropRect{}
@@ -143,7 +143,7 @@ func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) med
 //
 // Parameters:
 //   - ctx: Cancels or deadlines this call.
-//   - db: Clip profile store; may be nil.
+//   - db: Clip profile store. May be nil.
 //   - job: Clip job whose Quality and WebSafeColor are applied.
 //
 // Returns:
