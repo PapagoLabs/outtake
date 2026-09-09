@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package media
+package websafe
 
 import (
 	"math"
@@ -11,9 +11,11 @@ import (
 )
 
 const (
+	// FloatBits is the bit size for float parsing.
+	floatBits = 64
 	// DefaultWebSafePeak is 400 nits relative to a 100-nit SDR white.
 	// Used when luma cannot be measured. Do not use disc MaxCLL tags.
-	defaultWebSafePeak = 4.0
+	DefaultPeak = 4.0
 	// WebSafeNPL is zscale nominal peak luminance for SDR white in nits.
 	webSafeNPL = 100.0
 	// LimitedRangeOffset is TV-range luma black (code 16).
@@ -33,13 +35,13 @@ const (
 	// PqN is the SMPTE ST 2084 n exponent (2610/16384).
 	pqN = 2610.0 / 16384.0
 	// TransferPQ is ffprobe's HDR10 / PQ transfer name.
-	transferPQ = "smpte2084"
+	TransferPQ = "smpte2084"
 	// TransferHLG is ffprobe's HLG transfer name.
-	transferHLG = "arib-std-b67"
+	TransferHLG = "arib-std-b67"
 	// TransferPQAlias is a short name some probes use for PQ.
-	transferPQAlias = "pq"
+	TransferPQAlias = "pq"
 	// TransferHLGAlias is a short name some probes use for HLG.
-	transferHLGAlias = "hlg"
+	TransferHLGAlias = "hlg"
 	// PeakFormatPrec is the number of decimals on tonemap peak=.
 	peakFormatPrec = 4
 )
@@ -54,9 +56,9 @@ var signalstatsYMaxPattern = regexp.MustCompile(`YMAX=([0-9.]+)`)
 //
 // Returns:
 //   - ok: True when the transfer is PQ.
-func isPQTransfer(transfer string) bool {
+func IsPQTransfer(transfer string) bool {
 	switch strings.ToLower(strings.TrimSpace(transfer)) {
-	case transferPQ, transferPQAlias:
+	case TransferPQ, TransferPQAlias:
 		return true
 	default:
 		return false
@@ -70,9 +72,9 @@ func isPQTransfer(transfer string) bool {
 //
 // Returns:
 //   - ok: True when the transfer is HLG.
-func isHLGTransfer(transfer string) bool {
+func IsHLGTransfer(transfer string) bool {
 	switch strings.ToLower(strings.TrimSpace(transfer)) {
-	case transferHLG, transferHLGAlias:
+	case TransferHLG, TransferHLGAlias:
 		return true
 	default:
 		return false
@@ -86,8 +88,8 @@ func isHLGTransfer(transfer string) bool {
 //
 // Returns:
 //   - ok: True when the transfer is PQ or HLG.
-func isHDRTransfer(transfer string) bool {
-	return isPQTransfer(transfer) || isHLGTransfer(transfer)
+func IsHDRTransfer(transfer string) bool {
+	return IsPQTransfer(transfer) || IsHLGTransfer(transfer)
 }
 
 // pqNitsFromLimitedY converts a limited-range 8-bit luma code to PQ nits.
@@ -97,7 +99,7 @@ func isHDRTransfer(transfer string) bool {
 //
 // Returns:
 //   - nits: Absolute luminance in nits.
-func pqNitsFromLimitedY(ymax float64) float64 {
+func PQNitsFromLimitedY(ymax float64) float64 {
 	normalized := (ymax - limitedRangeOffset) / limitedRangeSpan
 	if normalized <= 0 {
 		return 0
@@ -123,7 +125,7 @@ func pqNitsFromLimitedY(ymax float64) float64 {
 //
 // Returns:
 //   - peak: Relative peak for ffmpeg tonemap=peak, at least 1.
-func tonePeakFromNits(nits float64) float64 {
+func TonePeakFromNits(nits float64) float64 {
 	peak := nits / webSafeNPL
 	if peak < 1 {
 		return 1
@@ -140,7 +142,7 @@ func tonePeakFromNits(nits float64) float64 {
 // Returns:
 //   - ymax: The highest parsed YMAX value.
 //   - ok: True when at least one YMAX was found.
-func parseSignalstatsYMax(log string) (float64, bool) {
+func ParseSignalstatsYMax(log string) (float64, bool) {
 	matches := signalstatsYMaxPattern.FindAllStringSubmatch(log, -1)
 	if len(matches) == 0 {
 		return 0, false
@@ -150,7 +152,7 @@ func parseSignalstatsYMax(log string) (float64, bool) {
 	found := false
 
 	for _, match := range matches {
-		value, err := strconv.ParseFloat(match[1], bitRateBits)
+		value, err := strconv.ParseFloat(match[1], floatBits)
 		if err != nil {
 			continue
 		}
@@ -167,25 +169,25 @@ func parseSignalstatsYMax(log string) (float64, bool) {
 // webSafeToneMapFilter is a CPU HDR to SDR filter chain.
 //
 // Parameters:
-//   - hdrKind: transferPQAlias or transferHLGAlias.
+//   - hdrKind: TransferPQAlias or TransferHLGAlias.
 //   - peak: Relative peak for tonemap=peak (npl=100). Values below 1 use
-//     defaultWebSafePeak.
+//     DefaultPeak.
 //
 // Returns:
 //   - filter: An ffmpeg -vf fragment ending in sidedata=mode=delete.
-func webSafeToneMapFilter(hdrKind string, peak float64) string {
+func ToneMapFilter(hdrKind string, peak float64) string {
 	if peak < 1 {
-		peak = defaultWebSafePeak
+		peak = DefaultPeak
 	}
 
-	tin := transferPQ
-	if hdrKind == transferHLGAlias {
-		tin = transferHLG
+	tin := TransferPQ
+	if hdrKind == TransferHLGAlias {
+		tin = TransferHLG
 	}
 
 	return "zscale=tin=" + tin +
 		":min=bt2020nc:pin=bt2020:rin=tv:t=linear:npl=100,format=gbrpf32le,zscale=p=bt709," +
 		"tonemap=tonemap=hable:desat=0:peak=" +
-		strconv.FormatFloat(peak, 'f', peakFormatPrec, bitRateBits) +
+		strconv.FormatFloat(peak, 'f', peakFormatPrec, floatBits) +
 		",zscale=t=iec61966-2-1:m=bt709:p=bt709:r=tv,format=yuv420p,sidedata=mode=delete"
 }

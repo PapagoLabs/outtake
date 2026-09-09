@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package media
+package probe
 
 import (
 	"testing"
@@ -25,7 +25,7 @@ func TestParseProbeOutput(t *testing.T) {
 		]
 	}`)
 
-	info, err := parseProbeOutput(data)
+	info, err := ParseOutput(data)
 	require.NoError(t, err)
 	assert.InEpsilon(t, 120.5, info.Duration, 0.01)
 	assert.Equal(t, int64(5000000), info.BitRate)
@@ -49,10 +49,9 @@ func TestParseProbeOutput_HDRTransfer(t *testing.T) {
 		]
 	}`)
 
-	info, err := parseProbeOutput(data)
+	info, err := ParseOutput(data)
 	require.NoError(t, err)
 	assert.Equal(t, "smpte2084", info.ColorTransfer)
-	assert.True(t, isHDRTransfer(info.ColorTransfer))
 }
 
 func TestParseProbeOutput_AudioTracks(t *testing.T) {
@@ -69,7 +68,7 @@ func TestParseProbeOutput_AudioTracks(t *testing.T) {
 		]
 	}`)
 
-	info, err := parseProbeOutput(data)
+	info, err := ParseOutput(data)
 	require.NoError(t, err)
 	require.Len(t, info.AudioTracks, 2)
 	assert.Equal(t, 0, info.AudioTracks[0].Index)
@@ -83,6 +82,6 @@ func TestParseProbeOutput_AudioTracks(t *testing.T) {
 func TestParseProbeOutput_InvalidJSON(t *testing.T) {
 	t.Parallel()
 
-	_, err := parseProbeOutput([]byte("not json"))
+	_, err := ParseOutput([]byte("not json"))
 	assert.Error(t, err)
 }

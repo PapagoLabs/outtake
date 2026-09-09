@@ -15,6 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/media/websafe"
 )
 
 func TestExecFFmpeg_Run_CommandNotFound(t *testing.T) {
@@ -126,7 +128,7 @@ func TestClipEncodeArgsWebSafeColor(t *testing.T) {
 	)
 
 	joined := strings.Join(args, " ")
-	wantFilter := webSafeToneMapFilter(transferPQAlias, defaultWebSafePeak) +
+	wantFilter := websafe.ToneMapFilter(websafe.TransferPQAlias, websafe.DefaultPeak) +
 		"," + scaleFilter(OutputWidth2160p, scaleFlagsLanczos)
 	assert.Contains(t, args, wantFilter)
 	assert.Contains(t, joined, "zscale=tin=smpte2084")
@@ -181,7 +183,7 @@ func TestPreviewEncodeArgsWebSafeColor(t *testing.T) {
 	)
 
 	joined := strings.Join(args, " ")
-	wantFilter := webSafeToneMapFilter(transferPQAlias, defaultWebSafePeak) +
+	wantFilter := websafe.ToneMapFilter(websafe.TransferPQAlias, websafe.DefaultPeak) +
 		"," + scaleFilter(previewMaxWidth, scaleFlagsFast)
 	assert.Contains(t, args, wantFilter)
 	assert.Contains(t, joined, "tonemap=tonemap=hable")

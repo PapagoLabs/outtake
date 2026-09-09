@@ -15,7 +15,9 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/media/crop"
+	"github.com/PapagoLabs/outtake/internal/media/probe"
 	"github.com/PapagoLabs/outtake/internal/media/progress"
+	"github.com/PapagoLabs/outtake/internal/media/websafe"
 )
 
 // ExecFFmpeg provides FFmpeg execution capabilities.
@@ -249,7 +251,7 @@ func clipEncodeRequest(
 ) h264EncodeRequest {
 	hdrKind := ""
 	if preset.WebSafeColor {
-		hdrKind = transferPQAlias
+		hdrKind = websafe.TransferPQAlias
 	}
 
 	return h264EncodeRequest{
@@ -265,7 +267,7 @@ func clipEncodeRequest(
 		crop:         rect,
 		webSafeColor: preset.WebSafeColor,
 		hdrKind:      hdrKind,
-		tonePeak:     defaultWebSafePeak,
+		tonePeak:     websafe.DefaultPeak,
 	}
 }
 
@@ -325,7 +327,7 @@ func previewEncodeRequest(
 ) h264EncodeRequest {
 	hdrKind := ""
 	if preset.WebSafeColor {
-		hdrKind = transferPQAlias
+		hdrKind = websafe.TransferPQAlias
 	}
 
 	return h264EncodeRequest{
@@ -347,7 +349,7 @@ func previewEncodeRequest(
 		crop:         rect,
 		webSafeColor: preset.WebSafeColor,
 		hdrKind:      hdrKind,
-		tonePeak:     defaultWebSafePeak,
+		tonePeak:     websafe.DefaultPeak,
 	}
 }
 
@@ -384,7 +386,7 @@ func prependCrop(rect CropRect, chain string) string {
 func videoFilter(req h264EncodeRequest) string {
 	chain := scaleFilter(req.maxWidth, req.scaleFlags)
 	if req.webSafeColor && req.hdrKind != "" {
-		chain = webSafeToneMapFilter(req.hdrKind, req.tonePeak) + "," + chain
+		chain = websafe.ToneMapFilter(req.hdrKind, req.tonePeak) + "," + chain
 	}
 
 	return prependCrop(req.crop, chain)
@@ -749,7 +751,7 @@ func (execFFmpeg *ExecFFmpeg) Probe(ctx context.Context, path string) (MediaInfo
 		return MediaInfo{}, fmt.Errorf("probe: %w", err)
 	}
 
-	result, parseErr := parseProbeOutput(output)
+	result, parseErr := probe.ParseOutput(output)
 	if parseErr != nil {
 		return MediaInfo{}, fmt.Errorf("probe: %w", parseErr)
 	}
@@ -778,27 +780,27 @@ func (execFFmpeg *ExecFFmpeg) applyWebSafe(ctx context.Context, req *h264EncodeR
 		return
 	}
 
-	if !isHDRTransfer(info.ColorTransfer) {
+	if !websafe.IsHDRTransfer(info.ColorTransfer) {
 		req.hdrKind = ""
 
 		return
 	}
 
-	if isHLGTransfer(info.ColorTransfer) {
-		req.hdrKind = transferHLGAlias
-		req.tonePeak = defaultWebSafePeak
+	if websafe.IsHLGTransfer(info.ColorTransfer) {
+		req.hdrKind = websafe.TransferHLGAlias
+		req.tonePeak = websafe.DefaultPeak
 
 		return
 	}
 
-	req.hdrKind = transferPQAlias
+	req.hdrKind = websafe.TransferPQAlias
 
 	ymax, ok := execFFmpeg.signalstatsYMax(ctx, req.input, req.start, req.duration)
 	if !ok {
 		return
 	}
 
-	req.tonePeak = tonePeakFromNits(pqNitsFromLimitedY(ymax))
+	req.tonePeak = websafe.TonePeakFromNits(websafe.PQNitsFromLimitedY(ymax))
 }
 
 // run executes the FFmpeg command.
@@ -889,7 +891,7 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 		logging.Logger.Debug().Err(err).Msg("signalstats finished")
 	}
 
-	return parseSignalstatsYMax(stderr.String())
+	return websafe.ParseSignalstatsYMax(stderr.String())
 }
 
 // formatDuration formats a duration in seconds to a string.

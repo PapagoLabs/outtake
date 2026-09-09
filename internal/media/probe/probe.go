@@ -1,0 +1,169 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package probe
+
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+)
+
+// MediaInfo represents media file information.
+type MediaInfo struct {
+	Duration   float64 `json:"duration"`
+	Width      int     `json:"width"`
+	Height     int     `json:"height"`
+	VideoCodec string  `json:"video_codec"`
+	AudioCodec string  `json:"audio_codec"`
+	Format     string  `json:"format"`
+	BitRate    int64   `json:"bit_rate"`
+	// ColorTransfer is ffprobe color_transfer of the first video stream.
+	ColorTransfer string       `json:"color_transfer"`
+	AudioTracks   []AudioTrack `json:"audio_tracks"`
+}
+
+// AudioTrack is one audio stream on a source file.
+type AudioTrack struct {
+	Index    int
+	Codec    string
+	Language string
+	Title    string
+	Channels int
+}
+
+// probeFormat represents the format information from ffprobe.
+type probeFormat struct {
+	Duration   string `json:"duration"`
+	BitRate    string `json:"bit_rate"`
+	FormatName string `json:"format_name"`
+}
+
+// probeStream represents a stream from ffprobe.
+type probeStream struct {
+	Index         int       `json:"index"`
+	CodecType     string    `json:"codec_type"`
+	CodecName     string    `json:"codec_name"`
+	Width         int       `json:"width"`
+	Height        int       `json:"height"`
+	Channels      int       `json:"channels"`
+	ColorTransfer string    `json:"color_transfer"`
+	Tags          probeTags `json:"tags"`
+}
+
+// probeTags holds optional ffprobe stream tags.
+type probeTags struct {
+	Language string `json:"language"`
+	Title    string `json:"title"`
+	Name     string `json:"name"`
+}
+
+// probeOutput represents the output from ffprobe.
+type probeOutput struct {
+	Format  probeFormat   `json:"format"`
+	Streams []probeStream `json:"streams"`
+}
+
+const (
+	// BitRateBits is the bit size for integer parsing.
+	bitRateBits = 64
+	// DecimalBase is the base 10 for integer parsing.
+	decimalBase = 10
+	// EmptyVideoCodec is an empty video codec placeholder.
+	emptyVideoCodec = ""
+	// EmptyAudioCodec is an empty audio codec placeholder.
+	emptyAudioCodec = ""
+)
+
+// ParseOutput parses the ffprobe output.
+func ParseOutput(data []byte) (MediaInfo, error) {
+	var output probeOutput
+
+	err := json.Unmarshal(data, &output)
+	if err != nil {
+		return MediaInfo{}, fmt.Errorf("parse probe output: %w", err)
+	}
+
+	info := MediaInfo{
+		Duration:    0,
+		Width:       0,
+		Height:      0,
+		VideoCodec:  "",
+		AudioCodec:  "",
+		BitRate:     0,
+		Format:      output.Format.FormatName,
+		AudioTracks: nil,
+	}
+
+	parseDuration(output, &info)
+	parseBitRate(output, &info)
+	parseStreams(output, &info)
+
+	return info, nil
+}
+
+// parseDuration parses the duration from the probe output.
+func parseDuration(output probeOutput, info *MediaInfo) {
+	if output.Format.Duration == "" {
+		return
+	}
+
+	dur, err := strconv.ParseFloat(output.Format.Duration, bitRateBits)
+	if err == nil {
+		info.Duration = dur
+	}
+}
+
+// parseBitRate parses the bit rate from the probe output.
+func parseBitRate(output probeOutput, info *MediaInfo) {
+	if output.Format.BitRate == "" {
+		return
+	}
+
+	br, err := strconv.ParseInt(output.Format.BitRate, decimalBase, bitRateBits)
+	if err == nil {
+		info.BitRate = br
+	}
+}
+
+// parseStreams parses the streams from the probe output.
+func parseStreams(output probeOutput, info *MediaInfo) {
+	for index := range output.Streams {
+		parseStream(output.Streams[index], info)
+	}
+}
+
+// parseStream parses a single stream from the probe output.
+func parseStream(stream probeStream, info *MediaInfo) {
+	switch stream.CodecType {
+	case "video":
+		if info.VideoCodec == emptyVideoCodec {
+			info.VideoCodec = stream.CodecName
+			info.Width = stream.Width
+			info.Height = stream.Height
+			info.ColorTransfer = stream.ColorTransfer
+		}
+	case "audio":
+		if info.AudioCodec == emptyAudioCodec {
+			info.AudioCodec = stream.CodecName
+		}
+
+		info.AudioTracks = append(info.AudioTracks, AudioTrack{
+			Index:    len(info.AudioTracks),
+			Codec:    stream.CodecName,
+			Language: stream.Tags.Language,
+			Title:    audioTitle(stream.Tags),
+			Channels: stream.Channels,
+		})
+	default:
+	}
+}
+
+// audioTitle prefers a stream title, then the handler name tag.
+func audioTitle(tags probeTags) string {
+	if tags.Title != "" {
+		return tags.Title
+	}
+
+	return tags.Name
+}
