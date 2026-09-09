@@ -30,7 +30,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/storage"
 	"github.com/PapagoLabs/outtake/internal/web"
 	"github.com/PapagoLabs/outtake/internal/web/handlers"

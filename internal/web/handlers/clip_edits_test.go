@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/PapagoLabs/outtake/internal/api"
-	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 )
 
 func TestApplyClipEditsPreservesOmittedWebSafeColor(t *testing.T) {

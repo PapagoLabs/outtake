@@ -13,7 +13,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/database/mocks"
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 )
 
 func TestClipPersistence(t *testing.T) {

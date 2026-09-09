@@ -10,7 +10,7 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 )
 
 // clipListQuery is the Clips page and media-item clip-list toolbar state.

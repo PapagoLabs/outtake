@@ -4,7 +4,7 @@
 package handlers
 
 import (
-	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/storage"
 )
 

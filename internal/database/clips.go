@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 )
 
 // Scannable is implemented by [sql.Row] and [sql.Rows].
