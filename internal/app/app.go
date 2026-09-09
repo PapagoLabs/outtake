@@ -39,6 +39,7 @@ import (
 	healthapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/health"
 	mediaapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/media"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/html"
+	htmlthumb "github.com/PapagoLabs/outtake/internal/web/handlers/html/thumb"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
@@ -130,7 +131,7 @@ func newRouter(
 	mediaHandler := mediaapi.NewMediaHandler(plexProduct, plexClientID, bind)
 	authHandler := authapi.NewAuthHandler(plexProduct, plexClientID, cfg.PublicURL(), db, bind)
 	htmlHandler := html.NewHTMLHandler(jobQueue, db, bind, cfg, plexProduct, plexClientID)
-	thumbHandler := html.NewThumbHandler(store, bind, plexProduct, plexClientID)
+	thumbHandler := htmlthumb.NewThumbHandler(store, bind, plexProduct, plexClientID)
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: shared.PageError,
@@ -299,7 +300,7 @@ func mountPages(
 	app *fiber.App,
 	guard fiber.Handler,
 	htmlHandler *html.HTMLHandler,
-	thumbHandler *html.ThumbHandler,
+	thumbHandler *htmlthumb.ThumbHandler,
 ) {
 	// Mount HTML page routes.
 	app.Get("/login", htmlHandler.Login)
