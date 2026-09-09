@@ -75,14 +75,14 @@ const (
 	emptyAudioCodec = ""
 )
 
-// ParseOutput parses the ffprobe output.
+// ParseOutput parses ffprobe JSON into a [MediaInfo] summary.
 //
 // Parameters:
-//   - data: Data.
+//   - data: Raw stdout from ffprobe -print_format json.
 //
 // Returns:
-//   - mediaInfo: The ffprobe output.
-//   - err: The error, if any.
+//   - mediaInfo: Duration, codecs, dimensions, and audio tracks when present.
+//   - err: JSON unmarshal failure, wrapped as "parse probe output".
 func ParseOutput(data []byte) (MediaInfo, error) {
 	var output probeOutput
 
@@ -109,11 +109,11 @@ func ParseOutput(data []byte) (MediaInfo, error) {
 	return info, nil
 }
 
-// parseDuration parses the duration from the probe output.
+// parseDuration copies format.duration onto info when it parses as seconds.
 //
 // Parameters:
-//   - output: Output.
-//   - info: Info.
+//   - output: Decoded ffprobe JSON container.
+//   - info: Destination; Duration stays 0 when the field is missing or invalid.
 func parseDuration(output probeOutput, info *MediaInfo) {
 	if output.Format.Duration == "" {
 		return
@@ -125,11 +125,11 @@ func parseDuration(output probeOutput, info *MediaInfo) {
 	}
 }
 
-// parseBitRate parses the bit rate from the probe output.
+// parseBitRate copies format.bit_rate onto info when it parses as an int.
 //
 // Parameters:
-//   - output: Output.
-//   - info: Info.
+//   - output: Decoded ffprobe JSON container.
+//   - info: Destination; BitRate stays 0 when the field is missing or invalid.
 func parseBitRate(output probeOutput, info *MediaInfo) {
 	if output.Format.BitRate == "" {
 		return
@@ -141,22 +141,22 @@ func parseBitRate(output probeOutput, info *MediaInfo) {
 	}
 }
 
-// parseStreams parses the streams from the probe output.
+// parseStreams walks every stream and merges video/audio fields into info.
 //
 // Parameters:
-//   - output: Output.
-//   - info: Info.
+//   - output: Decoded ffprobe JSON container.
+//   - info: Destination updated in place for the first video and all audio.
 func parseStreams(output probeOutput, info *MediaInfo) {
 	for index := range output.Streams {
 		parseStream(output.Streams[index], info)
 	}
 }
 
-// parseStream parses a single stream from the probe output.
+// parseStream applies one ffprobe stream to info (first video wins; audio appends).
 //
 // Parameters:
-//   - stream: Stream.
-//   - info: Info.
+//   - stream: One entry from ffprobe streams[].
+//   - info: Destination; video fields fill once, audio tracks accumulate.
 func parseStream(stream probeStream, info *MediaInfo) {
 	switch stream.CodecType {
 	case "video":
@@ -185,10 +185,10 @@ func parseStream(stream probeStream, info *MediaInfo) {
 // audioTitle prefers a stream title, then the handler name tag.
 //
 // Parameters:
-//   - tags: Tags.
+//   - tags: ffprobe stream tags (title and name/handler_name).
 //
 // Returns:
-//   - value: The value.
+//   - title: Non-empty title, else name; empty when both are unset.
 func audioTitle(tags probeTags) string {
 	if tags.Title != "" {
 		return tags.Title
