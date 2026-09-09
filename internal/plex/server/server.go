@@ -27,6 +27,9 @@ const (
 )
 
 // Empty returns a Server with every exported field set to its zero value.
+//
+// Returns:
+//   - server: A Server with every exported field set to its zero value.
 func Empty() Server {
 	return Server{
 		Name:    "",
@@ -38,7 +41,14 @@ func Empty() Server {
 	}
 }
 
-// PreferUniqueServers keeps one connection per server name, preferring local ones.
+// PreferUniqueServers keeps one connection per server name, preferring local
+// ones.
+//
+// Parameters:
+//   - servers: Servers.
+//
+// Returns:
+//   - items: The items.
 func PreferUniqueServers(servers []Server) []Server {
 	byName := make(map[string]Server, len(servers))
 	order := make([]string, 0, len(servers))
@@ -66,6 +76,14 @@ func PreferUniqueServers(servers []Server) []Server {
 }
 
 // ServerFromURL builds a Server from a base URL and access token.
+//
+// Parameters:
+//   - rawURL: Raw url.
+//   - token: Token.
+//
+// Returns:
+//   - server: A Server from a base URL and access token.
+//   - ok: True when the condition holds.
 func ServerFromURL(rawURL, token string) (Server, bool) {
 	if rawURL == "" || token == "" {
 		return Empty(), false
@@ -97,10 +115,24 @@ func ServerFromURL(rawURL, token string) (Server, bool) {
 }
 
 // SameConnection reports whether two servers share scheme, host, and port.
+//
+// Parameters:
+//   - left: Left.
+//   - right: Right.
+//
+// Returns:
+//   - ok: True when two servers share scheme, host, and port.
 func SameConnection(left, right Server) bool {
 	return left.Scheme == right.Scheme && left.Address == right.Address && left.Port == right.Port
 }
 
+// DefaultPortForScheme returns the default port for scheme.
+//
+// Parameters:
+//   - scheme: Scheme.
+//
+// Returns:
+//   - n: The default port for scheme.
 func DefaultPortForScheme(scheme string) int {
 	switch scheme {
 	case defaultScheme:
@@ -112,6 +144,14 @@ func DefaultPortForScheme(scheme string) int {
 	}
 }
 
+// portFromURL returns the port from url.
+//
+// Parameters:
+//   - parsed: Parsed.
+//
+// Returns:
+//   - n: The port from url.
+//   - ok: True when the condition holds.
 func portFromURL(parsed *url.URL) (int, bool) {
 	if parsed.Port() != "" {
 		portNum, err := strconv.Atoi(parsed.Port())

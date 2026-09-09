@@ -15,6 +15,12 @@ import (
 const TypeEpisode = "episode"
 
 // Display returns a user-facing title, including show and episode codes.
+//
+// Parameters:
+//   - item: Item.
+//
+// Returns:
+//   - value: A user-facing title, including show and episode codes.
 func Display(item page.MediaItem) string {
 	if item.Type == TypeEpisode {
 		return episodeDisplay(item)
@@ -28,6 +34,13 @@ func Display(item page.MediaItem) string {
 }
 
 // EpisodeCode formats a season and episode number as S01E03.
+//
+// Parameters:
+//   - season: Season.
+//   - episode: Episode.
+//
+// Returns:
+//   - value: The value.
 func EpisodeCode(season, episode int) string {
 	if season <= 0 && episode <= 0 {
 		return ""
@@ -44,6 +57,13 @@ func EpisodeCode(season, episode int) string {
 	return fmt.Sprintf("S%02dE%02d", season, episode)
 }
 
+// episodeDisplay returns the episode display.
+//
+// Parameters:
+//   - item: Item.
+//
+// Returns:
+//   - value: The episode display.
 func episodeDisplay(item page.MediaItem) string {
 	var parts []string
 

@@ -44,6 +44,13 @@ type LetterIndex struct {
 }
 
 // LetterOffset returns the item offset of letter in index order.
+//
+// Parameters:
+//   - index: Index.
+//   - letter: Letter.
+//
+// Returns:
+//   - n: The item offset of letter in index order.
 func LetterOffset(index []LetterIndex, letter string) int {
 	offset := 0
 
@@ -59,6 +66,12 @@ func LetterOffset(index []LetterIndex, letter string) int {
 }
 
 // ReverseIndexes returns index in reverse order.
+//
+// Parameters:
+//   - index: Index.
+//
+// Returns:
+//   - items: The index in reverse order.
 func ReverseIndexes(index []LetterIndex) []LetterIndex {
 	out := make([]LetterIndex, 0, len(index))
 	for _, entry := range slices.Backward(index) {
@@ -69,6 +82,12 @@ func ReverseIndexes(index []LetterIndex) []LetterIndex {
 }
 
 // SortYearIndexes orders year buckets from oldest to newest.
+//
+// Parameters:
+//   - index: Index.
+//
+// Returns:
+//   - items: The items.
 func SortYearIndexes(index []LetterIndex) []LetterIndex {
 	out := append([]LetterIndex(nil), index...)
 	slices.SortFunc(out, compareYearTitles)
@@ -76,6 +95,14 @@ func SortYearIndexes(index []LetterIndex) []LetterIndex {
 	return out
 }
 
+// compareYearTitles returns the compare year titles.
+//
+// Parameters:
+//   - left: Left.
+//   - right: Right.
+//
+// Returns:
+//   - n: The compare year titles.
 func compareYearTitles(left, right LetterIndex) int {
 	leftYear, leftErr := strconv.Atoi(left.Title)
 	rightYear, rightErr := strconv.Atoi(right.Title)

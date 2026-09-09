@@ -27,6 +27,14 @@ const (
 	testUnknownType = "unknown"
 )
 
+// newTestClient returns the new test client.
+//
+// Parameters:
+//   - t: T.
+//   - mockHTTP: Mock http.
+//
+// Returns:
+//   - client: The new test client.
 func newTestClient(t *testing.T, mockHTTP *mocks.MockHTTPClient) *plex.Client {
 	t.Helper()
 
@@ -42,6 +50,14 @@ func newTestClient(t *testing.T, mockHTTP *mocks.MockHTTPClient) *plex.Client {
 	)
 }
 
+// newResponse returns the new response.
+//
+// Parameters:
+//   - statusCode: Status code.
+//   - body: Body.
+//
+// Returns:
+//   - resp: The new response.
 func newResponse(statusCode int, body string) *client.Response {
 	resp := client.AcquireResponse()
 	resp.RawResponse.SetStatusCode(statusCode)

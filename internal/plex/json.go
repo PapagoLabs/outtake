@@ -12,11 +12,11 @@ import (
 // decodePMS unmarshals a documented PMS JSON MediaContainer envelope.
 //
 // Parameters:
-//   - body: Raw PMS JSON bytes.
+//   - body: Body.
 //
 // Returns:
-//   - container: The decoded MediaContainer.
-//   - err: Non-nil when body is empty or not valid PMS JSON.
+//   - container: The container.
+//   - err: The error, if any.
 func decodePMS(body []byte) (pms.Container, error) {
 	if len(body) == 0 {
 		return pms.Container{}, errEmptyBody

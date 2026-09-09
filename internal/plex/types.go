@@ -61,11 +61,20 @@ const (
 )
 
 // EmptyServer returns a Server with every exported field set to its zero value.
+//
+// Returns:
+//   - server: A Server with every exported field set to its zero value.
 func EmptyServer() Server {
 	return server.Empty()
 }
 
 // IsContainerType reports whether the metadata type has children to browse.
+//
+// Parameters:
+//   - mediaType: Media type.
+//
+// Returns:
+//   - ok: True when the metadata type has children to browse.
 func IsContainerType(mediaType string) bool {
 	switch mediaType {
 	case TypeShow, TypeSeason, TypeArtist, TypeAlbum:

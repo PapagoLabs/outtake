@@ -37,6 +37,10 @@ const (
 var errUnavailable = errors.New("unavailable")
 
 // GetSessionsOnServer implements [Fetcher].
+//
+// Returns:
+//   - items: The items.
+//   - err: The error, if any.
 func (stub *stubFetcher) GetSessionsOnServer(
 	_ context.Context,
 	_ plex.Server,
@@ -52,6 +56,9 @@ func (stub *stubFetcher) GetSessionsOnServer(
 }
 
 // setError sets the error returned by the next fetch.
+//
+// Parameters:
+//   - err: Error value.
 func (stub *stubFetcher) setError(err error) {
 	stub.mu.Lock()
 	defer stub.mu.Unlock()
@@ -60,6 +67,12 @@ func (stub *stubFetcher) setError(err error) {
 }
 
 // newStub returns a Fetcher stub that yields the given sessions.
+//
+// Parameters:
+//   - sessions: Sessions.
+//
+// Returns:
+//   - stubFetcher: A Fetcher stub that yields the given sessions.
 func newStub(sessions []plex.Session) *stubFetcher {
 	return &stubFetcher{
 		mu:       sync.Mutex{},
@@ -69,6 +82,9 @@ func newStub(sessions []plex.Session) *stubFetcher {
 }
 
 // testServer returns a complete Plex server used by tests.
+//
+// Returns:
+//   - server: A complete Plex server used by tests.
 func testServer() plex.Server {
 	return plex.Server{
 		Name:    testServerName,
@@ -81,6 +97,9 @@ func testServer() plex.Server {
 }
 
 // testSession returns a complete playback session used by tests.
+//
+// Returns:
+//   - session: A complete playback session used by tests.
 func testSession() plex.Session {
 	return plex.Session{
 		ID: testSessionID,

@@ -97,17 +97,23 @@ type session struct {
 type flexString string
 
 const (
-	// DecimalBase is the numeric base used when parsing ratingKey integers.
+	// decimalBase is the numeric base used when parsing ratingKey integers.
 	decimalBase = 10
 
-	// IntBitSize is the bit size used when parsing ratingKey integers.
+	// intBitSize is the bit size used when parsing ratingKey integers.
 	intBitSize = 64
 
-	// MetadataKeyPrefix is the PMS metadata key prefix stripped by ID.
+	// metadataKeyPrefix is the PMS metadata key prefix stripped by ID.
 	metadataKeyPrefix = "/library/metadata/"
 )
 
 // UnmarshalJSON implements [json.Unmarshaler].
+//
+// Parameters:
+//   - raw: Raw.
+//
+// Returns:
+//   - err: The error, if any.
 func (value *flexString) UnmarshalJSON(raw []byte) error {
 	if string(raw) == "null" {
 		*value = ""

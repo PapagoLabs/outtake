@@ -14,6 +14,13 @@ import (
 )
 
 // DiscoverServers discovers Plex servers.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - items: The items.
+//   - err: The error, if any.
 func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 	resp, err := client.doRequest(ctx, "/api/resources", "includeHttps=1")
 	if err != nil {
@@ -39,7 +46,16 @@ func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 	return servers, nil
 }
 
-// SearchMedia searches for media across all accessible servers using the Plex.tv API.
+// SearchMedia searches for media across all accessible servers using the
+// Plex.tv API.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - query: Query.
+//
+// Returns:
+//   - items: The items.
+//   - err: The error, if any.
 func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaItem, error) {
 	resp, err := client.doRequest(
 		ctx,
@@ -69,6 +85,13 @@ func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaIte
 }
 
 // GetSessions fetches active sessions using the Plex.tv API.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//
+// Returns:
+//   - items: The active sessions using the Plex.tv API.
+//   - err: The error, if any.
 func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 	resp, err := client.doRequest(ctx, "/status/sessions", "")
 	if err != nil {
@@ -100,6 +123,12 @@ func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 }
 
 // serversFromDevices flattens discovered devices into server connections.
+//
+// Parameters:
+//   - devices: Devices.
+//
+// Returns:
+//   - items: The items.
 func serversFromDevices(devices []plextv.Device) []Server {
 	servers := make([]Server, 0, len(devices))
 
@@ -115,6 +144,13 @@ func serversFromDevices(devices []plextv.Device) []Server {
 }
 
 // mediaItemFromEntry converts a Plex media listing entry.
+//
+// Parameters:
+//   - entry: Entry.
+//   - libraryTitle: Library title.
+//
+// Returns:
+//   - mediaItem: The media item.
 func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
 	return MediaItem{
 		ID:           entry.ID(),
@@ -127,6 +163,14 @@ func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
 }
 
 // serverFromConnection maps a Plex Connection element onto a Server.
+//
+// Parameters:
+//   - name: Name.
+//   - token: Token.
+//   - conn: Conn.
+//
+// Returns:
+//   - server: A Plex Connection element onto a Server.
 func serverFromConnection(name, token string, conn plextv.Connection) Server {
 	if conn.URI != "" {
 		parsed, ok := plexserver.ServerFromURL(conn.URI, token)

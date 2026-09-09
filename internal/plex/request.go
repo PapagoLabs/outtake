@@ -11,6 +11,15 @@ import (
 )
 
 // newURL builds a [*url.URL] with every field set.
+//
+// Parameters:
+//   - scheme: Scheme.
+//   - host: Host.
+//   - path: Filesystem path.
+//   - rawQuery: Raw query.
+//
+// Returns:
+//   - u: A [*url.URL] with every field set.
 func newURL(scheme, host, path, rawQuery string) *url.URL {
 	return &url.URL{
 		Scheme:      scheme,
@@ -28,6 +37,14 @@ func newURL(scheme, host, path, rawQuery string) *url.URL {
 }
 
 // newRequestConfig builds a fully populated Fiber client request config.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - headers: Headers.
+//   - body: Body.
+//
+// Returns:
+//   - cfg: A fully populated Fiber client request config.
 func newRequestConfig(ctx context.Context, headers map[string]string, body any) fiberClient.Config {
 	return fiberClient.Config{
 		Ctx:                    ctx,
@@ -47,6 +64,9 @@ func newRequestConfig(ctx context.Context, headers map[string]string, body any) 
 }
 
 // defaultBaseURL returns the plex.tv API origin.
+//
+// Returns:
+//   - u: The plex.tv API origin.
 func defaultBaseURL() *url.URL {
 	return newURL(defaultScheme, defaultHost, "", "")
 }

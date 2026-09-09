@@ -45,19 +45,19 @@ type ClientConfig struct {
 }
 
 const (
-	// ProductName is the default X-Plex-Product value.
+	// productName is the default X-Plex-Product value.
 	productName = "outtake"
 
-	// DefaultTimeout is the HTTP client timeout when none is configured.
+	// defaultTimeout is the HTTP client timeout when none is configured.
 	defaultTimeout = 30 * time.Second
 
-	// ErrorStatusThreshold is the first HTTP status treated as an error.
+	// errorStatusThreshold is the first HTTP status treated as an error.
 	errorStatusThreshold = 400
 
-	// DefaultScheme is the plex.tv URL scheme.
+	// defaultScheme is the plex.tv URL scheme.
 	defaultScheme = "https"
 
-	// DefaultHost is the plex.tv API host.
+	// defaultHost is the plex.tv API host.
 	defaultHost = "plex.tv"
 )
 
@@ -65,6 +65,14 @@ const (
 var _ HTTPClient = (*FiberClient)(nil)
 
 // Get sends a GET request.
+//
+// Parameters:
+//   - requestURL: Request url.
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - resp: The resp.
+//   - err: The error, if any.
 func (client *FiberClient) Get(
 	requestURL string,
 	cfg ...fiberClient.Config,
@@ -79,6 +87,14 @@ func (client *FiberClient) Get(
 }
 
 // Post sends a POST request.
+//
+// Parameters:
+//   - requestURL: Request url.
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - resp: The resp.
+//   - err: The error, if any.
 func (client *FiberClient) Post(
 	requestURL string,
 	cfg ...fiberClient.Config,
@@ -93,6 +109,12 @@ func (client *FiberClient) Post(
 }
 
 // NewClient creates a new Plex client with the default Fiber HTTP client.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//
+// Returns:
+//   - client: A new Plex client with the default Fiber HTTP client.
 func NewClient(cfg ClientConfig) *Client {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = defaultTimeout
@@ -109,6 +131,13 @@ func NewClient(cfg ClientConfig) *Client {
 }
 
 // NewClientWithHTTPClient creates a new Plex client with a custom HTTP client.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//   - httpClient: Http client.
+//
+// Returns:
+//   - client: A new Plex client with a custom HTTP client.
 func NewClientWithHTTPClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 	if cfg.Product == "" {
 		cfg.Product = productName
@@ -118,6 +147,12 @@ func NewClientWithHTTPClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 }
 
 // SetBaseURL sets the base URL for server-specific requests.
+//
+// Parameters:
+//   - rawURL: Raw url.
+//
+// Returns:
+//   - err: The error, if any.
 func (client *Client) SetBaseURL(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -130,11 +165,21 @@ func (client *Client) SetBaseURL(rawURL string) error {
 }
 
 // SetToken sets the authentication token.
+//
+// Parameters:
+//   - token: Token.
 func (client *Client) SetToken(token string) {
 	client.Token = token
 }
 
 // newPlexClient constructs a client and applies an optional custom base URL.
+//
+// Parameters:
+//   - cfg: Application configuration.
+//   - httpClient: Http client.
+//
+// Returns:
+//   - client: A client and applies an optional custom base URL.
 func newPlexClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 	plexClient := &Client{
 		httpClient: httpClient,
@@ -159,6 +204,13 @@ func newPlexClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 }
 
 // decodeResponse unmarshals a JSON Plex response.
+//
+// Parameters:
+//   - resp: Resp.
+//   - target: Target.
+//
+// Returns:
+//   - err: The error, if any.
 func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 	if resp.StatusCode() >= errorStatusThreshold {
 		return fmt.Errorf("%w %d: %s", ErrPlexError, resp.StatusCode(), string(resp.Body()))
@@ -182,6 +234,15 @@ func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 }
 
 // doRequest sends a GET request to the Plex API.
+//
+// Parameters:
+//   - ctx: Cancellation context.
+//   - path: Filesystem path.
+//   - rawQuery: Raw query.
+//
+// Returns:
+//   - resp: The resp.
+//   - err: The error, if any.
 func (client *Client) doRequest(
 	ctx context.Context,
 	path, rawQuery string,

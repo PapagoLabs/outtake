@@ -29,6 +29,6 @@ var (
 	// ErrUnsupportedSectionIndex is returned when a section facet is not firstCharacter or year.
 	ErrUnsupportedSectionIndex = errors.New("unsupported section index")
 
-	// ErrEmptyBody is returned when a Plex response body is empty.
+	// errEmptyBody is returned when a Plex response body is empty.
 	errEmptyBody = errors.New("decode: empty body")
 )

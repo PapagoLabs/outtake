@@ -19,14 +19,23 @@ import (
 )
 
 const (
-	// TestSrvToken is the test server token.
+	// testSrvToken is the test server token.
 	testSrvToken = "srv-token"
-	// TestServerClient is the test server client ID.
+	// testServerClient is the test server client ID.
 	testServerClient = "test"
-	// TestServerName is the test server name.
+	// testServerName is the test server name.
 	testServerName = "Test"
 )
 
+// extractAddrPort returns the extract addr port.
+//
+// Parameters:
+//   - t: T.
+//   - server: Server.
+//
+// Returns:
+//   - value: The extract addr port.
+//   - n: The n.
 func extractAddrPort(t *testing.T, server *httptest.Server) (string, int) {
 	t.Helper()
 
@@ -40,6 +49,15 @@ func extractAddrPort(t *testing.T, server *httptest.Server) (string, int) {
 	return parts[0], port
 }
 
+// testPMSClient returns the test pms client.
+//
+// Parameters:
+//   - t: T.
+//   - ts: Ts.
+//
+// Returns:
+//   - client: The test pms client.
+//   - server: The server.
 func testPMSClient(t *testing.T, ts *httptest.Server) (*Client, Server) {
 	t.Helper()
 
