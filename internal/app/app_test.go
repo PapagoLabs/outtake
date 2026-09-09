@@ -75,29 +75,6 @@ func TestSecurityHeadersAndCSRF(t *testing.T) {
 	assert.Contains(t, string(htmxBody), `<hx-partial hx-target="#flash">`)
 }
 
-func TestCSRFCookieSecureFollowsPublicURL(t *testing.T) {
-	t.Parallel()
-
-	httpCfg := &config.Config{ListenAddr: "127.0.0.1:8080"}
-	assert.False(t, csrfConfig(httpCfg).CookieSecure)
-
-	httpsCfg := &config.Config{PublicBaseURL: publicOrigin}
-	assert.True(t, csrfConfig(httpsCfg).CookieSecure)
-}
-
-func TestCSRFTrustedOriginsFollowsPublicBaseURL(t *testing.T) {
-	t.Parallel()
-
-	local := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})
-	assert.Empty(t, local.TrustedOrigins)
-
-	behindTLS := csrfConfig(&config.Config{PublicBaseURL: publicOrigin + "/"})
-	assert.Equal(t, []string{publicOrigin}, behindTLS.TrustedOrigins)
-
-	withPath := csrfConfig(&config.Config{PublicBaseURL: publicOrigin + "/outtake"})
-	assert.Equal(t, []string{publicOrigin}, withPath.TrustedOrigins)
-}
-
 func TestCSRFAllowsHTTPSOriginBehindHTTP(t *testing.T) {
 	t.Parallel()
 

@@ -10,38 +10,22 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/extractors"
-	"github.com/gofiber/fiber/v3/middleware/csrf"
-	"github.com/gofiber/fiber/v3/middleware/helmet"
-	"github.com/gofiber/fiber/v3/middleware/recover"
-	"github.com/gofiber/fiber/v3/middleware/session"
-	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/rs/zerolog/log"
 
+	apphttp "github.com/PapagoLabs/outtake/internal/app/http"
+	"github.com/PapagoLabs/outtake/internal/app/wire"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
-	"github.com/PapagoLabs/outtake/internal/clip/worker"
 	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
-	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/web"
 	authapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/auth"
-	clipapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/clip"
-	healthapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/health"
-	mediaapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/media"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/html"
-	htmlthumb "github.com/PapagoLabs/outtake/internal/web/handlers/html/thumb"
-	sharederror "github.com/PapagoLabs/outtake/internal/web/handlers/shared/error"
-	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
 // App holds the application state and dependencies.
@@ -53,24 +37,7 @@ type App struct {
 	bind   *binding.Binding
 }
 
-const (
-	// ShutdownTimeout is the maximum time to wait for graceful shutdown.
-	shutdownTimeout = 10 * time.Second
-
-	// ContentSecurityPolicy is the helmet CSP for vendored HTMX and same-origin media.
-	contentSecurityPolicy = "default-src 'self'; script-src 'self'; " +
-		"style-src 'self' 'unsafe-inline'; img-src 'self'; media-src 'self'; " +
-		"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-
-	// SessionIdleMinutes is the session idle timeout.
-	sessionIdleMinutes = 30
-
-	// SessionAbsoluteHours is the session absolute timeout.
-	sessionAbsoluteHours = 24
-
-	// RouteClips is the clips collection path.
-	routeClips = "/clips"
-)
+const shutdownTimeout = 10 * time.Second
 
 // New creates a new App with all dependencies initialized.
 func New(cfg *config.Config) (*App, error) {
@@ -94,11 +61,11 @@ func New(cfg *config.Config) (*App, error) {
 	}
 
 	bind := binding.New(plexProduct, plexClientID, time.Duration(cfg.SessionPollSec)*time.Second)
-	restoreBinding(cfg, db, bind)
+	wire.RestoreBinding(cfg, db, bind)
 
-	jobQueue := startQueue(cfg, db, ffmpeg, store)
+	jobQueue := wire.StartQueue(cfg, db, ffmpeg, store)
 
-	router := newRouter(cfg, db, jobQueue, store, bind, plexProduct, plexClientID)
+	router := apphttp.New(cfg, db, jobQueue, store, bind, plexProduct, plexClientID)
 
 	return &App{
 		cfg:    cfg,
@@ -107,251 +74,6 @@ func New(cfg *config.Config) (*App, error) {
 		db:     db,
 		bind:   bind,
 	}, nil
-}
-
-// newRouter constructs the Fiber application and registers routes.
-func newRouter(
-	cfg *config.Config,
-	db *database.DB,
-	jobQueue *queue.Queue,
-	store storage.Blob,
-	bind *binding.Binding,
-	plexProduct, plexClientID string,
-) *fiber.App {
-	// Register page and API routes.
-	clipHandler := clipapi.NewClipHandler(
-		jobQueue,
-		store,
-		db,
-		cfg,
-		bind,
-		plexProduct,
-		plexClientID,
-	)
-	mediaHandler := mediaapi.NewMediaHandler(plexProduct, plexClientID, bind)
-	authHandler := authapi.NewAuthHandler(plexProduct, plexClientID, cfg.PublicURL(), db, bind)
-	htmlHandler := html.NewHTMLHandler(jobQueue, db, bind, cfg, plexProduct, plexClientID)
-	thumbHandler := htmlthumb.NewThumbHandler(store, bind, plexProduct, plexClientID)
-
-	app := fiber.New(fiber.Config{
-		ErrorHandler: sharederror.PageError,
-	})
-	app.Use(recover.New())
-	app.Use(middleware.RequestLogger())
-	app.Use(helmet.New(helmetConfig()))
-	app.Use(session.New(sessionConfig()))
-	app.Use(csrf.New(csrfConfig(cfg)))
-	app.Use(middleware.BindCSRFToken())
-	app.Use(middleware.RestoreToken(db))
-	app.Use("/assets", static.New("assets", staticConfig()))
-
-	guard := middleware.AuthGuard(cfg.Env)
-	mountPages(app, guard, htmlHandler, thumbHandler)
-	mountAPI(app, guard, clipHandler, mediaHandler, authHandler)
-
-	return app
-}
-
-// sessionConfig returns the Fiber session middleware configuration.
-func sessionConfig() session.Config {
-	return session.Config{
-		Storage:           nil,
-		Store:             nil,
-		Next:              nil,
-		ErrorHandler:      nil,
-		KeyGenerator:      nil,
-		CookieDomain:      "",
-		CookiePath:        "",
-		CookieSameSite:    "Lax",
-		Extractor:         extractors.FromCookie("session_id"),
-		IdleTimeout:       sessionIdleMinutes * time.Minute,
-		AbsoluteTimeout:   sessionAbsoluteHours * time.Hour,
-		CookieSecure:      false,
-		CookieHTTPOnly:    true,
-		CookieSessionOnly: false,
-	}
-}
-
-// helmetConfig returns security headers including a same-origin CSP.
-//
-// Returns:
-//   - Helmet middleware config.
-func helmetConfig() helmet.Config {
-	return helmet.Config{
-		Next:                      nil,
-		XSSProtection:             "0",
-		ContentTypeNosniff:        "nosniff",
-		XFrameOptions:             "DENY",
-		ContentSecurityPolicy:     contentSecurityPolicy,
-		ReferrerPolicy:            "no-referrer",
-		PermissionPolicy:          "",
-		CrossOriginEmbedderPolicy: "require-corp",
-		CrossOriginOpenerPolicy:   "same-origin",
-		CrossOriginResourcePolicy: "same-origin",
-		OriginAgentCluster:        "?1",
-		XDNSPrefetchControl:       "off",
-		XDownloadOptions:          "noopen",
-		XPermittedCrossDomain:     "none",
-		HSTSMaxAge:                0,
-		HSTSExcludeSubdomains:     false,
-		CSPReportOnly:             false,
-		HSTSPreloadEnabled:        false,
-	}
-}
-
-// csrfConfig returns CSRF middleware that accepts header or form tokens.
-//
-// Parameters:
-//   - cfg: App config. PublicURL controls CookieSecure and TrustedOrigins.
-//
-// Returns:
-//   - config: CSRF middleware config.
-func csrfConfig(cfg *config.Config) csrf.Config {
-	return csrf.Config{
-		Storage:        nil,
-		Next:           nil,
-		Session:        nil,
-		KeyGenerator:   csrf.ConfigDefault.KeyGenerator,
-		ErrorHandler:   csrfError,
-		CookieName:     "csrf_",
-		CookieDomain:   "",
-		CookiePath:     "",
-		CookieSameSite: "Lax",
-		TrustedOrigins: csrfTrustedOrigins(cfg),
-		Extractor: extractors.Chain(
-			extractors.FromHeader(csrf.HeaderName),
-			extractors.FromForm(web.CSRFFormField),
-		),
-		IdleTimeout:           sessionIdleMinutes * time.Minute,
-		DisableValueRedaction: false,
-		CookieSecure:          cookieSecure(cfg),
-		CookieHTTPOnly:        true,
-		CookieSessionOnly:     false,
-		SingleUseToken:        false,
-	}
-}
-
-// csrfTrustedOrigins returns Fiber CSRF TrustedOrigins from PublicBaseURL.
-//
-// Fiber compares Origin to c.Scheme()+c.Host(). Behind TLS-terminating proxies
-// the app scheme is http while the browser Origin is https, so the public URL
-// must be listed explicitly. Fiber rejects TrustedOrigins that include a path.
-//
-// Parameters:
-//   - cfg: App config. PublicBaseURL is the reverse-proxy origin when set.
-//
-// Returns:
-//   - origins: Scheme and host from PublicURL, or nil when PublicBaseURL is unset.
-func csrfTrustedOrigins(cfg *config.Config) []string {
-	if cfg.PublicBaseURL == "" {
-		return nil
-	}
-
-	parsed, err := url.Parse(cfg.PublicURL())
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil
-	}
-
-	return []string{parsed.Scheme + "://" + parsed.Host}
-}
-
-// cookieSecure reports whether cookies should set the Secure attribute.
-//
-// Parameters:
-//   - cfg: App config. PublicURL is https for remote HTTPS deployments.
-//
-// Returns:
-//   - True when PublicURL uses https; false for local HTTP.
-func cookieSecure(cfg *config.Config) bool {
-	return strings.HasPrefix(strings.ToLower(cfg.PublicURL()), "https://")
-}
-
-// csrfError turns a CSRF failure into a Fiber error for PageError.
-//
-// Parameters:
-//   - _ctx: Request context. Unused.
-//   - _err: CSRF middleware error. Unused.
-//
-// Returns:
-//   - Forbidden Fiber error.
-func csrfError(_ fiber.Ctx, _ error) error {
-	return fiber.NewError(fiber.StatusForbidden, "invalid csrf token")
-}
-
-// staticConfig returns the static asset middleware configuration.
-func staticConfig() static.Config {
-	return static.Config{
-		FS:              web.Assets,
-		Next:            nil,
-		ModifyResponse:  nil,
-		NotFoundHandler: nil,
-		IndexNames:      []string{"index.html"},
-		CacheDuration:   0,
-		MaxAge:          0,
-		Compress:        false,
-		ByteRange:       false,
-		Browse:          false,
-		Download:        false,
-	}
-}
-
-// mountPages registers HTML routes.
-func mountPages(
-	app *fiber.App,
-	guard fiber.Handler,
-	htmlHandler *html.HTMLHandler,
-	thumbHandler *htmlthumb.ThumbHandler,
-) {
-	// Mount HTML page routes.
-	app.Get("/login", htmlHandler.Login)
-	app.Get("/", guard, htmlHandler.Dashboard)
-	app.Get("/dashboard/sessions", guard, htmlHandler.DashboardSessions)
-	app.Get("/media", guard, htmlHandler.Media)
-	app.Get("/media/item/:id/playback", guard, htmlHandler.Playback)
-	app.Get("/media/item/:id/clips", guard, htmlHandler.MediaItemClips)
-	app.Get("/media/item/:id", guard, htmlHandler.MediaItem)
-	app.Get("/previews/:id", guard, htmlHandler.PreviewFile)
-	app.Get("/nav/libraries", guard, htmlHandler.NavLibraries)
-	app.Get("/thumbs", guard, thumbHandler.Get)
-	app.Get("/clips/new", guard, htmlHandler.NewClip)
-	app.Get("/clips/:id/file", guard, htmlHandler.ClipFile)
-	app.Get("/clips/:id/row", guard, htmlHandler.ClipRow)
-	app.Get(routeClips, guard, htmlHandler.Clips)
-	app.Get("/servers", guard, htmlHandler.Servers)
-	app.Post("/servers", guard, htmlHandler.SelectServer)
-	app.Get("/settings/appearance", guard, htmlHandler.Appearance)
-	app.Get("/settings/profiles", guard, htmlHandler.ClipProfiles)
-	app.Post("/settings/profiles", guard, htmlHandler.CreateClipProfile)
-	app.Post("/settings/profiles/:id/default", guard, htmlHandler.SetDefaultClipProfile)
-	app.Post("/settings/profiles/:id/delete", guard, htmlHandler.DeleteClipProfile)
-	app.Post("/settings/profiles/:id", guard, htmlHandler.UpdateClipProfile)
-}
-
-// mountAPI registers JSON API routes.
-func mountAPI(
-	app *fiber.App,
-	guard fiber.Handler,
-	clipHandler *clipapi.ClipHandler,
-	mediaHandler *mediaapi.MediaHandler,
-	authHandler *authapi.AuthHandler,
-) {
-	// Mount JSON API routes.
-	api := app.Group("/api")
-	api.Post(routeClips, guard, clipHandler.Create)
-	api.Post("/clips/preview", guard, clipHandler.Preview)
-	api.Post("/clips/:id/update", guard, clipHandler.Update)
-	api.Post("/clips/:id/cancel", guard, clipHandler.Cancel)
-	api.Get(routeClips, guard, clipHandler.List)
-	api.Get("/clips/:id/status", guard, clipHandler.GetStatus)
-	api.Get("/clips/:id/download", guard, clipHandler.Download)
-	api.Delete("/clips/:id", guard, clipHandler.Delete)
-	api.Get("/media/search", guard, mediaHandler.Search)
-	api.Get("/sessions", guard, mediaHandler.GetSessions)
-	api.Post("/auth/login", authHandler.Login)
-	api.Get("/auth/callback", authHandler.Callback)
-	api.Get("/auth/status", authHandler.Status)
-	api.Get("/auth/logout", authHandler.Logout)
-	api.Get("/healthz", healthapi.NewHealthHandler().Health)
 }
 
 // Close cleans up application resources.
@@ -406,77 +128,4 @@ func (app *App) Test(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, nil
-}
-
-// startQueue creates the worker queue and restores persisted jobs.
-func startQueue(
-	cfg *config.Config,
-	db *database.DB,
-	ffmpeg media.FFmpeg,
-	store storage.Blob,
-) *queue.Queue {
-	jobQueue := queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *queue.Job) error {
-		progressCtx := media.WithProgress(ctx, func(percent int) {
-			job.Progress = percent
-			job.UpdatedAt = time.Now()
-
-			saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
-			if saveErr != nil {
-				log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip progress")
-			}
-		})
-
-		return worker.ProcessJob(progressCtx, job, ffmpeg, db, store)
-	})
-	jobQueue.SetStatusFunc(func(job *queue.Job) {
-		saveErr := db.SaveClip(context.Background(), job)
-		if saveErr != nil {
-			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip status")
-		}
-	})
-	jobQueue.Start()
-	restoreJobs(db, jobQueue)
-
-	return jobQueue
-}
-
-// restoreBinding loads the selected Plex server from config or the database.
-func restoreBinding(cfg *config.Config, db *database.DB, bind *binding.Binding) {
-	if server, ok := plex.ServerFromURL(cfg.PlexServerURL, cfg.PlexToken); ok {
-		bind.Set(server)
-
-		return
-	}
-
-	server, ok, err := db.SelectedServer(context.Background())
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to load selected server")
-
-		return
-	}
-
-	if ok {
-		bind.Set(server)
-	}
-}
-
-// restoreJobs reloads persisted clips into the in-memory queue.
-func restoreJobs(db *database.DB, jobQueue *queue.Queue) {
-	jobs, err := db.ListClips(context.Background())
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to restore clips")
-
-		return
-	}
-
-	for _, job := range jobs {
-		switch job.Status {
-		case queue.JobStatusPending, queue.JobStatusProcessing:
-			job.Status = queue.JobStatusPending
-			job.Error = ""
-			jobQueue.Submit(job)
-		default:
-			jobQueue.Restore(job)
-		}
-	}
 }
