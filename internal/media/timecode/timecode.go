@@ -121,7 +121,7 @@ func (t Timecode) Seconds() float64 {
 // String renders HH:MM:SS.mmm.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func (t Timecode) String() string {
 	return DefaultClock.Format(t.d)
 }
@@ -129,10 +129,10 @@ func (t Timecode) String() string {
 // Format renders duration as HH:MM:SS.mmm.
 //
 // Parameters:
-//   - duration: Duration.
+//   - duration: Timeout or interval duration.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func (FFmpegClock) Format(duration time.Duration) string {
 	if duration < 0 {
 		duration = 0
@@ -152,11 +152,11 @@ func (FFmpegClock) Format(duration time.Duration) string {
 // [-]S+[.m...][s|ms|us].
 //
 // Parameters:
-//   - value: Value.
+//   - value: String value to convert or validate.
 //
 // Returns:
-//   - dur: The dur.
-//   - err: The error, if any.
+//   - dur: Result of Parse.
+//   - err: Wrapped failure from "...: ...".
 func (clock FFmpegClock) Parse(value string) (time.Duration, error) {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -183,11 +183,11 @@ func (clock FFmpegClock) Parse(value string) (time.Duration, error) {
 // parseClock parses [HH:]MM:SS[.m...].
 //
 // Parameters:
-//   - value: Value.
+//   - value: String value to convert or validate.
 //
 // Returns:
 //   - dur: The [HH:]MM:SS[.m...].
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "seconds"; "minutes"; "hours".
 func (FFmpegClock) parseClock(value string) (time.Duration, error) {
 	parts := strings.Split(value, ":")
 	count := len(parts)
@@ -226,13 +226,14 @@ func (FFmpegClock) parseClock(value string) (time.Duration, error) {
 // clockToDuration converts HH, MM, SS fields to a duration.
 //
 // Parameters:
-//   - hours: Hours.
-//   - minutes: Minutes.
-//   - sec: Sec.
+//   - hours: Typed int argument for clockToDuration.
+//   - minutes: Typed int argument for clockToDuration.
+//   - sec: Typed float64 argument for clockToDuration.
 //
 // Returns:
-//   - dur: The dur.
-//   - err: The error, if any.
+//   - dur: Result of clockToDuration.
+//   - err: Wrapped failure such as "hour scale"; "minute scale"; "second
+//     scale".
 func clockToDuration(hours, minutes int, sec float64) (time.Duration, error) {
 	hourDur, err := scaleDuration(hours, time.Hour)
 	if err != nil {
@@ -265,7 +266,7 @@ func clockToDuration(hours, minutes int, sec float64) (time.Duration, error) {
 // clockPartsSigned reports a signed or empty clock field.
 //
 // Parameters:
-//   - parts: Parts.
+//   - parts: Typed []string argument for clockPartsSigned.
 //
 // Returns:
 //   - ok: True when the condition holds.
@@ -282,11 +283,11 @@ func clockPartsSigned(parts []string) bool {
 // clockHours reads the HH field, or 0 for MM:SS.
 //
 // Parameters:
-//   - parts: Parts.
+//   - parts: Typed []string argument for clockHours.
 //
 // Returns:
 //   - n: The HH field, or 0 for MM:SS.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "hour field".
 func clockHours(parts []string) (int, error) {
 	if len(parts) != timecodeHourMinSecParts {
 		return 0, nil
@@ -303,7 +304,7 @@ func clockHours(parts []string) (int, error) {
 // hasSignPrefix reports a leading + or - on value.
 //
 // Parameters:
-//   - value: Value.
+//   - value: String value to convert or validate.
 //
 // Returns:
 //   - ok: True when the condition holds.
@@ -314,11 +315,11 @@ func hasSignPrefix(value string) bool {
 // parseUnsigned parses a non-negative FFmpeg duration.
 //
 // Parameters:
-//   - value: Value.
+//   - value: String value to convert or validate.
 //
 // Returns:
 //   - dur: A non-negative FFmpeg duration.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "unsigned duration".
 func (clock FFmpegClock) parseUnsigned(value string) (time.Duration, error) {
 	var (
 		duration time.Duration
@@ -346,12 +347,12 @@ func (clock FFmpegClock) parseUnsigned(value string) (time.Duration, error) {
 // parseUnit parses a numeric duration in the given unit.
 //
 // Parameters:
-//   - field: Field.
-//   - unit: Unit.
+//   - field: Typed string argument for parseUnit.
+//   - unit: Typed time.Duration argument for parseUnit.
 //
 // Returns:
 //   - dur: A numeric duration in the given unit.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "quantity"; "unit".
 func parseUnit(field string, unit time.Duration) (time.Duration, error) {
 	quantity, err := parseFiniteFloat(field)
 	if err != nil {
@@ -369,12 +370,12 @@ func parseUnit(field string, unit time.Duration) (time.Duration, error) {
 // durationFromFloat converts quantity*unit to a Duration, rejecting overflow.
 //
 // Parameters:
-//   - quantity: Quantity.
-//   - unit: Unit.
+//   - quantity: Typed float64 argument for durationFromFloat.
+//   - unit: Typed time.Duration argument for durationFromFloat.
 //
 // Returns:
-//   - dur: The dur.
-//   - err: The error, if any.
+//   - dur: Result of durationFromFloat.
+//   - err: Failure from decimal.
 func durationFromFloat(quantity float64, unit time.Duration) (time.Duration, error) {
 	if quantity < 0 || math.IsNaN(quantity) || math.IsInf(quantity, 0) || unit <= 0 {
 		return 0, ErrInvalidTimecode
@@ -396,12 +397,12 @@ func durationFromFloat(quantity float64, unit time.Duration) (time.Duration, err
 // scaleDuration converts n*unit to a Duration, rejecting overflow.
 //
 // Parameters:
-//   - count: Count.
-//   - unit: Unit.
+//   - count: Typed int argument for scaleDuration.
+//   - unit: Typed time.Duration argument for scaleDuration.
 //
 // Returns:
-//   - dur: The dur.
-//   - err: The error, if any.
+//   - dur: Result of scaleDuration.
+//   - err: Failure from decimal.
 func scaleDuration(count int, unit time.Duration) (time.Duration, error) {
 	if count < 0 || unit <= 0 {
 		return 0, ErrInvalidTimecode
@@ -417,12 +418,12 @@ func scaleDuration(count int, unit time.Duration) (time.Duration, error) {
 // addDuration adds two durations, rejecting overflow.
 //
 // Parameters:
-//   - left: Left.
-//   - right: Right.
+//   - left: Left operand for comparison.
+//   - right: Right operand for comparison.
 //
 // Returns:
-//   - dur: The dur.
-//   - err: The error, if any.
+//   - dur: Result of addDuration.
+//   - err: Failure from decimal.
 func addDuration(left, right time.Duration) (time.Duration, error) {
 	if right > 0 && left > time.Duration(math.MaxInt64)-right {
 		return 0, ErrInvalidTimecode
@@ -434,11 +435,11 @@ func addDuration(left, right time.Duration) (time.Duration, error) {
 // parseFiniteFloat parses a finite decimal field.
 //
 // Parameters:
-//   - field: Field.
+//   - field: Typed string argument for parseFiniteFloat.
 //
 // Returns:
 //   - value: A finite decimal field.
-//   - err: The error, if any.
+//   - err: Failure from decimal.
 func parseFiniteFloat(field string) (float64, error) {
 	quantity, err := strconv.ParseFloat(strings.TrimSpace(field), secondsBitSize)
 	if err != nil {

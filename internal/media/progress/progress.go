@@ -44,11 +44,11 @@ var timePattern = regexp.MustCompile(`time=(\d+):(\d+):(\d+(?:\.\d+)?)`)
 // WithProgress attaches a progress callback to the context.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - fn: Callback that receives a 0-99 percent complete value.
 //
 // Returns:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 func WithProgress(ctx context.Context, fn func(percent int)) context.Context {
 	return context.WithValue(ctx, key{}, fn)
 }
@@ -56,7 +56,7 @@ func WithProgress(ctx context.Context, fn func(percent int)) context.Context {
 // From returns the progress callback stored on ctx, if any.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
 //   - fn: The callback, or nil when none is stored.
@@ -105,11 +105,11 @@ func (writer *Writer) String() string {
 // Write implements [io.Writer] and reports ffmpeg time= progress.
 //
 // Parameters:
-//   - p: P.
+//   - p: Typed []byte argument for Write.
 //
 // Returns:
-//   - n: The n.
-//   - err: The error, if any.
+//   - n: Numeric result for this call.
+//   - err: Failure from progress write.
 func (writer *Writer) Write(p []byte) (int, error) {
 	written, err := writer.buf.Write(p)
 	if err != nil {
@@ -144,12 +144,12 @@ func (writer *Writer) report() {
 // parseHMS converts an ffmpeg timestamp into seconds.
 //
 // Parameters:
-//   - hours: Hours.
-//   - minutes: Minutes.
-//   - seconds: Seconds.
+//   - hours: Typed string argument for parseHMS.
+//   - minutes: Typed string argument for parseHMS.
+//   - seconds: Typed string argument for parseHMS.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func parseHMS(hours, minutes, seconds string) float64 {
 	parsedHours, err := strconv.Atoi(hours)
 	if err != nil {

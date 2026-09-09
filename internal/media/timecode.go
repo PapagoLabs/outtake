@@ -50,7 +50,7 @@ func FromSeconds(seconds float64) Timecode {
 //   - value: An FFmpeg time-duration string.
 //
 // Returns:
-//   - parsed: The parsed timestamp.
+//   - parsed: Result of Parse.
 //   - err: Non-nil when value is not a valid duration.
 func Parse(value string) (Timecode, error) {
 	d, err := DefaultClock.Parse(value)

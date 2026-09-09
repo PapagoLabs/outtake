@@ -50,7 +50,7 @@ var OutputWidths = quality.OutputWidths
 // ValidEncoderPreset reports whether name is a supported libx264 preset.
 //
 // Parameters:
-//   - name: Name.
+//   - name: Human-readable quality preset name.
 //
 // Returns:
 //   - ok: True when name is a supported libx264 preset.
@@ -61,7 +61,7 @@ func ValidEncoderPreset(name string) bool {
 // ValidCRF reports whether crf is in the libx264 range.
 //
 // Parameters:
-//   - crf: Crf.
+//   - crf: Constant rate factor for x264/x265 (lower is higher quality).
 //
 // Returns:
 //   - ok: True when crf is in the libx264 range.
@@ -72,7 +72,7 @@ func ValidCRF(crf int) bool {
 // ValidAudioKbps reports whether kbps is in the allowed AAC range.
 //
 // Parameters:
-//   - kbps: Kbps.
+//   - kbps: Target video bitrate in kilobits per second.
 //
 // Returns:
 //   - ok: True when kbps is in the allowed AAC range.
@@ -83,10 +83,10 @@ func ValidAudioKbps(kbps int) bool {
 // NormalizePreset fills missing or invalid encode settings with Medium.
 //
 // Parameters:
-//   - preset: Preset.
+//   - preset: Encode quality profile (CRF, bitrate, scale).
 //
 // Returns:
-//   - qualityPreset: The quality preset.
+//   - qualityPreset: Result of NormalizePreset.
 func NormalizePreset(preset QualityPreset) QualityPreset {
 	return quality.NormalizePreset(preset)
 }
@@ -94,7 +94,7 @@ func NormalizePreset(preset QualityPreset) QualityPreset {
 // ValidOutputWidth reports whether width is a supported export width.
 //
 // Parameters:
-//   - width: Width.
+//   - width: Target max width in pixels (even dimensions).
 //
 // Returns:
 //   - ok: True when width is a supported export width.
@@ -105,7 +105,7 @@ func ValidOutputWidth(width int) bool {
 // NormalizeOutputWidth returns width if supported, otherwise 1080p.
 //
 // Parameters:
-//   - width: Width.
+//   - width: Target max width in pixels (even dimensions).
 //
 // Returns:
 //   - n: The width if supported, otherwise 1080p.
@@ -116,10 +116,10 @@ func NormalizeOutputWidth(width int) int {
 // OutputWidthLabel is the UI label for an export width.
 //
 // Parameters:
-//   - width: Width.
+//   - width: Target max width in pixels (even dimensions).
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func OutputWidthLabel(width int) string {
 	return quality.OutputWidthLabel(width)
 }
@@ -128,7 +128,7 @@ func OutputWidthLabel(width int) string {
 //
 // Parameters:
 //   - qualityID: Quality id.
-//   - lookup: Lookup.
+//   - lookup: Typed bool) argument for ResolvePreset.
 //
 // Returns:
 //   - qualityPreset: A stored quality id onto ffmpeg settings.
@@ -139,10 +139,10 @@ func ResolvePreset(qualityID string, lookup func(string) (QualityPreset, bool)) 
 // ChannelLayoutName names common speaker layouts.
 //
 // Parameters:
-//   - channels: Channels.
+//   - channels: Typed int argument for ChannelLayoutName.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func ChannelLayoutName(channels int) string {
 	return quality.ChannelLayoutName(channels)
 }
