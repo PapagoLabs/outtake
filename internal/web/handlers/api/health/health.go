@@ -6,7 +6,7 @@ package health
 import (
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 )
 
 // HealthHandler handles health check requests.
@@ -19,7 +19,7 @@ func NewHealthHandler() *HealthHandler {
 
 // Health handles the health check request.
 func (*HealthHandler) Health(c fiber.Ctx) error {
-	return shared.WriteJSON(c, fiber.StatusOK, fiber.Map{
+	return respond.WriteJSON(c, fiber.StatusOK, fiber.Map{
 		"status":  "ok",
 		"service": "outtake",
 	})

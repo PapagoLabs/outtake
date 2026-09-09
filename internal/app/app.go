@@ -40,7 +40,7 @@ import (
 	mediaapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/media"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/html"
 	htmlthumb "github.com/PapagoLabs/outtake/internal/web/handlers/html/thumb"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharederror "github.com/PapagoLabs/outtake/internal/web/handlers/shared/error"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
@@ -134,7 +134,7 @@ func newRouter(
 	thumbHandler := htmlthumb.NewThumbHandler(store, bind, plexProduct, plexClientID)
 
 	app := fiber.New(fiber.Config{
-		ErrorHandler: shared.PageError,
+		ErrorHandler: sharederror.PageError,
 	})
 	app.Use(recover.New())
 	app.Use(middleware.RequestLogger())

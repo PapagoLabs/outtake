@@ -13,7 +13,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 )
 
 // ThumbHandler proxies and caches Plex thumbnails.
@@ -46,7 +47,7 @@ func NewThumbHandler(
 func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 	path := ctx.Query("path")
 	if !plex.ValidThumbPath(path) {
-		return shared.SendStatusCode(ctx, fiber.StatusBadRequest)
+		return respond.SendStatusCode(ctx, fiber.StatusBadRequest)
 	}
 
 	cacheID := thumbCacheID(path)
@@ -76,13 +77,13 @@ func (handler *ThumbHandler) fetchAndCache(
 	// Resolve the bound server before fetching the thumbnail.
 	server, ok := handler.bind.Get()
 	if !ok {
-		return shared.SendStatusCode(ctx, fiber.StatusBadRequest)
+		return respond.SendStatusCode(ctx, fiber.StatusBadRequest)
 	}
 
-	body, contentType, err := shared.NewBoundClient(handler.product, handler.clientID, server.Token).
+	body, contentType, err := sharedplex.NewBoundClient(handler.product, handler.clientID, server.Token).
 		GetThumb(ctx.Context(), server, path)
 	if err != nil {
-		return shared.SendStatusCode(ctx, fiber.StatusNotFound)
+		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
 	writeErr := handler.store.WriteThumbnail(cacheID, body)
@@ -102,7 +103,7 @@ func (handler *ThumbHandler) fetchAndCache(
 func sendThumbBytes(ctx fiber.Ctx, body []byte, contentType string) error {
 	ctx.Type("jpg")
 	ctx.Set("Cache-Control", thumbCacheControl)
-	ctx.Set(shared.HeaderContentType, contentType)
+	ctx.Set(respond.HeaderContentType, contentType)
 
 	err := ctx.Send(body)
 	if err != nil {

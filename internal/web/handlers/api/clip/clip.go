@@ -22,7 +22,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharedclip "github.com/PapagoLabs/outtake/internal/web/handlers/shared/clip"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 )
 
 // ClipHandler handles clip-related requests.
@@ -101,46 +102,46 @@ func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
 	if job == nil {
-		return shared.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+		return respond.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
 	}
 
 	if !handler.clipQueue.Cancel(id) {
-		return shared.WriteError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
+		return respond.WriteError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
 	}
 
 	updated := handler.clipQueue.GetJob(id)
 	if updated != nil {
 		err := handler.db.SaveClip(ctx.Context(), updated)
 		if err != nil {
-			return shared.WriteError(ctx, fiber.StatusInternalServerError, shared.PersistFailed, err.Error())
+			return respond.WriteError(ctx, fiber.StatusInternalServerError, respond.PersistFailed, err.Error())
 		}
 
 		job = updated
 	}
 
-	if shared.IsHTMXRequest(ctx) {
+	if respond.IsHTMXRequest(ctx) {
 		ctx.Set("HX-Refresh", "true")
 
-		return shared.SendStatusCode(ctx, fiber.StatusOK)
+		return respond.SendStatusCode(ctx, fiber.StatusOK)
 	}
 
-	if shared.IsFormRequest(ctx) {
-		return shared.RedirectTo(ctx, shared.ClipReturnPath(job.MediaID))
+	if respond.IsFormRequest(ctx) {
+		return respond.RedirectTo(ctx, respond.ClipReturnPath(job.MediaID))
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, clipResponse(job))
+	return respond.WriteJSON(ctx, fiber.StatusOK, clipResponse(job))
 }
 
 // Create handles the create clip request.
 func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, shared.InvalidRequest, err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, respond.InvalidRequest, err.Error())
 	}
 
-	jobType, ok := shared.NormalizeClipType(req.ClipType)
+	jobType, ok := sharedclip.NormalizeClipType(req.ClipType)
 	if !ok {
-		return shared.WriteError(
+		return respond.WriteError(
 			ctx,
 			fiber.StatusBadRequest,
 			"invalid_clip_type",
@@ -150,35 +151,35 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 
 	err = handler.validateClipParams(jobType, req)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, shared.InvalidRequest, err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, respond.InvalidRequest, err.Error())
 	}
 
 	req.Quality, err = handler.resolveQuality(ctx.Context(), req.Quality)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
 	}
 
 	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
 	}
 
 	job := buildJob(&req, jobType, inputPath)
-	shared.AssignOutputPaths(job, handler.clipStorage)
-	shared.ApplyDefaults(job)
+	sharedclip.AssignOutputPaths(job, handler.clipStorage)
+	sharedclip.ApplyDefaults(job)
 
 	err = handler.db.SaveClip(ctx.Context(), job)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusInternalServerError, shared.PersistFailed, err.Error())
+		return respond.WriteError(ctx, fiber.StatusInternalServerError, respond.PersistFailed, err.Error())
 	}
 
 	handler.clipQueue.Submit(job)
 
-	if shared.IsFormRequest(ctx) {
-		return shared.RedirectTo(ctx, shared.ClipReturnPath(req.MediaID))
+	if respond.IsFormRequest(ctx) {
+		return respond.RedirectTo(ctx, respond.ClipReturnPath(req.MediaID))
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusCreated, clipResponse(job))
+	return respond.WriteJSON(ctx, fiber.StatusCreated, clipResponse(job))
 }
 
 // Delete handles the delete clip request.
@@ -186,19 +187,19 @@ func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
 	if job == nil {
-		return shared.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+		return respond.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
 	}
 
 	if job.OutputPath != "" {
 		err := handler.clipStorage.DeleteFile(job.OutputPath)
 		if err != nil {
-			return shared.WriteError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
+			return respond.WriteError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
 		}
 	}
 
 	err := handler.db.DeleteClip(ctx.Context(), id)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
+		return respond.WriteError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
 	}
 
 	handler.clipQueue.Delete(id)
@@ -216,15 +217,15 @@ func (handler *ClipHandler) Download(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
 	if job == nil {
-		return shared.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+		return respond.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
 	}
 
 	if job.Status != queue.JobStatusCompleted {
-		return shared.WriteError(ctx, fiber.StatusConflict, "not_ready", "clip is not ready for download")
+		return respond.WriteError(ctx, fiber.StatusConflict, "not_ready", "clip is not ready for download")
 	}
 
 	if !handler.clipStorage.FileExists(job.OutputPath) {
-		return shared.WriteError(
+		return respond.WriteError(
 			ctx,
 			fiber.StatusNotFound,
 			"file_missing",
@@ -247,10 +248,10 @@ func (handler *ClipHandler) GetStatus(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	job := handler.lookupJob(ctx.Context(), id)
 	if job == nil {
-		return shared.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+		return respond.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, clipResponse(job))
+	return respond.WriteJSON(ctx, fiber.StatusOK, clipResponse(job))
 }
 
 // List handles the list clips request.
@@ -262,19 +263,19 @@ func (handler *ClipHandler) List(ctx fiber.Ctx) error {
 		clips = append(clips, clipResponse(job))
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"clips": clips})
+	return respond.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"clips": clips})
 }
 
 // Preview renders a short low-quality segment without saving a clip.
 func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, shared.InvalidRequest, err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, respond.InvalidRequest, err.Error())
 	}
 
 	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
 	}
 
 	previewID := uuid.New().String()
@@ -305,68 +306,68 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
 	)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
+		return respond.WriteError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
 	}
 
 	err = handler.clipStorage.Put(ctx.Context(), output)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
+		return respond.WriteError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
 	}
 
 	end := req.StartTime + req.Duration
 
-	return shared.RedirectTo(ctx, "/media/item/"+req.MediaID+
+	return respond.RedirectTo(ctx, "/media/item/"+req.MediaID+
 		"?preview="+previewID+
 		"&start="+strconv.FormatFloat(req.StartTime, 'f', 1, 64)+
 		"&end="+strconv.FormatFloat(end, 'f', 1, 64)+
-		"&"+shared.QueryWebSafeColor+"="+webSafeQueryValue(req.WebSafeColor))
+		"&"+respond.QueryWebSafeColor+"="+webSafeQueryValue(req.WebSafeColor))
 }
 
 // Update saves clip metadata and optionally regenerates the file.
 func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 	job := handler.lookupJob(ctx.Context(), ctx.Params(paramID))
 	if job == nil {
-		return shared.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
+		return respond.WriteError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
 	}
 
 	req, err := parseClipRequest(ctx)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, shared.InvalidRequest, err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, respond.InvalidRequest, err.Error())
 	}
 
 	err = handler.applyRequestQuality(ctx.Context(), &req)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
 	}
 
 	jobType, err := clipJobType(req.ClipType, job.Type)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, "invalid_clip_type", err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, "invalid_clip_type", err.Error())
 	}
 
 	err = handler.validateClipParams(jobType, req)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, shared.InvalidRequest, err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, respond.InvalidRequest, err.Error())
 	}
 
 	applyClipEdits(job, req)
 
 	err = handler.db.SaveClip(ctx.Context(), job)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusInternalServerError, shared.PersistFailed, err.Error())
+		return respond.WriteError(ctx, fiber.StatusInternalServerError, respond.PersistFailed, err.Error())
 	}
 
 	err = handler.maybeRegenerate(ctx, job)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusInternalServerError, shared.PersistFailed, err.Error())
+		return respond.WriteError(ctx, fiber.StatusInternalServerError, respond.PersistFailed, err.Error())
 	}
 
-	return shared.RedirectTo(ctx, shared.ClipReturnPath(job.MediaID))
+	return respond.RedirectTo(ctx, respond.ClipReturnPath(job.MediaID))
 }
 
 // applyClipEdits writes editable clip fields onto a stored job.
 func applyClipEdits(job *queue.Job, req ClipRequest) {
-	jobType, ok := shared.NormalizeClipType(req.ClipType)
+	jobType, ok := sharedclip.NormalizeClipType(req.ClipType)
 	if ok {
 		job.Type = jobType
 	}
@@ -455,7 +456,7 @@ func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error
 
 // queueRegenerate re-queues a clip after metadata changes.
 func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job) error {
-	shared.AssignOutputPaths(job, handler.clipStorage)
+	sharedclip.AssignOutputPaths(job, handler.clipStorage)
 
 	job.Status = queue.JobStatusPending
 	job.Progress = 0
@@ -578,7 +579,7 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 
 	maxDur := handler.cfg.MaxClipDurSec
 	if maxDur <= 0 {
-		maxDur = shared.DefaultMaxClipDur
+		maxDur = respond.DefaultMaxClipDur
 	}
 
 	if duration <= 0 || duration > float64(maxDur) {
@@ -594,7 +595,7 @@ func clipJobType(clipType string, fallback queue.JobType) (queue.JobType, error)
 		return fallback, nil
 	}
 
-	jobType, ok := shared.NormalizeClipType(clipType)
+	jobType, ok := sharedclip.NormalizeClipType(clipType)
 	if !ok {
 		return "", errInvalidClipType
 	}
@@ -679,13 +680,13 @@ func derefBool(value *bool) bool {
 //   - value: Optional checkbox from the preview form.
 //
 // Returns:
-//   - raw: formChecked when true, otherwise shared.QueryUnchecked.
+//   - raw: formChecked when true, otherwise respond.QueryUnchecked.
 func webSafeQueryValue(value *bool) string {
 	if derefBool(value) {
 		return formChecked
 	}
 
-	return shared.QueryUnchecked
+	return respond.QueryUnchecked
 }
 
 // formInt parses a form field as int, or 0.

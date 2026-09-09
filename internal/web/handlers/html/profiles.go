@@ -12,14 +12,13 @@ import (
 	"time"
 	"uuid"
 
-	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
-
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 	"github.com/PapagoLabs/outtake/internal/web/pages/settings"
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
 const (
@@ -48,12 +47,12 @@ var (
 
 // ClipProfiles renders the clip profile settings page.
 func (handler *HTMLHandler) ClipProfiles(ctx fiber.Ctx) error {
-	return shared.RenderHTML(ctx, func(writer io.Writer) error {
+	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return settings.ClipProfiles(settings.ClipProfilesProps{
 			Profiles: toClipProfileItems(handler.storedClipProfiles(ctx)),
 			Presets:  media.EncoderPresets,
 			Widths:   outputWidthOptions(),
-			Error:    ctx.Query(shared.QueryError),
+			Error:    ctx.Query(respond.QueryError),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -62,27 +61,27 @@ func (handler *HTMLHandler) ClipProfiles(ctx fiber.Ctx) error {
 func (handler *HTMLHandler) CreateClipProfile(ctx fiber.Ctx) error {
 	profile, err := parseClipProfileForm(ctx, uuid.New().String())
 	if err != nil {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathSettingsProfiles, err.Error()))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
 	err = handler.db.SaveClipProfile(ctx.Context(), profile)
 	if err != nil {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathSettingsProfiles, err.Error()))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
-	return shared.RedirectTo(ctx, shared.PathSettingsProfiles)
+	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
 // UpdateClipProfile saves edits to an existing profile.
 func (handler *HTMLHandler) UpdateClipProfile(ctx fiber.Ctx) error {
 	existing, err := handler.db.GetClipProfile(ctx.Context(), ctx.Params(paramID))
 	if err != nil {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathSettingsProfiles, err.Error()))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
 	profile, err := parseClipProfileForm(ctx, existing.ID)
 	if err != nil {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathSettingsProfiles, err.Error()))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
 	profile.CreatedAt = existing.CreatedAt
@@ -90,30 +89,30 @@ func (handler *HTMLHandler) UpdateClipProfile(ctx fiber.Ctx) error {
 
 	err = handler.db.SaveClipProfile(ctx.Context(), profile)
 	if err != nil {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathSettingsProfiles, err.Error()))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
-	return shared.RedirectTo(ctx, shared.PathSettingsProfiles)
+	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
 // DeleteClipProfile removes a profile.
 func (handler *HTMLHandler) DeleteClipProfile(ctx fiber.Ctx) error {
 	err := handler.db.DeleteClipProfile(ctx.Context(), ctx.Params(paramID))
 	if err != nil {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathSettingsProfiles, err.Error()))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
-	return shared.RedirectTo(ctx, shared.PathSettingsProfiles)
+	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
 // SetDefaultClipProfile marks a profile as the default.
 func (handler *HTMLHandler) SetDefaultClipProfile(ctx fiber.Ctx) error {
 	err := handler.db.SetDefaultClipProfile(ctx.Context(), ctx.Params(paramID))
 	if err != nil {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathSettingsProfiles, err.Error()))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
-	return shared.RedirectTo(ctx, shared.PathSettingsProfiles)
+	return respond.RedirectTo(ctx, respond.PathSettingsProfiles)
 }
 
 // storedClipProfiles loads stored profiles for HTML pages.

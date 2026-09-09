@@ -13,12 +13,11 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
-
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 // mediaListQuery is the media library browse query state.
@@ -105,11 +104,11 @@ const (
 func parseMediaListQuery(ctx fiber.Ctx) mediaListQuery {
 	return normalizeMediaListQuery(mediaListQuery{
 		Query:     ctx.Query(queryQ),
-		LibraryID: ctx.Query(shared.QueryLibrary),
-		ParentID:  ctx.Query(shared.QueryParent),
+		LibraryID: ctx.Query(respond.QueryLibrary),
+		ParentID:  ctx.Query(respond.QueryParent),
 		Sort:      ctx.Query(querySort),
 		Letter:    ctx.Query(queryLetter),
-		Start:     pageStart(ctx.Query(shared.QueryStart)),
+		Start:     pageStart(ctx.Query(respond.QueryStart)),
 		Before:    pageStart(ctx.Query(queryBefore)),
 	})
 }
@@ -199,12 +198,12 @@ func (query mediaListQuery) showJumpIndex() bool {
 //   - window: Container offset and page size.
 func (query mediaListQuery) window(index []plex.LetterIndex) mediaListWindow {
 	if query.Before > 0 {
-		start := max(query.Before-shared.MediaPageSize, 0)
+		start := max(query.Before-respond.MediaPageSize, 0)
 
 		return mediaListWindow{Start: start, Size: query.Before - start}
 	}
 
-	return mediaListWindow{Start: query.listStart(index), Size: shared.MediaPageSize}
+	return mediaListWindow{Start: query.listStart(index), Size: respond.MediaPageSize}
 }
 
 // plexMediaSort maps an Outtake sort key onto a PMS sort value.

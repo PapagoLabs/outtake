@@ -10,15 +10,13 @@ import (
 	"testing"
 	"time"
 
-	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
-
+	fiber "github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	fiber "github.com/gofiber/fiber/v3"
-
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharedclip "github.com/PapagoLabs/outtake/internal/web/handlers/shared/clip"
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
 const testMovie = "Movie"
@@ -138,7 +136,7 @@ func TestApplyClipListQuery(t *testing.T) {
 		},
 		{
 			name:  "name matches media title",
-			query: ListQuery{Query: shared.DefaultMediaType, Sort: clipSortCreatedDesc},
+			query: ListQuery{Query: sharedclip.DefaultMediaType, Sort: clipSortCreatedDesc},
 			want:  []string{idTieZ, idTieA, idOldClip},
 		},
 		{

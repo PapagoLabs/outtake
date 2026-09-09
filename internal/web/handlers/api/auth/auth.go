@@ -9,15 +9,15 @@ import (
 	"fmt"
 	"strconv"
 
+	fiber "github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/rs/zerolog/log"
-
-	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
@@ -78,19 +78,19 @@ func NewAuthHandler(
 // Callback completes PIN authorization.
 func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
-	pinID := shared.SessionInt(sess, sessionKeyPinID)
+	pinID := respond.SessionInt(sess, sessionKeyPinID)
 	if pinID == 0 {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathLogin, "No PIN session"))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathLogin, "No PIN session"))
 	}
 
-	pinCode := shared.SessionString(sess, sessionKeyPinCode)
+	pinCode := respond.SessionString(sess, sessionKeyPinCode)
 	plexClient := handler.newClient("")
 
 	token, err := plexClient.PollPIN(ctx.Context(), pinID, pinCode)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to poll PIN")
 
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathLogin, "PIN not yet authorized"))
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathLogin, "PIN not yet authorized"))
 	}
 
 	clearPIN(sess)
@@ -113,20 +113,20 @@ func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 	}
 
 	sess := session.FromContext(ctx)
-	if shared.SessionString(sess, middleware.SessionKeyToken) != "" {
-		return shared.RedirectTo(ctx, shared.PathRoot)
+	if respond.SessionString(sess, middleware.SessionKeyToken) != "" {
+		return respond.RedirectTo(ctx, respond.PathRoot)
 	}
 
-	if shared.IsFormRequest(ctx) {
-		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathLogin, msgPlexTokenRequired))
+	if respond.IsFormRequest(ctx) {
+		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathLogin, msgPlexTokenRequired))
 	}
 
 	authURL, err := handler.startPIN(ctx, sess)
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusBadGateway, "pin_failed", err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadGateway, "pin_failed", err.Error())
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"authUrl": authURL})
+	return respond.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"authUrl": authURL})
 }
 
 // Logout clears the session and persisted Plex credentials.
@@ -135,7 +135,7 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 	if sess != nil {
 		err := sess.Reset()
 		if err != nil {
-			return shared.WriteError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+			return respond.WriteError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
 		}
 	}
 
@@ -148,33 +148,33 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to clear stored plex credentials")
 
-			return shared.WriteError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+			return respond.WriteError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
 		}
 	}
 
-	return shared.RedirectTo(ctx, shared.PathLogin)
+	return respond.RedirectTo(ctx, respond.PathLogin)
 }
 
 // Status polls PIN authorization for HTMX.
 func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
-	if shared.SessionString(sess, middleware.SessionKeyToken) != "" {
-		ctx.Set("HX-Redirect", shared.PathRoot)
+	if respond.SessionString(sess, middleware.SessionKeyToken) != "" {
+		ctx.Set("HX-Redirect", respond.PathRoot)
 
-		return shared.SendText(ctx, statusAuthed)
+		return respond.SendText(ctx, statusAuthed)
 	}
 
-	pinID := shared.SessionInt(sess, sessionKeyPinID)
+	pinID := respond.SessionInt(sess, sessionKeyPinID)
 	if pinID == 0 {
-		return shared.SendText(ctx, statusWaiting)
+		return respond.SendText(ctx, statusWaiting)
 	}
 
-	pinCode := shared.SessionString(sess, sessionKeyPinCode)
+	pinCode := respond.SessionString(sess, sessionKeyPinCode)
 	plexClient := handler.newClient("")
 
 	pinToken, err := plexClient.PollPIN(ctx.Context(), pinID, pinCode)
 	if err != nil {
-		return shared.SendText(ctx, statusWaiting)
+		return respond.SendText(ctx, statusWaiting)
 	}
 
 	clearPIN(sess)
@@ -187,7 +187,7 @@ func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 	handler.bindServer(ctx, pinToken)
 	ctx.Set("HX-Redirect", handler.postAuthPath())
 
-	return shared.SendText(ctx, statusAuthed)
+	return respond.SendText(ctx, statusAuthed)
 }
 
 // GenerateClientID returns a random Plex client identifier.
@@ -239,21 +239,21 @@ func (handler *AuthHandler) finishAuth(ctx fiber.Ctx, token string) error {
 
 	handler.bindServer(ctx, token)
 
-	return shared.RedirectTo(ctx, handler.postAuthPath())
+	return respond.RedirectTo(ctx, handler.postAuthPath())
 }
 
 // newClient builds a Plex client for this handler.
 func (handler *AuthHandler) newClient(token string) *plex.Client {
-	return shared.NewBoundClient(handler.product, handler.clientID, token)
+	return sharedplex.NewBoundClient(handler.product, handler.clientID, token)
 }
 
 // postAuthPath returns the next page after authentication.
 func (handler *AuthHandler) postAuthPath() string {
 	if _, ok := handler.bind.Get(); ok {
-		return shared.PathRoot
+		return respond.PathRoot
 	}
 
-	return shared.PathServers
+	return respond.PathServers
 }
 
 // startPIN creates a Plex PIN and returns the Auth App URL.
@@ -307,7 +307,7 @@ func clearPIN(sess *session.Middleware) {
 
 // sendAuthComplete finishes popup or full-page login after Plex authorizes.
 func sendAuthComplete(ctx fiber.Ctx, next string) error {
-	ctx.Set(shared.HeaderContentType, shared.ContentTypeHTML)
+	ctx.Set(respond.HeaderContentType, respond.ContentTypeHTML)
 
 	page := `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Signed in</title></head><body>
 <script>

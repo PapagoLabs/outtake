@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package shared
+package error
 
 import (
 	"errors"
@@ -10,6 +10,7 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 	pageerror "github.com/PapagoLabs/outtake/internal/web/pages/error"
 )
 
@@ -24,8 +25,8 @@ type HttpErrorView struct {
 func PageError(ctx fiber.Ctx, err error) error {
 	view := HttpErrorCopy(err)
 
-	if IsHTMXRequest(ctx) {
-		err = WriteHTMXFlash(ctx, view.code, view.message)
+	if respond.IsHTMXRequest(ctx) {
+		err = respond.WriteHTMXFlash(ctx, view.code, view.message)
 		if err != nil {
 			return fmt.Errorf("write htmx flash: %w", err)
 		}
@@ -34,13 +35,13 @@ func PageError(ctx fiber.Ctx, err error) error {
 	}
 
 	if strings.HasPrefix(ctx.Path(), "/api/") {
-		return WriteJSON(ctx, view.code, ErrorResponse{
+		return respond.WriteJSON(ctx, view.code, respond.ErrorResponse{
 			Error:   "http_error",
 			Message: view.message,
 		})
 	}
 
-	ctx.Set(HeaderContentType, ContentTypeHTML)
+	ctx.Set(respond.HeaderContentType, respond.ContentTypeHTML)
 	ctx.Status(view.code)
 
 	err = pageerror.ErrorPage(pageerror.ErrorPageProps{

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
 )
 
 func TestClipCard(t *testing.T) {

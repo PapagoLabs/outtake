@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	viewplayback "github.com/PapagoLabs/outtake/internal/web/view/playback"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	viewplayback "github.com/PapagoLabs/outtake/internal/web/view/playback"
 )
 
 func TestPlaybackPanelMarkButtons(t *testing.T) {

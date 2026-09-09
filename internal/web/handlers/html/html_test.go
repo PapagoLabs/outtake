@@ -13,17 +13,16 @@ import (
 	"testing"
 	"time"
 
-	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
-	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
-
+	fiber "github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	fiber "github.com/gofiber/fiber/v3"
-
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharedclip "github.com/PapagoLabs/outtake/internal/web/handlers/shared/clip"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
+	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 const (
@@ -229,7 +228,7 @@ func TestMediaItemLocationEscapesID(t *testing.T) {
 func TestChooserLibraries(t *testing.T) {
 	t.Parallel()
 
-	libs := []viewmedia.LibraryItem{{ID: "1", Title: "Movies", Type: shared.DefaultMediaType}}
+	libs := []viewmedia.LibraryItem{{ID: "1", Title: "Movies", Type: sharedclip.DefaultMediaType}}
 
 	assert.Equal(t, libs, chooserLibraries(libs, "", ""))
 	assert.Nil(t, chooserLibraries(libs, "", "1"))
@@ -372,10 +371,10 @@ func TestMediaItemError(t *testing.T) {
 
 	_ = t.Context()
 
-	assert.Equal(t, "bad duration", shared.MediaItemError(nil, "bad duration"))
-	assert.Equal(t, "bad duration", shared.MediaItemError(errNoPlexServer, "bad duration"))
-	assert.Equal(t, shared.MediaLoadFailedMsg, shared.MediaItemError(errNoPlexServer, ""))
-	assert.Empty(t, shared.MediaItemError(nil, ""))
+	assert.Equal(t, "bad duration", respond.MediaItemError(nil, "bad duration"))
+	assert.Equal(t, "bad duration", respond.MediaItemError(errNoPlexServer, "bad duration"))
+	assert.Equal(t, respond.MediaLoadFailedMsg, respond.MediaItemError(errNoPlexServer, ""))
+	assert.Empty(t, respond.MediaItemError(nil, ""))
 }
 
 func TestClipProfileName(t *testing.T) {

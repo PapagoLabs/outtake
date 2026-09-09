@@ -12,15 +12,14 @@ import (
 	"testing"
 	"time"
 
-	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
-
+	fiber "github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	fiber "github.com/gofiber/fiber/v3"
-
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharedclip "github.com/PapagoLabs/outtake/internal/web/handlers/shared/clip"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 func TestParseMediaListQuery(t *testing.T) {
@@ -66,7 +65,7 @@ func TestParseMediaListQuery(t *testing.T) {
 		{
 			give: "/media?library=1&q=movie&sort=year_desc&letter=M",
 			want: mediaListQuery{
-				Query:     shared.DefaultMediaType,
+				Query:     sharedclip.DefaultMediaType,
 				LibraryID: "1",
 				Sort:      mediaSortYearDesc,
 			},
@@ -148,7 +147,7 @@ func TestMediaListQueryWindow(t *testing.T) {
 
 	window = (mediaListQuery{Letter: "A"}).window(index)
 	assert.Equal(t, 3, window.Start)
-	assert.Equal(t, shared.MediaPageSize, window.Size)
+	assert.Equal(t, respond.MediaPageSize, window.Size)
 }
 
 func TestAddedAtIndexes(t *testing.T) {

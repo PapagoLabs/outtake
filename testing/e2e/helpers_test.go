@@ -23,7 +23,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/config"
 	clipapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/clip"
 	mediaapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/media"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 )
 
 type e2eApp struct {
@@ -203,10 +203,10 @@ func decodeListResponse(body []byte) mediaapi.MediaListResponse {
 	return resp
 }
 
-func decodeErrorResponse(body []byte) shared.ErrorResponse {
+func decodeErrorResponse(body []byte) respond.ErrorResponse {
 	GinkgoHelper()
 
-	var resp shared.ErrorResponse
+	var resp respond.ErrorResponse
 
 	Expect(json.Unmarshal(body, &resp)).To(Succeed())
 

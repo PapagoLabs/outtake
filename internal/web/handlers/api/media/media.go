@@ -6,9 +6,11 @@ package media
 import (
 	fiber "github.com/gofiber/fiber/v3"
 
+	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
+
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
 // MediaHandler handles media-related requests.
@@ -33,38 +35,38 @@ func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 	if sessions == nil {
 		plexClient, server, ok := handler.plexClient()
 		if !ok {
-			return shared.WriteJSON(ctx, fiber.StatusOK, []SessionResponse{})
+			return respond.WriteJSON(ctx, fiber.StatusOK, []SessionResponse{})
 		}
 
 		live, err := plexClient.GetSessionsOnServer(ctx.Context(), server)
 		if err != nil {
-			return shared.WriteJSON(ctx, fiber.StatusOK, []SessionResponse{})
+			return respond.WriteJSON(ctx, fiber.StatusOK, []SessionResponse{})
 		}
 
 		sessions = live
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, SessionResponses(sessions))
+	return respond.WriteJSON(ctx, fiber.StatusOK, SessionResponses(sessions))
 }
 
 // Search handles the search media request.
 func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 	query := ctx.Query("q")
 	if query == "" {
-		return shared.WriteError(ctx, fiber.StatusBadRequest, "missing_query", "search query is required")
+		return respond.WriteError(ctx, fiber.StatusBadRequest, "missing_query", "search query is required")
 	}
 
 	plexClient, server, ok := handler.plexClient()
 	if !ok {
-		return shared.WriteJSON(ctx, fiber.StatusOK, MediaListResponse{
+		return respond.WriteJSON(ctx, fiber.StatusOK, MediaListResponse{
 			Items: []MediaItemResponse{},
 			Total: 0,
 		})
 	}
 
-	items, err := plexClient.SearchOnServer(ctx.Context(), server, query, ctx.Query(shared.QueryLibrary))
+	items, err := plexClient.SearchOnServer(ctx.Context(), server, query, ctx.Query(respond.QueryLibrary))
 	if err != nil {
-		return shared.WriteError(ctx, fiber.StatusInternalServerError, "search_failed", err.Error())
+		return respond.WriteError(ctx, fiber.StatusInternalServerError, "search_failed", err.Error())
 	}
 
 	responses := make([]MediaItemResponse, 0, len(items))
@@ -85,7 +87,7 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 		})
 	}
 
-	return shared.WriteJSON(ctx, fiber.StatusOK, MediaListResponse{
+	return respond.WriteJSON(ctx, fiber.StatusOK, MediaListResponse{
 		Items: responses,
 		Total: len(responses),
 	})
@@ -98,5 +100,5 @@ func (handler *MediaHandler) plexClient() (*plex.Client, plex.Server, bool) {
 		return nil, plex.EmptyServer(), false
 	}
 
-	return shared.NewBoundClient(handler.product, handler.clientID, server.Token), server, true
+	return sharedplex.NewBoundClient(handler.product, handler.clientID, server.Token), server, true
 }

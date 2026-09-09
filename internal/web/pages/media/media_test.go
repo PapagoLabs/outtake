@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 func TestMediaSearchPreservesLibrary(t *testing.T) {

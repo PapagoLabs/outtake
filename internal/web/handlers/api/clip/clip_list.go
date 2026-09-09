@@ -11,7 +11,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
 )
 
 // ListQuery is the Clips page and media-item clip-list toolbar state.
@@ -124,7 +124,7 @@ func ApplyListQuery(jobs []*queue.Job, query ListQuery) []*queue.Job {
 
 // clipJobMatches reports whether a job passes status, type, and name filters.
 func clipJobMatches(job *queue.Job, query ListQuery, needle string) bool {
-	if query.Status != "" && !shared.ClipMatchesStatus(string(job.Status), query.Status) {
+	if query.Status != "" && !sharedplex.ClipMatchesStatus(string(job.Status), query.Status) {
 		return false
 	}
 

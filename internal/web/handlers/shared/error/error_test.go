@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package shared
+package error
 
 import (
 	"io"
@@ -69,4 +69,11 @@ func TestPageErrorJSONForAPI(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	assert.Contains(t, string(body), `"error":"http_error"`)
+}
+
+func closeBody(t *testing.T, resp *http.Response) {
+	t.Helper()
+
+	err := resp.Body.Close()
+	require.NoError(t, err)
 }

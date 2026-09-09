@@ -10,13 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	fiber "github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	fiber "github.com/gofiber/fiber/v3"
-
 	"github.com/PapagoLabs/outtake/internal/database"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 )
 
 const formContentType = "application/x-www-form-urlencoded"
@@ -45,8 +44,8 @@ func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 
 	parsed, err := url.Parse(resp.Header.Get("Location"))
 	require.NoError(t, err)
-	assert.Equal(t, shared.PathLogin, parsed.Path)
-	assert.Equal(t, msgPlexTokenRequired, parsed.Query().Get(shared.QueryError))
+	assert.Equal(t, respond.PathLogin, parsed.Path)
+	assert.Equal(t, msgPlexTokenRequired, parsed.Query().Get(respond.QueryError))
 }
 
 func TestAuthLogoutRedirectsToLogin(t *testing.T) {
@@ -63,7 +62,7 @@ func TestAuthLogoutRedirectsToLogin(t *testing.T) {
 	defer closeBody(t, resp)
 
 	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
-	assert.Equal(t, shared.PathLogin, resp.Header.Get("Location"))
+	assert.Equal(t, respond.PathLogin, resp.Header.Get("Location"))
 }
 
 func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
 
 func TestMediaResultsEmptyLibraryHidesChooser(t *testing.T) {
