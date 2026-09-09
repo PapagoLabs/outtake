@@ -491,10 +491,14 @@ func (handler *ClipHandler) resolveInput(ctx context.Context, mediaID string) (s
 }
 
 // resolveMediaPath maps a media id onto a local filesystem path.
+type ServerBinder interface {
+	Get() (plex.Server, bool)
+}
+
 func ResolveMediaPath(
 	ctx context.Context,
 	cfg *config.Config,
-	bind *binding.Binding,
+	bind ServerBinder,
 	product, clientID, mediaID string,
 ) (string, error) {
 	// E2E tests pass a local file path as the media id.

@@ -64,7 +64,7 @@ func (handler *HTMLHandler) CreateClipProfile(ctx fiber.Ctx) error {
 		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
 
-	err = handler.db.SaveClipProfile(ctx.Context(), profile)
+	err = handler.deps.DB.SaveClipProfile(ctx.Context(), profile)
 	if err != nil {
 		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
@@ -74,7 +74,7 @@ func (handler *HTMLHandler) CreateClipProfile(ctx fiber.Ctx) error {
 
 // UpdateClipProfile saves edits to an existing profile.
 func (handler *HTMLHandler) UpdateClipProfile(ctx fiber.Ctx) error {
-	existing, err := handler.db.GetClipProfile(ctx.Context(), ctx.Params(paramID))
+	existing, err := handler.deps.DB.GetClipProfile(ctx.Context(), ctx.Params(paramID))
 	if err != nil {
 		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
@@ -87,7 +87,7 @@ func (handler *HTMLHandler) UpdateClipProfile(ctx fiber.Ctx) error {
 	profile.CreatedAt = existing.CreatedAt
 	profile.IsDefault = existing.IsDefault
 
-	err = handler.db.SaveClipProfile(ctx.Context(), profile)
+	err = handler.deps.DB.SaveClipProfile(ctx.Context(), profile)
 	if err != nil {
 		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
@@ -97,7 +97,7 @@ func (handler *HTMLHandler) UpdateClipProfile(ctx fiber.Ctx) error {
 
 // DeleteClipProfile removes a profile.
 func (handler *HTMLHandler) DeleteClipProfile(ctx fiber.Ctx) error {
-	err := handler.db.DeleteClipProfile(ctx.Context(), ctx.Params(paramID))
+	err := handler.deps.DB.DeleteClipProfile(ctx.Context(), ctx.Params(paramID))
 	if err != nil {
 		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
@@ -107,7 +107,7 @@ func (handler *HTMLHandler) DeleteClipProfile(ctx fiber.Ctx) error {
 
 // SetDefaultClipProfile marks a profile as the default.
 func (handler *HTMLHandler) SetDefaultClipProfile(ctx fiber.Ctx) error {
-	err := handler.db.SetDefaultClipProfile(ctx.Context(), ctx.Params(paramID))
+	err := handler.deps.DB.SetDefaultClipProfile(ctx.Context(), ctx.Params(paramID))
 	if err != nil {
 		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathSettingsProfiles, err.Error()))
 	}
@@ -117,7 +117,7 @@ func (handler *HTMLHandler) SetDefaultClipProfile(ctx fiber.Ctx) error {
 
 // storedClipProfiles loads stored profiles for HTML pages.
 func (handler *HTMLHandler) storedClipProfiles(ctx fiber.Ctx) []database.ClipProfile {
-	profiles, err := handler.db.ListClipProfiles(ctx.Context())
+	profiles, err := handler.deps.DB.ListClipProfiles(ctx.Context())
 	if err != nil {
 		return nil
 	}

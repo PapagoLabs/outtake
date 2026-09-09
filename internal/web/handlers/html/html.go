@@ -19,11 +19,9 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/config"
-	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
 	mediaquality "github.com/PapagoLabs/outtake/internal/media/quality"
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	plexserver "github.com/PapagoLabs/outtake/internal/plex/server"
 	plextitle "github.com/PapagoLabs/outtake/internal/plex/title"
 	"github.com/PapagoLabs/outtake/internal/web/components/browse"
@@ -31,6 +29,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/nav"
 	"github.com/PapagoLabs/outtake/internal/web/components/playback"
 	clipapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/clip"
+	htmldeps "github.com/PapagoLabs/outtake/internal/web/handlers/html/deps"
 	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
@@ -46,13 +45,8 @@ import (
 
 // HTMLHandler handles HTML page requests.
 type HTMLHandler struct {
-	queue    *queue.Queue
-	db       *database.DB
-	bind     *binding.Binding
-	cfg      *config.Config
-	product  string
-	clientID string
-	addedAt  addedAtIndexCache
+	deps    htmldeps.Deps
+	addedAt addedAtIndexCache
 }
 
 // dashStats holds dashboard clip counters.
@@ -65,20 +59,21 @@ type dashStats struct {
 
 // NewHTMLHandler creates a new HTML handler.
 func NewHTMLHandler(
-	jobQueue *queue.Queue,
-	db *database.DB,
-	bind *binding.Binding,
+	jobQueue htmldeps.ClipJobs,
+	db htmldeps.ClipStore,
+	bind htmldeps.ServerBinding,
 	cfg *config.Config,
 	product, clientID string,
 ) *HTMLHandler {
-	// Bundle queue, database, binding, and config.
 	return &HTMLHandler{
-		queue:    jobQueue,
-		db:       db,
-		bind:     bind,
-		cfg:      cfg,
-		product:  product,
-		clientID: clientID,
+		deps: htmldeps.Deps{
+			Queue:    jobQueue,
+			DB:       db,
+			Bind:     bind,
+			Cfg:      cfg,
+			Product:  product,
+			ClientID: clientID,
+		},
 	}
 }
 
@@ -285,7 +280,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		clips[index].AudioTracks = tracks
 	}
 
-	maxDur := handler.cfg.MaxClipDurSec
+	maxDur := handler.deps.Cfg.MaxClipDurSec
 	if maxDur <= 0 {
 		maxDur = respond.DefaultMaxClipDur
 	}
@@ -317,8 +312,8 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		PreviewID:     ctx.Query("preview"),
 		StartTime:     start,
 		EndTime:       end,
-		CropBlackBars: handler.cfg.CropBlackBars,
-		WebSafeColor:  previewWebSafeColor(ctx, handler.cfg.WebSafeColor),
+		CropBlackBars: handler.deps.Cfg.CropBlackBars,
+		WebSafeColor:  previewWebSafeColor(ctx, handler.deps.Cfg.WebSafeColor),
 		Crumbs:        nil,
 		LibraryID:     "",
 	}
@@ -474,7 +469,7 @@ func (handler *HTMLHandler) Playback(ctx fiber.Ctx) error {
 		Title:      "",
 	}
 
-	sessions := handler.bind.Sessions()
+	sessions := handler.deps.Bind.Sessions()
 	for index := range sessions {
 		if sessions[index].MediaItem.ID != mediaID {
 			continue
@@ -495,7 +490,7 @@ func (handler *HTMLHandler) Playback(ctx fiber.Ctx) error {
 // PreviewFile serves a generated segment preview.
 func (handler *HTMLHandler) PreviewFile(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
-	path := filepath.Join(handler.cfg.StoragePath, "previews", id+".mp4")
+	path := filepath.Join(handler.deps.Cfg.StoragePath, "previews", id+".mp4")
 
 	err := respond.SendRangedFile(ctx, path)
 	if err != nil {
@@ -526,7 +521,7 @@ func (handler *HTMLHandler) SelectServer(ctx fiber.Ctx) error {
 
 // Servers lists discovered Plex servers.
 func (handler *HTMLHandler) Servers(ctx fiber.Ctx) error {
-	current, _ := handler.bind.Get()
+	current, _ := handler.deps.Bind.Get()
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return settings.Servers(settings.ServersProps{
@@ -553,9 +548,9 @@ func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error 
 	}
 
 	server.Local = false
-	handler.bind.Set(server)
+	handler.deps.Bind.Set(server)
 
-	err := handler.db.SaveSelectedServer(ctx.Context(), server)
+	err := handler.deps.DB.SaveSelectedServer(ctx.Context(), server)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to persist selected server")
 	}
@@ -563,18 +558,13 @@ func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error 
 	return respond.RedirectTo(ctx, respond.PathRoot)
 }
 
-// clipMaxDur is the configured clip duration cap, or the default when unset.
 func (handler *HTMLHandler) clipMaxDur() int {
-	if handler.cfg != nil && handler.cfg.MaxClipDurSec > 0 {
-		return handler.cfg.MaxClipDurSec
-	}
-
-	return respond.DefaultMaxClipDur
+	return handler.deps.ClipMaxDur()
 }
 
 // clipsForMedia returns clip cards for one media id.
 func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []viewclip.ClipItem {
-	jobs, err := handler.db.ListClipsForMedia(ctx.Context(), mediaID)
+	jobs, err := handler.deps.DB.ListClipsForMedia(ctx.Context(), mediaID)
 	if err != nil {
 		return nil
 	}
@@ -589,7 +579,7 @@ func (handler *HTMLHandler) discoverServers(ctx fiber.Ctx) []plex.Server {
 		return nil
 	}
 
-	plexClient := sharedplex.NewBoundClient(handler.product, handler.clientID, token)
+	plexClient := sharedplex.NewBoundClient(handler.deps.Product, handler.deps.ClientID, token)
 
 	servers, err := plexClient.DiscoverServers(ctx.Context())
 	if err != nil {
@@ -617,12 +607,12 @@ func (handler *HTMLHandler) jobsToClipItems(ctx fiber.Ctx, jobs []*queue.Job) []
 
 // listJobs returns in-memory jobs, falling back to persisted clips.
 func (handler *HTMLHandler) listJobs(ctx fiber.Ctx) []*queue.Job {
-	jobs := handler.queue.GetAllJobs()
+	jobs := handler.deps.Queue.GetAllJobs()
 	if len(jobs) > 0 {
 		return jobs
 	}
 
-	stored, err := handler.db.ListClips(ctx.Context())
+	stored, err := handler.deps.DB.ListClips(ctx.Context())
 	if err != nil {
 		return nil
 	}
@@ -647,12 +637,12 @@ func (handler *HTMLHandler) loadMediaItem(ctx fiber.Ctx, mediaID string) (plex.M
 
 // lookupClip finds a job in the queue or the database.
 func (handler *HTMLHandler) lookupClip(ctx fiber.Ctx, id string) *queue.Job {
-	job := handler.queue.GetJob(id)
+	job := handler.deps.Queue.GetJob(id)
 	if job != nil {
 		return job
 	}
 
-	stored, err := handler.db.GetClip(ctx.Context(), id)
+	stored, err := handler.deps.DB.GetClip(ctx.Context(), id)
 	if err != nil {
 		return nil
 	}
@@ -672,17 +662,17 @@ func (handler *HTMLHandler) mediaAudioTracks(
 
 	path, err := clipapi.ResolveMediaPath(
 		ctx.Context(),
-		handler.cfg,
-		handler.bind,
-		handler.product,
-		handler.clientID,
+		handler.deps.Cfg,
+		handler.deps.Bind,
+		handler.deps.Product,
+		handler.deps.ClientID,
 		mediaID,
 	)
 	if err != nil {
 		return nil
 	}
 
-	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
+	ffmpeg := media.NewExecFFmpeg(handler.deps.Cfg.FFmpegPath, handler.deps.Cfg.FFprobePath)
 
 	info, err := ffmpeg.Probe(ctx.Context(), path)
 	if err != nil {
@@ -898,17 +888,17 @@ func listMediaContent(
 
 // plexPair returns a client for the currently selected server.
 func (handler *HTMLHandler) plexPair() (*plex.Client, plex.Server, bool) {
-	server, ok := handler.bind.Get()
+	server, ok := handler.deps.Bind.Get()
 	if !ok {
 		return nil, plex.EmptyServer(), false
 	}
 
-	return sharedplex.NewBoundClient(handler.product, handler.clientID, server.Token), server, true
+	return sharedplex.NewBoundClient(handler.deps.Product, handler.deps.ClientID, server.Token), server, true
 }
 
 // sessionItems converts live Plex sessions into page models.
 func (handler *HTMLHandler) sessionItems() []dashboard.SessionItem {
-	sessions := handler.bind.Sessions()
+	sessions := handler.deps.Bind.Sessions()
 	items := make([]dashboard.SessionItem, 0, len(sessions))
 
 	for index := range sessions {
