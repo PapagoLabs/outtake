@@ -7,7 +7,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
-	"github.com/PapagoLabs/outtake/internal/binding"
+	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 

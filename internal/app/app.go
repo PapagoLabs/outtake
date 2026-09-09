@@ -25,7 +25,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/rs/zerolog/log"
 
-	"github.com/PapagoLabs/outtake/internal/binding"
+	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"

@@ -6,7 +6,7 @@ package handlers
 import (
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/binding"
+	"github.com/PapagoLabs/outtake/internal/plex/binding"
 )
 
 // SessionHandler handles session-related requests.
