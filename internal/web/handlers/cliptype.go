@@ -5,7 +5,7 @@ package handlers
 
 import (
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
-	"github.com/PapagoLabs/outtake/internal/storage"
+	"github.com/PapagoLabs/outtake/internal/clip/storage"
 )
 
 // NormalizeClipType maps API clip type aliases onto queue job types.

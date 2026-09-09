@@ -12,7 +12,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/storage"
+	"github.com/PapagoLabs/outtake/internal/clip/storage"
 )
 
 // ThumbHandler proxies and caches Plex thumbnails.

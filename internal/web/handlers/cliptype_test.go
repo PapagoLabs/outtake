@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
-	"github.com/PapagoLabs/outtake/internal/storage"
+	"github.com/PapagoLabs/outtake/internal/clip/storage"
 )
 
 func testClipJob(id string, jobType queue.JobType) *queue.Job {
