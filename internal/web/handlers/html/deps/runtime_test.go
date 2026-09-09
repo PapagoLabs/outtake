@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package html
+package deps
 
 import (
 	"io"
@@ -40,7 +40,7 @@ func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
 	t.Parallel()
 
 	libs := []viewmedia.LibraryItem{{ID: "2", Title: testTVShows, Type: "show"}}
-	crumbs := mediaCrumbs(libs, "2", "", "", "")
+	crumbs := MediaCrumbs(libs, "2", "", "", "")
 	require.Len(t, crumbs, 2)
 	assert.Equal(t, testTVShows, crumbs[1].Title)
 	assert.Equal(t, "/media?library=2", crumbs[1].URL)
@@ -49,18 +49,18 @@ func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {
 func TestFormatClipCreated(t *testing.T) {
 	t.Parallel()
 
-	assert.Empty(t, formatClipCreated(time.Time{}))
+	assert.Empty(t, FormatClipCreated(time.Time{}))
 	assert.Equal(
 		t,
 		"Sep 3, 2026 4:32 AM",
-		formatClipCreated(time.Date(2026, time.September, 3, 4, 32, 20, 0, time.UTC)),
+		FormatClipCreated(time.Date(2026, time.September, 3, 4, 32, 20, 0, time.UTC)),
 	)
 }
 
 func TestItemCrumbsEpisodeTrail(t *testing.T) {
 	t.Parallel()
 
-	crumbs := itemCrumbs(plex.MediaItem{
+	crumbs := ItemCrumbs(plex.MediaItem{
 		Title:            "Episode 3",
 		Type:             plex.TypeEpisode,
 		LibraryID:        "2",
@@ -83,7 +83,7 @@ func TestItemCrumbsEpisodeTrail(t *testing.T) {
 func TestItemCrumbsSeasonUsesParentShow(t *testing.T) {
 	t.Parallel()
 
-	crumbs := itemCrumbs(plex.MediaItem{
+	crumbs := ItemCrumbs(plex.MediaItem{
 		Title:        "Season 2",
 		Type:         plex.TypeSeason,
 		LibraryID:    "2",
@@ -207,7 +207,7 @@ func TestSessionTitleParts(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			got, year := sessionTitleParts(test.give)
+			got, year := SessionTitleParts(test.give)
 			assert.Equal(t, test.want, got)
 			assert.Equal(t, test.wantYear, year)
 		})
@@ -217,11 +217,11 @@ func TestSessionTitleParts(t *testing.T) {
 func TestMediaItemLocationEscapesID(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "/media/item/148392", mediaItemLocation("148392", url.Values{}))
+	assert.Equal(t, "/media/item/148392", MediaItemLocation("148392", url.Values{}))
 	assert.Equal(
 		t,
 		"/media/item/a%2Fb",
-		mediaItemLocation("a/b", url.Values{}),
+		MediaItemLocation("a/b", url.Values{}),
 	)
 }
 
@@ -230,10 +230,10 @@ func TestChooserLibraries(t *testing.T) {
 
 	libs := []viewmedia.LibraryItem{{ID: "1", Title: "Movies", Type: sharedclip.DefaultMediaType}}
 
-	assert.Equal(t, libs, chooserLibraries(libs, "", ""))
-	assert.Nil(t, chooserLibraries(libs, "", "1"))
-	assert.Nil(t, chooserLibraries(libs, "query", ""))
-	assert.Nil(t, chooserLibraries(libs, "query", "1"))
+	assert.Equal(t, libs, ChooserLibraries(libs, "", ""))
+	assert.Nil(t, ChooserLibraries(libs, "", "1"))
+	assert.Nil(t, ChooserLibraries(libs, "query", ""))
+	assert.Nil(t, ChooserLibraries(libs, "query", "1"))
 }
 
 func TestSelectedLibraryID(t *testing.T) {
@@ -252,7 +252,7 @@ func TestSelectedLibraryID(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		assert.Equal(t, test.want, selectedLibraryID(test.giveCurrent, test.giveQuery))
+		assert.Equal(t, test.want, SelectedLibraryID(test.giveCurrent, test.giveQuery))
 	}
 }
 
@@ -345,25 +345,25 @@ func hxTargetKind(
 func mediaResultsKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
-	return hxTargetKind(t, "/media", hxTarget, "fragment", wantsMediaResults)
+	return hxTargetKind(t, "/media", hxTarget, "fragment", WantsMediaResults)
 }
 
 func mediaPrevKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
-	return hxTargetKind(t, "/media", hxTarget, "prev", wantsMediaPrev)
+	return hxTargetKind(t, "/media", hxTarget, "prev", WantsMediaPrev)
 }
 
 func mediaMoreKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
-	return hxTargetKind(t, "/media", hxTarget, "more", wantsMediaMore)
+	return hxTargetKind(t, "/media", hxTarget, "more", WantsMediaMore)
 }
 
 func clipListKind(t *testing.T, hxTarget string) string {
 	t.Helper()
 
-	return hxTargetKind(t, "/clips", hxTarget, "fragment", wantsClipList)
+	return hxTargetKind(t, "/clips", hxTarget, "fragment", WantsClipList)
 }
 
 func TestMediaItemError(t *testing.T) {
@@ -385,20 +385,20 @@ func TestClipProfileName(t *testing.T) {
 		{ID: "archive", Name: "Archive", IsDefault: false},
 	}
 
-	assert.Equal(t, "Archive", clipProfileName("archive", profiles))
-	assert.Equal(t, "low", clipProfileName("low", profiles))
-	assert.Empty(t, clipProfileName("", nil))
+	assert.Equal(t, "Archive", ClipProfileName("archive", profiles))
+	assert.Equal(t, "low", ClipProfileName("low", profiles))
+	assert.Empty(t, ClipProfileName("", nil))
 }
 
 func TestClipFileExists(t *testing.T) {
 	t.Parallel()
 
-	assert.False(t, clipFileExists(""))
-	assert.False(t, clipFileExists(filepath.Join(t.TempDir(), "missing.mp4")))
+	assert.False(t, ClipFileExists(""))
+	assert.False(t, ClipFileExists(filepath.Join(t.TempDir(), "missing.mp4")))
 
 	path := filepath.Join(t.TempDir(), "clip.mp4")
 	require.NoError(t, os.WriteFile(path, []byte("x"), 0o600))
-	assert.True(t, clipFileExists(path))
+	assert.True(t, ClipFileExists(path))
 }
 
 func TestAudioTrackLabel(t *testing.T) {
@@ -407,7 +407,7 @@ func TestAudioTrackLabel(t *testing.T) {
 	assert.Equal(
 		t,
 		"eng · dts · 7.1 · DTS:X 7.1",
-		audioTrackLabel(media.AudioTrack{
+		AudioTrackLabel(media.AudioTrack{
 			Index:    0,
 			Codec:    "dts",
 			Language: "eng",
@@ -418,7 +418,7 @@ func TestAudioTrackLabel(t *testing.T) {
 	assert.Equal(
 		t,
 		"Track 2",
-		audioTrackLabel(media.AudioTrack{
+		AudioTrackLabel(media.AudioTrack{
 			Index:    1,
 			Codec:    "",
 			Language: "",

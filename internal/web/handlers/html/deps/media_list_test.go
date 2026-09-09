@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package html
+package deps
 
 import (
 	"io"
@@ -27,31 +27,31 @@ func TestParseMediaListQuery(t *testing.T) {
 
 	tests := []struct {
 		give string
-		want mediaListQuery
+		want MediaListQuery
 	}{
 		{
 			give: "/media",
-			want: mediaListQuery{},
+			want: MediaListQuery{},
 		},
 		{
 			give: "/media?library=1",
-			want: mediaListQuery{LibraryID: "1", Sort: mediaSortTitleAsc},
+			want: MediaListQuery{LibraryID: "1", Sort: mediaSortTitleAsc},
 		},
 		{
 			give: "/media?library=1&sort=year_desc",
-			want: mediaListQuery{LibraryID: "1", Sort: mediaSortYearDesc},
+			want: MediaListQuery{LibraryID: "1", Sort: mediaSortYearDesc},
 		},
 		{
 			give: "/media?library=1&sort=bogus",
-			want: mediaListQuery{LibraryID: "1", Sort: mediaSortTitleAsc},
+			want: MediaListQuery{LibraryID: "1", Sort: mediaSortTitleAsc},
 		},
 		{
 			give: "/media?library=1&letter=M",
-			want: mediaListQuery{LibraryID: "1", Sort: mediaSortTitleAsc, Letter: "M"},
+			want: MediaListQuery{LibraryID: "1", Sort: mediaSortTitleAsc, Letter: "M"},
 		},
 		{
 			give: "/media?library=1&sort=title_asc&letter=M&start=48",
-			want: mediaListQuery{
+			want: MediaListQuery{
 				LibraryID: "1",
 				Sort:      mediaSortTitleAsc,
 				Letter:    "M",
@@ -60,11 +60,11 @@ func TestParseMediaListQuery(t *testing.T) {
 		},
 		{
 			give: "/media?library=1&parent=9&sort=title_asc&letter=A&start=48",
-			want: mediaListQuery{LibraryID: "1", ParentID: "9", Start: 48},
+			want: MediaListQuery{LibraryID: "1", ParentID: "9", Start: 48},
 		},
 		{
 			give: "/media?library=1&q=movie&sort=year_desc&letter=M",
-			want: mediaListQuery{
+			want: MediaListQuery{
 				Query:     sharedclip.DefaultMediaType,
 				LibraryID: "1",
 				Sort:      mediaSortYearDesc,
@@ -72,7 +72,7 @@ func TestParseMediaListQuery(t *testing.T) {
 		},
 		{
 			give: "/media?library=1&sort=title_asc&before=43",
-			want: mediaListQuery{
+			want: MediaListQuery{
 				LibraryID: "1",
 				Sort:      mediaSortTitleAsc,
 				Before:    43,
@@ -100,22 +100,22 @@ func TestMediaListQueryListStart(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		query mediaListQuery
+		query MediaListQuery
 		want  int
 	}{
 		{
 			name:  "letter without start",
-			query: mediaListQuery{Letter: "M"},
+			query: MediaListQuery{Letter: "M"},
 			want:  43,
 		},
 		{
 			name:  "start wins over letter",
-			query: mediaListQuery{Letter: "M", Start: 48},
+			query: MediaListQuery{Letter: "M", Start: 48},
 			want:  48,
 		},
 		{
 			name:  "zero start without letter",
-			query: mediaListQuery{},
+			query: MediaListQuery{},
 			want:  0,
 		},
 	}
@@ -124,7 +124,7 @@ func TestMediaListQueryListStart(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, test.query.listStart(index))
+			assert.Equal(t, test.want, test.query.ListStart(index))
 		})
 	}
 }
@@ -137,17 +137,17 @@ func TestMediaListQueryWindow(t *testing.T) {
 		{Title: "A", Size: 40},
 	}
 
-	window := (mediaListQuery{Before: 43}).window(index)
-	assert.Equal(t, 0, window.Start)
-	assert.Equal(t, 43, window.Size)
+	Window := (MediaListQuery{Before: 43}).Window(index)
+	assert.Equal(t, 0, Window.Start)
+	assert.Equal(t, 43, Window.Size)
 
-	window = (mediaListQuery{Before: 96}).window(index)
-	assert.Equal(t, 48, window.Start)
-	assert.Equal(t, 48, window.Size)
+	Window = (MediaListQuery{Before: 96}).Window(index)
+	assert.Equal(t, 48, Window.Start)
+	assert.Equal(t, 48, Window.Size)
 
-	window = (mediaListQuery{Letter: "A"}).window(index)
-	assert.Equal(t, 3, window.Start)
-	assert.Equal(t, respond.MediaPageSize, window.Size)
+	Window = (MediaListQuery{Letter: "A"}).Window(index)
+	assert.Equal(t, 3, Window.Start)
+	assert.Equal(t, respond.MediaPageSize, Window.Size)
 }
 
 func TestAddedAtIndexes(t *testing.T) {
@@ -156,7 +156,7 @@ func TestAddedAtIndexes(t *testing.T) {
 	march := time.Date(2024, time.March, 2, 0, 0, 0, 0, time.Local).Unix()
 	feb := time.Date(2024, time.February, 10, 0, 0, 0, 0, time.Local).Unix()
 
-	got := addedAtIndexes([]plex.MediaItem{
+	got := AddedAtIndexes([]plex.MediaItem{
 		{AddedAt: march},
 		{AddedAt: march},
 		{AddedAt: feb},
@@ -171,7 +171,7 @@ func TestAddedAtIndexes(t *testing.T) {
 func TestTitleIndexes(t *testing.T) {
 	t.Parallel()
 
-	got := titleIndexes([]plex.MediaItem{
+	got := TitleIndexes([]plex.MediaItem{
 		{Title: "2 Movie", TitleSort: "2 Movie"},
 		{Title: "The Movie", TitleSort: testMovie},
 		{Title: "Movie 2", TitleSort: "Movie 2"},
@@ -188,7 +188,7 @@ func TestTitleIndexes(t *testing.T) {
 func TestYearIndexes(t *testing.T) {
 	t.Parallel()
 
-	got := yearIndexes([]plex.MediaItem{
+	got := YearIndexes([]plex.MediaItem{
 		{Year: 2026},
 		{Year: 2026},
 		{Year: 2025},
@@ -216,7 +216,7 @@ func TestThinJumpIndexesYearsUseDecades(t *testing.T) {
 		start++
 	}
 
-	got := thinJumpIndexes(letters, mediaSortYearDesc)
+	got := ThinJumpIndexes(letters, mediaSortYearDesc)
 	assert.LessOrEqual(t, len(got), maxJumpLabels)
 	assert.Equal(t, "2026", got[0].Title)
 	assert.Equal(t, "1934", got[len(got)-1].Title)
@@ -240,7 +240,7 @@ func TestThinJumpIndexesKeepsShortLists(t *testing.T) {
 		{Title: "2024", Size: 1, Start: 6},
 	}
 
-	assert.Equal(t, letters, thinJumpIndexes(letters, mediaSortYearDesc))
+	assert.Equal(t, letters, ThinJumpIndexes(letters, mediaSortYearDesc))
 }
 
 func TestThinMonthTitlesKeepsOnePerYear(t *testing.T) {
@@ -259,7 +259,7 @@ func TestThinMonthTitlesKeepsOnePerYear(t *testing.T) {
 		})
 	}
 
-	got := thinMonthTitles(letters)
+	got := ThinMonthTitles(letters)
 	assert.LessOrEqual(t, len(got), maxJumpLabels)
 	assert.Greater(t, len(got), 2)
 }
@@ -271,14 +271,14 @@ func TestOrderJumpIndex(t *testing.T) {
 	assert.Equal(
 		t,
 		[]plex.LetterIndex{{Title: "B", Size: 3}, {Title: "A", Size: 2}},
-		orderJumpIndex(letters, mediaSortTitleDesc),
+		OrderJumpIndex(letters, mediaSortTitleDesc),
 	)
 
 	years := []plex.LetterIndex{{Title: "1995", Size: 2}, {Title: "2024", Size: 1}}
 	assert.Equal(
 		t,
 		[]plex.LetterIndex{{Title: "2024", Size: 1}, {Title: "1995", Size: 2}},
-		orderJumpIndex(years, mediaSortYearDesc),
+		OrderJumpIndex(years, mediaSortYearDesc),
 	)
 }
 
@@ -303,7 +303,7 @@ func TestPlexMediaSort(t *testing.T) {
 		t.Run(test.give, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, plexMediaSort(test.give))
+			assert.Equal(t, test.want, PlexMediaSort(test.give))
 		})
 	}
 }
@@ -311,7 +311,7 @@ func TestPlexMediaSort(t *testing.T) {
 func TestToLetterIndexesOmitsEmpty(t *testing.T) {
 	t.Parallel()
 
-	got := toLetterIndexes([]plex.LetterIndex{
+	got := ToLetterIndexes([]plex.LetterIndex{
 		{Title: "#", Size: 3},
 		{Title: "A", Size: 0},
 		{Title: "B", Size: 12},
@@ -323,14 +323,14 @@ func TestToLetterIndexesOmitsEmpty(t *testing.T) {
 	}, got)
 }
 
-func parseMediaListQueryFrom(t *testing.T, target string) mediaListQuery {
+func parseMediaListQueryFrom(t *testing.T, target string) MediaListQuery {
 	t.Helper()
 
 	app := fiber.New()
-	var parsed mediaListQuery
+	var parsed MediaListQuery
 
 	app.Get("/media", func(ctx fiber.Ctx) error {
-		parsed = parseMediaListQuery(ctx)
+		parsed = ParseMediaListQuery(ctx)
 
 		return nil
 	})
@@ -354,7 +354,7 @@ func TestCollectAddedAtItemsStopsAtPageCap(t *testing.T) {
 		calls++
 	})
 
-	items := collectAddedAtItems(t.Context(), client, server, "1", mediaSortAddedDesc)
+	items := CollectAddedAtItems(t.Context(), client, server, "1", mediaSortAddedDesc)
 
 	assert.Equal(t, maxAddedIndexPages, calls)
 	assert.Len(t, items, maxAddedIndexPages)
@@ -369,8 +369,8 @@ func TestLoadAddedAtIndexesCaches(t *testing.T) {
 	})
 	cache := &addedAtIndexCache{}
 
-	first := loadAddedAtIndexes(t.Context(), cache, client, server, "1", mediaSortAddedDesc)
-	second := loadAddedAtIndexes(t.Context(), cache, client, server, "1", mediaSortAddedDesc)
+	first := LoadAddedAtIndexes(t.Context(), cache, client, server, "1", mediaSortAddedDesc)
+	second := LoadAddedAtIndexes(t.Context(), cache, client, server, "1", mediaSortAddedDesc)
 
 	assert.Equal(t, first, second)
 	assert.Equal(t, maxAddedIndexPages, calls)
