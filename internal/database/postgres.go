@@ -9,6 +9,8 @@ import (
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib" // PGX Postgres-protocol driver.
+
+	"github.com/PapagoLabs/outtake/internal/database/dialect"
 )
 
 const (
@@ -31,7 +33,7 @@ func newPostgres(dsn string) (*DB, error) {
 	conn.SetMaxIdleConns(postgresMaxIdleConns)
 	conn.SetConnMaxLifetime(postgresConnMaxLifetime)
 
-	db, err := finishOpen(conn, dialectPostgres)
+	db, err := finishOpen(conn, dialect.Postgres)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
 	}

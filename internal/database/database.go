@@ -7,12 +7,9 @@ package database
 import (
 	"context"
 	"database/sql"
-	"embed"
 	"errors"
 	"fmt"
-	"io/fs"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -20,18 +17,17 @@ import (
 	_ "modernc.org/sqlite"                               // SQLite driver.
 
 	"github.com/PapagoLabs/outtake/internal/config"
+	"github.com/PapagoLabs/outtake/internal/database/dialect"
+	"github.com/PapagoLabs/outtake/internal/database/migrate"
 )
 
 // DB represents a database connection.
 type DB struct {
 	conn    *sql.DB
-	dialect dialect
+	dialect dialect.Kind
 }
 
 const (
-	// SQLFileExtensionLen is the length of the SQL file extension.
-	sqlFileExtensionLen = 4
-
 	// MigrateTimeout is the maximum time allowed to ping and apply migrations.
 	migrateTimeout = 30 * time.Second
 )
@@ -43,10 +39,14 @@ var (
 	errDatabaseURLRequired = errors.New("database-url is required")
 )
 
-// migrationsFS contains the migration files.
-//
-//go:embed migrations
-var migrationsFS embed.FS
+const (
+	// BackendSQLite is the default libsql/SQLite backend.
+	BackendSQLite = "sqlite"
+	// BackendPostgres is the Postgres-protocol backend.
+	BackendPostgres = "postgres"
+	// BackendPgx is an alias for the Postgres-protocol backend.
+	BackendPgx = "pgx"
+)
 
 // New creates a new SQLite database instance.
 func New(dbPath string) (*DB, error) {
@@ -59,7 +59,7 @@ func New(dbPath string) (*DB, error) {
 	conn.SetMaxOpenConns(1)
 	conn.SetMaxIdleConns(1)
 
-	db, err := finishOpen(conn, dialectSQLite)
+	db, err := finishOpen(conn, dialect.SQLite)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
@@ -109,92 +109,18 @@ func (db *DB) Conn() *sql.DB {
 	return db.conn
 }
 
-// appliedMigrations returns migration filenames already recorded.
-func (db *DB) appliedMigrations(ctx context.Context) ([]string, error) {
-	rows, err := db.conn.QueryContext(ctx, `SELECT name FROM schema_migrations`)
-	if err != nil {
-		return nil, fmt.Errorf("list migrations: %w", err)
-	}
-	defer rows.Close()
-
-	names := make([]string, 0)
-
-	for rows.Next() {
-		var name string
-
-		scanErr := rows.Scan(&name)
-		if scanErr != nil {
-			return nil, fmt.Errorf("scan migration: %w", scanErr)
-		}
-
-		names = append(names, name)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, fmt.Errorf("iterate migrations: %w", err)
-	}
-
-	return names, nil
+// nameOrder returns an ORDER BY expression for case-insensitive names.
+func (db *DB) nameOrder() string {
+	return db.dialect.NameOrder()
 }
 
-// applyOne executes and records a single migration file.
-func (db *DB) applyOne(ctx context.Context, name string) error {
-	err := db.execMigration(ctx, name)
-	if err != nil {
-		return fmt.Errorf("migrate: %w", err)
-	}
-
-	_, err = db.conn.ExecContext(
-		ctx,
-		db.rewrite(`INSERT INTO schema_migrations (name) VALUES (?)`),
-		name,
-	)
-	if err != nil {
-		return fmt.Errorf("record migration %s: %w", name, err)
-	}
-
-	return nil
-}
-
-// applyPending runs SQL files that are not yet recorded.
-func (db *DB) applyPending(ctx context.Context, applied []string) error {
-	entries, err := migrationsFS.ReadDir(db.migrationsDir())
-	if err != nil {
-		return fmt.Errorf("read migrations: %w", err)
-	}
-
-	for _, entry := range entries {
-		if skipMigration(entry, applied) {
-			continue
-		}
-
-		err := db.applyOne(ctx, entry.Name())
-		if err != nil {
-			return fmt.Errorf("apply pending: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// execMigration executes a single migration file.
-func (db *DB) execMigration(ctx context.Context, name string) error {
-	content, err := migrationsFS.ReadFile(db.migrationsDir() + "/" + name)
-	if err != nil {
-		return fmt.Errorf("read migration %s: %w", name, err)
-	}
-
-	_, err = db.conn.ExecContext(ctx, string(content))
-	if err != nil {
-		return fmt.Errorf("exec migration %s: %w", name, err)
-	}
-
-	return nil
+// rewrite translates SQL placeholders and SQLite collations for the dialect.
+func (db *DB) rewrite(query string) string {
+	return db.dialect.Rewrite(query)
 }
 
 // finishOpen pings and migrates a newly opened connection.
-func finishOpen(conn *sql.DB, sqlDialect dialect) (*DB, error) {
+func finishOpen(conn *sql.DB, kind dialect.Kind) (*DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), migrateTimeout)
 	defer cancel()
 
@@ -205,57 +131,12 @@ func finishOpen(conn *sql.DB, sqlDialect dialect) (*DB, error) {
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
-	db := &DB{conn: conn, dialect: sqlDialect}
-
-	err = db.migrate(ctx)
+	err = migrate.Run(ctx, conn, kind)
 	if err != nil {
 		_ = conn.Close()
 
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 
-	return db, nil
-}
-
-// migrate runs the database migrations.
-func (db *DB) migrate(ctx context.Context) error {
-	_, err := db.conn.ExecContext(ctx, db.rewrite(`
-		CREATE TABLE IF NOT EXISTS schema_migrations (
-			name TEXT PRIMARY KEY
-		)
-	`))
-	if err != nil {
-		return fmt.Errorf("create schema_migrations: %w", err)
-	}
-
-	applied, err := db.appliedMigrations(ctx)
-	if err != nil {
-		return fmt.Errorf("list applied migrations: %w", err)
-	}
-
-	err = db.applyPending(ctx, applied)
-	if err != nil {
-		return fmt.Errorf("apply pending: %w", err)
-	}
-
-	return nil
-}
-
-// migrationsDir returns the embed directory for this dialect.
-func (db *DB) migrationsDir() string {
-	if db.dialect == dialectPostgres {
-		return "migrations/postgres"
-	}
-
-	return "migrations"
-}
-
-// isValidSQLFile checks if a filename has a valid SQL extension.
-func isValidSQLFile(name string) bool {
-	return len(name) >= sqlFileExtensionLen && name[len(name)-sqlFileExtensionLen:] == ".sql"
-}
-
-// skipMigration reports whether a directory entry should not be applied.
-func skipMigration(entry fs.DirEntry, applied []string) bool {
-	return entry.IsDir() || !isValidSQLFile(entry.Name()) || slices.Contains(applied, entry.Name())
+	return &DB{conn: conn, dialect: kind}, nil
 }

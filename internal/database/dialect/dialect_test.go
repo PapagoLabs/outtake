@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package database
+package dialect
 
 import (
 	"testing"
@@ -26,25 +26,20 @@ func TestRewriteCollate(t *testing.T) {
 func TestNameOrder(t *testing.T) {
 	t.Parallel()
 
-	sqlite := &DB{conn: nil, dialect: dialectSQLite}
-	assert.Equal(t, collateNocase, sqlite.nameOrder())
-
-	postgres := &DB{conn: nil, dialect: dialectPostgres}
-	assert.Equal(t, lowerNameOrder, postgres.nameOrder())
+	assert.Equal(t, collateNocase, SQLite.NameOrder())
+	assert.Equal(t, lowerNameOrder, Postgres.NameOrder())
 }
 
-func TestDBRewrite_SQLiteUnchanged(t *testing.T) {
+func TestRewrite_SQLiteUnchanged(t *testing.T) {
 	t.Parallel()
 
-	db := &DB{conn: nil, dialect: dialectSQLite}
 	query := "SELECT * FROM clips WHERE id = ?"
-	assert.Equal(t, query, db.rewrite(query))
+	assert.Equal(t, query, SQLite.Rewrite(query))
 }
 
-func TestDBRewrite_Postgres(t *testing.T) {
+func TestRewrite_Postgres(t *testing.T) {
 	t.Parallel()
 
-	db := &DB{conn: nil, dialect: dialectPostgres}
-	got := db.rewrite("SELECT * FROM clips WHERE id = ? ORDER BY name COLLATE NOCASE ASC")
+	got := Postgres.Rewrite("SELECT * FROM clips WHERE id = ? ORDER BY name COLLATE NOCASE ASC")
 	assert.Equal(t, "SELECT * FROM clips WHERE id = $1 ORDER BY LOWER(name) ASC", got)
 }
