@@ -8,7 +8,7 @@
 //
 // # Usage
 //
-//	import "github.com/PapagoLabs/outtake/internal/metadata"
+//	import "github.com/PapagoLabs/outtake/internal/cli/metadata"
 //	fmt.Printf("%s %s\n", metadata.Name, metadata.String())
 //	info := metadata.GetInfo() // structured data for JSON/output
 //
@@ -16,7 +16,7 @@
 //
 // To set Version, CommitSHA, and BuildTime at build time, use ldflags:
 //
-//	go build -ldflags "-X 'github.com/PapagoLabs/outtake/internal/metadata.Version=v1.0.0' \
-//		-X 'github.com/PapagoLabs/outtake/internal/metadata.CommitSHA=abc123' \
-//		-X 'github.com/PapagoLabs/outtake/internal/metadata.BuildTime=2025-01-15T12:00:00Z'"
+//	go build -ldflags "-X 'github.com/PapagoLabs/outtake/internal/cli/metadata.Version=v1.0.0' \
+//		-X 'github.com/PapagoLabs/outtake/internal/cli/metadata.CommitSHA=abc123' \
+//		-X 'github.com/PapagoLabs/outtake/internal/cli/metadata.BuildTime=2025-01-15T12:00:00Z'"
 package metadata

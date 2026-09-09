@@ -13,7 +13,7 @@ import (
 
 	clilib "github.com/PapagoLabs/outtake/internal/cli"
 	"github.com/PapagoLabs/outtake/internal/cli/flags"
-	"github.com/PapagoLabs/outtake/internal/metadata"
+	"github.com/PapagoLabs/outtake/internal/cli/metadata"
 )
 
 // NewCommand creates the version command.
