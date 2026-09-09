@@ -131,8 +131,8 @@ func StoragePath() string {
 //   - configFile: Optional path to a config file; empty uses defaults and env.
 //
 // Returns:
-//   - cfg: The configuration.
-//   - err: The error, if any.
+//   - cfg: Merged file, env (OUTTAKE_*), and default settings.
+//   - err: Config file read, env bind, unmarshal, or directory create failure.
 func Load(configFile string) (*Config, error) {
 	viperInstance := viper.New()
 
@@ -210,7 +210,7 @@ func emptyConfig() *Config {
 // setDefaults sets the default configuration values.
 //
 // Parameters:
-//   - viperInstance: Viper instance.
+//   - viperInstance: Typed *viper.Viper argument for setDefaults.
 func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("listen-addr", defaultListenAddr)
 	viperInstance.SetDefault("database-path", DatabasePath())
@@ -240,10 +240,10 @@ func setDefaults(viperInstance *viper.Viper) {
 // bindEnv registers OUTTAKE_* environment keys so Unmarshal can see them.
 //
 // Parameters:
-//   - viperInstance: Viper instance.
+//   - viperInstance: Viper handle receiving BindEnv registrations.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: First BindEnv failure for a known key.
 func bindEnv(viperInstance *viper.Viper) error {
 	keys := []string{
 		"listen-addr",
@@ -340,10 +340,10 @@ func (cfg *Config) RemapMediaPath(plexPath string) string {
 // ensureDirs ensures the required directories exist.
 //
 // Parameters:
-//   - cfg: Application configuration.
+//   - cfg: Paths for the database parent dir and storage root.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: MkdirAll failure for the database parent or storage path.
 func ensureDirs(cfg *Config) error {
 	dirs := []string{
 		filepath.Dir(cfg.DatabasePath),

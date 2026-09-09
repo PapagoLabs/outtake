@@ -206,9 +206,6 @@ var _ = Describe("Clips", func() {
 })
 
 // closeBody closes resp.Body and ignores the error.
-//
-// Parameters:
-//   - resp: Resp.
 func closeBody(resp *http.Response) {
 	_ = resp.Body.Close()
 }

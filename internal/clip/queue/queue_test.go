@@ -18,7 +18,7 @@ import (
 //
 // Parameters:
 //   - id: Identifier.
-//   - created: Created.
+//   - created: Newly created entity under test.
 //
 // Returns:
 //   - job: The dated job.
@@ -34,7 +34,7 @@ func datedJob(id string, created time.Time) *Job {
 //
 // Parameters:
 //   - id: Identifier.
-//   - status: Status.
+//   - status: Clip job status value under test.
 //
 // Returns:
 //   - job: The test job.

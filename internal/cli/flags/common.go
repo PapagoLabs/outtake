@@ -71,7 +71,7 @@ func (cf *CommonFlags) Bind(flags *pflag.FlagSet) {
 // Validate checks the common flags for consistency.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Non-nil when the call fails.
 func (cf *CommonFlags) Validate() error {
 	if cf.Quiet && cf.Verbose {
 		return errQuietVerboseConflict

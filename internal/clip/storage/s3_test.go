@@ -158,8 +158,8 @@ func newFakeS3Server() *fakeS3Server {
 // ServeHTTP serve http.
 //
 // Parameters:
-//   - writer: Writer.
-//   - request: Request.
+//   - writer: Destination for written bytes.
+//   - request: Incoming HTTP request.
 func (server *fakeS3Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	_, key := splitS3Path(request.URL.Path)
 	switch request.Method {
@@ -179,8 +179,8 @@ func (server *fakeS3Server) ServeHTTP(writer http.ResponseWriter, request *http.
 // deleteObject delete object.
 //
 // Parameters:
-//   - writer: Writer.
-//   - key: Key.
+//   - writer: Destination for written bytes.
+//   - key: Object or map key.
 func (server *fakeS3Server) deleteObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
 	delete(server.objects, key)
@@ -191,8 +191,8 @@ func (server *fakeS3Server) deleteObject(writer http.ResponseWriter, key string)
 // getObject get object.
 //
 // Parameters:
-//   - writer: Writer.
-//   - key: Key.
+//   - writer: Destination for written bytes.
+//   - key: Object or map key.
 func (server *fakeS3Server) getObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
 
@@ -215,8 +215,8 @@ func (server *fakeS3Server) getObject(writer http.ResponseWriter, key string) {
 // headObject head object.
 //
 // Parameters:
-//   - writer: Writer.
-//   - key: Key.
+//   - writer: Destination for written bytes.
+//   - key: Object or map key.
 func (server *fakeS3Server) headObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
 
@@ -237,9 +237,9 @@ func (server *fakeS3Server) headObject(writer http.ResponseWriter, key string) {
 // putObject put object.
 //
 // Parameters:
-//   - writer: Writer.
-//   - request: Request.
-//   - key: Key.
+//   - writer: Destination for written bytes.
+//   - request: Incoming HTTP request.
+//   - key: Object or map key.
 func (server *fakeS3Server) putObject(
 	writer http.ResponseWriter,
 	request *http.Request,
@@ -262,7 +262,7 @@ func (server *fakeS3Server) putObject(
 // splitS3Path returns the split s3 path.
 //
 // Parameters:
-//   - urlPath: Url path.
+//   - urlPath: Typed string argument for splitS3Path.
 //
 // Returns:
 //   - path: The split s3 path.
@@ -280,7 +280,7 @@ func splitS3Path(urlPath string) (string, string) {
 // writeS3NotFound write s3 not found.
 //
 // Parameters:
-//   - writer: Writer.
+//   - writer: Destination for written bytes.
 func writeS3NotFound(writer http.ResponseWriter) {
 	writer.WriteHeader(http.StatusNotFound)
 

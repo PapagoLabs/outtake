@@ -21,13 +21,14 @@ var errUnknownJobType = errors.New("unknown job type")
 // extractJob runs the FFmpeg extract for a clip, GIF, or screenshot job.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - job: Job.
-//   - ffmpeg: Ffmpeg.
+//   - ctx: Cancels or deadlines this call.
+//   - job: Clip job to process or persist.
+//   - ffmpeg: FFmpeg executor used for encode/probe work.
 //   - db: Database handle.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "extract clip"; "extract gif"; "extract
+//     screenshot".
 func extractJob(
 	ctx context.Context,
 	job *queue.Job,
@@ -84,14 +85,14 @@ func extractJob(
 // ProcessJob routes a job to the appropriate FFmpeg operation.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - job: Job.
-//   - ffmpeg: Ffmpeg.
+//   - ctx: Cancels or deadlines this call.
+//   - job: Clip job to process or persist.
+//   - ffmpeg: FFmpeg executor used for encode/probe work.
 //   - db: Database handle.
-//   - store: Store.
+//   - store: Blob storage backend for clip artifacts.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "extract"; "store output".
 func ProcessJob(
 	ctx context.Context,
 	job *queue.Job,
@@ -119,12 +120,12 @@ func ProcessJob(
 // detectJobCrop runs cropdetect when the job requested black-bar trimming.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - ffmpeg: Ffmpeg.
-//   - job: Job.
+//   - ctx: Cancels or deadlines this call.
+//   - ffmpeg: FFmpeg executor used for encode/probe work.
+//   - job: Clip job to process or persist.
 //
 // Returns:
-//   - crop: The crop.
+//   - crop: Detected crop rectangle; zero when undetectable.
 func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) media.CropRect {
 	if !job.CropBlackBars {
 		return media.CropRect{}
@@ -141,7 +142,7 @@ func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) med
 // clipEncodePreset resolves quality settings and the per-clip web-safe color flag.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - db: Clip profile store; may be nil.
 //   - job: Clip job whose Quality and WebSafeColor are applied.
 //
@@ -158,9 +159,9 @@ func clipEncodePreset(ctx context.Context, db *database.DB, job *queue.Job) medi
 // clipPreset resolves a stored quality id onto ffmpeg settings.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - db: Database handle.
-//   - quality: Quality.
+//   - quality: Stored quality preset id.
 //
 // Returns:
 //   - qualityPreset: A stored quality id onto ffmpeg settings.
@@ -178,7 +179,7 @@ func clipPreset(ctx context.Context, db *database.DB, quality string) mediaquali
 // preset.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - db: Database handle.
 //
 // Returns:
@@ -199,7 +200,7 @@ func defaultClipPreset(ctx context.Context, db *database.DB) mediaquality.Qualit
 // lookupClipPreset loads one stored profile by id.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - db: Database handle.
 //   - id: Identifier.
 //

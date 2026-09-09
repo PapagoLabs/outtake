@@ -47,8 +47,8 @@ const (
 // NewQueue creates a new job queue.
 //
 // Parameters:
-//   - workers: Workers.
-//   - handler: Handler.
+//   - workers: Number of concurrent worker goroutines.
+//   - handler: Per-job processing callback.
 //
 // Returns:
 //   - queue: A new job queue.
@@ -148,11 +148,11 @@ func (que *Queue) GetAllJobs() []*Job {
 // descending.
 //
 // Parameters:
-//   - left: Left.
-//   - right: Right.
+//   - left: Left operand for comparison.
+//   - right: Right operand for comparison.
 //
 // Returns:
-//   - n: The n.
+//   - n: Numeric result for this call.
 func compareJobsNewestFirst(left, right *Job) int {
 	if order := right.CreatedAt.Compare(left.CreatedAt); order != 0 {
 		return order
@@ -178,7 +178,7 @@ func (que *Queue) GetJob(id string) *Job {
 // Restore registers a job without enqueueing it.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 func (que *Queue) Restore(job *Job) {
 	que.mu.Lock()
 	defer que.mu.Unlock()
@@ -189,7 +189,7 @@ func (que *Queue) Restore(job *Job) {
 // SetStatusFunc registers a callback invoked on job status changes.
 //
 // Parameters:
-//   - fn: Fn.
+//   - fn: Status or progress callback.
 func (que *Queue) SetStatusFunc(fn StatusFunc) {
 	que.statusFn = fn
 }
@@ -216,7 +216,7 @@ func (que *Queue) Stop() {
 // Submit submits a job to the queue.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 func (que *Queue) Submit(job *Job) {
 	que.mu.Lock()
 
@@ -236,7 +236,7 @@ func (que *Queue) Submit(job *Job) {
 // notify invokes the status callback when one is registered.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 func (que *Queue) notify(job *Job) {
 	if que.statusFn != nil {
 		que.statusFn(job)
@@ -246,7 +246,7 @@ func (que *Queue) notify(job *Job) {
 // processJob processes a single job.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 func (que *Queue) processJob(job *Job) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

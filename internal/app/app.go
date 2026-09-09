@@ -46,7 +46,7 @@ const shutdownTimeout = 10 * time.Second
 //
 // Returns:
 //   - app: A new App with all dependencies initialized.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "init database"; "init storage".
 func New(cfg *config.Config) (*App, error) {
 	db, err := database.NewFromConfig(cfg)
 	if err != nil {
@@ -97,7 +97,7 @@ func (app *App) Close() {
 // Run starts the application server and blocks until shutdown.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "listen".
 func (app *App) Run() error {
 	ctx, stop := signal.NotifyContext(
 		context.Background(),

@@ -17,11 +17,8 @@ type VersionFlags struct {
 
 // Bind attaches version-specific flags to the provided flag set.
 //
-// Common flags (log-level, config, quiet, verbose) are inherited from the root
-// command's persistent flags and are not re-bound here.
-//
 // Parameters:
-//   - flags: Flags.
+//   - flags: Cobra/pflag set receiving shared flags.
 func (vf *VersionFlags) Bind(flags *pflag.FlagSet) {
 	flags.BoolVar(
 		&vf.JSON,

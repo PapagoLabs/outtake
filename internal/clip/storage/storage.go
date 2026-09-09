@@ -27,11 +27,11 @@ const (
 // NewStorage creates a new storage instance.
 //
 // Parameters:
-//   - basePath: Base path.
+//   - basePath: Typed string argument for NewStorage.
 //
 // Returns:
 //   - storage: A new storage instance.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "create storage dir"; "create ... dir".
 func NewStorage(basePath string) (*Storage, error) {
 	err := os.MkdirAll(basePath, dirPermissions)
 	if err != nil {
@@ -83,7 +83,7 @@ func (s *Storage) ClipsDir() string {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from delete file.
 func (*Storage) DeleteFile(path string) error {
 	err := os.Remove(path)
 	if err != nil && !os.IsNotExist(err) {
@@ -110,7 +110,7 @@ func (*Storage) FileExists(path string) bool {
 // disk.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from write thumbnail.
 func (*Storage) Get(_ context.Context, _ string) error {
 	return nil
 }
@@ -157,7 +157,7 @@ func (s *Storage) PreviewsDir() string {
 // disk.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from write thumbnail.
 func (*Storage) Put(_ context.Context, _ string) error {
 	return nil
 }
@@ -204,10 +204,10 @@ func (s *Storage) ThumbnailsDir() string {
 //
 // Parameters:
 //   - id: Identifier.
-//   - data: Data.
+//   - data: Raw bytes to parse.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Failure from write thumbnail.
 func (s *Storage) WriteThumbnail(id string, data []byte) error {
 	err := os.WriteFile(s.ThumbnailPath(id), data, filePermissions)
 	if err != nil {

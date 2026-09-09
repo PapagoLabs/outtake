@@ -31,7 +31,7 @@ func main() {
 // run downloads, verifies, extracts, and installs ffmpeg and ffprobe.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Download, checksum mismatch, extract, or install failure.
 func run() error {
 	ctx := context.Background()
 
@@ -100,11 +100,11 @@ func run() error {
 // download fetches url into a temporary file.
 //
 // Parameters:
-//   - url: Remote file URL.
+//   - url: Remote archive or checksums URL.
 //
 // Returns:
-//   - path: Local temporary file path.
-//   - err: The error, if any.
+//   - path: Local temp file holding the response body.
+//   - err: HTTP, non-OK status, or temp-file write failure.
 func download(url string) (string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -166,12 +166,12 @@ func releaseURLs(goarch string) (archiveURL, checksumURL, filename string) {
 // parseChecksum reads the MD5 hex digest for filename from a checksum file.
 //
 // Parameters:
-//   - path: Local checksum file path.
-//   - filename: Archive basename to match.
+//   - path: Local checksums file from the release.
+//   - filename: Archive basename to match on a checksums line.
 //
 // Returns:
-//   - sum: Expected MD5 hex digest.
-//   - err: The error, if any.
+//   - sum: Expected MD5 hex digest for that archive.
+//   - err: Read failure or no matching checksum line.
 func parseChecksum(path, filename string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -196,8 +196,8 @@ func parseChecksum(path, filename string) (string, error) {
 //   - path: File to hash.
 //
 // Returns:
-//   - sum: MD5 hex digest.
-//   - err: The error, if any.
+//   - sum: Lowercase MD5 hex digest.
+//   - err: Open or read failure.
 func md5File(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -214,12 +214,12 @@ func md5File(path string) (string, error) {
 // extractTarXz extracts a .tar.xz archive into dest.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - archivePath: Path to the archive file.
-//   - dest: Destination directory.
+//   - ctx: Cancels archive identify/extract.
+//   - archivePath: Path to the .tar.xz file.
+//   - dest: Directory that receives extracted members.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Open, format identify, or member extract failure.
 func extractTarXz(ctx context.Context, archivePath, dest string) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
@@ -275,12 +275,12 @@ func extractTarXz(ctx context.Context, archivePath, dest string) error {
 // Prefers a bin/ directory when multiple matches exist.
 //
 // Parameters:
-//   - root: Directory tree to search.
+//   - root: Extracted release tree to walk.
 //   - name: Executable basename (ffmpeg or ffprobe).
 //
 // Returns:
-//   - path: Absolute path to the binary.
-//   - err: The error, if any.
+//   - path: Absolute path to the preferred match.
+//   - err: Walk failure or no executable with that name.
 func findBin(root, name string) (string, error) {
 	var found string
 
@@ -317,11 +317,11 @@ func findBin(root, name string) (string, error) {
 // copyFile copies src to dst with executable permissions.
 //
 // Parameters:
-//   - src: Source file path.
-//   - dst: Destination file path.
+//   - src: Source binary path.
+//   - dst: Install path (parent dirs created as needed).
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Mkdir, read, or write failure.
 func copyFile(src, dst string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err

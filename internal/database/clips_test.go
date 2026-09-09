@@ -124,7 +124,7 @@ func TestListClipsOrder(t *testing.T) {
 // Parameters:
 //   - id: Identifier.
 //   - mediaID: Media id.
-//   - created: Created.
+//   - created: Newly created entity under test.
 //
 // Returns:
 //   - job: The test stored clip.
@@ -156,7 +156,7 @@ func testStoredClip(id, mediaID string, created time.Time) *queue.Job {
 // clipIDs returns the clip i ds.
 //
 // Parameters:
-//   - jobs: Jobs.
+//   - jobs: Clip jobs collection.
 //
 // Returns:
 //   - items: The clip i ds.

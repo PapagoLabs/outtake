@@ -37,10 +37,10 @@ func NewCommand() *cobra.Command {
 // runHealth executes the server health command.
 //
 // Parameters:
-//   - serverFlags: Server flags.
+//   - serverFlags: Typed *flags.ServerFlags argument for runHealth.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "load config"; "health check".
 func runHealth(serverFlags *flags.ServerFlags) error {
 	cfg, err := config.Load("")
 	if err != nil {

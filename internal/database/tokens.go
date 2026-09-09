@@ -15,12 +15,12 @@ import (
 // SaveToken stores the Plex access token for a client ID.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - clientID: Client id.
-//   - accessToken: Access token.
+//   - ctx: Cancels or deadlines this call.
+//   - clientID: Plex X-Plex-Client-Identifier.
+//   - accessToken: Typed string argument for SaveToken.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "save token".
 func (db *DB) SaveToken(ctx context.Context, clientID, accessToken string) error {
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO plex_tokens (client_id, access_token, created_at, updated_at)
@@ -39,10 +39,11 @@ func (db *DB) SaveToken(ctx context.Context, clientID, accessToken string) error
 // ClearAuth deletes stored Plex tokens and the selected server.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "begin clear auth"; "clear tokens"; "clear
+//     selected server".
 func (db *DB) ClearAuth(ctx context.Context) error {
 	tx, err := db.conn.BeginTx(ctx, nil)
 	if err != nil {
@@ -77,11 +78,11 @@ func (db *DB) ClearAuth(ctx context.Context) error {
 // LatestToken returns the most recently stored Plex token.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
 //   - token: The most recently stored Plex token.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "latest token".
 func (db *DB) LatestToken(ctx context.Context) (string, error) {
 	var token string
 
@@ -105,11 +106,11 @@ func (db *DB) LatestToken(ctx context.Context) (string, error) {
 // SaveSelectedServer upserts the single selected Plex server.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - server: Server.
+//   - ctx: Cancels or deadlines this call.
+//   - server: Plex Media Server connection (URL and token).
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "save selected server".
 func (db *DB) SaveSelectedServer(ctx context.Context, server plex.Server) error {
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO selected_server (id, name, address, port, scheme, token, updated_at)
@@ -132,12 +133,12 @@ func (db *DB) SaveSelectedServer(ctx context.Context, server plex.Server) error 
 // SelectedServer loads the persisted Plex server, if any.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
-//   - server: The server.
+//   - server: Selected or loaded Plex server.
 //   - ok: True when the condition holds.
-//   - err: The error, if any.
+//   - err: Failure from selected server.
 func (db *DB) SelectedServer(ctx context.Context) (plex.Server, bool, error) {
 	var server plex.Server
 

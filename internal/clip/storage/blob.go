@@ -63,7 +63,8 @@ var _ Blob = (*Storage)(nil)
 //
 // Returns:
 //   - blob: The storage backend selected by configuration.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "filesystem storage"; "s3 storage"; "...:
+//     ...".
 func NewFromConfig( //nolint:ireturn // Factory selects the configured backend.
 	cfg *config.Config,
 ) (Blob, error) {

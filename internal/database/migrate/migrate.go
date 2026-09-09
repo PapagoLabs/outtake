@@ -22,12 +22,13 @@ var migrationsFS embed.FS
 // Run creates the schema_migrations table and applies pending SQL files.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - conn: Database handle.
-//   - kind: Kind.
+//   - kind: Migration or dialect kind identifier.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "create schema_migrations"; "list applied
+//     migrations"; "apply pending".
 func Run(ctx context.Context, conn *sql.DB, kind dialect.Kind) error {
 	_, err := conn.ExecContext(ctx, kind.Rewrite(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -54,12 +55,13 @@ func Run(ctx context.Context, conn *sql.DB, kind dialect.Kind) error {
 // appliedMigrations handles the HTTP request.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Fiber request/response for this HTTP handler.
 //   - conn: Database handle.
 //
 // Returns:
-//   - items: The items.
-//   - err: The error, if any.
+//   - items: Result slice; empty when none match.
+//   - err: Wrapped failure such as "list migrations"; "scan migration";
+//     "iterate migrations".
 func appliedMigrations(ctx context.Context, conn *sql.DB) ([]string, error) {
 	rows, err := conn.QueryContext(ctx, `SELECT name FROM schema_migrations`)
 	if err != nil {
@@ -91,13 +93,13 @@ func appliedMigrations(ctx context.Context, conn *sql.DB) ([]string, error) {
 // applyPending handles the HTTP request.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Fiber request/response for this HTTP handler.
 //   - conn: Database handle.
-//   - kind: Kind.
-//   - applied: Applied.
+//   - kind: Migration or dialect kind identifier.
+//   - applied: Already-applied migration ids.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "read migrations"; "apply pending".
 func applyPending(ctx context.Context, conn *sql.DB, kind dialect.Kind, applied []string) error {
 	entries, err := migrationsFS.ReadDir(migrationsDir(kind))
 	if err != nil {
@@ -121,13 +123,13 @@ func applyPending(ctx context.Context, conn *sql.DB, kind dialect.Kind, applied 
 // applyOne handles the HTTP request.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Fiber request/response for this HTTP handler.
 //   - conn: Database handle.
-//   - kind: Kind.
-//   - name: Name.
+//   - kind: Migration or dialect kind identifier.
+//   - name: Display or lookup name.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "migrate"; "record migration ...".
 func applyOne(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string) error {
 	err := execMigration(ctx, conn, kind, name)
 	if err != nil {
@@ -149,13 +151,13 @@ func applyOne(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string)
 // execMigration handles the HTTP request.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Fiber request/response for this HTTP handler.
 //   - conn: Database handle.
-//   - kind: Kind.
-//   - name: Name.
+//   - kind: Migration or dialect kind identifier.
+//   - name: Display or lookup name.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "read migration ..."; "exec migration ...".
 func execMigration(ctx context.Context, conn *sql.DB, kind dialect.Kind, name string) error {
 	content, err := migrationsFS.ReadFile(migrationsDir(kind) + "/" + name)
 	if err != nil {
@@ -173,7 +175,7 @@ func execMigration(ctx context.Context, conn *sql.DB, kind dialect.Kind, name st
 // migrationsDir returns the migrations dir.
 //
 // Parameters:
-//   - kind: Kind.
+//   - kind: Migration or dialect kind identifier.
 //
 // Returns:
 //   - value: The migrations dir.
@@ -188,7 +190,7 @@ func migrationsDir(kind dialect.Kind) string {
 // isValidSQLFile reports whether valid sql file.
 //
 // Parameters:
-//   - name: Name.
+//   - name: Display or lookup name.
 //
 // Returns:
 //   - ok: True when valid sql file.
@@ -199,8 +201,8 @@ func isValidSQLFile(name string) bool {
 // skipMigration reports whether skip migration.
 //
 // Parameters:
-//   - entry: Entry.
-//   - applied: Applied.
+//   - entry: Directory entry for a migration file.
+//   - applied: Already-applied migration ids.
 //
 // Returns:
 //   - ok: True when skip migration.

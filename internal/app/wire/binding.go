@@ -16,8 +16,8 @@ import (
 //
 // Parameters:
 //   - cfg: Application configuration.
-//   - servers: Servers.
-//   - bind: Bind.
+//   - servers: Source of saved or selected Plex servers.
+//   - bind: Live Plex server binding and session monitor.
 func RestoreBinding(cfg *config.Config, servers ServerSource, bind Binder) {
 	if server, ok := plexserver.ServerFromURL(cfg.PlexServerURL, cfg.PlexToken); ok {
 		bind.Set(server)

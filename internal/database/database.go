@@ -51,11 +51,11 @@ const (
 // New creates a new SQLite database instance.
 //
 // Parameters:
-//   - dbPath: Db path.
+//   - dbPath: Typed string argument for New.
 //
 // Returns:
 //   - db: A new SQLite database instance.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "open database"; "open sqlite".
 func New(dbPath string) (*DB, error) {
 	dsn := "file:" + filepath.Clean(dbPath)
 	conn, err := sql.Open("libsql", dsn)
@@ -81,7 +81,8 @@ func New(dbPath string) (*DB, error) {
 //
 // Returns:
 //   - db: The database backend selected by configuration.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "sqlite database"; "postgres database";
+//     "...: ...".
 func NewFromConfig(cfg *config.Config) (*DB, error) {
 	backend := strings.ToLower(strings.TrimSpace(cfg.DatabaseBackend))
 	switch backend {
@@ -111,7 +112,7 @@ func NewFromConfig(cfg *config.Config) (*DB, error) {
 // Close closes the database connection.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "close database".
 func (db *DB) Close() error {
 	err := db.conn.Close()
 	if err != nil {
@@ -140,10 +141,10 @@ func (db *DB) nameOrder() string {
 // rewrite translates SQL placeholders and SQLite collations for the dialect.
 //
 // Parameters:
-//   - query: Query.
+//   - query: Search or filter query string.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func (db *DB) rewrite(query string) string {
 	return db.dialect.Rewrite(query)
 }
@@ -152,11 +153,11 @@ func (db *DB) rewrite(query string) string {
 //
 // Parameters:
 //   - conn: Database handle.
-//   - kind: Kind.
+//   - kind: Migration or dialect kind identifier.
 //
 // Returns:
 //   - db: The database handle.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "ping database"; "migrate".
 func finishOpen(conn *sql.DB, kind dialect.Kind) (*DB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), migrateTimeout)
 	defer cancel()

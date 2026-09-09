@@ -37,10 +37,10 @@ func NewStartCommand() *cobra.Command {
 // runStart executes the server start command.
 //
 // Parameters:
-//   - serverFlags: Server flags.
+//   - serverFlags: Typed *flags.ServerFlags argument for runStart.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "load config"; "init app"; "run app".
 func runStart(serverFlags *flags.ServerFlags) error {
 	cfg, err := config.Load("")
 	if err != nil {

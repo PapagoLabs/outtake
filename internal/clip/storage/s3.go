@@ -57,7 +57,7 @@ var (
 //
 // Returns:
 //   - s3: An S3 backend from application configuration.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "new s3".
 func newS3FromConfig(cfg *config.Config) (*S3, error) {
 	if cfg.S3Bucket == "" {
 		return nil, errS3BucketRequired
@@ -91,11 +91,11 @@ func newS3FromConfig(cfg *config.Config) (*S3, error) {
 // newS3 constructs an S3 backend with a filesystem scratch directory.
 //
 // Parameters:
-//   - settings: Settings.
+//   - settings: S3 endpoint, bucket, and credential settings.
 //
 // Returns:
 //   - s3: An S3 backend with a filesystem scratch directory.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "create scratch dir".
 func newS3(settings s3Settings) (*S3, error) {
 	fsStore, err := NewStorage(settings.scratch)
 	if err != nil {
@@ -143,7 +143,8 @@ func (store *S3) ClipPath(id string) string {
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "delete file"; "delete object"; "delete
+//     local file".
 func (store *S3) DeleteFile(path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -192,11 +193,11 @@ func (store *S3) FileExists(path string) bool {
 // Get downloads the object from S3 onto the local scratch path.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Propagates errors from fmt.Errorf.
 func (store *S3) Get(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -245,11 +246,11 @@ func (store *S3) PreviewPath(id string) string {
 // Put uploads the local scratch file to S3.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - path: Filesystem path.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "put object"; "open local file".
 func (store *S3) Put(ctx context.Context, path string) error {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -300,10 +301,10 @@ func (store *S3) ThumbnailPath(id string) string {
 //
 // Parameters:
 //   - id: Identifier.
-//   - data: Data.
+//   - data: Raw bytes to parse.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "write thumbnail"; "upload thumbnail".
 func (store *S3) WriteThumbnail(id string, data []byte) error {
 	err := store.fs.WriteThumbnail(id, data)
 	if err != nil {
@@ -321,12 +322,12 @@ func (store *S3) WriteThumbnail(id string, data []byte) error {
 // head reports whether an object exists on S3.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - path: Filesystem path.
 //
 // Returns:
 //   - ok: True when an object exists on S3.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "head object".
 func (store *S3) head(ctx context.Context, path string) (bool, error) {
 	key, err := store.objectKey(path)
 	if err != nil {
@@ -355,7 +356,7 @@ func (store *S3) head(ctx context.Context, path string) (bool, error) {
 //
 // Returns:
 //   - value: A local scratch path onto an S3 object key.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "object key"; "...: ...".
 func (store *S3) objectKey(path string) (string, error) {
 	rel, err := filepath.Rel(store.fs.BasePath(), path)
 	if err != nil {
@@ -398,10 +399,11 @@ func isNotFound(err error) bool {
 //
 // Parameters:
 //   - path: Filesystem path.
-//   - body: Body.
+//   - body: Readable request or object body.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "create object dir"; "create temp file";
+//     "write local file".
 func writeObjectFile(path string, body io.Reader) error {
 	dir := filepath.Dir(path)
 	err := os.MkdirAll(dir, dirPermissions)

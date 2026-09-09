@@ -32,11 +32,11 @@ var ErrClipNotFound = errors.New("clip not found")
 // SaveClip inserts or replaces a clip job.
 //
 // Parameters:
-//   - ctx: Cancellation context.
-//   - job: Job.
+//   - ctx: Cancels or deadlines this call.
+//   - job: Clip job to process or persist.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "save clip".
 func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 	query := db.rewrite(`
 		INSERT INTO clips (
@@ -95,12 +95,12 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 // GetClip loads a clip by ID.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - id: Identifier.
 //
 // Returns:
 //   - job: A clip by ID.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "get clip".
 func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 	query := db.rewrite(`SELECT ` + clipSelectCols + ` FROM clips WHERE id = ?`)
 
@@ -122,11 +122,11 @@ func (db *DB) GetClip(ctx context.Context, id string) (*queue.Job, error) {
 // ListClips returns all clips ordered by creation time, newest first.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
 //   - items: The all clips ordered by creation time, newest first.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "list clips".
 func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -148,11 +148,11 @@ func (db *DB) ListClips(ctx context.Context) ([]*queue.Job, error) {
 // ListPendingClips returns clips that still need processing.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //
 // Returns:
 //   - items: The clips that still need processing.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "list pending clips".
 func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -178,12 +178,12 @@ func (db *DB) ListPendingClips(ctx context.Context) ([]*queue.Job, error) {
 // ListClipsForMedia returns clips created from a media item.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - mediaID: Media id.
 //
 // Returns:
 //   - items: The clips created from a media item.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "list media clips".
 func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
@@ -208,11 +208,11 @@ func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*queue.J
 // DeleteClip removes a clip row.
 //
 // Parameters:
-//   - ctx: Cancellation context.
+//   - ctx: Cancels or deadlines this call.
 //   - id: Identifier.
 //
 // Returns:
-//   - err: The error, if any.
+//   - err: Wrapped failure from "delete clip".
 func (db *DB) DeleteClip(ctx context.Context, id string) error {
 	query := db.rewrite(`DELETE FROM clips WHERE id = ?`)
 
@@ -228,11 +228,11 @@ func (db *DB) DeleteClip(ctx context.Context, id string) error {
 // scanJob reads one clip row into a job.
 //
 // Parameters:
-//   - row: Row.
+//   - row: Single SQL row to scan into a model.
 //
 // Returns:
 //   - job: The one clip row into a job.
-//   - err: The error, if any.
+//   - err: Wrapped failure from "scan clip".
 func scanJob(row Scannable) (*queue.Job, error) {
 	job := &queue.Job{}
 	var output sql.NullString
@@ -282,11 +282,11 @@ func scanJob(row Scannable) (*queue.Job, error) {
 // scanJobs reads every remaining clip row.
 //
 // Parameters:
-//   - rows: Rows.
+//   - rows: SQL result rows to iterate.
 //
 // Returns:
 //   - items: The every remaining clip row.
-//   - err: The error, if any.
+//   - err: Wrapped failure such as "scan clip"; "iterate clips".
 func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 	jobs := make([]*queue.Job, 0)
 
@@ -310,10 +310,10 @@ func scanJobs(rows *sql.Rows) ([]*queue.Job, error) {
 // cropBlackBarsColumn stores the clip crop setting as 0 or 1.
 //
 // Parameters:
-//   - job: Job.
+//   - job: Clip job to process or persist.
 //
 // Returns:
-//   - n: The n.
+//   - n: Numeric result for this call.
 func cropBlackBarsColumn(job *queue.Job) int {
 	if job.CropBlackBars {
 		return 1
@@ -340,10 +340,10 @@ func webSafeColorColumn(job *queue.Job) int {
 // nullString converts an empty string into a SQL NULL.
 //
 // Parameters:
-//   - value: Value.
+//   - value: String value to convert or validate.
 //
 // Returns:
-//   - nullString: The null string.
+//   - nullString: Nullable SQL string value.
 func nullString(value string) sql.NullString {
 	if value == "" {
 		return sql.NullString{String: "", Valid: false}

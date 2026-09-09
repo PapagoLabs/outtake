@@ -63,7 +63,7 @@ func TestNewFromConfig_S3MissingBucket(t *testing.T) {
 //
 // Parameters:
 //   - path: Filesystem path.
-//   - backend: Backend.
+//   - backend: Storage or database backend kind.
 //
 // Returns:
 //   - cfg: The test storage config.

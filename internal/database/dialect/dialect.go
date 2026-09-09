@@ -39,10 +39,10 @@ func (kind Kind) NameOrder() string {
 // Rewrite translates SQL placeholders and SQLite collations for the dialect.
 //
 // Parameters:
-//   - query: Query.
+//   - query: Search or filter query string.
 //
 // Returns:
-//   - value: The value.
+//   - value: Result value; zero or empty when unavailable.
 func (kind Kind) Rewrite(query string) string {
 	if kind != Postgres {
 		return query
@@ -54,7 +54,7 @@ func (kind Kind) Rewrite(query string) string {
 // rewriteCollate returns the rewrite collate.
 //
 // Parameters:
-//   - query: Query.
+//   - query: Search or filter query string.
 //
 // Returns:
 //   - value: The rewrite collate.
@@ -65,7 +65,7 @@ func rewriteCollate(query string) string {
 // rewritePlaceholders returns the rewrite placeholders.
 //
 // Parameters:
-//   - query: Query.
+//   - query: Search or filter query string.
 //
 // Returns:
 //   - value: The rewrite placeholders.

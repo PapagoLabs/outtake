@@ -22,8 +22,8 @@ import (
 // Parameters:
 //   - cfg: Application configuration.
 //   - db: Database handle.
-//   - ffmpeg: Ffmpeg.
-//   - store: Store.
+//   - ffmpeg: FFmpeg executor used for encode/probe work.
+//   - store: Blob storage backend for clip artifacts.
 //
 // Returns:
 //   - queue: The worker queue and restores persisted jobs.
@@ -62,7 +62,7 @@ func StartQueue(
 //
 // Parameters:
 //   - db: Database handle.
-//   - jobQueue: Job queue.
+//   - jobQueue: In-process clip job queue.
 func restoreJobs(db ClipPersister, jobQueue *queue.Queue) {
 	jobs, err := db.ListClips(context.Background())
 	if err != nil {

@@ -96,8 +96,8 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 //
 // Parameters:
 //   - path: Filesystem path.
-//   - backend: Backend.
-//   - url: Url.
+//   - backend: Storage or database backend kind.
+//   - url: Remote HTTP(S) URL.
 //
 // Returns:
 //   - cfg: The test database config.

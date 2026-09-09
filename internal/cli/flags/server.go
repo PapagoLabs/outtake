@@ -16,7 +16,7 @@ type ServerFlags struct {
 // Bind attaches server-specific flags to the provided flag set.
 //
 // Parameters:
-//   - flags: Flags.
+//   - flags: Cobra/pflag set receiving shared flags.
 func (sf *ServerFlags) Bind(flags *pflag.FlagSet) {
 	flags.StringVar(
 		&sf.ListenAddr,
