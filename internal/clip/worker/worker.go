@@ -12,6 +12,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
+	mediaquality "github.com/PapagoLabs/outtake/internal/media/quality"
 )
 
 // errUnknownJobType is returned when a job has an unrecognized type.
@@ -119,7 +120,7 @@ func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) med
 //
 // Returns:
 //   - preset: Encode settings with WebSafeColor copied from the job.
-func clipEncodePreset(ctx context.Context, db *database.DB, job *queue.Job) media.QualityPreset {
+func clipEncodePreset(ctx context.Context, db *database.DB, job *queue.Job) mediaquality.QualityPreset {
 	preset := clipPreset(ctx, db, job.Quality)
 
 	preset.WebSafeColor = job.WebSafeColor
@@ -128,39 +129,39 @@ func clipEncodePreset(ctx context.Context, db *database.DB, job *queue.Job) medi
 }
 
 // clipPreset resolves a stored quality id onto ffmpeg settings.
-func clipPreset(ctx context.Context, db *database.DB, quality string) media.QualityPreset {
+func clipPreset(ctx context.Context, db *database.DB, quality string) mediaquality.QualityPreset {
 	if quality == "" {
 		return defaultClipPreset(ctx, db)
 	}
 
-	return media.ResolvePreset(quality, func(id string) (media.QualityPreset, bool) {
+	return mediaquality.ResolvePreset(quality, func(id string) (mediaquality.QualityPreset, bool) {
 		return lookupClipPreset(ctx, db, id)
 	})
 }
 
 // defaultClipPreset loads the stored default profile, or the built-in medium preset.
-func defaultClipPreset(ctx context.Context, db *database.DB) media.QualityPreset {
+func defaultClipPreset(ctx context.Context, db *database.DB) mediaquality.QualityPreset {
 	if db == nil {
-		return media.QualityPresets[media.ClipQualityMedium]
+		return mediaquality.QualityPresets[mediaquality.ClipQualityMedium]
 	}
 
 	profile, err := db.DefaultClipProfile(ctx)
 	if err != nil {
-		return media.QualityPresets[media.ClipQualityMedium]
+		return mediaquality.QualityPresets[mediaquality.ClipQualityMedium]
 	}
 
-	return media.NormalizePreset(profile.QualityPreset())
+	return mediaquality.NormalizePreset(profile.QualityPreset())
 }
 
 // lookupClipPreset loads one stored profile by id.
-func lookupClipPreset(ctx context.Context, db *database.DB, id string) (media.QualityPreset, bool) {
+func lookupClipPreset(ctx context.Context, db *database.DB, id string) (mediaquality.QualityPreset, bool) {
 	if db == nil {
-		return media.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
+		return mediaquality.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
 	}
 
 	profile, err := db.GetClipProfile(ctx, id)
 	if err != nil {
-		return media.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
+		return mediaquality.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
 	}
 
 	return profile.QualityPreset(), true

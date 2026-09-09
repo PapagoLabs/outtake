@@ -21,6 +21,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
+	mediaquality "github.com/PapagoLabs/outtake/internal/media/quality"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	plexserver "github.com/PapagoLabs/outtake/internal/plex/server"
@@ -717,7 +718,7 @@ func audioTrackLabel(track media.AudioTrack) string {
 		parts = append(parts, track.Codec)
 	}
 
-	if layout := media.ChannelLayoutName(track.Channels); layout != "" {
+	if layout := mediaquality.ChannelLayoutName(track.Channels); layout != "" {
 		parts = append(parts, layout)
 	}
 

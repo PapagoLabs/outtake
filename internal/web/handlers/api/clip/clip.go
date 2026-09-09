@@ -20,6 +20,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
+	mediaquality "github.com/PapagoLabs/outtake/internal/media/quality"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	sharedclip "github.com/PapagoLabs/outtake/internal/web/handlers/shared/clip"
@@ -303,7 +304,7 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		req.Duration,
 		req.AudioIndex,
 		crop,
-		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
+		mediaquality.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
 	)
 	if err != nil {
 		return respond.WriteError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
@@ -545,7 +546,7 @@ func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) 
 		return "", fmt.Errorf("resolve quality: %w", err)
 	}
 
-	if _, ok := media.QualityPresets[media.ClipQuality(quality)]; ok {
+	if _, ok := mediaquality.QualityPresets[mediaquality.ClipQuality(quality)]; ok {
 		return quality, nil
 	}
 

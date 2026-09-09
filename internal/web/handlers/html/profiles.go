@@ -15,7 +15,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/database"
-	"github.com/PapagoLabs/outtake/internal/media"
+	mediaquality "github.com/PapagoLabs/outtake/internal/media/quality"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 	"github.com/PapagoLabs/outtake/internal/web/pages/settings"
 	viewclip "github.com/PapagoLabs/outtake/internal/web/view/clip"
@@ -32,14 +32,14 @@ var (
 	// ErrProfileNameLength is returned when a profile name is too long.
 	errProfileNameLength = fmt.Errorf("name must be %d characters or fewer", maxProfileNameLen)
 	// ErrProfileCRF is returned when CRF is outside the libx264 range.
-	errProfileCRF = fmt.Errorf("crf must be between %d and %d", media.MinCRF, media.MaxCRF)
+	errProfileCRF = fmt.Errorf("crf must be between %d and %d", mediaquality.MinCRF, mediaquality.MaxCRF)
 	// ErrProfilePreset is returned when the encoder preset is not recognized.
 	errProfilePreset = errors.New("unknown encoder preset")
 	// ErrProfileAudio is returned when audio bitrate is out of range.
 	errProfileAudio = fmt.Errorf(
 		"audio bitrate must be between %d and %d kbps",
-		media.MinAudioKbps,
-		media.MaxAudioKbps,
+		mediaquality.MinAudioKbps,
+		mediaquality.MaxAudioKbps,
 	)
 	// ErrProfileWidth is returned when max width is not a supported export size.
 	errProfileWidth = errors.New("max resolution must be 720p, 1080p, 1440p, or 4K")
@@ -50,7 +50,7 @@ func (handler *HTMLHandler) ClipProfiles(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return settings.ClipProfiles(settings.ClipProfilesProps{
 			Profiles: toClipProfileItems(handler.storedClipProfiles(ctx)),
-			Presets:  media.EncoderPresets,
+			Presets:  mediaquality.EncoderPresets,
 			Widths:   outputWidthOptions(),
 			Error:    ctx.Query(respond.QueryError),
 		}).Render(ctx.Context(), writer)
@@ -150,9 +150,9 @@ func (handler *HTMLHandler) clipProfileOptions(ctx fiber.Ctx) []viewclip.ClipPro
 // builtinProfileOptions is used when the profile table cannot be read.
 func builtinProfileOptions() []viewclip.ClipProfileOption {
 	return []viewclip.ClipProfileOption{
-		{ID: string(media.ClipQualityLow), Name: "Low", IsDefault: false},
-		{ID: string(media.ClipQualityMedium), Name: "Medium", IsDefault: true},
-		{ID: string(media.ClipQualityHigh), Name: "High", IsDefault: false},
+		{ID: string(mediaquality.ClipQualityLow), Name: "Low", IsDefault: false},
+		{ID: string(mediaquality.ClipQualityMedium), Name: "Medium", IsDefault: true},
+		{ID: string(mediaquality.ClipQualityHigh), Name: "High", IsDefault: false},
 	}
 }
 
@@ -189,21 +189,21 @@ func clipProfileFromFields(
 		return database.ClipProfile{}, errProfileNameLength
 	}
 
-	crf, ok := parseProfileInt(crfRaw, media.ValidCRF)
+	crf, ok := parseProfileInt(crfRaw, mediaquality.ValidCRF)
 	if !ok {
 		return database.ClipProfile{}, errProfileCRF
 	}
 
-	if !media.ValidEncoderPreset(preset) {
+	if !mediaquality.ValidEncoderPreset(preset) {
 		return database.ClipProfile{}, errProfilePreset
 	}
 
-	audioKbps, ok := parseProfileInt(audioRaw, media.ValidAudioKbps)
+	audioKbps, ok := parseProfileInt(audioRaw, mediaquality.ValidAudioKbps)
 	if !ok {
 		return database.ClipProfile{}, errProfileAudio
 	}
 
-	maxWidth, ok := parseProfileInt(widthRaw, media.ValidOutputWidth)
+	maxWidth, ok := parseProfileInt(widthRaw, mediaquality.ValidOutputWidth)
 	if !ok {
 		return database.ClipProfile{}, errProfileWidth
 	}
@@ -256,12 +256,12 @@ func toClipProfileItems(profiles []database.ClipProfile) []settings.ClipProfileI
 
 // outputWidthOptions lists selectable clip export widths.
 func outputWidthOptions() []settings.OutputWidthOption {
-	options := make([]settings.OutputWidthOption, 0, len(media.OutputWidths))
+	options := make([]settings.OutputWidthOption, 0, len(mediaquality.OutputWidths))
 
-	for _, width := range media.OutputWidths {
+	for _, width := range mediaquality.OutputWidths {
 		options = append(options, settings.OutputWidthOption{
 			Width: width,
-			Label: media.OutputWidthLabel(width),
+			Label: mediaquality.OutputWidthLabel(width),
 		})
 	}
 

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/PapagoLabs/outtake/internal/media"
+	mediaquality "github.com/PapagoLabs/outtake/internal/media/quality"
 )
 
 // ClipProfile is a user-managed clip encode profile.
@@ -156,7 +156,7 @@ func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 		return ClipProfile{}, fmt.Errorf("default clip profile: %w", err)
 	}
 
-	fallback, getErr := db.GetClipProfile(ctx, string(media.ClipQualityMedium))
+	fallback, getErr := db.GetClipProfile(ctx, string(mediaquality.ClipQualityMedium))
 	if getErr != nil {
 		return ClipProfile{}, fmt.Errorf("default clip profile: %w", getErr)
 	}
@@ -209,8 +209,8 @@ func (db *DB) DeleteClipProfile(ctx context.Context, id string) error {
 }
 
 // QualityPreset returns ffmpeg settings for a stored profile.
-func (profile ClipProfile) QualityPreset() media.QualityPreset {
-	return media.QualityPreset{
+func (profile ClipProfile) QualityPreset() mediaquality.QualityPreset {
+	return mediaquality.QualityPreset{
 		CRF:       profile.CRF,
 		Preset:    profile.Preset,
 		AudioKbps: profile.AudioKbps,
