@@ -1,11 +1,18 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package shared
 
 import (
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
+)
+
+const (
+	// DefaultQuality is the built-in medium clip profile id.
+	DefaultQuality = "medium"
+	// DefaultMediaType is the default Plex media type for new clips.
+	DefaultMediaType = "movie"
 )
 
 // NormalizeClipType maps API clip type aliases onto queue job types.
@@ -30,7 +37,7 @@ func NormalizeClipType(clipType string) (queue.JobType, bool) {
 }
 
 // assignOutputPaths sets the on-disk destination for a job.
-func assignOutputPaths(job *queue.Job, store storage.Blob) {
+func AssignOutputPaths(job *queue.Job, store storage.Blob) {
 	switch job.Type {
 	case queue.JobTypeClip:
 		job.OutputPath = store.ClipPath(job.ID)
@@ -43,16 +50,16 @@ func assignOutputPaths(job *queue.Job, store storage.Blob) {
 }
 
 // applyDefaults fills empty job fields with standard values.
-func applyDefaults(job *queue.Job) {
+func ApplyDefaults(job *queue.Job) {
 	if job.Type == "" {
 		job.Type = queue.JobTypeClip
 	}
 
 	if job.Quality == "" {
-		job.Quality = defaultQuality
+		job.Quality = DefaultQuality
 	}
 
 	if job.MediaType == "" {
-		job.MediaType = defaultMediaType
+		job.MediaType = DefaultMediaType
 	}
 }

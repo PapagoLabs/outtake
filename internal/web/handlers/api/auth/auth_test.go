@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package auth
 
 import (
 	"net/http"
@@ -16,7 +16,10 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/database"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
+
+const formContentType = "application/x-www-form-urlencoded"
 
 func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 	t.Parallel()
@@ -42,8 +45,8 @@ func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 
 	parsed, err := url.Parse(resp.Header.Get("Location"))
 	require.NoError(t, err)
-	assert.Equal(t, pathLogin, parsed.Path)
-	assert.Equal(t, msgPlexTokenRequired, parsed.Query().Get(queryError))
+	assert.Equal(t, shared.PathLogin, parsed.Path)
+	assert.Equal(t, msgPlexTokenRequired, parsed.Query().Get(shared.QueryError))
 }
 
 func TestAuthLogoutRedirectsToLogin(t *testing.T) {
@@ -60,7 +63,7 @@ func TestAuthLogoutRedirectsToLogin(t *testing.T) {
 	defer closeBody(t, resp)
 
 	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
-	assert.Equal(t, pathLogin, resp.Header.Get("Location"))
+	assert.Equal(t, shared.PathLogin, resp.Header.Get("Location"))
 }
 
 func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {
@@ -81,4 +84,11 @@ func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {
 	defer closeBody(t, resp)
 
 	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
+}
+
+func closeBody(t *testing.T, resp *http.Response) {
+	t.Helper()
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 }

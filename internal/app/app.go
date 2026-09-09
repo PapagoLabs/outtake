@@ -34,7 +34,12 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	"github.com/PapagoLabs/outtake/internal/web"
-	"github.com/PapagoLabs/outtake/internal/web/handlers"
+	authapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/auth"
+	clipapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/clip"
+	healthapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/health"
+	mediaapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/media"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/html"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
@@ -84,7 +89,7 @@ func New(cfg *config.Config) (*App, error) {
 	plexProduct := "outtake"
 	plexClientID := cfg.PlexClientID
 	if plexClientID == "" {
-		plexClientID = handlers.GenerateClientID()
+		plexClientID = authapi.GenerateClientID()
 	}
 
 	bind := binding.New(plexProduct, plexClientID, time.Duration(cfg.SessionPollSec)*time.Second)
@@ -113,7 +118,7 @@ func newRouter(
 	plexProduct, plexClientID string,
 ) *fiber.App {
 	// Register page and API routes.
-	clipHandler := handlers.NewClipHandler(
+	clipHandler := clipapi.NewClipHandler(
 		jobQueue,
 		store,
 		db,
@@ -122,13 +127,13 @@ func newRouter(
 		plexProduct,
 		plexClientID,
 	)
-	mediaHandler := handlers.NewMediaHandler(plexProduct, plexClientID, bind)
-	authHandler := handlers.NewAuthHandler(plexProduct, plexClientID, cfg.PublicURL(), db, bind)
-	htmlHandler := handlers.NewHTMLHandler(jobQueue, db, bind, cfg, plexProduct, plexClientID)
-	thumbHandler := handlers.NewThumbHandler(store, bind, plexProduct, plexClientID)
+	mediaHandler := mediaapi.NewMediaHandler(plexProduct, plexClientID, bind)
+	authHandler := authapi.NewAuthHandler(plexProduct, plexClientID, cfg.PublicURL(), db, bind)
+	htmlHandler := html.NewHTMLHandler(jobQueue, db, bind, cfg, plexProduct, plexClientID)
+	thumbHandler := html.NewThumbHandler(store, bind, plexProduct, plexClientID)
 
 	app := fiber.New(fiber.Config{
-		ErrorHandler: handlers.PageError,
+		ErrorHandler: shared.PageError,
 	})
 	app.Use(recover.New())
 	app.Use(middleware.RequestLogger())
@@ -293,8 +298,8 @@ func staticConfig() static.Config {
 func mountPages(
 	app *fiber.App,
 	guard fiber.Handler,
-	htmlHandler *handlers.HTMLHandler,
-	thumbHandler *handlers.ThumbHandler,
+	htmlHandler *html.HTMLHandler,
+	thumbHandler *html.ThumbHandler,
 ) {
 	// Mount HTML page routes.
 	app.Get("/login", htmlHandler.Login)
@@ -325,9 +330,9 @@ func mountPages(
 func mountAPI(
 	app *fiber.App,
 	guard fiber.Handler,
-	clipHandler *handlers.ClipHandler,
-	mediaHandler *handlers.MediaHandler,
-	authHandler *handlers.AuthHandler,
+	clipHandler *clipapi.ClipHandler,
+	mediaHandler *mediaapi.MediaHandler,
+	authHandler *authapi.AuthHandler,
 ) {
 	// Mount JSON API routes.
 	api := app.Group("/api")
@@ -345,7 +350,7 @@ func mountAPI(
 	api.Get("/auth/callback", authHandler.Callback)
 	api.Get("/auth/status", authHandler.Status)
 	api.Get("/auth/logout", authHandler.Logout)
-	api.Get("/healthz", handlers.NewHealthHandler().Health)
+	api.Get("/healthz", healthapi.NewHealthHandler().Health)
 }
 
 // Close cleans up application resources.

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package clip
 
 import (
 	"cmp"
@@ -11,10 +11,11 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
-// clipListQuery is the Clips page and media-item clip-list toolbar state.
-type clipListQuery struct {
+// ListQuery is the Clips page and media-item clip-list toolbar state.
+type ListQuery struct {
 	Status string
 	Type   string
 	Query  string
@@ -59,8 +60,8 @@ const (
 //
 // Returns:
 //   - query: Normalized list filters and sort.
-func parseClipListQuery(ctx fiber.Ctx) clipListQuery {
-	return normalizeClipListQuery(clipListQuery{
+func ParseListQuery(ctx fiber.Ctx) ListQuery {
+	return NormalizeListQuery(ListQuery{
 		Status: ctx.Query("status"),
 		Type:   ctx.Query(queryType),
 		Query:  strings.TrimSpace(ctx.Query(queryQ)),
@@ -68,8 +69,8 @@ func parseClipListQuery(ctx fiber.Ctx) clipListQuery {
 	})
 }
 
-// normalizeClipListQuery drops unknown type and sort values.
-func normalizeClipListQuery(query clipListQuery) clipListQuery {
+// NormalizeListQuery drops unknown type and sort values.
+func NormalizeListQuery(query ListQuery) ListQuery {
 	switch query.Type {
 	case clipTypeClip, clipTypeGIF, clipTypeScreenshot:
 	default:
@@ -90,7 +91,7 @@ func normalizeClipListQuery(query clipListQuery) clipListQuery {
 }
 
 // filtered reports whether any list filter is active.
-func (query clipListQuery) filtered() bool {
+func (query ListQuery) Filtered() bool {
 	return query.Status != "" || query.Type != "" || query.Query != ""
 }
 
@@ -102,7 +103,7 @@ func (query clipListQuery) filtered() bool {
 //
 // Returns:
 //   - filtered: Matching jobs in the requested order.
-func applyClipListQuery(jobs []*queue.Job, query clipListQuery) []*queue.Job {
+func ApplyListQuery(jobs []*queue.Job, query ListQuery) []*queue.Job {
 	needle := strings.ToLower(query.Query)
 	filtered := make([]*queue.Job, 0, len(jobs))
 
@@ -122,8 +123,8 @@ func applyClipListQuery(jobs []*queue.Job, query clipListQuery) []*queue.Job {
 }
 
 // clipJobMatches reports whether a job passes status, type, and name filters.
-func clipJobMatches(job *queue.Job, query clipListQuery, needle string) bool {
-	if query.Status != "" && !clipMatchesStatus(string(job.Status), query.Status) {
+func clipJobMatches(job *queue.Job, query ListQuery, needle string) bool {
+	if query.Status != "" && !shared.ClipMatchesStatus(string(job.Status), query.Status) {
 		return false
 	}
 

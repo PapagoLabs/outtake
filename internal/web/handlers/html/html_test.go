@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package html
 
 import (
 	"io"
@@ -20,6 +20,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -226,7 +227,7 @@ func TestMediaItemLocationEscapesID(t *testing.T) {
 func TestChooserLibraries(t *testing.T) {
 	t.Parallel()
 
-	libs := []view.LibraryItem{{ID: "1", Title: "Movies", Type: defaultMediaType}}
+	libs := []view.LibraryItem{{ID: "1", Title: "Movies", Type: shared.DefaultMediaType}}
 
 	assert.Equal(t, libs, chooserLibraries(libs, "", ""))
 	assert.Nil(t, chooserLibraries(libs, "", "1"))
@@ -369,10 +370,10 @@ func TestMediaItemError(t *testing.T) {
 
 	_ = t.Context()
 
-	assert.Equal(t, "bad duration", mediaItemError(nil, "bad duration"))
-	assert.Equal(t, "bad duration", mediaItemError(errNoPlexServer, "bad duration"))
-	assert.Equal(t, mediaLoadFailedMsg, mediaItemError(errNoPlexServer, ""))
-	assert.Empty(t, mediaItemError(nil, ""))
+	assert.Equal(t, "bad duration", shared.MediaItemError(nil, "bad duration"))
+	assert.Equal(t, "bad duration", shared.MediaItemError(errNoPlexServer, "bad duration"))
+	assert.Equal(t, shared.MediaLoadFailedMsg, shared.MediaItemError(errNoPlexServer, ""))
+	assert.Empty(t, shared.MediaItemError(nil, ""))
 }
 
 func TestClipProfileName(t *testing.T) {
@@ -424,4 +425,11 @@ func TestAudioTrackLabel(t *testing.T) {
 			Channels: 0,
 		}),
 	)
+}
+
+func closeBody(t *testing.T, resp *http.Response) {
+	t.Helper()
+	if resp != nil && resp.Body != nil {
+		_ = resp.Body.Close()
+	}
 }

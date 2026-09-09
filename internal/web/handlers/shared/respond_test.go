@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package shared
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ func TestWriteErrorHTMXFlash(t *testing.T) {
 
 	app := fiber.New()
 	app.Post("/err", func(ctx fiber.Ctx) error {
-		return writeError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
+		return WriteError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
 	})
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/err", nil)
@@ -53,7 +53,7 @@ func TestWriteErrorHTMXFormUsesFlash(t *testing.T) {
 
 	app := fiber.New()
 	app.Post("/err", func(ctx fiber.Ctx) error {
-		return writeError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
+		return WriteError(ctx, fiber.StatusConflict, "not_cancellable", "clip is not running")
 	})
 
 	req := httptest.NewRequestWithContext(
@@ -124,20 +124,20 @@ func TestWriteErrorFormRedirectsToReferer(t *testing.T) {
 func TestPathWithErrorEncodesSpaces(t *testing.T) {
 	t.Parallel()
 
-	location := pathWithError(pathLogin, "No PIN session")
+	location := PathWithError(PathLogin, "No PIN session")
 	parsed, err := url.Parse(location)
 	require.NoError(t, err)
-	assert.Equal(t, pathLogin, parsed.Path)
-	assert.Equal(t, "No PIN session", parsed.Query().Get(queryError))
+	assert.Equal(t, PathLogin, parsed.Path)
+	assert.Equal(t, "No PIN session", parsed.Query().Get(QueryError))
 	assert.NotContains(t, location, " ")
 }
 
 func TestRefererPathStripsHost(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "/login", refererPath("https://evil.example/login"))
-	assert.Equal(t, "/media?q=1", refererPath("http://host/media?q=1"))
-	assert.Equal(t, pathRoot, refererPath("https://evil.example"))
+	assert.Equal(t, "/login", RefererPath("https://evil.example/login"))
+	assert.Equal(t, "/media?q=1", RefererPath("http://host/media?q=1"))
+	assert.Equal(t, PathRoot, RefererPath("https://evil.example"))
 }
 
 func postWriteError(t *testing.T, contentType, body, referer string) *http.Response {
@@ -145,7 +145,7 @@ func postWriteError(t *testing.T, contentType, body, referer string) *http.Respo
 
 	app := fiber.New()
 	app.Post("/err", func(ctx fiber.Ctx) error {
-		return writeError(
+		return WriteError(
 			ctx,
 			fiber.StatusBadRequest,
 			"invalid_duration",
@@ -177,7 +177,7 @@ func assertFormErrorLocation(t *testing.T, resp *http.Response, wantPath, wantEr
 	parsed, err := url.Parse(resp.Header.Get("Location"))
 	require.NoError(t, err)
 	assert.Equal(t, wantPath, parsed.Path)
-	assert.Equal(t, wantError, parsed.Query().Get(queryError))
+	assert.Equal(t, wantError, parsed.Query().Get(QueryError))
 	assert.Empty(t, parsed.Host)
 }
 

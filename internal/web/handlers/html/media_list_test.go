@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package html
 
 import (
 	"io"
@@ -18,6 +18,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -64,7 +65,7 @@ func TestParseMediaListQuery(t *testing.T) {
 		{
 			give: "/media?library=1&q=movie&sort=year_desc&letter=M",
 			want: mediaListQuery{
-				Query:     defaultMediaType,
+				Query:     shared.DefaultMediaType,
 				LibraryID: "1",
 				Sort:      mediaSortYearDesc,
 			},
@@ -146,7 +147,7 @@ func TestMediaListQueryWindow(t *testing.T) {
 
 	window = (mediaListQuery{Letter: "A"}).window(index)
 	assert.Equal(t, 3, window.Start)
-	assert.Equal(t, mediaPageSize, window.Size)
+	assert.Equal(t, shared.MediaPageSize, window.Size)
 }
 
 func TestAddedAtIndexes(t *testing.T) {

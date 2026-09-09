@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package auth
 
 import (
 	"crypto/rand"
@@ -14,9 +14,10 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/binding"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
@@ -77,19 +78,19 @@ func NewAuthHandler(
 // Callback completes PIN authorization.
 func (handler *AuthHandler) Callback(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
-	pinID := sessionInt(sess, sessionKeyPinID)
+	pinID := shared.SessionInt(sess, sessionKeyPinID)
 	if pinID == 0 {
-		return redirectTo(ctx, pathWithError(pathLogin, "No PIN session"))
+		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathLogin, "No PIN session"))
 	}
 
-	pinCode := sessionString(sess, sessionKeyPinCode)
+	pinCode := shared.SessionString(sess, sessionKeyPinCode)
 	plexClient := handler.newClient("")
 
 	token, err := plexClient.PollPIN(ctx.Context(), pinID, pinCode)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to poll PIN")
 
-		return redirectTo(ctx, pathWithError(pathLogin, "PIN not yet authorized"))
+		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathLogin, "PIN not yet authorized"))
 	}
 
 	clearPIN(sess)
@@ -112,20 +113,20 @@ func (handler *AuthHandler) Login(ctx fiber.Ctx) error {
 	}
 
 	sess := session.FromContext(ctx)
-	if sessionString(sess, middleware.SessionKeyToken) != "" {
-		return redirectTo(ctx, pathRoot)
+	if shared.SessionString(sess, middleware.SessionKeyToken) != "" {
+		return shared.RedirectTo(ctx, shared.PathRoot)
 	}
 
-	if isFormRequest(ctx) {
-		return redirectTo(ctx, pathWithError(pathLogin, msgPlexTokenRequired))
+	if shared.IsFormRequest(ctx) {
+		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathLogin, msgPlexTokenRequired))
 	}
 
 	authURL, err := handler.startPIN(ctx, sess)
 	if err != nil {
-		return writeError(ctx, fiber.StatusBadGateway, "pin_failed", err.Error())
+		return shared.WriteError(ctx, fiber.StatusBadGateway, "pin_failed", err.Error())
 	}
 
-	return writeJSON(ctx, fiber.StatusOK, fiber.Map{"authUrl": authURL})
+	return shared.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"authUrl": authURL})
 }
 
 // Logout clears the session and persisted Plex credentials.
@@ -134,7 +135,7 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 	if sess != nil {
 		err := sess.Reset()
 		if err != nil {
-			return writeError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+			return shared.WriteError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
 		}
 	}
 
@@ -147,33 +148,33 @@ func (handler *AuthHandler) Logout(ctx fiber.Ctx) error {
 		if err != nil {
 			log.Warn().Err(err).Msg("failed to clear stored plex credentials")
 
-			return writeError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
+			return shared.WriteError(ctx, fiber.StatusInternalServerError, "logout_failed", err.Error())
 		}
 	}
 
-	return redirectTo(ctx, pathLogin)
+	return shared.RedirectTo(ctx, shared.PathLogin)
 }
 
 // Status polls PIN authorization for HTMX.
 func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
-	if sessionString(sess, middleware.SessionKeyToken) != "" {
-		ctx.Set("HX-Redirect", pathRoot)
+	if shared.SessionString(sess, middleware.SessionKeyToken) != "" {
+		ctx.Set("HX-Redirect", shared.PathRoot)
 
-		return sendText(ctx, statusAuthed)
+		return shared.SendText(ctx, statusAuthed)
 	}
 
-	pinID := sessionInt(sess, sessionKeyPinID)
+	pinID := shared.SessionInt(sess, sessionKeyPinID)
 	if pinID == 0 {
-		return sendText(ctx, statusWaiting)
+		return shared.SendText(ctx, statusWaiting)
 	}
 
-	pinCode := sessionString(sess, sessionKeyPinCode)
+	pinCode := shared.SessionString(sess, sessionKeyPinCode)
 	plexClient := handler.newClient("")
 
 	pinToken, err := plexClient.PollPIN(ctx.Context(), pinID, pinCode)
 	if err != nil {
-		return sendText(ctx, statusWaiting)
+		return shared.SendText(ctx, statusWaiting)
 	}
 
 	clearPIN(sess)
@@ -186,7 +187,7 @@ func (handler *AuthHandler) Status(ctx fiber.Ctx) error {
 	handler.bindServer(ctx, pinToken)
 	ctx.Set("HX-Redirect", handler.postAuthPath())
 
-	return sendText(ctx, statusAuthed)
+	return shared.SendText(ctx, statusAuthed)
 }
 
 // GenerateClientID returns a random Plex client identifier.
@@ -238,21 +239,21 @@ func (handler *AuthHandler) finishAuth(ctx fiber.Ctx, token string) error {
 
 	handler.bindServer(ctx, token)
 
-	return redirectTo(ctx, handler.postAuthPath())
+	return shared.RedirectTo(ctx, handler.postAuthPath())
 }
 
 // newClient builds a Plex client for this handler.
 func (handler *AuthHandler) newClient(token string) *plex.Client {
-	return newBoundClient(handler.product, handler.clientID, token)
+	return shared.NewBoundClient(handler.product, handler.clientID, token)
 }
 
 // postAuthPath returns the next page after authentication.
 func (handler *AuthHandler) postAuthPath() string {
 	if _, ok := handler.bind.Get(); ok {
-		return pathRoot
+		return shared.PathRoot
 	}
 
-	return pathServers
+	return shared.PathServers
 }
 
 // startPIN creates a Plex PIN and returns the Auth App URL.
@@ -306,7 +307,7 @@ func clearPIN(sess *session.Middleware) {
 
 // sendAuthComplete finishes popup or full-page login after Plex authorizes.
 func sendAuthComplete(ctx fiber.Ctx, next string) error {
-	ctx.Set(headerContentType, contentTypeHTML)
+	ctx.Set(shared.HeaderContentType, shared.ContentTypeHTML)
 
 	page := `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Signed in</title></head><body>
 <script>

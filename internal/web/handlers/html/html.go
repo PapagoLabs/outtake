@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package html
 
 import (
 	"fmt"
@@ -18,16 +18,18 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/plex/binding"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	"github.com/PapagoLabs/outtake/internal/web/components/browse"
 	"github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/nav"
 	"github.com/PapagoLabs/outtake/internal/web/components/playback"
+	clipapi "github.com/PapagoLabs/outtake/internal/web/handlers/api/clip"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -75,14 +77,14 @@ func NewHTMLHandler(
 func (handler *HTMLHandler) ClipFile(ctx fiber.Ctx) error {
 	job := handler.lookupClip(ctx, ctx.Params(paramID))
 	if job == nil || job.Status != queue.JobStatusCompleted || job.OutputPath == "" {
-		return sendStatusCode(ctx, fiber.StatusNotFound)
+		return shared.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
 	if !clipFileExists(job.OutputPath) {
-		return sendStatusCode(ctx, fiber.StatusNotFound)
+		return shared.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
-	err := sendRangedFile(ctx, job.OutputPath)
+	err := shared.SendRangedFile(ctx, job.OutputPath)
 	if err != nil {
 		return fmt.Errorf("send clip file: %w", err)
 	}
@@ -94,10 +96,10 @@ func (handler *HTMLHandler) ClipFile(ctx fiber.Ctx) error {
 func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 	job := handler.lookupClip(ctx, ctx.Params(paramID))
 	if job == nil {
-		return sendStatusCode(ctx, fiber.StatusNotFound)
+		return shared.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		item := toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur())
 
 		return clip.ClipCard(item).Render(ctx.Context(), writer)
@@ -106,9 +108,9 @@ func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 
 // Clips handles the clips list page request.
 func (handler *HTMLHandler) Clips(ctx fiber.Ctx) error {
-	query := parseClipListQuery(ctx)
+	query := clipapi.ParseListQuery(ctx)
 	props := pages.ClipsProps{
-		Items:  handler.jobsToClipItems(ctx, applyClipListQuery(handler.listJobs(ctx), query)),
+		Items:  handler.jobsToClipItems(ctx, clipapi.ApplyListQuery(handler.listJobs(ctx), query)),
 		Status: query.Status,
 		Type:   query.Type,
 		Query:  query.Query,
@@ -116,12 +118,12 @@ func (handler *HTMLHandler) Clips(ctx fiber.Ctx) error {
 	}
 
 	if wantsClipList(ctx) {
-		return renderHTML(ctx, func(writer io.Writer) error {
+		return shared.RenderHTML(ctx, func(writer io.Writer) error {
 			return pages.ClipsList(props).Render(ctx.Context(), writer)
 		})
 	}
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Clips(props).Render(ctx.Context(), writer)
 	})
 }
@@ -131,7 +133,7 @@ func (handler *HTMLHandler) Dashboard(ctx fiber.Ctx) error {
 	jobs := handler.listJobs(ctx)
 	stats := clipStats(jobs)
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Dashboard(pages.DashboardProps{
 			TotalClips:   stats.total,
 			PendingClips: stats.pending,
@@ -144,22 +146,22 @@ func (handler *HTMLHandler) Dashboard(ctx fiber.Ctx) error {
 
 // DashboardSessions renders the live-sessions fragment for HTMX polling.
 func (handler *HTMLHandler) DashboardSessions(ctx fiber.Ctx) error {
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.LiveSessions(handler.sessionItems()).Render(ctx.Context(), writer)
 	})
 }
 
 // Login handles the login page request.
 func (*HTMLHandler) Login(ctx fiber.Ctx) error {
-	token := sessionString(session.FromContext(ctx), middleware.SessionKeyToken)
+	token := shared.SessionString(session.FromContext(ctx), middleware.SessionKeyToken)
 	if token != "" {
-		return redirectTo(ctx, pathRoot)
+		return shared.RedirectTo(ctx, shared.PathRoot)
 	}
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Login(pages.LoginProps{
 			AuthURL: ctx.Query("authUrl"),
-			Error:   ctx.Query(queryError),
+			Error:   ctx.Query(shared.QueryError),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -213,22 +215,22 @@ func mediaPageProps(
 		Crumbs: mediaCrumbs(
 			libraries,
 			query.LibraryID,
-			ctx.Query(queryUp),
-			ctx.Query(queryUpTitle),
-			ctx.Query(queryTitle),
+			ctx.Query(shared.QueryUp),
+			ctx.Query(shared.QueryUpTitle),
+			ctx.Query(shared.QueryTitle),
 		),
 		Letters:     thinJumpIndexes(toLetterIndexes(letters), query.Sort),
 		Query:       query.Query,
 		LibraryID:   query.LibraryID,
 		ParentID:    query.ParentID,
-		ParentTitle: ctx.Query(queryTitle),
-		UpID:        ctx.Query(queryUp),
-		UpTitle:     ctx.Query(queryUpTitle),
+		ParentTitle: ctx.Query(shared.QueryTitle),
+		UpID:        ctx.Query(shared.QueryUp),
+		UpTitle:     ctx.Query(shared.QueryUpTitle),
 		Sort:        query.Sort,
 		Letter:      query.Letter,
 		Start:       window.Start,
 		Total:       total,
-		PageSize:    mediaPageSize,
+		PageSize:    shared.MediaPageSize,
 		HasServer:   hasServer,
 	}
 }
@@ -244,19 +246,19 @@ func mediaPageProps(
 func renderMediaPage(ctx fiber.Ctx, props *view.MediaProps) error {
 	switch {
 	case wantsMediaPrev(ctx):
-		return renderHTML(ctx, func(writer io.Writer) error {
+		return shared.RenderHTML(ctx, func(writer io.Writer) error {
 			return browse.MediaPrev(*props).Render(ctx.Context(), writer)
 		})
 	case wantsMediaMore(ctx):
-		return renderHTML(ctx, func(writer io.Writer) error {
+		return shared.RenderHTML(ctx, func(writer io.Writer) error {
 			return browse.MediaMore(*props).Render(ctx.Context(), writer)
 		})
 	case wantsMediaResults(ctx):
-		return renderHTML(ctx, func(writer io.Writer) error {
+		return shared.RenderHTML(ctx, func(writer io.Writer) error {
 			return browse.MediaBrowse(*props).Render(ctx.Context(), writer)
 		})
 	default:
-		return renderHTML(ctx, func(writer io.Writer) error {
+		return shared.RenderHTML(ctx, func(writer io.Writer) error {
 			return pages.Media(*props).Render(ctx.Context(), writer)
 		})
 	}
@@ -266,7 +268,7 @@ func renderMediaPage(ctx fiber.Ctx, props *view.MediaProps) error {
 func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	item, itemErr := handler.loadMediaItem(ctx, id)
-	query := parseClipListQuery(ctx)
+	query := clipapi.ParseListQuery(ctx)
 	tracks := handler.mediaAudioTracks(ctx, id)
 	clips := handler.clipsForMedia(ctx, id)
 
@@ -276,17 +278,17 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 
 	maxDur := handler.cfg.MaxClipDurSec
 	if maxDur <= 0 {
-		maxDur = defaultMaxClipDur
+		maxDur = shared.DefaultMaxClipDur
 	}
 
-	start, err := strconv.ParseFloat(ctx.Query("start"), floatBitSize)
+	start, err := strconv.ParseFloat(ctx.Query("start"), shared.FloatBitSize)
 	if err != nil {
 		start = 0
 	}
 
-	end, err := strconv.ParseFloat(ctx.Query("end"), floatBitSize)
+	end, err := strconv.ParseFloat(ctx.Query("end"), shared.FloatBitSize)
 	if err != nil || end <= start {
-		end = start + defaultSegmentSecs
+		end = start + shared.DefaultSegmentSecs
 	}
 
 	props := pages.MediaItemPageProps{
@@ -302,7 +304,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		ClipSort:      query.Sort,
 		Profiles:      handler.clipProfileOptions(ctx),
 		AudioTracks:   tracks,
-		Error:         mediaItemError(itemErr, ctx.Query(queryError)),
+		Error:         shared.MediaItemError(itemErr, ctx.Query(shared.QueryError)),
 		PreviewID:     ctx.Query("preview"),
 		StartTime:     start,
 		EndTime:       end,
@@ -319,7 +321,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		props.Crumbs = itemCrumbs(item, handler.sidebarLibraries(ctx))
 	}
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.MediaItemPage(props).Render(ctx.Context(), writer)
 	})
 }
@@ -333,7 +335,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 // Returns:
 //   - checked: True when the New export web-safe color checkbox should be on.
 func previewWebSafeColor(ctx fiber.Ctx, fallback bool) bool {
-	raw := ctx.Query(queryWebSafeColor)
+	raw := ctx.Query(shared.QueryWebSafeColor)
 	if raw == "" {
 		return fallback
 	}
@@ -344,7 +346,7 @@ func previewWebSafeColor(ctx fiber.Ctx, fallback bool) bool {
 // MediaItemClips renders the media-item clip list fragment for HTMX swaps.
 func (handler *HTMLHandler) MediaItemClips(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
-	query := parseClipListQuery(ctx)
+	query := clipapi.ParseListQuery(ctx)
 	tracks := handler.mediaAudioTracks(ctx, id)
 	clips := handler.clipsForMedia(ctx, id)
 
@@ -352,16 +354,16 @@ func (handler *HTMLHandler) MediaItemClips(ctx fiber.Ctx) error {
 		clips[index].AudioTracks = tracks
 	}
 
-	return renderHTML(ctx, func(writer io.Writer) error {
-		return pages.ItemClipList(clips, query.filtered()).Render(ctx.Context(), writer)
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
+		return pages.ItemClipList(clips, query.Filtered()).Render(ctx.Context(), writer)
 	})
 }
 
 // NavLibraries renders sidebar library links.
 func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
-	selected := selectedLibraryID(ctx.Get("HX-Current-URL"), ctx.Query(queryLibrary))
+	selected := selectedLibraryID(ctx.Get("HX-Current-URL"), ctx.Query(shared.QueryLibrary))
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return nav.NavLibraries(handler.sidebarLibraries(ctx), selected).
 			Render(ctx.Context(), writer)
 	})
@@ -375,7 +377,7 @@ func (handler *HTMLHandler) NavLibraries(ctx fiber.Ctx) error {
 // Returns:
 //   - ok: True when HTMX is targeting #media-browse.
 func wantsMediaResults(ctx fiber.Ctx) bool {
-	return hxTargetID(ctx.Get(headerHXTarget)) == "media-browse"
+	return shared.HxTargetID(ctx.Get(shared.HeaderHXTarget)) == "media-browse"
 }
 
 // wantsMediaMore reports whether the request should append the next poster page.
@@ -386,7 +388,7 @@ func wantsMediaResults(ctx fiber.Ctx) bool {
 // Returns:
 //   - ok: True when HTMX is targeting #media-more.
 func wantsMediaMore(ctx fiber.Ctx) bool {
-	return hxTargetID(ctx.Get(headerHXTarget)) == "media-more"
+	return shared.HxTargetID(ctx.Get(shared.HeaderHXTarget)) == "media-more"
 }
 
 // wantsMediaPrev reports whether the request should prepend the previous poster page.
@@ -397,7 +399,7 @@ func wantsMediaMore(ctx fiber.Ctx) bool {
 // Returns:
 //   - ok: True when HTMX is targeting #media-prev.
 func wantsMediaPrev(ctx fiber.Ctx) bool {
-	return hxTargetID(ctx.Get(headerHXTarget)) == "media-prev"
+	return shared.HxTargetID(ctx.Get(shared.HeaderHXTarget)) == "media-prev"
 }
 
 // wantsClipList reports whether the request should swap the clips list only.
@@ -408,7 +410,7 @@ func wantsMediaPrev(ctx fiber.Ctx) bool {
 // Returns:
 //   - True when HTMX is targeting #clip-list.
 func wantsClipList(ctx fiber.Ctx) bool {
-	return hxTargetID(ctx.Get(headerHXTarget)) == "clip-list"
+	return shared.HxTargetID(ctx.Get(shared.HeaderHXTarget)) == "clip-list"
 }
 
 // selectedLibraryID returns the library id from the nav query or the current page URL.
@@ -426,22 +428,22 @@ func selectedLibraryID(currentURL, fromQuery string) string {
 		return ""
 	}
 
-	return parsed.Query().Get(queryLibrary)
+	return parsed.Query().Get(shared.QueryLibrary)
 }
 
 // NewClip sends clip-now links to the media item editor.
 func (*HTMLHandler) NewClip(ctx fiber.Ctx) error {
 	mediaID := ctx.Query("mediaId")
 	if mediaID == "" {
-		return redirectTo(ctx, pathMedia)
+		return shared.RedirectTo(ctx, shared.PathMedia)
 	}
 
 	values := url.Values{}
-	if start := ctx.Query(queryStart); start != "" {
-		values.Set(queryStart, start)
+	if start := ctx.Query(shared.QueryStart); start != "" {
+		values.Set(shared.QueryStart, start)
 	}
 
-	return redirectTo(ctx, mediaItemLocation(mediaID, values))
+	return shared.RedirectTo(ctx, mediaItemLocation(mediaID, values))
 }
 
 // mediaItemLocation builds /media/item/:id with a path-escaped id.
@@ -476,7 +478,7 @@ func (handler *HTMLHandler) Playback(ctx fiber.Ctx) error {
 		break
 	}
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return playback.PlaybackPanel(props).Render(ctx.Context(), writer)
 	})
 }
@@ -486,7 +488,7 @@ func (handler *HTMLHandler) PreviewFile(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	path := filepath.Join(handler.cfg.StoragePath, "previews", id+".mp4")
 
-	err := sendRangedFile(ctx, path)
+	err := shared.SendRangedFile(ctx, path)
 	if err != nil {
 		return fmt.Errorf("send preview: %w", err)
 	}
@@ -517,10 +519,10 @@ func (handler *HTMLHandler) SelectServer(ctx fiber.Ctx) error {
 func (handler *HTMLHandler) Servers(ctx fiber.Ctx) error {
 	current, _ := handler.bind.Get()
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return shared.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Servers(pages.ServersProps{
 			Servers: toServerItems(handler.discoverServers(ctx), current),
-			Error:   ctx.Query(queryError),
+			Error:   ctx.Query(shared.QueryError),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -529,12 +531,12 @@ func (handler *HTMLHandler) Servers(ctx fiber.Ctx) error {
 func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error {
 	token := ctx.FormValue("token")
 	if token == "" {
-		token = sessionString(session.FromContext(ctx), middleware.SessionKeyToken)
+		token = shared.SessionString(session.FromContext(ctx), middleware.SessionKeyToken)
 	}
 
 	server, ok := plex.ServerFromURL(rawURL, token)
 	if !ok {
-		return redirectTo(ctx, pathWithError(pathServers, "invalid server URL"))
+		return shared.RedirectTo(ctx, shared.PathWithError(shared.PathServers, "invalid server URL"))
 	}
 
 	if name := ctx.FormValue("name"); name != "" {
@@ -549,7 +551,7 @@ func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error 
 		log.Warn().Err(err).Msg("failed to persist selected server")
 	}
 
-	return redirectTo(ctx, pathRoot)
+	return shared.RedirectTo(ctx, shared.PathRoot)
 }
 
 // clipMaxDur is the configured clip duration cap, or the default when unset.
@@ -558,7 +560,7 @@ func (handler *HTMLHandler) clipMaxDur() int {
 		return handler.cfg.MaxClipDurSec
 	}
 
-	return defaultMaxClipDur
+	return shared.DefaultMaxClipDur
 }
 
 // clipsForMedia returns clip cards for one media id.
@@ -568,17 +570,17 @@ func (handler *HTMLHandler) clipsForMedia(ctx fiber.Ctx, mediaID string) []view.
 		return nil
 	}
 
-	return handler.jobsToClipItems(ctx, applyClipListQuery(jobs, parseClipListQuery(ctx)))
+	return handler.jobsToClipItems(ctx, clipapi.ApplyListQuery(jobs, clipapi.ParseListQuery(ctx)))
 }
 
 // discoverServers lists Plex servers for the session token.
 func (handler *HTMLHandler) discoverServers(ctx fiber.Ctx) []plex.Server {
-	token := sessionString(session.FromContext(ctx), middleware.SessionKeyToken)
+	token := shared.SessionString(session.FromContext(ctx), middleware.SessionKeyToken)
 	if token == "" {
 		return nil
 	}
 
-	plexClient := newBoundClient(handler.product, handler.clientID, token)
+	plexClient := shared.NewBoundClient(handler.product, handler.clientID, token)
 
 	servers, err := plexClient.DiscoverServers(ctx.Context())
 	if err != nil {
@@ -659,7 +661,7 @@ func (handler *HTMLHandler) mediaAudioTracks(
 		return nil
 	}
 
-	path, err := resolveMediaPath(
+	path, err := clipapi.ResolveMediaPath(
 		ctx.Context(),
 		handler.cfg,
 		handler.bind,
@@ -879,7 +881,7 @@ func listMediaContent(
 			page.Items,
 			query.LibraryID,
 			query.ParentID,
-			ctx.Query(queryTitle),
+			ctx.Query(shared.QueryTitle),
 		), toLibraryItems(
 			libs,
 		), page.Total
@@ -892,7 +894,7 @@ func (handler *HTMLHandler) plexPair() (*plex.Client, plex.Server, bool) {
 		return nil, plex.EmptyServer(), false
 	}
 
-	return newBoundClient(handler.product, handler.clientID, server.Token), server, true
+	return shared.NewBoundClient(handler.product, handler.clientID, server.Token), server, true
 }
 
 // sessionItems converts live Plex sessions into page models.
@@ -973,17 +975,6 @@ func connectionURL(scheme, address, port string) string {
 	}
 
 	return scheme + "://" + address + ":" + port
-}
-
-// newBoundClient constructs a Plex client for the given token.
-func newBoundClient(product, clientID, token string) *plex.Client {
-	return plex.NewClient(plex.ClientConfig{
-		Product:  product,
-		ClientID: clientID,
-		Token:    token,
-		Timeout:  0,
-		BaseURL:  "",
-	})
 }
 
 // clipFileExists reports whether a clip output is present on disk.
@@ -1097,7 +1088,7 @@ func listMediaPage(
 
 // mediaCrumbs builds the library / show / season trail.
 func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string) []view.Crumb {
-	crumbs := []view.Crumb{{Title: "Libraries", URL: pathMedia}}
+	crumbs := []view.Crumb{{Title: "Libraries", URL: shared.PathMedia}}
 	if libraryID == "" {
 		return crumbs
 	}
@@ -1111,14 +1102,14 @@ func mediaCrumbs(libs []view.LibraryItem, libraryID, upID, upTitle, title string
 		}
 	}
 
-	libURL := pathMedia + "?library=" + url.QueryEscape(libraryID)
+	libURL := shared.PathMedia + "?library=" + url.QueryEscape(libraryID)
 
 	crumbs = append(crumbs, view.Crumb{Title: libTitle, URL: libURL})
 
 	if upID != "" {
 		upURL := libURL + "&parent=" + url.QueryEscape(
 			upID,
-		) + "&" + queryTitle + "=" + url.QueryEscape(
+		) + "&" + shared.QueryTitle + "=" + url.QueryEscape(
 			upTitle,
 		)
 
@@ -1225,16 +1216,16 @@ func sessionItemURL(id string) string {
 // browseURL builds a drill-down link for a container item.
 func browseURL(libraryID, itemID, itemTitle, parentID, parentTitle string) string {
 	values := url.Values{}
-	values.Set(queryLibrary, libraryID)
-	values.Set(queryParent, itemID)
-	values.Set(queryTitle, itemTitle)
+	values.Set(shared.QueryLibrary, libraryID)
+	values.Set(shared.QueryParent, itemID)
+	values.Set(shared.QueryTitle, itemTitle)
 
 	if parentID != "" {
-		values.Set(queryUp, parentID)
-		values.Set(queryUpTitle, parentTitle)
+		values.Set(shared.QueryUp, parentID)
+		values.Set(shared.QueryUpTitle, parentTitle)
 	}
 
-	return pathMedia + "?" + values.Encode()
+	return shared.PathMedia + "?" + values.Encode()
 }
 
 // thumbSrc rewrites a Plex thumb path onto the local cache proxy.
@@ -1335,7 +1326,7 @@ func pageStart(raw string) int {
 
 // itemCrumbs builds Libraries / library / show / season / title for a media item.
 func itemCrumbs(item plex.MediaItem, libs []view.LibraryItem) []view.Crumb {
-	crumbs := []view.Crumb{{Title: "Libraries", URL: pathMedia}}
+	crumbs := []view.Crumb{{Title: "Libraries", URL: shared.PathMedia}}
 
 	crumbs = appendLibraryCrumb(crumbs, item, libs)
 	crumbs = appendShowCrumbs(crumbs, item)
@@ -1369,7 +1360,7 @@ func appendLibraryCrumb(
 
 	return append(crumbs, view.Crumb{
 		Title: title,
-		URL:   pathMedia + "?library=" + url.QueryEscape(item.LibraryID),
+		URL:   shared.PathMedia + "?library=" + url.QueryEscape(item.LibraryID),
 	})
 }
 

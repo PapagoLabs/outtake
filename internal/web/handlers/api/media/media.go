@@ -1,14 +1,15 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package media
 
 import (
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/web/api"
-	"github.com/PapagoLabs/outtake/internal/plex/binding"
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/binding"
+	"github.com/PapagoLabs/outtake/internal/web/api"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
 // MediaHandler handles media-related requests.
@@ -33,38 +34,38 @@ func (handler *MediaHandler) GetSessions(ctx fiber.Ctx) error {
 	if sessions == nil {
 		plexClient, server, ok := handler.plexClient()
 		if !ok {
-			return writeJSON(ctx, fiber.StatusOK, []api.SessionResponse{})
+			return shared.WriteJSON(ctx, fiber.StatusOK, []api.SessionResponse{})
 		}
 
 		live, err := plexClient.GetSessionsOnServer(ctx.Context(), server)
 		if err != nil {
-			return writeJSON(ctx, fiber.StatusOK, []api.SessionResponse{})
+			return shared.WriteJSON(ctx, fiber.StatusOK, []api.SessionResponse{})
 		}
 
 		sessions = live
 	}
 
-	return writeJSON(ctx, fiber.StatusOK, sessionResponses(sessions))
+	return shared.WriteJSON(ctx, fiber.StatusOK, shared.SessionResponses(sessions))
 }
 
 // Search handles the search media request.
 func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 	query := ctx.Query("q")
 	if query == "" {
-		return writeError(ctx, fiber.StatusBadRequest, "missing_query", "search query is required")
+		return shared.WriteError(ctx, fiber.StatusBadRequest, "missing_query", "search query is required")
 	}
 
 	plexClient, server, ok := handler.plexClient()
 	if !ok {
-		return writeJSON(ctx, fiber.StatusOK, api.MediaListResponse{
+		return shared.WriteJSON(ctx, fiber.StatusOK, api.MediaListResponse{
 			Items: []api.MediaItemResponse{},
 			Total: 0,
 		})
 	}
 
-	items, err := plexClient.SearchOnServer(ctx.Context(), server, query, ctx.Query(queryLibrary))
+	items, err := plexClient.SearchOnServer(ctx.Context(), server, query, ctx.Query(shared.QueryLibrary))
 	if err != nil {
-		return writeError(ctx, fiber.StatusInternalServerError, "search_failed", err.Error())
+		return shared.WriteError(ctx, fiber.StatusInternalServerError, "search_failed", err.Error())
 	}
 
 	responses := make([]api.MediaItemResponse, 0, len(items))
@@ -85,7 +86,7 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 		})
 	}
 
-	return writeJSON(ctx, fiber.StatusOK, api.MediaListResponse{
+	return shared.WriteJSON(ctx, fiber.StatusOK, api.MediaListResponse{
 		Items: responses,
 		Total: len(responses),
 	})
@@ -98,24 +99,5 @@ func (handler *MediaHandler) plexClient() (*plex.Client, plex.Server, bool) {
 		return nil, plex.EmptyServer(), false
 	}
 
-	return newBoundClient(handler.product, handler.clientID, server.Token), server, true
-}
-
-// sessionResponses maps Plex sessions onto API payloads.
-func sessionResponses(sessions []plex.Session) []api.SessionResponse {
-	responses := make([]api.SessionResponse, 0, len(sessions))
-
-	for index := range sessions {
-		sess := &sessions[index]
-
-		responses = append(responses, api.SessionResponse{
-			ID:         sess.ID,
-			MediaID:    sess.MediaItem.ID,
-			Title:      sess.MediaItem.DisplayTitle(),
-			Duration:   sess.Duration,
-			ViewOffset: sess.ViewOffset,
-		})
-	}
-
-	return responses
+	return shared.NewBoundClient(handler.product, handler.clientID, server.Token), server, true
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package shared
 
 import (
 	"errors"
@@ -14,8 +14,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/pages"
 )
 
-// httpErrorView is the status and copy for an HTML or JSON error response.
-type httpErrorView struct {
+// HttpErrorView is the status and copy for an HTML or JSON error response.
+type HttpErrorView struct {
 	code    int
 	message string
 	title   string
@@ -23,10 +23,10 @@ type httpErrorView struct {
 
 // PageError renders HTML error pages for browser requests and JSON for the API.
 func PageError(ctx fiber.Ctx, err error) error {
-	view := httpErrorCopy(err)
+	view := HttpErrorCopy(err)
 
-	if isHTMXRequest(ctx) {
-		err = writeHTMXFlash(ctx, view.code, view.message)
+	if IsHTMXRequest(ctx) {
+		err = WriteHTMXFlash(ctx, view.code, view.message)
 		if err != nil {
 			return fmt.Errorf("write htmx flash: %w", err)
 		}
@@ -35,13 +35,13 @@ func PageError(ctx fiber.Ctx, err error) error {
 	}
 
 	if strings.HasPrefix(ctx.Path(), "/api/") {
-		return writeJSON(ctx, view.code, api.ErrorResponse{
+		return WriteJSON(ctx, view.code, api.ErrorResponse{
 			Error:   "http_error",
 			Message: view.message,
 		})
 	}
 
-	ctx.Set(headerContentType, contentTypeHTML)
+	ctx.Set(HeaderContentType, ContentTypeHTML)
 	ctx.Status(view.code)
 
 	err = pages.ErrorPage(pages.ErrorPageProps{
@@ -56,9 +56,9 @@ func PageError(ctx fiber.Ctx, err error) error {
 	return nil
 }
 
-// httpErrorCopy maps an error onto status, message, and title.
-func httpErrorCopy(err error) httpErrorView {
-	view := httpErrorView{
+// HttpErrorCopy maps an error onto status, message, and title.
+func HttpErrorCopy(err error) HttpErrorView {
+	view := HttpErrorView{
 		code:    fiber.StatusInternalServerError,
 		message: "Something went wrong.",
 		title:   "Something went wrong",

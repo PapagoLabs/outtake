@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package shared
 
 import (
 	"fmt"
@@ -19,86 +19,86 @@ import (
 
 const (
 	// HeaderContentType is the HTTP Content-Type header name.
-	headerContentType = "Content-Type"
+	HeaderContentType = "Content-Type"
 
 	// PathRoot is the dashboard path.
-	pathRoot = "/"
+	PathRoot = "/"
 
 	// PathLogin is the login page path.
-	pathLogin = "/login"
+	PathLogin = "/login"
 
 	// PathClips is the clips page path.
-	pathClips = "/clips"
+	PathClips = "/clips"
 
 	// PathServers is the server picker path.
-	pathServers = "/servers"
+	PathServers = "/servers"
 
 	// PathSettingsProfiles is the clip profile settings path.
-	pathSettingsProfiles = "/settings/profiles"
+	PathSettingsProfiles = "/settings/profiles"
 
 	// PathMedia is the media library path.
-	pathMedia = "/media"
+	PathMedia = "/media"
 
 	// QueryTitle is the media browse title query parameter.
-	queryTitle = "title"
+	QueryTitle = "title"
 
 	// QueryLibrary is the media library id query parameter.
-	queryLibrary = "library"
+	QueryLibrary = "library"
 
 	// QueryStart is the media pagination offset.
-	queryStart = "start"
+	QueryStart = "start"
 
 	// QueryParent is the media container parent id.
-	queryParent = "parent"
+	QueryParent = "parent"
 
 	// QueryUp is the media breadcrumb parent id.
-	queryUp = "up"
+	QueryUp = "up"
 
 	// QueryUpTitle is the media breadcrumb parent title.
-	queryUpTitle = "upTitle"
+	QueryUpTitle = "upTitle"
 
 	// QueryError is the flash-error query parameter on HTML pages.
-	queryError = "error"
+	QueryError = "error"
 
 	// QueryWebSafeColor carries the New export web-safe color checkbox.
-	queryWebSafeColor = "webSafeColor"
+	QueryWebSafeColor = "webSafeColor"
 
 	// QueryUnchecked is the query value for an explicit false checkbox.
-	queryUnchecked = "0"
+	QueryUnchecked = "0"
 
 	// DefaultSegmentSecs is the fallback clip window when end is omitted.
-	defaultSegmentSecs = 10
+	DefaultSegmentSecs = 10
 
 	// InvalidRequest is the API error code for a malformed clip request.
-	invalidRequest = "invalid_request"
+	InvalidRequest = "invalid_request"
 
 	// PersistFailed is the API error code when a clip cannot be saved.
-	persistFailed = "persist_failed"
+	PersistFailed = "persist_failed"
 
 	// FloatBitSize is the bit size used when parsing floats.
-	floatBitSize = 64
+	FloatBitSize = 64
 
 	// DefaultMaxClipDur is the fallback maximum clip duration in seconds.
-	defaultMaxClipDur = 600
+	DefaultMaxClipDur = 600
 
 	// MediaPageSize is the number of posters shown per media library page.
-	mediaPageSize = 48
+	MediaPageSize = 48
 
 	// ContentTypeHTML is the HTML content type written by page handlers.
-	contentTypeHTML = "text/html; charset=utf-8"
+	ContentTypeHTML = "text/html; charset=utf-8"
 
 	// HeaderHXRequest is the HTMX request marker header.
-	headerHXRequest = "HX-Request"
+	HeaderHXRequest = "HX-Request"
 
 	// HeaderHXTarget is the HTMX swap-target header.
-	headerHXTarget = "HX-Target"
+	HeaderHXTarget = "HX-Target"
 
 	// MediaLoadFailedMsg is shown when Plex metadata cannot be loaded.
-	mediaLoadFailedMsg = "Could not load this item from Plex. You can still create a clip if the file is reachable."
+	MediaLoadFailedMsg = "Could not load this item from Plex. You can still create a clip if the file is reachable."
 )
 
-// writeJSON writes a JSON response and wraps Fiber errors.
-func writeJSON(ctx fiber.Ctx, status int, payload any) error {
+// WriteJSON writes a JSON response and wraps Fiber errors.
+func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 	err := ctx.Status(status).JSON(payload)
 	if err != nil {
 		return fmt.Errorf("write json: %w", err)
@@ -107,8 +107,8 @@ func writeJSON(ctx fiber.Ctx, status int, payload any) error {
 	return nil
 }
 
-// sendRangedFile serves a media file with HTTP byte-range support.
-func sendRangedFile(ctx fiber.Ctx, path string) error {
+// SendRangedFile serves a media file with HTTP byte-range support.
+func SendRangedFile(ctx fiber.Ctx, path string) error {
 	err := ctx.SendFile(path, fiber.SendFile{
 		FS:            nil,
 		Compress:      false,
@@ -124,7 +124,7 @@ func sendRangedFile(ctx fiber.Ctx, path string) error {
 	return nil
 }
 
-// writeError writes a JSON error payload, or redirects HTML form posts.
+// WriteError writes a JSON error payload, or redirects HTML form posts.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -134,9 +134,9 @@ func sendRangedFile(ctx fiber.Ctx, path string) error {
 //
 // Returns:
 //   - Wrapped write or redirect error.
-func writeError(ctx fiber.Ctx, status int, code, message string) error {
-	if isHTMXRequest(ctx) {
-		err := writeHTMXFlash(ctx, status, message)
+func WriteError(ctx fiber.Ctx, status int, code, message string) error {
+	if IsHTMXRequest(ctx) {
+		err := WriteHTMXFlash(ctx, status, message)
 		if err != nil {
 			return fmt.Errorf("write htmx flash: %w", err)
 		}
@@ -144,17 +144,17 @@ func writeError(ctx fiber.Ctx, status int, code, message string) error {
 		return nil
 	}
 
-	if isFormRequest(ctx) {
-		return redirectTo(ctx, formErrorLocation(ctx, message))
+	if IsFormRequest(ctx) {
+		return RedirectTo(ctx, FormErrorLocation(ctx, message))
 	}
 
-	return writeJSON(ctx, status, api.ErrorResponse{
+	return WriteJSON(ctx, status, api.ErrorResponse{
 		Error:   code,
 		Message: message,
 	})
 }
 
-// writeHTMXFlash writes a pure hx-partial error banner for #flash.
+// WriteHTMXFlash writes a pure hx-partial error banner for #flash.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -163,33 +163,33 @@ func writeError(ctx fiber.Ctx, status int, code, message string) error {
 //
 // Returns:
 //   - Wrapped render error.
-func writeHTMXFlash(ctx fiber.Ctx, status int, message string) error {
+func WriteHTMXFlash(ctx fiber.Ctx, status int, message string) error {
 	ctx.Status(status)
 
-	return renderHTML(ctx, func(writer io.Writer) error {
+	return RenderHTML(ctx, func(writer io.Writer) error {
 		return flash.Partial(message).Render(ctx.Context(), writer)
 	})
 }
 
-// isHTMXRequest reports whether the client sent HX-Request.
+// IsHTMXRequest reports whether the client sent HX-Request.
 //
 // Parameters:
 //   - ctx: Request context.
 //
 // Returns:
 //   - True when HTMX issued the request.
-func isHTMXRequest(ctx fiber.Ctx) bool {
-	return ctx.Get(headerHXRequest) == "true"
+func IsHTMXRequest(ctx fiber.Ctx) bool {
+	return ctx.Get(HeaderHXRequest) == "true"
 }
 
-// hxTargetID returns the element id from an HTMX 4 HX-Target header.
+// HxTargetID returns the element id from an HTMX 4 HX-Target header.
 //
 // Parameters:
 //   - raw: Header value, either an id or tag#id.
 //
 // Returns:
 //   - Element id, or the raw value when no hash is present.
-func hxTargetID(raw string) string {
+func HxTargetID(raw string) string {
 	_, id, found := strings.Cut(raw, "#")
 	if found {
 		return id
@@ -198,43 +198,43 @@ func hxTargetID(raw string) string {
 	return raw
 }
 
-// formErrorLocation returns the HTML page that should show a form error.
-func formErrorLocation(ctx fiber.Ctx, message string) string {
+// FormErrorLocation returns the HTML page that should show a form error.
+func FormErrorLocation(ctx fiber.Ctx, message string) string {
 	mediaID := ctx.FormValue("mediaId")
 	if mediaID != "" {
-		return pathWithError(clipReturnPath(mediaID), message)
+		return PathWithError(ClipReturnPath(mediaID), message)
 	}
 
 	referer := ctx.Get(fiber.HeaderReferer)
 	if referer != "" {
-		return pathWithError(refererPath(referer), message)
+		return PathWithError(RefererPath(referer), message)
 	}
 
-	return pathWithError(pathRoot, message)
+	return PathWithError(PathRoot, message)
 }
 
-// pathWithError appends an encoded error query to a path-only location.
-func pathWithError(location, message string) string {
+// PathWithError appends an encoded error query to a path-only location.
+func PathWithError(location, message string) string {
 	parsed, err := url.Parse(location)
 	if err != nil || parsed.Path == "" {
-		location = pathRoot
+		location = PathRoot
 		parsed, err = url.Parse(location)
 		if err != nil {
-			return pathRoot
+			return PathRoot
 		}
 	}
 
 	query := parsed.Query()
-	query.Set(queryError, message)
+	query.Set(QueryError, message)
 
 	return parsed.Path + "?" + query.Encode()
 }
 
-// refererPath keeps only the path and query of a Referer URL.
-func refererPath(raw string) string {
+// RefererPath keeps only the path and query of a Referer URL.
+func RefererPath(raw string) string {
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Path == "" {
-		return pathRoot
+		return PathRoot
 	}
 
 	if parsed.RawQuery == "" {
@@ -244,21 +244,21 @@ func refererPath(raw string) string {
 	return parsed.Path + "?" + parsed.RawQuery
 }
 
-// mediaItemError prefers a form-flash query over a Plex metadata load failure.
-func mediaItemError(itemErr error, queryErr string) string {
+// MediaItemError prefers a form-flash query over a Plex metadata load failure.
+func MediaItemError(itemErr error, queryErr string) string {
 	if queryErr != "" {
 		return queryErr
 	}
 
 	if itemErr != nil {
-		return mediaLoadFailedMsg
+		return MediaLoadFailedMsg
 	}
 
 	return ""
 }
 
-// redirectTo issues a redirect and wraps Fiber errors.
-func redirectTo(ctx fiber.Ctx, location string) error {
+// RedirectTo issues a redirect and wraps Fiber errors.
+func RedirectTo(ctx fiber.Ctx, location string) error {
 	err := ctx.Redirect().To(location)
 	if err != nil {
 		return fmt.Errorf("redirect: %w", err)
@@ -267,8 +267,8 @@ func redirectTo(ctx fiber.Ctx, location string) error {
 	return nil
 }
 
-// sendText writes a plain-text body and wraps Fiber errors.
-func sendText(ctx fiber.Ctx, body string) error {
+// SendText writes a plain-text body and wraps Fiber errors.
+func SendText(ctx fiber.Ctx, body string) error {
 	err := ctx.SendString(body)
 	if err != nil {
 		return fmt.Errorf("send string: %w", err)
@@ -277,8 +277,8 @@ func sendText(ctx fiber.Ctx, body string) error {
 	return nil
 }
 
-// sendStatusCode writes a status with no body and wraps Fiber errors.
-func sendStatusCode(ctx fiber.Ctx, status int) error {
+// SendStatusCode writes a status with no body and wraps Fiber errors.
+func SendStatusCode(ctx fiber.Ctx, status int) error {
 	err := ctx.SendStatus(status)
 	if err != nil {
 		return fmt.Errorf("send status: %w", err)
@@ -287,9 +287,9 @@ func sendStatusCode(ctx fiber.Ctx, status int) error {
 	return nil
 }
 
-// renderHTML writes a templ component and wraps render errors.
-func renderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
-	ctx.Set(headerContentType, contentTypeHTML)
+// RenderHTML writes a templ component and wraps render errors.
+func RenderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
+	ctx.Set(HeaderContentType, ContentTypeHTML)
 
 	err := render(ctx.Response().BodyWriter())
 	if err != nil {
@@ -299,8 +299,8 @@ func renderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
 	return nil
 }
 
-// sessionString reads a string value from the Fiber session.
-func sessionString(sess *session.Middleware, key string) string {
+// SessionString reads a string value from the Fiber session.
+func SessionString(sess *session.Middleware, key string) string {
 	if sess == nil {
 		return ""
 	}
@@ -313,8 +313,8 @@ func sessionString(sess *session.Middleware, key string) string {
 	return value
 }
 
-// sessionInt reads an int value from the Fiber session.
-func sessionInt(sess *session.Middleware, key string) int {
+// SessionInt reads an int value from the Fiber session.
+func SessionInt(sess *session.Middleware, key string) int {
 	if sess == nil {
 		return 0
 	}
@@ -325,4 +325,18 @@ func sessionInt(sess *session.Middleware, key string) int {
 	}
 
 	return value
+}
+
+// IsFormRequest reports whether the request is urlencoded form data.
+func IsFormRequest(ctx fiber.Ctx) bool {
+	return strings.Contains(ctx.Get(fiber.HeaderContentType), "application/x-www-form-urlencoded")
+}
+
+// ClipReturnPath sends form posts back to the source media item when possible.
+func ClipReturnPath(mediaID string) string {
+	if mediaID == "" {
+		return PathClips
+	}
+
+	return PathMedia + "/item/" + mediaID
 }

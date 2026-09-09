@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package clip
 
 import (
 	"io"
@@ -16,8 +16,11 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
+
+const testMovie = "Movie"
 
 const (
 	idOldClip = "old-clip"
@@ -31,15 +34,15 @@ func TestParseClipListQuery(t *testing.T) {
 
 	tests := []struct {
 		give string
-		want clipListQuery
+		want ListQuery
 	}{
 		{
 			give: "/clips",
-			want: clipListQuery{Sort: clipSortCreatedDesc},
+			want: ListQuery{Sort: clipSortCreatedDesc},
 		},
 		{
 			give: "/clips?type=gif&q=Intro&sort=name_asc&status=completed",
-			want: clipListQuery{
+			want: ListQuery{
 				Status: view.ClipStatusCompleted,
 				Type:   clipTypeGIF,
 				Query:  "Intro",
@@ -48,11 +51,11 @@ func TestParseClipListQuery(t *testing.T) {
 		},
 		{
 			give: "/clips?type=nope&sort=bogus&q=%20Clip%20",
-			want: clipListQuery{Query: "Clip", Sort: clipSortCreatedDesc},
+			want: ListQuery{Query: "Clip", Sort: clipSortCreatedDesc},
 		},
 		{
 			give: "/clips?type=screenshot&sort=updated_desc",
-			want: clipListQuery{Type: clipTypeScreenshot, Sort: clipSortUpdatedDesc},
+			want: ListQuery{Type: clipTypeScreenshot, Sort: clipSortUpdatedDesc},
 		},
 	}
 
@@ -60,7 +63,7 @@ func TestParseClipListQuery(t *testing.T) {
 		t.Run(test.give, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, parseClipListQueryFrom(t, test.give))
+			assert.Equal(t, test.want, ParseListQueryFrom(t, test.give))
 		})
 	}
 }
@@ -89,62 +92,62 @@ func TestApplyClipListQuery(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		query clipListQuery
+		query ListQuery
 		want  []string
 	}{
 		{
 			name:  "default newest created then id",
-			query: normalizeClipListQuery(clipListQuery{}),
+			query: NormalizeListQuery(ListQuery{}),
 			want:  []string{idTieZ, idTieA, idNewGIF, idOldClip},
 		},
 		{
 			name:  "oldest created",
-			query: clipListQuery{Sort: clipSortCreatedAsc},
+			query: ListQuery{Sort: clipSortCreatedAsc},
 			want:  []string{idOldClip, idTieZ, idTieA, idNewGIF},
 		},
 		{
 			name:  "recently modified",
-			query: clipListQuery{Sort: clipSortUpdatedDesc},
+			query: ListQuery{Sort: clipSortUpdatedDesc},
 			want:  []string{idOldClip, idTieZ, idTieA, idNewGIF},
 		},
 		{
 			name:  "oldest modified",
-			query: clipListQuery{Sort: clipSortUpdatedAsc},
+			query: ListQuery{Sort: clipSortUpdatedAsc},
 			want:  []string{idNewGIF, idTieZ, idTieA, idOldClip},
 		},
 		{
 			name:  "name ascending uses display name",
-			query: clipListQuery{Sort: clipSortNameAsc},
+			query: ListQuery{Sort: clipSortNameAsc},
 			want:  []string{idOldClip, idNewGIF, idTieZ, idTieA},
 		},
 		{
 			name:  "name descending",
-			query: clipListQuery{Sort: clipSortNameDesc},
+			query: ListQuery{Sort: clipSortNameDesc},
 			want:  []string{idTieZ, idTieA, idNewGIF, idOldClip},
 		},
 		{
 			name:  "type gif",
-			query: clipListQuery{Type: clipTypeGIF, Sort: clipSortCreatedDesc},
+			query: ListQuery{Type: clipTypeGIF, Sort: clipSortCreatedDesc},
 			want:  []string{idNewGIF},
 		},
 		{
 			name:  "name matches clip name",
-			query: clipListQuery{Query: "alpha", Sort: clipSortCreatedDesc},
+			query: ListQuery{Query: "alpha", Sort: clipSortCreatedDesc},
 			want:  []string{idOldClip},
 		},
 		{
 			name:  "name matches media title",
-			query: clipListQuery{Query: defaultMediaType, Sort: clipSortCreatedDesc},
+			query: ListQuery{Query: shared.DefaultMediaType, Sort: clipSortCreatedDesc},
 			want:  []string{idTieZ, idTieA, idOldClip},
 		},
 		{
 			name:  "pending includes processing",
-			query: clipListQuery{Status: view.ClipStatusPending, Sort: clipSortCreatedDesc},
+			query: ListQuery{Status: view.ClipStatusPending, Sort: clipSortCreatedDesc},
 			want:  []string{idTieZ, idNewGIF},
 		},
 		{
 			name: "status and type together",
-			query: clipListQuery{
+			query: ListQuery{
 				Status: view.ClipStatusPending,
 				Type:   clipTypeGIF,
 				Sort:   clipSortCreatedDesc,
@@ -157,7 +160,7 @@ func TestApplyClipListQuery(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := applyClipListQuery(jobs, test.query)
+			got := ApplyListQuery(jobs, test.query)
 			require.Len(t, got, len(test.want))
 			assert.Equal(t, test.want, clipJobIDs(got))
 		})
@@ -167,20 +170,20 @@ func TestApplyClipListQuery(t *testing.T) {
 func TestClipListQueryFiltered(t *testing.T) {
 	t.Parallel()
 
-	assert.False(t, clipListQuery{Sort: clipSortCreatedDesc}.filtered())
-	assert.True(t, clipListQuery{Type: clipTypeGIF}.filtered())
-	assert.True(t, clipListQuery{Query: "x"}.filtered())
-	assert.True(t, clipListQuery{Status: view.ClipStatusFailed}.filtered())
+	assert.False(t, ListQuery{Sort: clipSortCreatedDesc}.Filtered())
+	assert.True(t, ListQuery{Type: clipTypeGIF}.Filtered())
+	assert.True(t, ListQuery{Query: "x"}.Filtered())
+	assert.True(t, ListQuery{Status: view.ClipStatusFailed}.Filtered())
 }
 
-func parseClipListQueryFrom(t *testing.T, target string) clipListQuery {
+func ParseListQueryFrom(t *testing.T, target string) ListQuery {
 	t.Helper()
 
 	app := fiber.New()
-	var parsed clipListQuery
+	var parsed ListQuery
 
 	app.Get("/clips", func(ctx fiber.Ctx) error {
-		parsed = parseClipListQuery(ctx)
+		parsed = ParseListQuery(ctx)
 
 		return nil
 	})

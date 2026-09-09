@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package html
 
 import (
 	"crypto/sha256"
@@ -10,9 +10,10 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/plex/binding"
-	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/clip/storage"
+	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/binding"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 )
 
 // ThumbHandler proxies and caches Plex thumbnails.
@@ -45,7 +46,7 @@ func NewThumbHandler(
 func (handler *ThumbHandler) Get(ctx fiber.Ctx) error {
 	path := ctx.Query("path")
 	if !plex.ValidThumbPath(path) {
-		return sendStatusCode(ctx, fiber.StatusBadRequest)
+		return shared.SendStatusCode(ctx, fiber.StatusBadRequest)
 	}
 
 	cacheID := thumbCacheID(path)
@@ -75,13 +76,13 @@ func (handler *ThumbHandler) fetchAndCache(
 	// Resolve the bound server before fetching the thumbnail.
 	server, ok := handler.bind.Get()
 	if !ok {
-		return sendStatusCode(ctx, fiber.StatusBadRequest)
+		return shared.SendStatusCode(ctx, fiber.StatusBadRequest)
 	}
 
-	body, contentType, err := newBoundClient(handler.product, handler.clientID, server.Token).
+	body, contentType, err := shared.NewBoundClient(handler.product, handler.clientID, server.Token).
 		GetThumb(ctx.Context(), server, path)
 	if err != nil {
-		return sendStatusCode(ctx, fiber.StatusNotFound)
+		return shared.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
 	writeErr := handler.store.WriteThumbnail(cacheID, body)
@@ -101,7 +102,7 @@ func (handler *ThumbHandler) fetchAndCache(
 func sendThumbBytes(ctx fiber.Ctx, body []byte, contentType string) error {
 	ctx.Type("jpg")
 	ctx.Set("Cache-Control", thumbCacheControl)
-	ctx.Set(headerContentType, contentType)
+	ctx.Set(shared.HeaderContentType, contentType)
 
 	err := ctx.Send(body)
 	if err != nil {

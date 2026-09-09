@@ -1,7 +1,7 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package handlers
+package html
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -43,6 +44,12 @@ type addedAtIndexCache struct {
 }
 
 const (
+	// QueryLetter is the media library first-character jump parameter.
+	queryQ = "q"
+
+	// QuerySort is the media library sort parameter.
+	querySort = "sort"
+
 	// QueryLetter is the media library first-character jump parameter.
 	queryLetter = "letter"
 
@@ -97,11 +104,11 @@ const (
 func parseMediaListQuery(ctx fiber.Ctx) mediaListQuery {
 	return normalizeMediaListQuery(mediaListQuery{
 		Query:     ctx.Query(queryQ),
-		LibraryID: ctx.Query(queryLibrary),
-		ParentID:  ctx.Query(queryParent),
+		LibraryID: ctx.Query(shared.QueryLibrary),
+		ParentID:  ctx.Query(shared.QueryParent),
 		Sort:      ctx.Query(querySort),
 		Letter:    ctx.Query(queryLetter),
-		Start:     pageStart(ctx.Query(queryStart)),
+		Start:     pageStart(ctx.Query(shared.QueryStart)),
 		Before:    pageStart(ctx.Query(queryBefore)),
 	})
 }
@@ -191,12 +198,12 @@ func (query mediaListQuery) showJumpIndex() bool {
 //   - window: Container offset and page size.
 func (query mediaListQuery) window(index []plex.LetterIndex) mediaListWindow {
 	if query.Before > 0 {
-		start := max(query.Before-mediaPageSize, 0)
+		start := max(query.Before-shared.MediaPageSize, 0)
 
 		return mediaListWindow{Start: start, Size: query.Before - start}
 	}
 
-	return mediaListWindow{Start: query.listStart(index), Size: mediaPageSize}
+	return mediaListWindow{Start: query.listStart(index), Size: shared.MediaPageSize}
 }
 
 // plexMediaSort maps an Outtake sort key onto a PMS sort value.
