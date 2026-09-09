@@ -16,6 +16,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
+	plexpage "github.com/PapagoLabs/outtake/internal/plex/page"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 	viewmedia "github.com/PapagoLabs/outtake/internal/web/view/media"
 )
@@ -178,7 +179,7 @@ func (query mediaListQuery) listStart(index []plex.LetterIndex) int {
 		return 0
 	}
 
-	return plex.LetterOffset(index, query.Letter)
+	return plexpage.LetterOffset(index, query.Letter)
 }
 
 // showJumpIndex reports whether the library root has a jump rail.
@@ -462,11 +463,11 @@ func appendInnerJumpMarks(
 func orderJumpIndex(index []plex.LetterIndex, sort string) []plex.LetterIndex {
 	switch sort {
 	case mediaSortTitleDesc:
-		return plex.ReverseIndexes(index)
+		return plexpage.ReverseIndexes(index)
 	case mediaSortYearDesc:
-		return plex.ReverseIndexes(plex.SortYearIndexes(index))
+		return plexpage.ReverseIndexes(plexpage.SortYearIndexes(index))
 	case mediaSortYearAsc:
-		return plex.SortYearIndexes(index)
+		return plexpage.SortYearIndexes(index)
 	default:
 		return index
 	}

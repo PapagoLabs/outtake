@@ -1,21 +1,23 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package plex
+package title
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/PapagoLabs/outtake/internal/plex/page"
 )
 
-// DisplayTitle returns a user-facing title, including show and episode codes.
-//
-// Returns:
-//   - title: The label shown in lists, sessions, and page headings.
-func (item MediaItem) DisplayTitle() string {
+// TypeEpisode is a TV episode media type.
+const TypeEpisode = "episode"
+
+// Display returns a user-facing title, including show and episode codes.
+func Display(item page.MediaItem) string {
 	if item.Type == TypeEpisode {
-		return episodeDisplayTitle(item)
+		return episodeDisplay(item)
 	}
 
 	if item.Year > 0 && item.Title != "" {
@@ -26,13 +28,6 @@ func (item MediaItem) DisplayTitle() string {
 }
 
 // EpisodeCode formats a season and episode number as S01E03.
-//
-// Parameters:
-//   - season: 1-based season number, or 0 when unknown.
-//   - episode: 1-based episode number, or 0 when unknown.
-//
-// Returns:
-//   - code: SxxExx, or empty when both values are missing.
 func EpisodeCode(season, episode int) string {
 	if season <= 0 && episode <= 0 {
 		return ""
@@ -49,13 +44,7 @@ func EpisodeCode(season, episode int) string {
 	return fmt.Sprintf("S%02dE%02d", season, episode)
 }
 
-// SameConnection reports whether two servers share scheme, host, and port.
-func SameConnection(left, right Server) bool {
-	return left.Scheme == right.Scheme && left.Address == right.Address && left.Port == right.Port
-}
-
-// episodeDisplayTitle joins show, episode code, and episode title.
-func episodeDisplayTitle(item MediaItem) string {
+func episodeDisplay(item page.MediaItem) string {
 	var parts []string
 
 	if item.GrandparentTitle != "" {

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
+	plextitle "github.com/PapagoLabs/outtake/internal/plex/title"
 )
 
 const (
@@ -174,7 +175,7 @@ func TestGetMediaPageSendsContainerQuery(t *testing.T) {
 	require.Len(t, page.Items, 1)
 	assert.Equal(t, 200, page.Total)
 	assert.Equal(t, 1999, page.Items[0].Year)
-	assert.Equal(t, "Paged (1999)", page.Items[0].DisplayTitle())
+	assert.Equal(t, "Paged (1999)", plextitle.Display(page.Items[0]))
 }
 
 func TestGetMediaPageSendsSort(t *testing.T) {

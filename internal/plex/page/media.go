@@ -1,13 +1,33 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package plex
+package page
 
 import (
 	"slices"
 	"strconv"
 	"strings"
 )
+
+// MediaItem represents a media item in Plex.
+type MediaItem struct {
+	ID               string  `json:"id"`
+	Title            string  `json:"title"`
+	Type             string  `json:"type"`
+	Duration         float64 `json:"duration"`
+	ThumbPath        string  `json:"thumbPath"`
+	LibraryTitle     string  `json:"libraryTitle"`
+	LibraryID        string  `json:"libraryId,omitempty"`
+	Year             int     `json:"year,omitempty"`
+	Index            int     `json:"index,omitempty"`
+	ParentIndex      int     `json:"parentIndex,omitempty"`
+	ParentID         string  `json:"parentId,omitempty"`
+	ParentTitle      string  `json:"parentTitle,omitempty"`
+	GrandparentID    string  `json:"grandparentId,omitempty"`
+	GrandparentTitle string  `json:"grandparentTitle,omitempty"`
+	TitleSort        string  `json:"titleSort,omitempty"`
+	AddedAt          int64   `json:"addedAt,omitempty"`
+}
 
 // MediaPage is one page of library or container children.
 type MediaPage struct {
@@ -24,13 +44,6 @@ type LetterIndex struct {
 }
 
 // LetterOffset returns the item offset of letter in index order.
-//
-// Parameters:
-//   - index: First-character buckets in PMS order.
-//   - letter: Directory title to find, such as "A" or "#".
-//
-// Returns:
-//   - offset: Sum of sizes before the matching title, or 0 when missing.
 func LetterOffset(index []LetterIndex, letter string) int {
 	offset := 0
 
@@ -46,12 +59,6 @@ func LetterOffset(index []LetterIndex, letter string) int {
 }
 
 // ReverseIndexes returns index in reverse order.
-//
-// Parameters:
-//   - index: Buckets in original order.
-//
-// Returns:
-//   - index: A reversed copy.
 func ReverseIndexes(index []LetterIndex) []LetterIndex {
 	out := make([]LetterIndex, 0, len(index))
 	for _, entry := range slices.Backward(index) {
@@ -62,12 +69,6 @@ func ReverseIndexes(index []LetterIndex) []LetterIndex {
 }
 
 // SortYearIndexes orders year buckets from oldest to newest.
-//
-// Parameters:
-//   - index: Year buckets in any order.
-//
-// Returns:
-//   - index: A sorted copy.
 func SortYearIndexes(index []LetterIndex) []LetterIndex {
 	out := append([]LetterIndex(nil), index...)
 	slices.SortFunc(out, compareYearTitles)
@@ -75,14 +76,6 @@ func SortYearIndexes(index []LetterIndex) []LetterIndex {
 	return out
 }
 
-// compareYearTitles orders two year buckets numerically, oldest first.
-//
-// Parameters:
-//   - left: First year bucket.
-//   - right: Second year bucket.
-//
-// Returns:
-//   - cmp: Negative when left is older, positive when newer.
 func compareYearTitles(left, right LetterIndex) int {
 	leftYear, leftErr := strconv.Atoi(left.Title)
 	rightYear, rightErr := strconv.Atoi(right.Title)

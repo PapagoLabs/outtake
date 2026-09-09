@@ -10,6 +10,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex/decode/plextv"
+	plexserver "github.com/PapagoLabs/outtake/internal/plex/server"
 )
 
 // DiscoverServers discovers Plex servers.
@@ -128,7 +129,7 @@ func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
 // serverFromConnection maps a Plex Connection element onto a Server.
 func serverFromConnection(name, token string, conn plextv.Connection) Server {
 	if conn.URI != "" {
-		parsed, ok := ServerFromURL(conn.URI, token)
+		parsed, ok := plexserver.ServerFromURL(conn.URI, token)
 		if ok {
 			parsed.Name = name
 			parsed.Local = conn.Local == 1
@@ -144,7 +145,7 @@ func serverFromConnection(name, token string, conn plextv.Connection) Server {
 
 	port := conn.Port
 	if port == 0 {
-		port = defaultPortForScheme(scheme)
+		port = plexserver.DefaultPortForScheme(scheme)
 	}
 
 	return Server{

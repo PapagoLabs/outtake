@@ -1,12 +1,14 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package plex
+package title
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/PapagoLabs/outtake/internal/plex/page"
 )
 
 const (
@@ -14,27 +16,27 @@ const (
 	testShow  = "Show"
 )
 
-func TestDisplayTitle(t *testing.T) {
+func TestDisplay(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name string
-		give MediaItem
+		give page.MediaItem
 		want string
 	}{
 		{
 			name: "movie with year",
-			give: MediaItem{Title: testMovie, Type: "movie", Year: 1995},
+			give: page.MediaItem{Title: testMovie, Type: "movie", Year: 1995},
 			want: testMovie + " (1995)",
 		},
 		{
 			name: "movie without year",
-			give: MediaItem{Title: testMovie, Type: "movie"},
+			give: page.MediaItem{Title: testMovie, Type: "movie"},
 			want: testMovie,
 		},
 		{
 			name: "episode with show and codes",
-			give: MediaItem{
+			give: page.MediaItem{
 				Title:            "Episode 3",
 				Type:             TypeEpisode,
 				Index:            3,
@@ -45,7 +47,7 @@ func TestDisplayTitle(t *testing.T) {
 		},
 		{
 			name: "episode title only",
-			give: MediaItem{Title: "Episode", Type: TypeEpisode},
+			give: page.MediaItem{Title: "Episode", Type: TypeEpisode},
 			want: "Episode",
 		},
 	}
@@ -54,7 +56,7 @@ func TestDisplayTitle(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, test.give.DisplayTitle())
+			assert.Equal(t, test.want, Display(test.give))
 		})
 	}
 }
@@ -66,15 +68,4 @@ func TestEpisodeCode(t *testing.T) {
 	assert.Equal(t, "E03", EpisodeCode(0, 3))
 	assert.Equal(t, "S02", EpisodeCode(2, 0))
 	assert.Empty(t, EpisodeCode(0, 0))
-}
-
-func TestSameConnection(t *testing.T) {
-	t.Parallel()
-
-	left := Server{Scheme: defaultScheme, Address: "plex.example", Port: 443}
-	right := left
-	assert.True(t, SameConnection(left, right))
-
-	right.Port = 32400
-	assert.False(t, SameConnection(left, right))
 }

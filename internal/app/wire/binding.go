@@ -9,12 +9,12 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/PapagoLabs/outtake/internal/config"
-	"github.com/PapagoLabs/outtake/internal/plex"
+	plexserver "github.com/PapagoLabs/outtake/internal/plex/server"
 )
 
 // RestoreBinding loads the selected Plex server from config or the database.
 func RestoreBinding(cfg *config.Config, servers ServerSource, bind Binder) {
-	if server, ok := plex.ServerFromURL(cfg.PlexServerURL, cfg.PlexToken); ok {
+	if server, ok := plexserver.ServerFromURL(cfg.PlexServerURL, cfg.PlexToken); ok {
 		bind.Set(server)
 
 		return

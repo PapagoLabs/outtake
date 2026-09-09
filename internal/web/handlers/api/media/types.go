@@ -5,6 +5,7 @@ package media
 
 import (
 	"github.com/PapagoLabs/outtake/internal/plex"
+	plextitle "github.com/PapagoLabs/outtake/internal/plex/title"
 )
 
 // MediaItemResponse represents a media item in API responses.
@@ -46,7 +47,7 @@ func SessionResponses(sessions []plex.Session) []SessionResponse {
 		responses = append(responses, SessionResponse{
 			ID:         sess.ID,
 			MediaID:    sess.MediaItem.ID,
-			Title:      sess.MediaItem.DisplayTitle(),
+			Title:      plextitle.Display(sess.MediaItem),
 			Duration:   sess.Duration,
 			ViewOffset: sess.ViewOffset,
 		})

@@ -16,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
+	plexserver "github.com/PapagoLabs/outtake/internal/plex/server"
 	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
@@ -217,7 +218,7 @@ func (handler *AuthHandler) bindServer(ctx fiber.Ctx, token string) {
 		return
 	}
 
-	unique := plex.PreferUniqueServers(servers)
+	unique := plexserver.PreferUniqueServers(servers)
 	if len(unique) != 1 {
 		return
 	}

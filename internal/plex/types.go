@@ -3,15 +3,22 @@
 
 package plex
 
-// Server represents a Plex server.
-type Server struct {
-	Name    string `json:"name"`
-	Address string `json:"address"`
-	Port    int    `json:"port"`
-	Token   string `json:"token"`
-	Scheme  string `json:"scheme"`
-	Local   bool   `json:"local"`
-}
+import (
+	"github.com/PapagoLabs/outtake/internal/plex/page"
+	"github.com/PapagoLabs/outtake/internal/plex/server"
+)
+
+// MediaItem is a Plex library or container item.
+type MediaItem = page.MediaItem
+
+// MediaPage is one page of library or container children.
+type MediaPage = page.MediaPage
+
+// LetterIndex is one first-character bucket from a library section.
+type LetterIndex = page.LetterIndex
+
+// Server is a Plex Media Server connection.
+type Server = server.Server
 
 // Library represents a Plex library.
 type Library struct {
@@ -19,26 +26,6 @@ type Library struct {
 	Title     string `json:"title"`
 	Type      string `json:"type"`
 	ThumbPath string `json:"thumbPath,omitempty"`
-}
-
-// MediaItem represents a media item in Plex.
-type MediaItem struct {
-	ID               string  `json:"id"`
-	Title            string  `json:"title"`
-	Type             string  `json:"type"`
-	Duration         float64 `json:"duration"`
-	ThumbPath        string  `json:"thumbPath"`
-	LibraryTitle     string  `json:"libraryTitle"`
-	LibraryID        string  `json:"libraryId,omitempty"`
-	Year             int     `json:"year,omitempty"`
-	Index            int     `json:"index,omitempty"`
-	ParentIndex      int     `json:"parentIndex,omitempty"`
-	ParentID         string  `json:"parentId,omitempty"`
-	ParentTitle      string  `json:"parentTitle,omitempty"`
-	GrandparentID    string  `json:"grandparentId,omitempty"`
-	GrandparentTitle string  `json:"grandparentTitle,omitempty"`
-	TitleSort        string  `json:"titleSort,omitempty"`
-	AddedAt          int64   `json:"addedAt,omitempty"`
 }
 
 // Session represents a playback session.
@@ -74,18 +61,8 @@ const (
 )
 
 // EmptyServer returns a Server with every exported field set to its zero value.
-//
-// Returns:
-//   - server: A Server ready to fill or return as a missing-server sentinel.
 func EmptyServer() Server {
-	return Server{
-		Name:    "",
-		Address: "",
-		Port:    0,
-		Token:   "",
-		Scheme:  "",
-		Local:   false,
-	}
+	return server.Empty()
 }
 
 // IsContainerType reports whether the metadata type has children to browse.

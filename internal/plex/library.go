@@ -38,6 +38,9 @@ const (
 
 	// HttpScheme is the HTTP URL scheme.
 	httpScheme = "http"
+
+	httpsPort = 443
+	httpPort  = 80
 )
 
 // plexTypeNames maps Plex metadata types onto outtake type names.

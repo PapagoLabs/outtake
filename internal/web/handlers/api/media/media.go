@@ -6,11 +6,11 @@ package media
 import (
 	fiber "github.com/gofiber/fiber/v3"
 
-	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
-	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
-
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
+	plextitle "github.com/PapagoLabs/outtake/internal/plex/title"
+	sharedplex "github.com/PapagoLabs/outtake/internal/web/handlers/shared/plex"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/shared/respond"
 )
 
 // MediaHandler handles media-related requests.
@@ -75,7 +75,7 @@ func (handler *MediaHandler) Search(ctx fiber.Ctx) error {
 
 		responses = append(responses, MediaItemResponse{
 			ID:           item.ID,
-			Title:        item.DisplayTitle(),
+			Title:        plextitle.Display(item),
 			Type:         item.Type,
 			Duration:     item.Duration,
 			ThumbPath:    item.ThumbPath,

@@ -23,6 +23,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/binding"
+	plexserver "github.com/PapagoLabs/outtake/internal/plex/server"
+	plextitle "github.com/PapagoLabs/outtake/internal/plex/title"
 	"github.com/PapagoLabs/outtake/internal/web/components/browse"
 	"github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/nav"
@@ -320,7 +322,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		LibraryID:     "",
 	}
 	if itemErr == nil {
-		props.Title = item.DisplayTitle()
+		props.Title = plextitle.Display(item)
 		props.Type = item.Type
 		props.Duration = item.Duration
 		props.LibraryID = item.LibraryID
@@ -540,7 +542,7 @@ func (handler *HTMLHandler) bindSelectedURL(ctx fiber.Ctx, rawURL string) error 
 		token = respond.SessionString(session.FromContext(ctx), middleware.SessionKeyToken)
 	}
 
-	server, ok := plex.ServerFromURL(rawURL, token)
+	server, ok := plexserver.ServerFromURL(rawURL, token)
 	if !ok {
 		return respond.RedirectTo(ctx, respond.PathWithError(respond.PathServers, "invalid server URL"))
 	}
@@ -1180,7 +1182,7 @@ func sessionTitleParts(item plex.MediaItem) ([]viewmedia.Crumb, int) {
 
 // displayTitleCrumb is a plain-text fallback when structured parts are missing.
 func displayTitleCrumb(item plex.MediaItem) []viewmedia.Crumb {
-	title := item.DisplayTitle()
+	title := plextitle.Display(item)
 	if title == "" {
 		return nil
 	}
@@ -1259,7 +1261,7 @@ func toMediaItems(
 
 		episodeLabel := ""
 		if item.Type == plex.TypeEpisode {
-			episodeLabel = plex.EpisodeCode(item.ParentIndex, item.Index)
+			episodeLabel = plextitle.EpisodeCode(item.ParentIndex, item.Index)
 		}
 
 		out = append(out, viewmedia.MediaItem{
@@ -1294,7 +1296,7 @@ func toServerItems(servers []plex.Server, current plex.Server) []settings.Server
 			Scheme:   server.Scheme,
 			Token:    server.Token,
 			Local:    server.Local,
-			Selected: plex.SameConnection(server, current),
+			Selected: plexserver.SameConnection(server, current),
 		})
 	}
 

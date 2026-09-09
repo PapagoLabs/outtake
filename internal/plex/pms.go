@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	fiberClient "github.com/gofiber/fiber/v3/client"
+
+	plextitle "github.com/PapagoLabs/outtake/internal/plex/title"
 )
 
 // serverBaseURL returns the scheme://host:port origin for a PMS.
@@ -237,7 +239,7 @@ func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([
 		sessions = append(sessions, Session{
 			ID:         meta.Session.ID,
 			MediaItem:  item,
-			Title:      item.DisplayTitle(),
+			Title:      plextitle.Display(item),
 			Duration:   item.Duration,
 			ViewOffset: float64(meta.ViewOffset) / scaleMsToS,
 		})
