@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/molecule-man/go-brrr to v1.1.0 by @renovate[bot] in [#148](https://github.com/PapagoLabs/outtake/pull/148)
+- Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#146](https://github.com/PapagoLabs/outtake/pull/146)
 - Update github/codeql-action action to v4.38.0 by @renovate[bot] in [#144](https://github.com/PapagoLabs/outtake/pull/144)
 
 ## [0.2.0] - 2026-09-09
