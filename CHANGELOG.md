@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.113.1 by @renovate[bot] in [#151](https://github.com/PapagoLabs/outtake/pull/151)
 - Update module github.com/andybalholm/brotli to v1.2.4 by @renovate[bot] in [#149](https://github.com/PapagoLabs/outtake/pull/149)
 - Update module github.com/molecule-man/go-brrr to v1.1.0 by @renovate[bot] in [#148](https://github.com/PapagoLabs/outtake/pull/148)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#146](https://github.com/PapagoLabs/outtake/pull/146)
