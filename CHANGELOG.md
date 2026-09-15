@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Lock file maintenance by @renovate[bot] in [#153](https://github.com/PapagoLabs/outtake/pull/153)
+- Update module github.com/pierrec/lz4/v4 to v4.1.30 by @renovate[bot] in [#160](https://github.com/PapagoLabs/outtake/pull/160)
 - Update module github.com/gofiber/schema to v1.8.7 by @renovate[bot] in [#159](https://github.com/PapagoLabs/outtake/pull/159)
 - Update module github.com/fxamacker/cbor/v2 to v2.9.4 by @renovate[bot] in [#157](https://github.com/PapagoLabs/outtake/pull/157)
 - Update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.5 by @renovate[bot] in [#156](https://github.com/PapagoLabs/outtake/pull/156)
