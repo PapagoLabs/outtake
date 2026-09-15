@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/schema to v1.8.7 by @renovate[bot] in [#159](https://github.com/PapagoLabs/outtake/pull/159)
+- Update module github.com/fxamacker/cbor/v2 to v2.9.4 by @renovate[bot] in [#157](https://github.com/PapagoLabs/outtake/pull/157)
 - Update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.5 by @renovate[bot] in [#156](https://github.com/PapagoLabs/outtake/pull/156)
 - Update module github.com/gofiber/utils/v2 to v2.5.2 by @renovate[bot] in [#154](https://github.com/PapagoLabs/outtake/pull/154)
 - Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.113.1 by @renovate[bot] in [#151](https://github.com/PapagoLabs/outtake/pull/151)
