@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update docker/setup-qemu-action action to v4.4.0 by @renovate[bot] in [#163](https://github.com/PapagoLabs/outtake/pull/163)
+- Update docker/setup-buildx-action action to v4.4.0 by @renovate[bot] in [#162](https://github.com/PapagoLabs/outtake/pull/162)
+
+## [0.2.1] - 2026-09-15
+
+### Chores
+
 - Lock file maintenance by @renovate[bot] in [#153](https://github.com/PapagoLabs/outtake/pull/153)
 - Update module github.com/pierrec/lz4/v4 to v4.1.30 by @renovate[bot] in [#160](https://github.com/PapagoLabs/outtake/pull/160)
 - Update module github.com/gofiber/schema to v1.8.7 by @renovate[bot] in [#159](https://github.com/PapagoLabs/outtake/pull/159)
@@ -166,7 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Compare Releases
 
-- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.2.0...HEAD)
+- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.2.1...HEAD)
+- [0.2.1](https://github.com/PapagoLabs/outtake/compare/v0.2.0...v0.2.1)
 - [0.2.0](https://github.com/PapagoLabs/outtake/compare/v0.1.1...v0.2.0)
 - [0.1.1](https://github.com/PapagoLabs/outtake/compare/v0.1.0...v0.1.1)
 
