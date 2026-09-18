@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update alpine:3.24.2 docker digest to 31b6477 by @renovate[bot] in [#174](https://github.com/PapagoLabs/outtake/pull/174)
+- Update module github.com/onsi/ginkgo/v2 to v2.33.0 by @renovate[bot] in [#170](https://github.com/PapagoLabs/outtake/pull/170)
 - Update alpine docker tag to v3.24.2 by @renovate[bot] in [#172](https://github.com/PapagoLabs/outtake/pull/172)
 - Update module github.com/onsi/gomega to v1.43.1 by @renovate[bot] in [#169](https://github.com/PapagoLabs/outtake/pull/169)
 - Update module modernc.org/libc to v1.76.0 by @renovate[bot] in [#168](https://github.com/PapagoLabs/outtake/pull/168)
