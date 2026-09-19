@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module modernc.org/libc to v1.77.0 by @renovate[bot] in [#189](https://github.com/PapagoLabs/outtake/pull/189)
+- Update module github.com/dustin/go-humanize to v1.1.0 by @renovate[bot] in [#187](https://github.com/PapagoLabs/outtake/pull/187)
 - Update module github.com/ulikunitz/xz to v0.5.17 by @renovate[bot] in [#186](https://github.com/PapagoLabs/outtake/pull/186)
 - Update orhun/git-cliff-action action to v4.9.1 by @renovate[bot] in [#184](https://github.com/PapagoLabs/outtake/pull/184)
 - Update module github.com/molecule-man/go-brrr to v1.1.1 by @renovate[bot] in [#183](https://github.com/PapagoLabs/outtake/pull/183)
