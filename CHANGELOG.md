@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/ulikunitz/xz to v0.5.17 by @renovate[bot] in [#186](https://github.com/PapagoLabs/outtake/pull/186)
+- Update orhun/git-cliff-action action to v4.9.1 by @renovate[bot] in [#184](https://github.com/PapagoLabs/outtake/pull/184)
 - Update module github.com/molecule-man/go-brrr to v1.1.1 by @renovate[bot] in [#183](https://github.com/PapagoLabs/outtake/pull/183)
 - Update module github.com/aws/smithy-go to v1.28.2 by @renovate[bot] in [#181](https://github.com/PapagoLabs/outtake/pull/181)
 - Update github/codeql-action action to v4.38.1 by @renovate[bot] in [#180](https://github.com/PapagoLabs/outtake/pull/180)
