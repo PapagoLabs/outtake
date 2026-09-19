@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github/codeql-action action to v4.38.1 by @renovate[bot] in [#180](https://github.com/PapagoLabs/outtake/pull/180)
+- Update golang:1.27.1-alpine docker digest to 4cb7ac9 by @renovate[bot] in [#178](https://github.com/PapagoLabs/outtake/pull/178)
 - Update alpine:3.24.2 docker digest to 294b683 by @renovate[bot] in [#177](https://github.com/PapagoLabs/outtake/pull/177)
 - Update golang:1.27.1-alpine docker digest to e9bbdf2 by @renovate[bot] in [#175](https://github.com/PapagoLabs/outtake/pull/175)
 - Update alpine:3.24.2 docker digest to 31b6477 by @renovate[bot] in [#174](https://github.com/PapagoLabs/outtake/pull/174)
