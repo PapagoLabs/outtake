@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang:1.27.1-alpine docker digest to 8a5910f by @renovate[bot] in [#190](https://github.com/PapagoLabs/outtake/pull/190)
 - Update module modernc.org/libc to v1.77.0 by @renovate[bot] in [#189](https://github.com/PapagoLabs/outtake/pull/189)
 - Update module github.com/dustin/go-humanize to v1.1.0 by @renovate[bot] in [#187](https://github.com/PapagoLabs/outtake/pull/187)
 - Update module github.com/ulikunitz/xz to v0.5.17 by @renovate[bot] in [#186](https://github.com/PapagoLabs/outtake/pull/186)
