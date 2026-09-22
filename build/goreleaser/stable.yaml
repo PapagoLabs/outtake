@@ -70,7 +70,7 @@ builds:
         goarch: arm
       - goos: darwin
         goarch: riscv64
-    mod_timestamp: "{{ .CommitDate }}"
+    mod_timestamp: "{{ .CommitTimestamp }}"
 
 ################################################################################
 # Binary Archive Configuration
@@ -95,7 +95,7 @@ archives:
     files:
       - LICENSE
     builds_info:
-      mtime: "{{ .CommitTimestamp }}"
+      mtime: "{{ .CommitDate }}"
 
 ################################################################################
 # Source Archive Configuration
