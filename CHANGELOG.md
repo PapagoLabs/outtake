@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use the commit date for archive mtime by @nicholas-fedor in [#198](https://github.com/PapagoLabs/outtake/pull/198)
 - Use the commit date for archive mtime by @nicholas-fedor in [#195](https://github.com/PapagoLabs/outtake/pull/195)
 
 ### Chores
