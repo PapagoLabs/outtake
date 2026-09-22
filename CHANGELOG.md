@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/utils/v2 to v2.5.3 by @renovate[bot] in [#194](https://github.com/PapagoLabs/outtake/pull/194)
+- Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.113.2 by @renovate[bot] in [#191](https://github.com/PapagoLabs/outtake/pull/191)
 - Update golang:1.27.1-alpine docker digest to 8a5910f by @renovate[bot] in [#190](https://github.com/PapagoLabs/outtake/pull/190)
 - Update module modernc.org/libc to v1.77.0 by @renovate[bot] in [#189](https://github.com/PapagoLabs/outtake/pull/189)
 - Update module github.com/dustin/go-humanize to v1.1.0 by @renovate[bot] in [#187](https://github.com/PapagoLabs/outtake/pull/187)
