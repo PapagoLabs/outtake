@@ -8,8 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Use the commit date for archive mtime by @nicholas-fedor in [#195](https://github.com/PapagoLabs/outtake/pull/195)
+
 ### Chores
 
+- Update module modernc.org/libc to v1.77.1 by @renovate[bot] in [#197](https://github.com/PapagoLabs/outtake/pull/197)
 - Update module github.com/gofiber/utils/v2 to v2.5.3 by @renovate[bot] in [#194](https://github.com/PapagoLabs/outtake/pull/194)
 - Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.113.2 by @renovate[bot] in [#191](https://github.com/PapagoLabs/outtake/pull/191)
 - Update golang:1.27.1-alpine docker digest to 8a5910f by @renovate[bot] in [#190](https://github.com/PapagoLabs/outtake/pull/190)
