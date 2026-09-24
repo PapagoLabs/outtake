@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github/codeql-action action to v4.38.2 by @renovate[bot] in [#204](https://github.com/PapagoLabs/outtake/pull/204)
 - Update module github.com/gofiber/utils/v2 to v2.6.0 by @renovate[bot] in [#201](https://github.com/PapagoLabs/outtake/pull/201)
 - Update module modernc.org/libc to v1.77.1 by @renovate[bot] in [#197](https://github.com/PapagoLabs/outtake/pull/197)
 - Update module github.com/gofiber/utils/v2 to v2.5.3 by @renovate[bot] in [#194](https://github.com/PapagoLabs/outtake/pull/194)
