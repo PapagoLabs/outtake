@@ -23,8 +23,7 @@ coverage/
 *.prof
 
 # Generated
-**/*.templ.go
-!vendor/**/*.templ.go
+**/*_templ.go
 
 # CSS
 share/css/dist/
