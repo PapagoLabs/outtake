@@ -263,6 +263,21 @@ func renderMediaPage(ctx fiber.Ctx, props *view.MediaProps) error {
 }
 
 // MediaItem renders a single media item with a player and its clips.
+//
+// The page is rebuilt from scratch on every request, which is why a preview
+// redirect has to carry the export form state back rather than relying on the
+// form the user submitted. The clip window and the export form are both read
+// off that redirect query.
+//
+// The export form is resolved after the media title, not inside the props
+// literal, because an absent clip name falls back to the title and the title is
+// only known once the Plex lookup has succeeded.
+//
+// Parameters:
+//   - ctx: Incoming page request.
+//
+// Returns:
+//   - err: Non-nil when the page cannot be rendered.
 func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	item, itemErr := handler.loadMediaItem(ctx, id)
@@ -279,37 +294,27 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		maxDur = defaultMaxClipDur
 	}
 
-	start, err := strconv.ParseFloat(ctx.Query("start"), floatBitSize)
-	if err != nil {
-		start = 0
-	}
-
-	end, err := strconv.ParseFloat(ctx.Query("end"), floatBitSize)
-	if err != nil || end <= start {
-		end = start + defaultSegmentSecs
-	}
+	window := mediaItemClipWindow(ctx)
 
 	props := pages.MediaItemPageProps{
-		ID:            id,
-		Title:         id,
-		Type:          "",
-		Duration:      0,
-		MaxDur:        maxDur,
-		Clips:         clips,
-		ClipStatus:    query.Status,
-		ClipType:      query.Type,
-		ClipQuery:     query.Query,
-		ClipSort:      query.Sort,
-		Profiles:      handler.clipProfileOptions(ctx),
-		AudioTracks:   tracks,
-		Error:         mediaItemError(itemErr, ctx.Query(queryError)),
-		PreviewID:     ctx.Query("preview"),
-		StartTime:     start,
-		EndTime:       end,
-		CropBlackBars: handler.cfg.CropBlackBars,
-		WebSafeColor:  previewWebSafeColor(ctx, handler.cfg.WebSafeColor),
-		Crumbs:        nil,
-		LibraryID:     "",
+		ID:          id,
+		Title:       id,
+		Type:        "",
+		Duration:    0,
+		MaxDur:      maxDur,
+		Clips:       clips,
+		ClipStatus:  query.Status,
+		ClipType:    query.Type,
+		ClipQuery:   query.Query,
+		ClipSort:    query.Sort,
+		Profiles:    handler.clipProfileOptions(ctx),
+		AudioTracks: tracks,
+		Error:       mediaItemError(itemErr, ctx.Query(queryError)),
+		PreviewID:   ctx.Query("preview"),
+		StartTime:   window.Start,
+		EndTime:     window.End,
+		Crumbs:      nil,
+		LibraryID:   "",
 	}
 	if itemErr == nil {
 		props.Title = item.DisplayTitle()
@@ -318,6 +323,9 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		props.LibraryID = item.LibraryID
 		props.Crumbs = itemCrumbs(item, handler.sidebarLibraries(ctx))
 	}
+
+	// The export form falls back to the media title, so it is resolved last.
+	props.Export = handler.mediaItemExportForm(ctx, props.Title)
 
 	return renderHTML(ctx, func(writer io.Writer) error {
 		return pages.MediaItemPage(props).Render(ctx.Context(), writer)

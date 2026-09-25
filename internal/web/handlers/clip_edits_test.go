@@ -46,7 +46,7 @@ func TestApplyClipEditsPreservesOmittedWebSafeColor(t *testing.T) {
 func TestPreviewRedirectKeepsMillisecondMarks(t *testing.T) {
 	t.Parallel()
 
-	location := previewRedirectURL("42", "preview-1", 12.345, 18.007, new(true))
+	location := previewRedirectURL("42", "preview-1", 12.345, 18.007, new(true), exportFormState{})
 
 	parsed, err := url.Parse(location)
 	require.NoError(t, err)
@@ -80,7 +80,14 @@ func TestPreviewRedirectMarksParseBack(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			location := previewRedirectURL("7", "p", test.start, test.end, new(false))
+			location := previewRedirectURL(
+				"7",
+				"p",
+				test.start,
+				test.end,
+				new(false),
+				exportFormState{},
+			)
 
 			parsed, err := url.Parse(location)
 			require.NoError(t, err)

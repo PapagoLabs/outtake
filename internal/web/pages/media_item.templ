@@ -20,27 +20,92 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+const (
+	// exportTypeClip is the video clip export type.
+	exportTypeClip = "clip"
+	// exportTypeGIF is the GIF export type.
+	exportTypeGIF = "gif"
+	// exportTypeScreenshot is the screenshot export type.
+	exportTypeScreenshot = "screenshot"
+
+	// defaultExportType is the export type prefilled in the New export form.
+	defaultExportType = exportTypeClip
+	// defaultGIFWidth is the GIF export width prefilled in the New export form.
+	defaultGIFWidth = 480
+	// defaultGIFFPS is the GIF export frame rate prefilled in the New export form.
+	defaultGIFFPS = 10
+)
+
+// exportTypeIs reports whether an export type option is the current choice.
+//
+// An unset type means the page was opened without one, which is a first visit
+// and should show the default rather than leaving the browser to pick.
+//
+// Parameters:
+//   - chosen: Carried export type, empty when the form was never submitted.
+//   - option: The export type this option represents.
+//
+// Returns:
+//   - selected: True when the option is the current choice.
+func exportTypeIs(chosen, option string) bool {
+	if chosen == "" {
+		chosen = defaultExportType
+	}
+
+	return chosen == option
+}
+
+// gifWidthOrDefault returns the GIF width to prefill the New export form with.
+//
+// Parameters:
+//   - width: Carried GIF width, where zero means the field was never set.
+//
+// Returns:
+//   - value: width when it was carried, otherwise the form default.
+func gifWidthOrDefault(width int) int {
+	if width > 0 {
+		return width
+	}
+
+	return defaultGIFWidth
+}
+
+// gifFPSOrDefault returns the GIF frame rate to prefill the New export form with.
+//
+// Parameters:
+//   - fps: Carried GIF frame rate, where zero means the field was never set.
+//
+// Returns:
+//   - value: fps when it was carried, otherwise the form default.
+func gifFPSOrDefault(fps int) int {
+	if fps > 0 {
+		return fps
+	}
+
+	return defaultGIFFPS
+}
+
 type MediaItemPageProps struct {
-	ID            string
-	Title         string
-	Type          string
-	Duration      float64
-	MaxDur        int
-	Clips         []view.ClipItem
-	ClipStatus    string
-	ClipType      string
-	ClipQuery     string
-	ClipSort      string
-	Profiles      []view.ClipProfileOption
-	AudioTracks   []view.AudioTrackOption
-	Error         string
-	PreviewID     string
-	StartTime     float64
-	EndTime       float64
-	CropBlackBars bool
-	WebSafeColor  bool
-	Crumbs        []view.Crumb
-	LibraryID     string
+	ID          string
+	Title       string
+	Type        string
+	Duration    float64
+	MaxDur      int
+	Clips       []view.ClipItem
+	ClipStatus  string
+	ClipType    string
+	ClipQuery   string
+	ClipSort    string
+	Profiles    []view.ClipProfileOption
+	AudioTracks []view.AudioTrackOption
+	Error       string
+	PreviewID   string
+	StartTime   float64
+	EndTime     float64
+	// Export is the New export form state, carried across preview redirects.
+	Export    view.ExportForm
+	Crumbs    []view.Crumb
+	LibraryID string
 }
 
 templ MediaItemPage(props MediaItemPageProps) {
@@ -109,17 +174,17 @@ templ MediaItemPage(props MediaItemPageProps) {
 							@label.Label(label.Props{For: "clipType"}) {
 								Export as
 							}
-							<select id="clipType" name="clipType" class={ utils.ControlClass }>
-								<option value="clip">Video clip</option>
-								<option value="gif">GIF</option>
-								<option value="screenshot">Screenshot</option>
-							</select>
-						</div>
-						<div class="flex flex-col gap-2">
-							@label.Label(label.Props{For: "name"}) {
-								Clip name
-							}
-							@input.Input(input.Props{ID: "name", Name: "name", Placeholder: "Optional name", Value: props.Title})
+						<select id="clipType" name="clipType" class={ utils.ControlClass }>
+							<option value={ exportTypeClip } selected?={ exportTypeIs(props.Export.Type, exportTypeClip) }>Video clip</option>
+							<option value={ exportTypeGIF } selected?={ exportTypeIs(props.Export.Type, exportTypeGIF) }>GIF</option>
+							<option value={ exportTypeScreenshot } selected?={ exportTypeIs(props.Export.Type, exportTypeScreenshot) }>Screenshot</option>
+						</select>
+					</div>
+					<div class="flex flex-col gap-2">
+						@label.Label(label.Props{For: "name"}) {
+							Clip name
+						}
+						@input.Input(input.Props{ID: "name", Name: "name", Placeholder: "Optional name", Value: props.Export.Name})
 						</div>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2">
@@ -151,31 +216,31 @@ templ MediaItemPage(props MediaItemPageProps) {
 								@label.Label(label.Props{For: "quality"}) {
 									Profile
 								}
-								@quality.QualitySelect("quality", props.Profiles, "")
-							</div>
-							if len(props.AudioTracks) > 0 {
-								<div class="flex flex-col gap-2" data-export-for="clip">
-									@label.Label(label.Props{For: "audioIndex"}) {
-										Audio track
-									}
-									@quality.AudioSelect("audioIndex", props.AudioTracks, 0)
-								</div>
-							}
-							<div class="flex flex-col gap-2" data-export-for="gif">
-								@label.Label(label.Props{For: "width"}) {
-									GIF width (px)
-								}
-								<input id="width" name="width" type="number" min="120" max="1920" value="480" class={ utils.ControlClass }/>
-							</div>
-							<div class="flex flex-col gap-2" data-export-for="gif">
-								@label.Label(label.Props{For: "fps"}) {
-									GIF frames per second
-								}
-								<input id="fps" name="fps" type="number" min="5" max="30" value="10" class={ utils.ControlClass }/>
-							</div>
+							@quality.QualitySelect("quality", props.Profiles, props.Export.Quality)
 						</div>
-						@clip.CropBlackBarsField(props.CropBlackBars)
-						@clip.WebSafeColorField(props.WebSafeColor)
+						if len(props.AudioTracks) > 0 {
+							<div class="flex flex-col gap-2" data-export-for="clip">
+								@label.Label(label.Props{For: "audioIndex"}) {
+									Audio track
+								}
+								@quality.AudioSelect("audioIndex", props.AudioTracks, props.Export.AudioIndex)
+							</div>
+						}
+						<div class="flex flex-col gap-2" data-export-for="gif">
+							@label.Label(label.Props{For: "width"}) {
+								GIF width (px)
+							}
+							<input id="width" name="width" type="number" min="120" max="1920" value={ strconv.Itoa(gifWidthOrDefault(props.Export.Width)) } class={ utils.ControlClass }/>
+						</div>
+						<div class="flex flex-col gap-2" data-export-for="gif">
+							@label.Label(label.Props{For: "fps"}) {
+								GIF frames per second
+							}
+							<input id="fps" name="fps" type="number" min="5" max="30" value={ strconv.Itoa(gifFPSOrDefault(props.Export.FPS)) } class={ utils.ControlClass }/>
+						</div>
+					</div>
+					@clip.CropBlackBarsField(props.Export.CropBlackBars)
+					@clip.WebSafeColorField(props.Export.WebSafeColor)
 						<div class="flex gap-3">
 							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="js-export-submit inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
 								Preview
