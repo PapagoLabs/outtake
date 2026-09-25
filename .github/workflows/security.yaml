@@ -75,13 +75,31 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Checkout Repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install templ
+        run: go install github.com/a-h/templ/cmd/templ@09d6b02946f54492f3d3dcb9729f5b792f220b40 #v0.3.1020
+
+      - name: Generate templ
+        run: templ generate
+
       - name: Run govulncheck
         id: govulncheck
         uses: nicholas-fedor/govulncheck-action@2e8328bfd2a2259f6b48ad47edc8101c86e74883 # v1.0.5
         with:
+          repo-checkout: "false"
+          setup-go: "false"
           output-format: sarif
           output-file: ${{ env.OUTPUT_FILE }}
-          go-version-file: "go.mod"
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
