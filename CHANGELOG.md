@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generate templ before the vulnerability scan by @nicholas-fedor in [#218](https://github.com/PapagoLabs/outtake/pull/218)
 - Use the commit date for archive mtime by @nicholas-fedor in [#198](https://github.com/PapagoLabs/outtake/pull/198)
 - Use the commit date for archive mtime by @nicholas-fedor in [#195](https://github.com/PapagoLabs/outtake/pull/195)
 
 ### Chores
 
+- Update module github.com/onsi/gomega to v1.44.0 by @renovate[bot] in [#216](https://github.com/PapagoLabs/outtake/pull/216)
 - Stop tracking generated templ output by @nicholas-fedor in [#214](https://github.com/PapagoLabs/outtake/pull/214)
 - Update dependency golangci/golangci-lint to v2.14 by @renovate[bot] in [#212](https://github.com/PapagoLabs/outtake/pull/212)
 - Update module github.com/klauspost/compress to v1.20.1 by @renovate[bot] in [#211](https://github.com/PapagoLabs/outtake/pull/211)
@@ -49,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Return 200 from clip delete so htmx removes the card by @nicholas-fedor in [#219](https://github.com/PapagoLabs/outtake/pull/219)
 - Carry export form state across preview redirects by @nicholas-fedor in [#215](https://github.com/PapagoLabs/outtake/pull/215)
 - Preserve millisecond precision on preview marks by @nicholas-fedor in [#210](https://github.com/PapagoLabs/outtake/pull/210)
 
