@@ -319,11 +319,39 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 
 	end := req.StartTime + req.Duration
 
-	return redirectTo(ctx, "/media/item/"+req.MediaID+
-		"?preview="+previewID+
-		"&start="+strconv.FormatFloat(req.StartTime, 'f', 1, 64)+
-		"&end="+strconv.FormatFloat(end, 'f', 1, 64)+
-		"&"+queryWebSafeColor+"="+webSafeQueryValue(req.WebSafeColor))
+	return redirectTo(
+		ctx,
+		previewRedirectURL(req.MediaID, previewID, req.StartTime, end, req.WebSafeColor),
+	)
+}
+
+// previewRedirectURL builds the media item location that carries a rendered
+// preview back to the New export form.
+//
+// Start and end are written with millisecond precision so the marks the user
+// chose are the marks the form re-renders. Formatting them more coarsely shifts
+// each mark on every preview round trip, which is invisible on a seconds-only
+// view and corrupts an edit that is trying to land on an exact frame.
+//
+// Parameters:
+//   - mediaID: Plex rating key of the source item.
+//   - previewID: Storage id of the rendered preview.
+//   - start: Start mark in seconds.
+//   - end: End mark in seconds.
+//   - webSafeColor: Web-safe color checkbox state, nil when the form omitted it.
+//
+// Returns:
+//   - location: A path-only redirect target.
+func previewRedirectURL(
+	mediaID, previewID string,
+	start, end float64,
+	webSafeColor *bool,
+) string {
+	return "/media/item/" + mediaID +
+		"?preview=" + previewID +
+		"&start=" + media.FormatSeconds(start) +
+		"&end=" + media.FormatSeconds(end) +
+		"&" + queryWebSafeColor + "=" + webSafeQueryValue(webSafeColor)
 }
 
 // Update saves clip metadata and optionally regenerates the file.

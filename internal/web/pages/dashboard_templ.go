@@ -491,9 +491,9 @@ func LiveSessions(sessions []SessionItem) templ.Component {
 							return templ_7745c5c3_Err
 						}
 						var templ_7745c5c3_Var25 templ.SafeURL
-						templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/media/item/" + sess.MediaID + "?start=" + strconv.FormatFloat(sess.ViewOffset, 'f', 1, 64)))
+						templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/media/item/" + sess.MediaID + "?start=" + media.FormatSeconds(sess.ViewOffset)))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/dashboard.templ`, Line: 126, Col: 122}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/dashboard.templ`, Line: 126, Col: 110}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 						if templ_7745c5c3_Err != nil {
