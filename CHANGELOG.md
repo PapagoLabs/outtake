@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/schema to v1.8.8 by @renovate[bot] in [#208](https://github.com/PapagoLabs/outtake/pull/208)
 - Update module github.com/andybalholm/brotli to v1.2.5 by @renovate[bot] in [#207](https://github.com/PapagoLabs/outtake/pull/207)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#203](https://github.com/PapagoLabs/outtake/pull/203)
 - Update github/codeql-action action to v4.38.2 by @renovate[bot] in [#204](https://github.com/PapagoLabs/outtake/pull/204)
@@ -42,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update module modernc.org/sqlite to v1.59.0 by @renovate[bot] in [#165](https://github.com/PapagoLabs/outtake/pull/165)
 - Update docker/setup-qemu-action action to v4.4.0 by @renovate[bot] in [#163](https://github.com/PapagoLabs/outtake/pull/163)
 - Update docker/setup-buildx-action action to v4.4.0 by @renovate[bot] in [#162](https://github.com/PapagoLabs/outtake/pull/162)
+
+### Fixed
+
+- Preserve millisecond precision on preview marks by @nicholas-fedor in [#210](https://github.com/PapagoLabs/outtake/pull/210)
 
 ## [0.2.1] - 2026-09-15
 
