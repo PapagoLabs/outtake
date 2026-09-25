@@ -45,7 +45,7 @@ const (
 	// QueryLibrary is the media library id query parameter.
 	queryLibrary = "library"
 
-	// QueryStart is the media pagination offset.
+	// QueryStart is the media pagination offset, and the New export start mark.
 	queryStart = "start"
 
 	// QueryParent is the media container parent id.
@@ -62,6 +62,30 @@ const (
 
 	// QueryWebSafeColor carries the New export web-safe color checkbox.
 	queryWebSafeColor = "webSafeColor"
+
+	// QueryExportType carries the New export type across a preview redirect.
+	queryExportType = "exportType"
+
+	// QueryExportName carries the New export clip name across a redirect.
+	queryExportName = "exportName"
+
+	// QueryQuality carries the New export profile across a preview redirect.
+	queryQuality = "quality"
+
+	// QueryAudioIndex carries the New export audio track across a redirect.
+	queryAudioIndex = "audioIndex"
+
+	// QueryWidth carries the New export GIF width across a preview redirect.
+	queryWidth = "width"
+
+	// QueryFPS carries the New export GIF frame rate across a preview redirect.
+	queryFPS = "fps"
+
+	// QueryCropBlackBars carries the New export crop toggle across a redirect.
+	queryCropBlackBars = "cropBlackBars"
+
+	// QueryEnd is the New export end mark on a media item page.
+	queryEnd = "end"
 
 	// QueryUnchecked is the query value for an explicit false checkbox.
 	queryUnchecked = "0"

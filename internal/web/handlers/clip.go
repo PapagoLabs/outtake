@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -321,17 +322,29 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 
 	return redirectTo(
 		ctx,
-		previewRedirectURL(req.MediaID, previewID, req.StartTime, end, req.WebSafeColor),
+		previewRedirectURL(
+			req.MediaID,
+			previewID,
+			req.StartTime,
+			end,
+			req.WebSafeColor,
+			exportFormFromRequest(req),
+		),
 	)
 }
 
 // previewRedirectURL builds the media item location that carries a rendered
-// preview back to the New export form.
+// preview and the submitted export form back to the form.
 //
 // Start and end are written with millisecond precision so the marks the user
 // chose are the marks the form re-renders. Formatting them more coarsely shifts
 // each mark on every preview round trip, which is invisible on a seconds-only
 // view and corrupts an edit that is trying to land on an exact frame.
+//
+// The export form state travels with them because the redirect discards the
+// current page. Anything left behind is rebuilt from its default, which
+// silently resets the profile, audio track, GIF size, export type, and crop
+// toggle the user already chose.
 //
 // Parameters:
 //   - mediaID: Plex rating key of the source item.
@@ -339,6 +352,7 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 //   - start: Start mark in seconds.
 //   - end: End mark in seconds.
 //   - webSafeColor: Web-safe color checkbox state, nil when the form omitted it.
+//   - state: Export form state to carry across the redirect.
 //
 // Returns:
 //   - location: A path-only redirect target.
@@ -346,12 +360,16 @@ func previewRedirectURL(
 	mediaID, previewID string,
 	start, end float64,
 	webSafeColor *bool,
+	state exportFormState,
 ) string {
-	return "/media/item/" + mediaID +
-		"?preview=" + previewID +
-		"&start=" + media.FormatSeconds(start) +
-		"&end=" + media.FormatSeconds(end) +
-		"&" + queryWebSafeColor + "=" + webSafeQueryValue(webSafeColor)
+	values := url.Values{}
+	values.Set("preview", previewID)
+	values.Set(queryStart, media.FormatSeconds(start))
+	values.Set(queryEnd, media.FormatSeconds(end))
+	values.Set(queryWebSafeColor, webSafeQueryValue(webSafeColor))
+	state.applyToQuery(values)
+
+	return "/media/item/" + mediaID + "?" + values.Encode()
 }
 
 // Update saves clip metadata and optionally regenerates the file.

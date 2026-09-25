@@ -21,7 +21,7 @@ func TestClipsToolbar(t *testing.T) {
 	err := Clips(ClipsProps{
 		Items:  nil,
 		Status: view.ClipStatusPending,
-		Type:   "gif",
+		Type:   exportTypeGIF,
 		Query:  "intro",
 		Sort:   "name_asc",
 	}).Render(t.Context(), &buf)
@@ -46,7 +46,7 @@ func TestClipsListOmitsLayout(t *testing.T) {
 	err := ClipsList(ClipsProps{
 		Items:  nil,
 		Status: "",
-		Type:   "clip",
+		Type:   exportTypeClip,
 		Query:  "",
 		Sort:   "created_desc",
 	}).Render(t.Context(), &buf)
