@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Stop tracking generated templ output by @nicholas-fedor in [#214](https://github.com/PapagoLabs/outtake/pull/214)
+- Update dependency golangci/golangci-lint to v2.14 by @renovate[bot] in [#212](https://github.com/PapagoLabs/outtake/pull/212)
+- Update module github.com/klauspost/compress to v1.20.1 by @renovate[bot] in [#211](https://github.com/PapagoLabs/outtake/pull/211)
 - Update module github.com/gofiber/schema to v1.8.8 by @renovate[bot] in [#208](https://github.com/PapagoLabs/outtake/pull/208)
 - Update module github.com/andybalholm/brotli to v1.2.5 by @renovate[bot] in [#207](https://github.com/PapagoLabs/outtake/pull/207)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#203](https://github.com/PapagoLabs/outtake/pull/203)
@@ -46,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Carry export form state across preview redirects by @nicholas-fedor in [#215](https://github.com/PapagoLabs/outtake/pull/215)
 - Preserve millisecond precision on preview marks by @nicholas-fedor in [#210](https://github.com/PapagoLabs/outtake/pull/210)
 
 ## [0.2.1] - 2026-09-15
