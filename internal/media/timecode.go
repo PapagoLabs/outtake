@@ -5,6 +5,7 @@ package media
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/media/timecode"
@@ -23,6 +24,16 @@ type FFmpegClock = timecode.FFmpegClock
 
 // Timecode is a media timestamp.
 type Timecode = timecode.Timecode
+
+const (
+	// TimecodeDecimals is the number of fractional second digits used when a
+	// timecode crosses a boundary that only carries seconds, such as a query
+	// parameter or a button offset. It matches the millisecond precision that
+	// Clock.Parse accepts.
+	TimecodeDecimals = 3
+	// TimecodeBitSize is the float bit size used to format seconds.
+	TimecodeBitSize = 64
+)
 
 // ErrInvalidTimecode is returned when a timestamp string cannot be parsed.
 var ErrInvalidTimecode = timecode.ErrInvalidTimecode
@@ -59,4 +70,22 @@ func Parse(value string) (Timecode, error) {
 	}
 
 	return timecode.FromDuration(d), nil
+}
+
+// FormatSeconds renders seconds as a fixed-point decimal with millisecond
+// precision.
+//
+// Start and end marks are handed to the browser through query parameters and
+// read back with [strconv.ParseFloat], so this value has to survive a round
+// trip. Truncating below millisecond precision moves the user's marks on every
+// round trip, which is invisible on a seconds-only view and destructive when
+// the edit is frame-accurate.
+//
+// Parameters:
+//   - seconds: Timestamp in seconds.
+//
+// Returns:
+//   - text: A decimal string carrying exactly TimecodeDecimals fractional digits.
+func FormatSeconds(seconds float64) string {
+	return strconv.FormatFloat(seconds, 'f', TimecodeDecimals, TimecodeBitSize)
 }

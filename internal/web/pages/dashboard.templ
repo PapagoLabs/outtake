@@ -123,7 +123,7 @@ templ LiveSessions(sessions []SessionItem) {
 						</div>
 						if sess.MediaID != "" {
 							<a
-								href={ templ.SafeURL("/media/item/" + sess.MediaID + "?start=" + strconv.FormatFloat(sess.ViewOffset, 'f', 1, 64)) }
+								href={ templ.SafeURL("/media/item/" + sess.MediaID + "?start=" + media.FormatSeconds(sess.ViewOffset)) }
 								class="inline-flex shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
 							>
 								Clip now
