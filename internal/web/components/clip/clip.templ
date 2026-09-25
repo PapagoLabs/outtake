@@ -58,77 +58,117 @@ templ clipFileBadge(item view.ClipItem) {
 	}
 }
 
-templ ClipCard(item view.ClipItem) {
+// ClipStatus renders the parts of a clip card that change while it encodes.
+//
+// The poll swaps only this region, so the edit form beside it is never
+// replaced and a half-typed change survives. Everything that legitimately
+// changes as a clip progresses belongs here: the status and file badges, the
+// error, the progress bar, the preview player that appears on completion,
+// and the action buttons, which swap from Cancel to the completed actions.
+templ ClipStatus(item view.ClipItem) {
 	<div
-		id={ "clip-" + item.ID }
+		id={ "clip-" + item.ID + "-status" }
 		if item.IsActive() {
 			hx-get={ "/clips/" + item.ID + "/row" }
 			hx-trigger="every 2s"
 			hx-swap="outerHTML"
 		}
+		class="flex flex-col gap-4"
 	>
+		<div class="flex items-center justify-between gap-3">
+			<div class="flex flex-col gap-1">
+				<div class="flex flex-wrap items-center gap-2">
+					<span class="font-medium">{ item.DisplayName() }</span>
+					@badge.Badge(badge.Props{Variant: statusBadgeVariant(item.Status)}) {
+						{ item.Status }
+					}
+					@clipFileBadge(item)
+				</div>
+				<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+					<span>{ view.ClipTypeLabel(item.ClipType) }</span>
+					if item.ProfileName != "" {
+						<span>&middot;</span>
+						<span>{ item.ProfileName }</span>
+					}
+					if item.MediaTitle != "" {
+						<span>&middot;</span>
+						if item.MediaID != "" {
+							<a href={ templ.SafeURL("/media/item/" + item.MediaID) } class="hover:text-foreground">{ item.MediaTitle }</a>
+						} else {
+							<span>{ item.MediaTitle }</span>
+						}
+					}
+					<span>&middot;</span>
+					<span>{ media.FromSeconds(item.StartTime).HMS() }</span>
+					if item.ClipType != "screenshot" {
+						<span>+</span>
+						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
+					}
+					if item.CreatedAt != "" {
+						<span>&middot;</span>
+						<span>{ item.CreatedAt }</span>
+					}
+				</div>
+			</div>
+			<button
+				type="button"
+				hx-delete={ "/api/clips/" + item.ID }
+				hx-target={ "#clip-" + item.ID }
+				hx-swap="delete"
+				hx-disable="this"
+				hx-confirm="Delete this clip? This cannot be undone."
+				class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
+			>
+				Delete
+			</button>
+		</div>
+		if item.Error != "" {
+			<p class="text-sm text-destructive">{ item.Error }</p>
+		}
+		if item.IsActive() {
+			<div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+				<div class="h-full rounded-full bg-primary" style={ "width: " + strconv.Itoa(item.Progress) + "%" }></div>
+			</div>
+			<p class="text-xs text-muted-foreground">{ strconv.Itoa(item.Progress) }%</p>
+		}
+		@clipPlayback(item)
+		<div class="flex flex-wrap items-end gap-2">
+			if item.IsActive() {
+				<button
+					type="button"
+					hx-post={ "/api/clips/" + item.ID + "/cancel" }
+					hx-target={ "#clip-" + item.ID }
+					hx-swap="outerHTML"
+					hx-disable="this"
+					class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+				>
+					Cancel
+				</button>
+			} else {
+				<button type="submit" name="regenerate" value="1" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+					Regenerate
+				</button>
+				<button type="submit" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+					Save metadata
+				</button>
+			}
+			if item.CanPlay() {
+				<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+					Download
+				</a>
+			}
+		</div>
+	</div>
+}
+
+templ ClipCard(item view.ClipItem) {
+	<div id={ "clip-" + item.ID }>
 		@card.Card() {
 			@card.Content() {
 				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(item.MaxDur) }>
 					@csrf.Field()
 					<input type="hidden" name="mediaId" value={ item.MediaID }/>
-					<div class="flex items-center justify-between gap-3">
-						<div class="flex flex-col gap-1">
-							<div class="flex flex-wrap items-center gap-2">
-								<span class="font-medium">{ item.DisplayName() }</span>
-								@badge.Badge(badge.Props{Variant: statusBadgeVariant(item.Status)}) {
-									{ item.Status }
-								}
-								@clipFileBadge(item)
-							</div>
-							<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-								<span>{ view.ClipTypeLabel(item.ClipType) }</span>
-								if item.ProfileName != "" {
-									<span>&middot;</span>
-									<span>{ item.ProfileName }</span>
-								}
-								if item.MediaTitle != "" {
-									<span>&middot;</span>
-									if item.MediaID != "" {
-										<a href={ templ.SafeURL("/media/item/" + item.MediaID) } class="hover:text-foreground">{ item.MediaTitle }</a>
-									} else {
-										<span>{ item.MediaTitle }</span>
-									}
-								}
-								<span>&middot;</span>
-								<span>{ media.FromSeconds(item.StartTime).HMS() }</span>
-								if item.ClipType != "screenshot" {
-									<span>+</span>
-									<span>{ media.FromSeconds(item.Duration).HMS() }</span>
-								}
-								if item.CreatedAt != "" {
-									<span>&middot;</span>
-									<span>{ item.CreatedAt }</span>
-								}
-							</div>
-						</div>
-						<button
-							type="button"
-							hx-delete={ "/api/clips/" + item.ID }
-							hx-target={ "#clip-" + item.ID }
-							hx-swap="delete"
-							hx-disable="this"
-							hx-confirm="Delete this clip? This cannot be undone."
-							class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
-						>
-							Delete
-						</button>
-					</div>
-					if item.Error != "" {
-						<p class="text-sm text-destructive">{ item.Error }</p>
-					}
-					if item.IsActive() {
-						<div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-							<div class="h-full rounded-full bg-primary" style={ "width: " + strconv.Itoa(item.Progress) + "%" }></div>
-						</div>
-						<p class="text-xs text-muted-foreground">{ strconv.Itoa(item.Progress) }%</p>
-					}
-					@clipPlayback(item)
+					@ClipStatus(item)
 					<div class="grid gap-4 sm:grid-cols-2">
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "type-" + item.ID}) {
@@ -198,32 +238,6 @@ templ ClipCard(item view.ClipItem) {
 					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).String() }</span> (max { media.FromSeconds(float64(item.MaxDur)).String() }) <span data-duration-warning class="hidden text-destructive">Clamped to the maximum duration.</span></p>
 					@CropBlackBarsField(item.CropBlackBars)
 					@WebSafeColorField(item.WebSafeColor)
-					<div class="flex flex-wrap items-end gap-2">
-						if item.IsActive() {
-							<button
-								type="button"
-								hx-post={ "/api/clips/" + item.ID + "/cancel" }
-								hx-target={ "#clip-" + item.ID }
-								hx-swap="outerHTML"
-								hx-disable="this"
-								class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-							>
-								Cancel
-							</button>
-						} else {
-							<button type="submit" name="regenerate" value="1" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
-								Regenerate
-							</button>
-							<button type="submit" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
-								Save metadata
-							</button>
-						}
-						if item.CanPlay() {
-							<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
-								Download
-							</a>
-						}
-					</div>
 				</form>
 			}
 		}

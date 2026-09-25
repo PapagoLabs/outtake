@@ -56,7 +56,7 @@ func newDeleteTestHandler(t *testing.T, id string) *ClipHandler {
 	job := &queue.Job{
 		ID:         id,
 		Type:       queue.JobTypeClip,
-		Name:       "Intro",
+		Name:       testClipName,
 		MediaID:    "100",
 		MediaTitle: testMovie,
 		MediaType:  "movie",
@@ -64,7 +64,7 @@ func newDeleteTestHandler(t *testing.T, id string) *ClipHandler {
 		OutputPath: "",
 		StartTime:  10,
 		Duration:   15,
-		Quality:    "medium",
+		Quality:    defaultQuality,
 		Status:     queue.JobStatusPending,
 		CreatedAt:  time.Now().UTC().Truncate(time.Second),
 		UpdatedAt:  time.Now().UTC().Truncate(time.Second),

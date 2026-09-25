@@ -13,6 +13,168 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+// TestClipCardPollDoesNotCoverEditForm is the regression guard for the
+// destructive poll.
+//
+// The card root must stay a bare element, because the poll swaps the status
+// region with outerHTML and anything inside that region is replaced. If the
+// poll attributes were moved back onto the card root, the whole card including
+// the edit form would be re-rendered every two seconds and discard whatever the
+// user had typed.
+func TestClipCardPollDoesNotCoverEditForm(t *testing.T) {
+	t.Parallel()
+
+	item := activeTestItem()
+
+	var buf strings.Builder
+
+	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
+	body := buf.String()
+
+	// A bare root proves no poll attributes leaked onto the card.
+	assert.Contains(t, body, `<div id="clip-c1">`)
+
+	statusAt := strings.Index(body, `id="clip-c1-status"`)
+	require.Positive(t, statusAt, "the polled status region must exist")
+
+	// The region carries the poll.
+	assert.Contains(t, body, `hx-get="/clips/c1/row"`)
+	assert.Contains(t, body, `hx-trigger="every 2s"`)
+	assert.Contains(t, body, `hx-swap="outerHTML"`)
+
+	// templ emits well-formed markup, so the region closing before the form
+	// fields grid opens proves the editable inputs sit outside the region and
+	// therefore survive the swap.
+	gridAt := strings.Index(body, `<div class="grid gap-4 sm:grid-cols-2">`)
+	require.Positive(t, gridAt)
+	assert.Less(t, statusAt, gridAt, "the polled region must close before the form fields")
+
+	// The action buttons change with the clip, so they belong in the region.
+	// Leaving them outside strands a finished clip showing Cancel.
+	cancelAt := strings.Index(body, "Cancel")
+	require.Positive(t, cancelAt)
+	assert.Less(t, cancelAt, gridAt, "the action buttons must sit inside the polled region")
+
+	// A finished card offers the other actions, and they must also be inside
+	// the region for the same reason.
+	finished := activeTestItem()
+	finished.Status = view.ClipStatusCompleted
+	finished.FileExists = true
+
+	var finishedBuf strings.Builder
+
+	require.NoError(t, ClipCard(finished).Render(t.Context(), &finishedBuf))
+	finishedBody := finishedBuf.String()
+
+	finishedStatusAt := strings.Index(finishedBody, `id="clip-c1-status"`)
+	finishedGridAt := strings.Index(finishedBody, `<div class="grid gap-4 sm:grid-cols-2">`)
+	require.Positive(t, finishedStatusAt)
+	require.Positive(t, finishedGridAt)
+
+	for _, action := range []string{"Regenerate", "Save metadata", "/api/clips/c1/download"} {
+		at := strings.Index(finishedBody, action)
+		require.Positive(t, at, action)
+		assert.Less(t, at, finishedGridAt, action+" must sit inside the polled region")
+	}
+
+	formAt := strings.Index(body, `action="/api/clips/c1/update"`)
+	require.Positive(t, formAt)
+	assert.Less(t, formAt, statusAt, "the status region is a sibling of the form fields, inside the form")
+}
+
+// TestClipStatusSwapsActionButtons pins the action buttons into the polled
+// region, since which actions are offered depends on the clip status: an
+// encoding clip can be cancelled, a finished one can be regenerated, saved,
+// and downloaded.
+func TestClipStatusSwapsActionButtons(t *testing.T) {
+	t.Parallel()
+
+	encoding := activeTestItem()
+
+	var active strings.Builder
+
+	require.NoError(t, ClipStatus(encoding).Render(t.Context(), &active))
+
+	activeBody := active.String()
+	assert.Contains(t, activeBody, "Cancel")
+	assert.NotContains(t, activeBody, "Regenerate", "an encoding clip cannot be regenerated")
+	assert.NotContains(t, activeBody, "Download")
+
+	done := activeTestItem()
+	done.Status = view.ClipStatusCompleted
+	done.FileExists = true
+
+	var finished strings.Builder
+
+	require.NoError(t, ClipStatus(done).Render(t.Context(), &finished))
+
+	finishedBody := finished.String()
+	assert.NotContains(t, finishedBody, "Cancel", "a finished clip cannot be cancelled")
+	assert.Contains(t, finishedBody, "Regenerate")
+	assert.Contains(t, finishedBody, "Save metadata")
+	assert.Contains(t, finishedBody, "/api/clips/c1/download")
+}
+
+// TestClipStatusCarriesEverythingThatChanges pins the contents of the polled
+// region. A clip that completes swaps the status badge, drops the progress bar,
+// and gains the preview player, so all of it has to live inside the region or
+// the card would not update until a manual reload.
+func TestClipStatusCarriesEverythingThatChanges(t *testing.T) {
+	t.Parallel()
+
+	progressing := activeTestItem()
+	progressing.Progress = 40
+	progressing.Error = "boom"
+
+	var active strings.Builder
+
+	require.NoError(t, ClipStatus(progressing).Render(t.Context(), &active))
+
+	activeBody := active.String()
+	assert.Contains(t, activeBody, view.ClipStatusProcessing)
+	assert.Contains(t, activeBody, "boom")
+	assert.Contains(t, activeBody, "40%")
+	assert.Contains(t, activeBody, `hx-get="/clips/c1/row"`)
+	assert.NotContains(t, activeBody, "Preview", "no player while the clip is still encoding")
+
+	done := activeTestItem()
+	done.Status = view.ClipStatusCompleted
+	done.Progress = 100
+	done.FileExists = true
+
+	var finished strings.Builder
+
+	require.NoError(t, ClipStatus(done).Render(t.Context(), &finished))
+
+	finishedBody := finished.String()
+	assert.Contains(t, finishedBody, "Preview")
+	assert.Contains(t, finishedBody, "/clips/c1/file")
+	assert.NotContains(t, finishedBody, "100%", "the progress bar is gone once complete")
+	assert.NotContains(t, finishedBody, `hx-trigger`, "a finished clip stops polling itself")
+}
+
+// activeTestItem is an encoding clip, which is the state that polls.
+func activeTestItem() view.ClipItem {
+	return view.ClipItem{
+		ID:          "c1",
+		Name:        "Intro",
+		MediaID:     "42",
+		MediaTitle:  "Movie",
+		ClipType:    "clip",
+		Status:      view.ClipStatusProcessing,
+		Progress:    40,
+		StartTime:   1,
+		Duration:    5,
+		Quality:     "archive",
+		ProfileName: "Archive",
+		Profiles: []view.ClipProfileOption{
+			{ID: "archive", Name: "Archive"},
+		},
+		FileExists: false,
+		MaxDur:     600,
+	}
+}
+
 func TestClipCard(t *testing.T) {
 	t.Parallel()
 
