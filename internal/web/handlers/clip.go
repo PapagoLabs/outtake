@@ -208,12 +208,9 @@ func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 
 	handler.clipQueue.Delete(id)
 
-	err = ctx.SendStatus(fiber.StatusNoContent)
-	if err != nil {
-		return fmt.Errorf("send status: %w", err)
-	}
-
-	return nil
+	// 200 rather than 204: htmx ships 204 in its noSwap list, so a 204 makes it
+	// skip the swap and the card's hx-swap="delete" never removes the row.
+	return sendStatusCode(ctx, fiber.StatusOK)
 }
 
 // Download handles the download clip request.
