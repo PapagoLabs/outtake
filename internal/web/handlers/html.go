@@ -494,8 +494,16 @@ func (handler *HTMLHandler) Playback(ctx fiber.Ctx) error {
 }
 
 // PreviewFile serves a generated segment preview.
+//
+// The route parameter is validated before it is joined into a path, so an id
+// that could escape the previews directory is rejected instead of being
+// resolved.
 func (handler *HTMLHandler) PreviewFile(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
+	if !validPreviewID(id) {
+		return sendStatusCode(ctx, fiber.StatusNotFound)
+	}
+
 	path := filepath.Join(handler.cfg.StoragePath, "previews", id+".mp4")
 
 	err := sendRangedFile(ctx, path)
