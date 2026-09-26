@@ -21,14 +21,12 @@ import (
 // Returns:
 //   - *cobra.Command: The version command that prints application version information.
 func NewCommand() *cobra.Command {
-	vflags := &flags.VersionFlags{ //nolint:modernize // embedlit wants a construct Go 1.27 still rejects.
-		CommonFlags: flags.CommonFlags{
-			LogLevel: "",
-			Config:   "",
-			Quiet:    false,
-			Verbose:  false,
-		},
-		JSON: false,
+	vflags := &flags.VersionFlags{
+		LogLevel: "",
+		Config:   "",
+		Quiet:    false,
+		Verbose:  false,
+		JSON:     false,
 	}
 
 	cmd := clilib.Command()

@@ -32,6 +32,7 @@ const (
 	testSeasonURL  = "/media?library=2&parent=10&title=Season+3&up=9&upTitle=Show"
 	testEpisodeURL = "/media/item/42"
 	testMovie      = "Movie"
+	testClipName   = "Intro"
 )
 
 func TestMediaCrumbsUsesLibraryTitle(t *testing.T) {

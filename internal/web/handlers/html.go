@@ -90,7 +90,11 @@ func (handler *HTMLHandler) ClipFile(ctx fiber.Ctx) error {
 	return nil
 }
 
-// ClipRow renders a single clip card for HTMX polling.
+// ClipRow renders the live status region of one clip card for HTMX polling.
+//
+// It returns only the region the poll replaces, not the whole card. Swapping the
+// card instead would destroy the edit form every two seconds, discarding
+// whatever the user had typed into it.
 func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 	job := handler.lookupClip(ctx, ctx.Params(paramID))
 	if job == nil {
@@ -100,7 +104,7 @@ func (handler *HTMLHandler) ClipRow(ctx fiber.Ctx) error {
 	return renderHTML(ctx, func(writer io.Writer) error {
 		item := toClipItem(job, handler.clipProfileOptions(ctx), handler.clipMaxDur())
 
-		return clip.ClipCard(item).Render(ctx.Context(), writer)
+		return clip.ClipStatus(item).Render(ctx.Context(), writer)
 	})
 }
 
