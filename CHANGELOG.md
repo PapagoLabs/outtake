@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Cache probe results by file identity by @nicholas-fedor in [#226](https://github.com/PapagoLabs/outtake/pull/226)
 - Generate templ before the vulnerability scan by @nicholas-fedor in [#218](https://github.com/PapagoLabs/outtake/pull/218)
 - Use the commit date for archive mtime by @nicholas-fedor in [#198](https://github.com/PapagoLabs/outtake/pull/198)
 - Use the commit date for archive mtime by @nicholas-fedor in [#195](https://github.com/PapagoLabs/outtake/pull/195)
