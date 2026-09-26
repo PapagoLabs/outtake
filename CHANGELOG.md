@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to aaccee0 by @renovate[bot] in [#228](https://github.com/PapagoLabs/outtake/pull/228)
 - Update module github.com/onsi/gomega to v1.44.0 by @renovate[bot] in [#216](https://github.com/PapagoLabs/outtake/pull/216)
 - Stop tracking generated templ output by @nicholas-fedor in [#214](https://github.com/PapagoLabs/outtake/pull/214)
 - Update dependency golangci/golangci-lint to v2.14 by @renovate[bot] in [#212](https://github.com/PapagoLabs/outtake/pull/212)
