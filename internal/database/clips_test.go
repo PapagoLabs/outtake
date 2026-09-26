@@ -16,6 +16,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/queue"
 )
 
+// testMovieType is the media type used by database fixtures.
+const testMovieType = "movie"
+
 func TestClipPersistence(t *testing.T) {
 	t.Parallel()
 
@@ -29,7 +32,7 @@ func TestClipPersistence(t *testing.T) {
 		Name:          "Intro",
 		MediaID:       "100",
 		MediaTitle:    "Test Movie",
-		MediaType:     "movie",
+		MediaType:     testMovieType,
 		InputPath:     "/media/movie.mkv",
 		OutputPath:    "/out/clip-1.mp4",
 		StartTime:     10,
@@ -142,6 +145,101 @@ func testStoredClip(id, mediaID string, created time.Time) *queue.Job {
 		CreatedAt:     created,
 		UpdatedAt:     created,
 	}
+}
+
+// TestSaveClipUpdatesGIFDimensionsOnConflict is the regression guard for the
+// conflict path of SaveClip.
+//
+// Width and fps are in the insert list but were missing from the ON CONFLICT
+// clause, so editing a GIF's size and saving looked successful while the stored
+// row kept the old values. A regenerate then re-encoded at the original size.
+func TestSaveClipUpdatesGIFDimensionsOnConflict(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/clips-gif.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testStoredClip("gif-1", "100", time.Now().UTC().Truncate(time.Second))
+
+	job.Type = queue.JobTypeGIF
+	job.Width = 1280
+	job.FPS = 24
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	// The edit form posts a new size for the same clip.
+	job.Width = 720
+	job.FPS = 12
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	got, err := db.GetClip(t.Context(), "gif-1")
+	require.NoError(t, err)
+	assert.Equal(t, 720, got.Width, "an edited GIF width must survive a resave")
+	assert.Equal(t, 12, got.FPS, "an edited GIF frame rate must survive a resave")
+}
+
+// TestSaveClipKeepsZeroDimensionsForVideoClips records that writing the
+// dimensions on every update is a no-op for video clips, which store zero to
+// mean "use the default" and never carry a GIF size.
+func TestSaveClipKeepsZeroDimensionsForVideoClips(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/clips-video.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testStoredClip("clip-1", "100", time.Now().UTC().Truncate(time.Second))
+
+	job.Width = 0
+	job.FPS = 0
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	// Editing an unrelated field must not disturb the dimensions.
+	job.Name = "Renamed"
+	job.StartTime = 42
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	got, err := db.GetClip(t.Context(), "clip-1")
+	require.NoError(t, err)
+	assert.Equal(t, 0, got.Width)
+	assert.Equal(t, 0, got.FPS)
+	assert.Equal(t, "Renamed", got.Name)
+	assert.InDelta(t, 42, got.StartTime, 0.0005)
+}
+
+// TestSaveClipKeepsImmutableColumnsOnConflict pins the columns the conflict
+// clause deliberately leaves alone, so a future "just update everything"
+// change does not quietly reset a clip's source or creation time.
+func TestSaveClipKeepsImmutableColumnsOnConflict(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/clips-immutable.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	created := time.Now().UTC().Add(-time.Hour).Truncate(time.Second)
+	job := testStoredClip("clip-1", "100", created)
+
+	job.Width = 640
+	job.FPS = 15
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	job.MediaID = "999"
+	job.MediaTitle = "Other Title"
+	job.MediaType = testMovieType
+	job.InputPath = "/media/other.mkv"
+	job.CreatedAt = time.Now().UTC().Truncate(time.Second)
+	job.Width = 1920
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	got, err := db.GetClip(t.Context(), "clip-1")
+	require.NoError(t, err)
+	assert.Equal(t, "100", got.MediaID)
+	assert.Equal(t, "Order Movie", got.MediaTitle)
+	assert.Equal(t, "show", got.MediaType)
+	assert.Equal(t, "/media/order.mkv", got.InputPath)
+	assert.WithinDuration(t, created, got.CreatedAt, time.Second)
+	assert.Equal(t, 1920, got.Width, "the editable column still updates")
 }
 
 func clipIDs(jobs []*queue.Job) []string {

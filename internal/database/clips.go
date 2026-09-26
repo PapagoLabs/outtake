@@ -47,6 +47,8 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 			start_time = excluded.start_time,
 			duration = excluded.duration,
 			quality = excluded.quality,
+			width = excluded.width,
+			fps = excluded.fps,
 			audio_index = excluded.audio_index,
 			crop_black_bars = excluded.crop_black_bars,
 			web_safe_color = excluded.web_safe_color,

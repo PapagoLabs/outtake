@@ -68,7 +68,7 @@ func TestPostgres_SkipWithoutURL(t *testing.T) {
 		Name:          "Intro",
 		MediaID:       "100",
 		MediaTitle:    "Test Movie",
-		MediaType:     "movie",
+		MediaType:     testMovieType,
 		InputPath:     "/media/movie.mkv",
 		OutputPath:    "/out/clip-1.mp4",
 		StartTime:     10,
