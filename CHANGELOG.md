@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Poll only the live region of a clip card by @nicholas-fedor in [#220](https://github.com/PapagoLabs/outtake/pull/220)
 - Return 200 from clip delete so htmx removes the card by @nicholas-fedor in [#219](https://github.com/PapagoLabs/outtake/pull/219)
 - Carry export form state across preview redirects by @nicholas-fedor in [#215](https://github.com/PapagoLabs/outtake/pull/215)
 - Preserve millisecond precision on preview marks by @nicholas-fedor in [#210](https://github.com/PapagoLabs/outtake/pull/210)
