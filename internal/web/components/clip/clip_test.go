@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/html"
 
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
@@ -77,9 +78,121 @@ func TestClipCardPollDoesNotCoverEditForm(t *testing.T) {
 		assert.Less(t, at, finishedGridAt, action+" must sit inside the polled region")
 	}
 
+	// The same containment check, parsed, for both card states. This is the
+	// assertion that actually matters: the poll replaces its target's subtree,
+	// so a form field anywhere inside the region is destroyed every two seconds.
+	assertGridOutsideStatusRegion(t, "encoding", body)
+	assertGridOutsideStatusRegion(t, "finished", finishedBody)
+
 	formAt := strings.Index(body, `action="/api/clips/c1/update"`)
 	require.Positive(t, formAt)
 	assert.Less(t, formAt, statusAt, "the status region is a sibling of the form fields, inside the form")
+}
+
+// assertGridOutsideStatusRegion parses rendered card markup and asserts the
+// editable form fields are not a descendant of the polled status region.
+//
+// It checks containment rather than source order, because that is what the
+// htmx swap actually does: everything inside the region is replaced.
+//
+// Parameters:
+//   - t: Test context.
+//   - label: Card state, used to make failures readable.
+//   - body: Rendered card markup.
+func assertGridOutsideStatusRegion(t *testing.T, label, body string) {
+	t.Helper()
+
+	doc, err := html.Parse(strings.NewReader(body))
+	require.NoError(t, err, label)
+
+	region := findByID(doc, "clip-c1-status")
+	require.NotNil(t, region, "%s: the polled status region must exist", label)
+
+	grid := findByClass(doc, "grid gap-4 sm:grid-cols-2")
+	require.NotNil(t, grid, "%s: the form fields grid must exist", label)
+
+	assert.False(t, containsNode(region, grid),
+		"%s: the edit form must not be inside the polled region", label)
+}
+
+// findByID returns the first element with the given id attribute.
+//
+// Parameters:
+//   - node: Node to search from.
+//   - id: Element id to match.
+//
+// Returns:
+//   - found: The matching element, or nil.
+func findByID(node *html.Node, id string) *html.Node {
+	if node.Type == html.ElementNode && attrValue(node, "id") == id {
+		return node
+	}
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if found := findByID(child, id); found != nil {
+			return found
+		}
+	}
+
+	return nil
+}
+
+// findByClass returns the first element carrying every given class.
+//
+// Parameters:
+//   - node: Node to search from.
+//   - class: Space separated class list to match.
+//
+// Returns:
+//   - found: The matching element, or nil.
+func findByClass(node *html.Node, class string) *html.Node {
+	if node.Type == html.ElementNode && attrValue(node, "class") == class {
+		return node
+	}
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if found := findByClass(child, class); found != nil {
+			return found
+		}
+	}
+
+	return nil
+}
+
+// containsNode reports whether candidate sits inside ancestor's subtree.
+//
+// Parameters:
+//   - ancestor: Possible ancestor.
+//   - candidate: Node to look for.
+//
+// Returns:
+//   - found: True when candidate is a strict descendant of ancestor.
+func containsNode(ancestor, candidate *html.Node) bool {
+	for child := ancestor.FirstChild; child != nil; child = child.NextSibling {
+		if child == candidate || containsNode(child, candidate) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// attrValue reads an attribute value.
+//
+// Parameters:
+//   - node: Element to read from.
+//   - key: Attribute name.
+//
+// Returns:
+//   - value: The attribute value, or an empty string when absent.
+func attrValue(node *html.Node, key string) string {
+	for _, attr := range node.Attr {
+		if attr.Key == key {
+			return attr.Val
+		}
+	}
+
+	return ""
 }
 
 // TestClipStatusSwapsActionButtons pins the action buttons into the polled
