@@ -727,8 +727,31 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 }
 
 // Probe probes a media file for information.
+//
+// Results are cached by file identity, because the media item page, its clip
+// list fragment, and the web-safe analysis each probe the same source. A file
+// that cannot be stat'd has no stable identity, so it is probed every time.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the probe.
+//   - path: Media file path.
+//
+// Returns:
+//   - info: The probed media information.
+//   - err: Non-nil when the file cannot be probed.
 func (execFFmpeg *ExecFFmpeg) Probe(ctx context.Context, path string) (MediaInfo, error) {
 	cleanPath := filepath.Clean(path)
+
+	cacheable := true
+
+	identity, ok := probeKeyFor(cleanPath)
+	if ok {
+		if cached, found := probeResults.get(identity); found {
+			return cached, nil
+		}
+	} else {
+		cacheable = false
+	}
 
 	args := []string{
 		execFFmpeg.ffprobePath,
@@ -752,6 +775,13 @@ func (execFFmpeg *ExecFFmpeg) Probe(ctx context.Context, path string) (MediaInfo
 	result, parseErr := parseProbeOutput(output)
 	if parseErr != nil {
 		return MediaInfo{}, fmt.Errorf("probe: %w", parseErr)
+	}
+
+	// A file that changed while it was being probed describes neither the
+	// identity that was recorded before nor the file on disk now, so its result
+	// is returned to the caller but never cached.
+	if cacheable && probeIdentityUnchanged(cleanPath, identity) {
+		probeResults.put(identity, result)
 	}
 
 	return result, nil
