@@ -35,6 +35,7 @@ type ClipHandler struct {
 	bind        *binding.Binding
 	product     string
 	clientID    string
+	previews    *previewGate
 }
 
 const (
@@ -59,6 +60,14 @@ const (
 	gifMaxFPS = 30
 	// FormChecked is the value of a checked HTML checkbox.
 	formChecked = "1"
+	// PreviewWait is how long a preview waits for a free slot before giving up.
+	//
+	// Long enough that a second click queues behind the first rather than
+	// failing, short enough that a queued request cannot outlive a browser's
+	// patience or a canceled client.
+	previewWait = 30 * time.Second
+	// ErrorPreviewBusy is the error code for a preview rejected by the bound.
+	errorPreviewBusy = "preview_busy"
 )
 
 var (
@@ -78,6 +87,9 @@ var (
 	errInvalidGIFWidth = fmt.Errorf("gif width must be between %d and %d", gifMinWidth, gifMaxWidth)
 	// ErrInvalidGIFFPS is returned when a GIF fps is outside the form bounds.
 	errInvalidGIFFPS = fmt.Errorf("gif fps must be between %d and %d", gifMinFPS, gifMaxFPS)
+
+	// ErrPreviewBusy is returned when no preview slot frees in time.
+	errPreviewBusy = errors.New("too many previews are already rendering")
 )
 
 // NewClipHandler creates a new clip handler.
@@ -98,6 +110,7 @@ func NewClipHandler(
 		bind:        bind,
 		product:     product,
 		clientID:    clientID,
+		previews:    newPreviewGate(cfg.MaxConcurrentPreviews),
 	}
 }
 
@@ -279,38 +292,32 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
 	}
 
+	// Taken after the Plex lookup so a slot is not held across a network call,
+	// and held across everything below because all of it is ffmpeg work.
+	release, err := handler.previews.acquire(ctx.Context(), previewWait)
+	if err != nil {
+		return writeError(
+			ctx,
+			fiber.StatusTooManyRequests,
+			errorPreviewBusy,
+			errPreviewBusy.Error(),
+		)
+	}
+
+	defer release()
+
 	previewID := uuid.New().String()
 	output := handler.clipStorage.PreviewPath(previewID)
 	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
 
-	crop := media.CropRect{}
-	if req.CropBlackBars {
-		detected, detectErr := ffmpeg.DetectCrop(
-			ctx.Context(),
-			inputPath,
-			req.StartTime,
-			req.Duration,
-		)
-		if detectErr == nil {
-			crop = detected
-		}
-	}
-
-	err = ffmpeg.ExtractPreview(
+	err = renderPreview(
 		ctx.Context(),
+		handler.clipStorage,
+		ffmpeg,
 		inputPath,
 		output,
-		req.StartTime,
-		req.Duration,
-		req.AudioIndex,
-		crop,
-		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
+		req,
 	)
-	if err != nil {
-		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
-	}
-
-	err = handler.clipStorage.Put(ctx.Context(), output)
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
 	}
@@ -328,6 +335,60 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 			exportFormFromRequest(req),
 		),
 	)
+}
+
+// renderPreview detects any crop, encodes the preview, and uploads it.
+//
+// The caller holds a preview slot, so every ffmpeg pass here is already
+// bounded. A crop detection failure is not fatal: the preview is simply encoded
+// uncropped, which is what a user would get with the toggle off.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the passes.
+//   - store: Destination for the finished preview.
+//   - ffmpeg: Runner used for detection and encoding.
+//   - inputPath: Source media path.
+//   - output: Local path to write the preview to.
+//   - req: Parsed request carrying the window and encoding options.
+//
+// Returns:
+//   - err: Non-nil when the preview could not be written or uploaded.
+func renderPreview(
+	ctx context.Context,
+	store storage.Blob,
+	ffmpeg media.FFmpeg,
+	inputPath, output string,
+	req api.ClipRequest,
+) error {
+	crop := media.CropRect{}
+
+	if req.CropBlackBars {
+		detected, err := ffmpeg.DetectCrop(ctx, inputPath, req.StartTime, req.Duration)
+		if err == nil {
+			crop = detected
+		}
+	}
+
+	err := ffmpeg.ExtractPreview(
+		ctx,
+		inputPath,
+		output,
+		req.StartTime,
+		req.Duration,
+		req.AudioIndex,
+		crop,
+		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
+	)
+	if err != nil {
+		return fmt.Errorf("extract preview: %w", err)
+	}
+
+	err = store.Put(ctx, output)
+	if err != nil {
+		return fmt.Errorf("upload preview: %w", err)
+	}
+
+	return nil
 }
 
 // previewRedirectURL builds the media item location that carries a rendered
