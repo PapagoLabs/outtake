@@ -52,6 +52,8 @@ type Config struct {
 	SessionPollSec int `mapstructure:"session-poll-sec"`
 	// NumWorkers is the number of workers.
 	NumWorkers int `mapstructure:"num-workers"`
+	// MaxConcurrentPreviews bounds simultaneous preview encodes.
+	MaxConcurrentPreviews int `mapstructure:"max-concurrent-previews"`
 	// MaxClipDurSec is the maximum clip duration in seconds.
 	MaxClipDurSec int `mapstructure:"max-clip-dur-sec"`
 	// CropBlackBars is the default for trimming letterbox/pillarbox bars.
@@ -89,6 +91,12 @@ const (
 	defaultSessionPoll = 10
 	// DefaultNumWorkers is the default number of workers.
 	defaultNumWorkers = 2
+	// DefaultMaxConcurrentPreviews is the default number of simultaneous previews.
+	//
+	// Previews are interactive, so more than one may be worth running at a time,
+	// but each is a full encode of the source, so an unbounded count would let a
+	// few clicks saturate the machine while an export is already running.
+	defaultMaxConcurrentPreviews = 2
 	// DefaultMaxClipDur is the default maximum clip duration in seconds.
 	defaultMaxClipDur = 600
 	// DefaultDirPerms is the default directory permissions.
@@ -208,6 +216,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("env", defaultEnv)
 	viperInstance.SetDefault("session-poll-sec", defaultSessionPoll)
 	viperInstance.SetDefault("num-workers", defaultNumWorkers)
+	viperInstance.SetDefault("max-concurrent-previews", defaultMaxConcurrentPreviews)
 	viperInstance.SetDefault("max-clip-dur-sec", defaultMaxClipDur)
 	viperInstance.SetDefault("crop-black-bars", false)
 	viperInstance.SetDefault("web-safe-color", false)
@@ -236,6 +245,7 @@ func bindEnv(viperInstance *viper.Viper) error {
 		"env",
 		"session-poll-sec",
 		"num-workers",
+		"max-concurrent-previews",
 		"max-clip-dur-sec",
 		"crop-black-bars",
 		"web-safe-color",
