@@ -315,6 +315,73 @@ func TestPreviewRegistryRejectsDuplicateID(t *testing.T) {
 	assert.Equal(t, 1, count(), "only the first render should have run")
 }
 
+// TestPreviewRegistryEvictsBehindARunningPreview covers a slow preview sitting
+// at the front of the order.
+//
+// Stopping eviction at the first running entry would let one slow render hold up
+// every cleanup behind it. Renders waiting on the preview gate are running too,
+// so under a burst of submissions the map would grow well past what is retained.
+func TestPreviewRegistryEvictsBehindARunningPreview(t *testing.T) {
+	t.Parallel()
+
+	registry := newPreviewRegistry()
+	blocked := make(chan struct{})
+	started := make(chan struct{})
+
+	// A preview that never finishes sits at the front of the order.
+	require.True(t, registry.render(t.Context(), "blocked", func(context.Context) error {
+		close(started)
+		<-blocked
+
+		return nil
+	}))
+
+	<-started
+
+	renders := previewRetained + 5
+	finished := make(chan struct{}, renders)
+
+	for i := range renders {
+		registry.render(t.Context(), previewID(i), func(context.Context) error {
+			finished <- struct{}{}
+
+			return nil
+		})
+	}
+
+	for range renders {
+		<-finished
+	}
+
+	// Only the submitted previews are awaited; the blocked one never finishes,
+	// which is the point of it.
+	awaitDoneExcept(t, registry, "blocked")
+
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	// The blocked render is still tracked, so it can be canceled and read.
+	_, running := registry.jobs["blocked"]
+	assert.True(t, running, "a running preview must keep its entry")
+
+	// The finished previews behind it were still reclaimed.
+	retained := 0
+
+	for _, id := range registry.order {
+		if job, ok := registry.jobs[id]; ok && job.view.done() {
+			retained++
+		}
+	}
+
+	assert.LessOrEqual(t, retained, previewRetained,
+		"a running preview at the front must not block eviction of finished ones")
+
+	_, oldestKept := registry.jobs[previewID(0)]
+	assert.False(t, oldestKept, "the oldest finished preview should have been dropped")
+
+	close(blocked)
+}
+
 // TestPreviewRegistryEvictsOldestFinished bounds the map, which nothing else
 // does: a preview is in-memory, and its file is reclaimed separately.
 func TestPreviewRegistryEvictsOldestFinished(t *testing.T) {
@@ -365,6 +432,43 @@ func TestPreviewRegistryEvictsOldestFinished(t *testing.T) {
 
 	_, oldestKept := registry.jobs[previewID(0)]
 	assert.False(t, oldestKept, "the oldest finished preview should have been dropped")
+}
+
+// awaitDoneExcept blocks until every registered job other than the named one
+// has reached a terminal state.
+//
+// Parameters:
+//   - t: Test context, which supplies the deadline budget.
+//   - registry: Registry to inspect.
+//   - except: Id to leave out of the wait, for a render that never finishes.
+func awaitDoneExcept(t *testing.T, registry *previewRegistry, except string) {
+	t.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
+
+	for {
+		registry.mu.Lock()
+
+		pending := 0
+
+		for id, job := range registry.jobs {
+			if id != except && !job.view.done() {
+				pending++
+			}
+		}
+
+		registry.mu.Unlock()
+
+		if pending == 0 {
+			return
+		}
+
+		if time.Now().After(deadline) {
+			t.Fatalf("%d previews never finished", pending)
+		}
+
+		time.Sleep(time.Millisecond)
+	}
 }
 
 // awaitAllRendersDone blocks until every registered job has reached a terminal

@@ -61,6 +61,11 @@ const (
 	previewProgressDone = 100
 )
 
+// newPreviewRegistry returns an empty registry.
+func newPreviewRegistry() *previewRegistry {
+	return &previewRegistry{jobs: map[string]*previewJob{}}
+}
+
 // done reports whether the render has reached a terminal state and no longer
 // needs a slot.
 func (view previewView) done() bool {
@@ -69,12 +74,7 @@ func (view previewView) done() bool {
 		view.Status == queue.JobStatusCancelled
 }
 
-// newPreviewRegistry returns an empty registry.
-func newPreviewRegistry() *previewRegistry {
-	return &previewRegistry{jobs: map[string]*previewJob{}}
-}
-
-// add stores a new job, evicting the oldest finished one if needed.
+// add registers a new job.
 //
 // Parameters:
 //   - job: The job to register.
@@ -122,35 +122,47 @@ func (registry *previewRegistry) cancel(id string) bool {
 	return true
 }
 
-// evictLocked drops the oldest finished previews beyond the retained count.
+// countFinishedLocked reports how many registered previews have finished.
+//
+// The caller must hold the lock.
+//
+// Returns:
+//   - count: The number of finished previews.
+func (registry *previewRegistry) countFinishedLocked() int {
+	count := 0
+
+	for _, job := range registry.jobs {
+		if job.view.done() {
+			count++
+		}
+	}
+
+	return count
+}
+
+// evictLocked drops the oldest finished previews beyond the retained count,
+// keeping the most recent ones so back-navigation finds a recent result.
+//
+// It scans the whole order rather than stopping at the first render still
+// running, so a slow preview cannot hold up cleanup behind it.
 //
 // The caller must hold the lock.
 func (registry *previewRegistry) evictLocked() {
-	for len(registry.order) > previewRetained {
-		oldest := registry.order[0]
+	finished := registry.countFinishedLocked()
 
-		job, ok := registry.jobs[oldest]
-		if !ok {
-			// Already gone; drop the stale reference and carry on.
-			registry.order = registry.order[1:]
+	kept := make([]string, 0, len(registry.order))
+
+	for _, id := range registry.order {
+		if !registry.retainLocked(id, &finished) {
+			delete(registry.jobs, id)
 
 			continue
 		}
 
-		// A render still in flight keeps its place at the front. Retention is a
-		// ring, so nothing behind it may be evicted ahead of it, and popping it
-		// here would leave the entry in the map with nothing left to track it,
-		// so it could never be reclaimed. This cannot stall eviction
-		// indefinitely: previews in flight are separately bounded by the
-		// preview gate, which caps the map at retained plus running.
-		if !job.view.done() {
-			return
-		}
-
-		registry.order = registry.order[1:]
-
-		delete(registry.jobs, oldest)
+		kept = append(kept, id)
 	}
+
+	registry.order = kept
 }
 
 // finish records how a render ended.
@@ -262,6 +274,46 @@ func (registry *previewRegistry) render(
 
 		registry.finish(id, err)
 	}()
+
+	return true
+}
+
+// retainLocked decides whether one preview stays, consuming a retained slot
+// when it does.
+//
+// A render still running always keeps its place, wherever it sits: a client may
+// be polling it or may still cancel it. Stopping at the first one would let a
+// single slow preview hold up every eviction behind it, and renders waiting on
+// the preview gate are running too, so the map would grow well past the
+// retained count.
+//
+// Finished is decremented when a finished preview is dropped, so the caller can
+// walk the order once and keep exactly the most recent previews.
+//
+// The caller must hold the lock.
+//
+// Parameters:
+//   - id: Preview id being considered.
+//   - finished: Remaining finished previews allowed to be retained.
+//
+// Returns:
+//   - keep: True when the entry should stay in the order and the map.
+func (registry *previewRegistry) retainLocked(id string, finished *int) bool {
+	job, ok := registry.jobs[id]
+	if !ok {
+		// Already evicted; drop the stale reference.
+		return false
+	}
+
+	if !job.view.done() {
+		return true
+	}
+
+	if *finished > previewRetained {
+		*finished--
+
+		return false
+	}
 
 	return true
 }
