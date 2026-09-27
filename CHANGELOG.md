@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an in-memory preview render registry by @nicholas-fedor in [#238](https://github.com/PapagoLabs/outtake/pull/238)
+
 ### Changed
 
 - Bound concurrent preview encodes by @nicholas-fedor in [#232](https://github.com/PapagoLabs/outtake/pull/232)
