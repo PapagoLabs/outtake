@@ -19,6 +19,7 @@ func TestMain(m *testing.M) {
 		plainStubScript(cropdetectStubLog),
 		plainStubScript(signalstatsStubLog),
 		plainStubScript("no signalstats output here"),
+		failingStubScript(signalstatsStubLog),
 		swapStubScript(cropdetectStubLog),
 		swapStubScript(signalstatsStubLog),
 		probeSwapStubScript(stubProbeJSON),

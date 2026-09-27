@@ -965,17 +965,19 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if err != nil {
-		logging.Logger.Debug().Err(err).Msg("signalstats finished")
+	runErr := cmd.Run()
+	if runErr != nil {
+		logging.Logger.Debug().Err(runErr).Msg("signalstats finished")
 	}
 
 	ymax, ok := parseSignalstatsYMax(stderr.String())
 
-	// Only a successful parse is cached. A pass that produced no luma is not
-	// necessarily a source with no highlights, so a transient failure is left to
-	// be retried on the next request.
-	if ok {
+	// Only a clean pass is cached. A pass that produced no luma is not
+	// necessarily a source with no highlights, and a pass that errored — a
+	// timeout most of all — can have emitted a YMAX from a partial sample,
+	// which would understate the peak and mis-scale the tone map. Neither is
+	// cached, so both are retried on the next request.
+	if ok && runErr == nil {
 		storeAnalysis(
 			cleanInput,
 			identity,

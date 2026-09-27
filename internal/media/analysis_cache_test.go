@@ -197,6 +197,26 @@ func TestSignalstatsCachesPeak(t *testing.T) {
 	assert.InDelta(t, first, third, 0.0005)
 }
 
+// TestSignalstatsDoesNotCacheFailedRun covers a pass that produced a luma but
+// still errored, which a timeout is the realistic case for.
+//
+// Stderr can carry a YMAX from a partial sample, and the peak scales the whole
+// tone map, so caching one would understate it for the process lifetime. The
+// value is still returned to the caller; only the caching is skipped.
+func TestSignalstatsDoesNotCacheFailedRun(t *testing.T) {
+	t.Parallel()
+
+	path, identity := writeAnalysisFixture(t)
+	execFFmpeg := NewExecFFmpeg(stubScript(t, failingStubScript(signalstatsStubLog)), "unused")
+
+	peak, ok := execFFmpeg.signalstatsYMax(t.Context(), path, 10, 30)
+	require.True(t, ok, "the stubbed luma is still parsed and returned")
+	assert.InDelta(t, 158.0, peak, 0.001)
+
+	key := analysisKeyFor(identity, analysisKindPeak, 10, peakSampleSeconds(30))
+	assert.False(t, cachedUnder(key), "a pass that errored must not be cached")
+}
+
 // TestSignalstatsDoesNotCacheFailure keeps a transient failure retryable.
 //
 // A pass that produced no luma is not the same as a source with no highlights,

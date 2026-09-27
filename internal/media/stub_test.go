@@ -137,6 +137,18 @@ func plainStubScript(payload string) string {
 	return "#!/bin/sh\n" + stderrHeredoc(payload)
 }
 
+// failingStubScript builds a stub that emits a payload and then exits non-zero,
+// standing in for a pass that was cut short.
+//
+// Parameters:
+//   - payload: Text the stub writes to standard error.
+//
+// Returns:
+//   - script: Full script text.
+func failingStubScript(payload string) string {
+	return plainStubScript(payload) + "exit 1\n"
+}
+
 // probeStubScript builds a stub that answers on standard output, which is where
 // Probe reads its JSON payload from.
 //
