@@ -67,7 +67,7 @@ func TestParseStreamSize(t *testing.T) {
 func TestCropdetectDuration(t *testing.T) {
 	t.Parallel()
 
-	assert.InDelta(t, float64(cropdetectMaxSecs), cropdetectDuration(600), 0.001)
-	assert.InDelta(t, 2.0, cropdetectDuration(2), 0.001)
-	assert.InDelta(t, float64(cropdetectMaxSecs), cropdetectDuration(0), 0.001)
+	assert.InDelta(t, float64(cropdetectMaxSecs), SampleDuration(600), 0.001)
+	assert.InDelta(t, 2.0, SampleDuration(2), 0.001)
+	assert.InDelta(t, float64(cropdetectMaxSecs), SampleDuration(0), 0.001)
 }
