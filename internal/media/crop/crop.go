@@ -164,7 +164,7 @@ func DetectArgs(ffmpegPath, input string, start, duration float64) []string {
 		outputFlag,
 		ssFlag, formatDuration(start),
 		inputFlag, input,
-		durationFlag, formatDuration(cropdetectDuration(duration)),
+		durationFlag, formatDuration(SampleDuration(duration)),
 		videoFilterFlag,
 		fmt.Sprintf(
 			"format=yuv420p,cropdetect=limit=%d/%d:round=%d:reset=%d",
@@ -179,8 +179,18 @@ func DetectArgs(ffmpegPath, input string, start, duration float64) []string {
 	}
 }
 
-// cropdetectDuration caps how long cropdetect samples the source.
-func cropdetectDuration(duration float64) float64 {
+// SampleDuration returns how long cropdetect samples the source.
+//
+// It is exported so the crop cache can key on the same window DetectArgs passes
+// to ffmpeg. Deriving the key from the same value is what stops a cached
+// rectangle from being attributed to a different sampling window.
+//
+// Parameters:
+//   - duration: Requested clip duration in seconds.
+//
+// Returns:
+//   - seconds: The sampling window, capped at cropdetectMaxSecs.
+func SampleDuration(duration float64) float64 {
 	if duration <= 0 {
 		return cropdetectMaxSecs
 	}

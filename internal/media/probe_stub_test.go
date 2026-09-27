@@ -6,7 +6,6 @@ package media
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,60 +43,30 @@ const stubProbeJSON = `{
   ]
 }`
 
-// writeProbeStub writes an executable stand-in for ffprobe.
+// writeProbeStub returns a stand-in for ffprobe that answers with a fixed
+// payload, so Probe can be exercised without a real ffprobe.
 //
-// It can swap the file under probe for a replacement before answering, which
-// reproduces a file changing underneath a probe without needing a real probe to
-// be installed. Paths are baked into the script so the test does not have to
-// mutate its own environment.
-//
-// The replacement is moved rather than copied, so the file at target becomes a
-// different inode. Copying would rewrite the contents in place and leave the
-// identity alone, which is a different scenario and the one the metadata key
-// already catches on its own.
+// When swap is set the stub first moves a sibling named swapReplacementName onto
+// the file under probe. A rename gives the target a new identity while carrying
+// the replacement's modification time and size across, so the metadata key is
+// unchanged and the file identity is the only thing that can tell the two apart.
+// Copying instead would rewrite the contents in place and leave the identity
+// alone, which is a different scenario and one the metadata key already catches.
 //
 // Parameters:
 //   - t: Test context.
-//   - target: File a probe will be asked about, or empty to leave it alone.
-//   - replacement: File to substitute for target, or empty to skip the swap.
+//   - swap: Whether the stub replaces the file under probe before answering.
 //
 // Returns:
 //   - path: Path of the stub to use as the ffprobe binary.
-func writeProbeStub(t *testing.T, target, replacement string) string {
+func writeProbeStub(t *testing.T, swap bool) string {
 	t.Helper()
 
-	_, err := os.Stat("/bin/sh")
-	if err != nil {
-		t.Skip("a POSIX shell is required for the probe stub")
+	if swap {
+		return stubScript(t, probeSwapStubScript(stubProbeJSON))
 	}
 
-	script := "#!/bin/sh\n"
-
-	if target != "" && replacement != "" {
-		script += "for last; do :; done\n" +
-			"mv " + shellQuote(replacement) + " " + shellQuote(target) + "\n"
-	}
-
-	script += "cat <<'PROBE_JSON'\n" + stubProbeJSON + "\nPROBE_JSON\n"
-
-	path := filepath.Join(t.TempDir(), "ffprobe-stub")
-	require.NoError(t, os.WriteFile(path, []byte(script), 0o700))
-
-	return path
-}
-
-// shellQuote renders a path as a single-quoted shell word.
-//
-// The paths come from t.TempDir, whose names are derived from the test name, so
-// they are not guaranteed to be free of characters a shell would interpret.
-//
-// Parameters:
-//   - path: Path to quote.
-//
-// Returns:
-//   - word: The path as a single-quoted shell word.
-func shellQuote(path string) string {
-	return "'" + strings.ReplaceAll(path, "'", `'\''`) + "'"
+	return stubScript(t, probeStubScript(stubProbeJSON))
 }
 
 // TestProbeCachesStubbedResult covers the whole Probe path, cache write
@@ -109,7 +78,7 @@ func TestProbeCachesStubbedResult(t *testing.T) {
 	t.Parallel()
 
 	path, identity := writeProbeFixture(t, "source")
-	execFFmpeg := NewExecFFmpeg("unused", writeProbeStub(t, "", ""))
+	execFFmpeg := NewExecFFmpeg("unused", writeProbeStub(t, false))
 
 	got, err := execFFmpeg.Probe(t.Context(), path)
 	require.NoError(t, err)
@@ -159,7 +128,7 @@ func TestProbeSkipsCachingWhenFileChangesDuringProbe(t *testing.T) {
 	require.NoError(t, os.WriteFile(replacement, []byte("replaced-content"), 0o600))
 	require.NoError(t, os.Chtimes(replacement, before.key.mtime, before.key.mtime))
 
-	execFFmpeg := NewExecFFmpeg("unused", writeProbeStub(t, target, replacement))
+	execFFmpeg := NewExecFFmpeg("unused", writeProbeStub(t, true))
 
 	_, err := execFFmpeg.Probe(t.Context(), target)
 	require.NoError(t, err, "the stub answers regardless of what the file contains")

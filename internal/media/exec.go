@@ -120,15 +120,72 @@ func NewExecFFmpeg(ffmpegPath, ffprobePath string) *ExecFFmpeg {
 }
 
 // DetectCrop samples the source with cropdetect and returns a crop rectangle.
+//
+// Results are cached by file identity, seek, and sampling window. The window
+// is the value DetectArgs clamps to, so a long clip and a shorter one that clamp
+// to the same window share an entry and only the first one pays for the pass.
+// A file that cannot be stat'd has no identity and is sampled every time.
 func (execFFmpeg *ExecFFmpeg) DetectCrop(
 	ctx context.Context,
 	input string,
 	start, duration float64,
 ) (CropRect, error) {
 	cleanInput := filepath.Clean(input)
-	args := crop.DetectArgs(execFFmpeg.ffmpegPath, cleanInput, start, duration)
+	window := crop.SampleDuration(duration)
+	identity, _ := probeKeyFor(cleanInput)
 
-	detectCtx, cancel := context.WithTimeout(ctx, execFFmpeg.timeout)
+	if cached, found := lookupAnalysis(identity, analysisKindCrop, start, window); found {
+		return cached.rect, nil
+	}
+
+	log, runErr := runCropdetect(
+		ctx,
+		execFFmpeg.timeout,
+		crop.DetectArgs(execFFmpeg.ffmpegPath, cleanInput, start, duration),
+	)
+
+	detected, parsed := ParseCropdetect(log)
+
+	switch {
+	case runErr != nil && !parsed:
+		return CropRect{}, fmt.Errorf("cropdetect: %w", runErr)
+	case !parsed || !detected.TrimsLog(log):
+		// No bars is a result rather than a failure, so it is cached. A failed
+		// pass is not, so a transient failure is retried next time.
+		if runErr == nil {
+			storeAnalysis(cleanInput, identity, analysisKindCrop, start, window, analysisValue{})
+		}
+
+		return CropRect{}, nil
+	case runErr == nil:
+		storeAnalysis(
+			cleanInput,
+			identity,
+			analysisKindCrop,
+			start,
+			window,
+			analysisValue{rect: detected},
+		)
+	default:
+		// The pass errored but its output parsed into a real rectangle. That is
+		// not a result to keep, so it is returned without being cached.
+	}
+
+	return detected, nil
+}
+
+// runCropdetect runs a cropdetect pass and returns its stderr.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the pass.
+//   - timeout: Deadline applied to the ffmpeg process.
+//   - args: ffmpeg argv from crop.DetectArgs.
+//
+// Returns:
+//   - log: ffmpeg standard error text.
+//   - err: The process error, or nil when the pass ran.
+func runCropdetect(ctx context.Context, timeout time.Duration, args []string) (string, error) {
+	detectCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// #nosec G204 - args are controlled by the application
@@ -140,22 +197,12 @@ func (execFFmpeg *ExecFFmpeg) DetectCrop(
 
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if err != nil {
-		logging.Logger.Debug().Err(err).Msg("cropdetect finished")
+	runErr := cmd.Run()
+	if runErr != nil {
+		logging.Logger.Debug().Err(runErr).Msg("cropdetect finished")
 	}
 
-	log := stderr.String()
-	detected, ok := ParseCropdetect(log)
-	if !ok || !detected.TrimsLog(log) {
-		if err != nil && !ok {
-			return CropRect{}, fmt.Errorf("cropdetect: %w", err)
-		}
-
-		return CropRect{}, nil
-	}
-
-	return detected, nil
+	return stderr.String(), runErr
 }
 
 // ExtractClip extracts a clip from a video.
@@ -886,16 +933,20 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 	input string,
 	start, duration float64,
 ) (float64, bool) {
-	sample := duration
-	if sample <= 0 || sample > webSafePeakSecs {
-		sample = webSafePeakSecs
+	cleanInput := filepath.Clean(input)
+	window := peakSampleSeconds(duration)
+
+	identity, _ := probeKeyFor(cleanInput)
+
+	if cached, found := lookupAnalysis(identity, analysisKindPeak, start, window); found {
+		return cached.peak, true
 	}
 
 	args := []string{
 		execFFmpeg.ffmpegPath,
 		ssFlag, formatDuration(start),
-		inputFlag, input,
-		durationFlag, formatDuration(sample),
+		inputFlag, cleanInput,
+		durationFlag, formatDuration(window),
 		"-an",
 		videoFilterFlag, signalstatsFilter,
 		"-f", "null",
@@ -914,12 +965,48 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 
 	cmd.Stderr = &stderr
 
-	err := cmd.Run()
-	if err != nil {
-		logging.Logger.Debug().Err(err).Msg("signalstats finished")
+	runErr := cmd.Run()
+	if runErr != nil {
+		logging.Logger.Debug().Err(runErr).Msg("signalstats finished")
 	}
 
-	return parseSignalstatsYMax(stderr.String())
+	ymax, ok := parseSignalstatsYMax(stderr.String())
+
+	// Only a clean pass is cached. A pass that produced no luma is not
+	// necessarily a source with no highlights, and a pass that errored — a
+	// timeout most of all — can have emitted a YMAX from a partial sample,
+	// which would understate the peak and mis-scale the tone map. Neither is
+	// cached, so both are retried on the next request.
+	if ok && runErr == nil {
+		storeAnalysis(
+			cleanInput,
+			identity,
+			analysisKindPeak,
+			start,
+			window,
+			analysisValue{peak: ymax},
+		)
+	}
+
+	return ymax, ok
+}
+
+// peakSampleSeconds returns how long signalstats samples the source.
+//
+// It is exported to the cache through the same value signalstatsYMax passes to
+// ffmpeg, so a cached peak can never be attributed to a different window.
+//
+// Parameters:
+//   - duration: Requested clip duration in seconds.
+//
+// Returns:
+//   - seconds: The sampling window, capped at webSafePeakSecs.
+func peakSampleSeconds(duration float64) float64 {
+	if duration <= 0 || duration > webSafePeakSecs {
+		return webSafePeakSecs
+	}
+
+	return duration
 }
 
 // formatDuration formats a duration in seconds to a string.
