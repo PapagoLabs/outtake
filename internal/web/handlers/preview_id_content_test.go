@@ -118,8 +118,10 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 	other := filepath.Join(t.TempDir(), "other.mkv")
 	require.NoError(t, os.WriteFile(other, []byte("source"), 0o600))
 
-	laterStamp := time.Now().Add(time.Hour)
-	require.NoError(t, os.Chtimes(path, laterStamp, laterStamp))
+	// The source is deliberately left alone here. Restamping it after baseID
+	// would change the modification time for every subtest, so each one would
+	// pass on that alone and a field left out of the key would go unnoticed. The
+	// modification time has its own case below, with its own file.
 
 	tests := []struct {
 		name   string

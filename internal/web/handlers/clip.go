@@ -419,7 +419,33 @@ func renderPreview(
 
 	err = store.Put(ctx, output)
 	if err != nil {
-		return fmt.Errorf("upload preview: %w", err)
+		// The rename published the file locally, so it is now a cache hit for
+		// every later request even though it never reached the bucket. That
+		// preview would vanish on restart or from another instance, so the
+		// upload failure is undone rather than left behind to look valid.
+		return fmt.Errorf("upload preview: %w%w", err, discardPublishedPreview(store, output))
+	}
+
+	return nil
+}
+
+// discardPublishedPreview removes a published preview that failed to upload.
+//
+// Parameters:
+//   - store: Store the preview was published through.
+//   - output: Published path to remove.
+//
+// Returns:
+//   - err: The cleanup failure, or nil when nothing needed removing.
+func discardPublishedPreview(store storage.Blob, output string) error {
+	err := store.DeleteFile(output)
+	if err != nil && !os.IsNotExist(err) {
+		logging.Logger.Warn().
+			Str("path", output).
+			Err(err).
+			Msg("failed to remove unpublished preview")
+
+		return fmt.Errorf("; discarding the published copy also failed: %w", err)
 	}
 
 	return nil

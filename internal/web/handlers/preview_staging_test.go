@@ -5,6 +5,8 @@ package handlers
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -17,6 +19,21 @@ import (
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/media/mocks"
 	"github.com/PapagoLabs/outtake/internal/storage"
+)
+
+// failingPutStore wraps a store so uploads, and optionally deletes, fail. It
+// stands in for an object backend that rejects the write.
+type failingPutStore struct {
+	*storage.Storage
+
+	putErr    error
+	deleteErr error
+}
+
+// errUpload stands in for an object backend rejecting a write.
+var (
+	errUpload = errors.New("upload rejected")
+	errRemove = errors.New("delete rejected")
 )
 
 // newStagingFixture builds a store and the final path a preview is published under.
@@ -228,6 +245,89 @@ func TestRenderPreviewStagingIsUniquePerRender(t *testing.T) {
 	assert.NotEqual(t, targets[0], targets[1], "each render must stage under its own name")
 	assert.FileExists(t, final)
 	assert.Equal(t, []string{filepath.Base(final)}, previewList(t, store))
+}
+
+// DeleteFile always fails when a delete error is set.
+func (store *failingPutStore) DeleteFile(path string) error {
+	if store.deleteErr != nil {
+		return store.deleteErr
+	}
+
+	err := store.Storage.DeleteFile(path)
+	if err != nil {
+		return fmt.Errorf("delete: %w", err)
+	}
+
+	return nil
+}
+
+// Put always fails.
+func (store *failingPutStore) Put(context.Context, string) error {
+	return store.putErr
+}
+
+// TestRenderPreviewRemovesAPublishedPreviewThatFailedToUpload covers the rename
+// succeeding and the upload failing.
+//
+// The rename is what makes the file a cache hit, so leaving it behind would let
+// every later request reuse a preview that never reached the bucket. It would
+// then vanish on restart, or from another instance, with nothing to regenerate
+// it on the strength of.
+func TestRenderPreviewRemovesAPublishedPreviewThatFailedToUpload(t *testing.T) {
+	t.Parallel()
+
+	store, final := newStagingFixture(t)
+	failing := &failingPutStore{Storage: store, putErr: errUpload}
+
+	var targets []string
+
+	err := renderPreview(
+		t.Context(),
+		failing,
+		encodingFFmpeg(t, &targets, nil),
+		"/media/source.mkv",
+		final,
+		api.ClipRequest{MediaID: "42", Duration: 5},
+	)
+	require.ErrorIs(t, err, errUpload)
+
+	assert.NoFileExists(t, final, "a preview that never uploaded must not be a cache hit")
+	assert.Empty(t, previewList(t, store), "neither the published nor staged file may remain")
+}
+
+// TestRenderPreviewReportsAFailedCleanup checks a cleanup that also fails is
+// surfaced, rather than leaving a published preview that never uploaded looking
+// like a valid cache hit.
+func TestRenderPreviewReportsAFailedCleanup(t *testing.T) {
+	t.Parallel()
+
+	store, final := newStagingFixture(t)
+	failing := &failingPutStore{Storage: store, putErr: errUpload, deleteErr: errRemove}
+
+	var targets []string
+
+	err := renderPreview(
+		t.Context(),
+		failing,
+		encodingFFmpeg(t, &targets, nil),
+		"/media/source.mkv",
+		final,
+		api.ClipRequest{MediaID: "42", Duration: 5},
+	)
+	require.ErrorIs(t, err, errUpload, "the upload failure must be preserved")
+	require.ErrorIs(t, err, errRemove, "a cleanup that also failed must be reported")
+}
+
+// TestDiscardPublishedPreviewToleratesAMissingFile covers the cleanup running
+// when the published file is already gone, which must not turn one failure into
+// two.
+func TestDiscardPublishedPreviewToleratesAMissingFile(t *testing.T) {
+	t.Parallel()
+
+	store, _ := newStagingFixture(t)
+	absent := store.PreviewPath("never-published")
+
+	assert.NotPanics(t, func() { discardPublishedPreview(store, absent) })
 }
 
 // TestDiscardStagedPreviewToleratesAMissingFile covers the cleanup path running
