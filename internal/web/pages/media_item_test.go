@@ -4,6 +4,7 @@
 package pages
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -194,6 +195,97 @@ func TestMediaItemPageRendersClearedName(t *testing.T) {
 	assert.Contains(t, body, `name="mediaTitle" value="`+testMovie+`"`)
 }
 
+// TestMediaItemPageRendersPreviewIndicator covers the elements the preview
+// progress script drives, and that they come from the shared components rather
+// than hand-rolled markup.
+//
+// The script looks each of these up by id, so a missing one silently disables
+// that part of the indicator rather than failing loudly.
+func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := MediaItemPage(MediaItemPageProps{
+		ID:        "42",
+		Title:     testMovie,
+		MaxDur:    600,
+		PreviewID: "abc123",
+		Export:    view.ExportForm{},
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+
+	for _, id := range []string{
+		"preview-video",
+		"preview-progress",
+		"preview-cancel",
+		"preview-status",
+		"preview-button",
+		"preview-button-label",
+	} {
+		assert.Contains(t, body, `id="`+id+`"`, "the preview script needs #"+id)
+	}
+
+	// The progress component's own script drives the bar from aria-valuenow, so
+	// both the hook and the attribute it watches must be present.
+	assert.Contains(t, body, "data-tui-progress-indicator")
+	assert.Contains(t, body, `role="progressbar"`)
+	assert.Contains(t, body, `aria-valuenow="0"`)
+
+	// The component script must be requested, at the path the app actually
+	// serves. The base path is what makes the other component scripts reachable
+	// at all, so a regression here is silent until a component needs one.
+	assert.Contains(t, body, `src="/assets/js/progress.min.js`)
+
+	// The player must not point at a file that has not been published yet.
+	assert.NotContains(t, body, `src="/previews/`)
+
+	// The cancel control comes from the button component, which is what makes it
+	// legible once the script disables it while a render is underway. A bare
+	// button would keep the enabled styling in that state, so the check is
+	// scoped to the cancel button's own tag rather than the page.
+	cancelTag := regexp.MustCompile(`<button[^>]*id="preview-cancel"[^>]*>`).FindString(body)
+	require.NotEmpty(t, cancelTag, "the cancel control should be a button")
+	assert.Contains(t, cancelTag, "disabled:pointer-events-none")
+
+	// Cancel must be an htmx request, not a bare fetch. The layout puts the CSRF
+	// token on hx-headers:inherited, so only htmx carries it; a fetch would be
+	// rejected and the cancel would silently do nothing.
+	assert.Contains(t, cancelTag, `hx-delete="/api/clips/preview/abc123"`)
+	assert.Contains(t, cancelTag, `hx-swap="none"`, "the JSON reply must not replace the button")
+
+	// Both start hidden, so nothing is shown before a render is underway.
+	assert.Regexp(t, `id="preview-progress"[^>]*class="[^"]*hidden`, body)
+	assert.Contains(t, cancelTag, "hidden")
+}
+
+// TestMediaItemPageOmitsPreviewIndicatorWithoutAPreview covers the page without
+// a preview in flight, which should render no indicator at all.
+func TestMediaItemPageOmitsPreviewIndicatorWithoutAPreview(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := MediaItemPage(MediaItemPageProps{
+		ID:     "42",
+		Title:  testMovie,
+		MaxDur: 600,
+		Export: view.ExportForm{},
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+
+	assert.NotContains(t, body, `id="preview-progress"`)
+	assert.NotContains(t, body, `id="preview-video"`)
+	// The submit button stays, since it is how a preview is started.
+	assert.Contains(t, body, `id="preview-button"`)
+}
+
+// TestItemClipListOmitsLayout keeps the clip list free of the full page chrome
+// so it can be swapped into a page that already has it.
 func TestItemClipListOmitsLayout(t *testing.T) {
 	t.Parallel()
 

@@ -89,8 +89,11 @@ var ScriptURL = func(path string) string {
 }
 
 // componentScriptBasePath is the base public path for component JavaScript files.
-// In the import workflow this stays "/templui/js". The CLI rewrites it to the user's local jsPublicPath.
-var componentScriptBasePath = "/internal/web/assets/js"
+// In the import workflow this stays "/templui/js". The CLI rewrites it to the
+// user's local jsPublicPath, which for this app is the embedded asset directory
+// served by the /assets mount, so the rewrite must land on the same path the
+// mount uses or every component script 404s.
+var componentScriptBasePath = "/assets/js"
 
 // UseUnminifiedScripts switches component script loading to the unminified files.
 // Leave this false in normal use and set it to true during app startup for debugging.

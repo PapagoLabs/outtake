@@ -30,10 +30,13 @@ type previewView struct {
 
 // previewJob is one registered preview render.
 type previewJob struct {
-	view    previewView
-	cancel  context.CancelFunc
-	created time.Time
-	updated time.Time
+	view   previewView
+	cancel context.CancelFunc
+	// canceled records that this registry asked for the render to stop, so the
+	// outcome is not inferred from the error the killed process produced.
+	canceled bool
+	created  time.Time
+	updated  time.Time
 }
 
 // previewRegistry tracks preview renders and their progress.
@@ -208,6 +211,7 @@ func (registry *previewRegistry) cancel(id string) bool {
 		return false
 	}
 
+	job.canceled = true
 	job.cancel()
 
 	return true
@@ -292,9 +296,14 @@ func (registry *previewRegistry) finish(id string, err error) {
 
 	switch {
 	case err == nil:
+		// The render succeeding wins over a cancellation that arrived after it
+		// finished writing. The file is already published, so reporting it
+		// canceled would hide a preview that is on disk and ready to watch.
 		job.view.Status = queue.JobStatusCompleted
 		job.view.Progress = previewProgressDone
-	case errors.Is(err, context.Canceled):
+	case job.canceled || errors.Is(err, context.Canceled):
+		// A canceled render is not a failure, and its error is only ever the
+		// killed process reporting that it was killed, so it is not surfaced.
 		job.view.Status = queue.JobStatusCancelled
 	default:
 		job.view.Status = queue.JobStatusFailed
