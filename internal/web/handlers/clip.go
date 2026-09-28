@@ -70,6 +70,10 @@ const (
 	previewWait = 30 * time.Second
 	// ErrorMediaPath is the error code for a source that could not be resolved.
 	errorMediaPath = "media_path"
+	// ErrorPreviewNotRunning is the error code for canceling a finished preview.
+	errorPreviewNotRunning = "preview_not_running"
+	// MessagePreviewNotRunning explains a cancel that changed nothing.
+	messagePreviewNotRunning = "preview is not running"
 )
 
 var (
@@ -163,11 +167,24 @@ func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 // Returns:
 //   - err: Non-nil when the response cannot be written.
 func (handler *ClipHandler) CancelPreview(ctx fiber.Ctx) error {
-	if !handler.previewJobs.cancel(ctx.Params(paramID)) {
-		return writeError(ctx, fiber.StatusConflict, errorNotFound, "preview is not running")
+	id := ctx.Params(paramID)
+
+	// Existence is checked separately from running, so an id nothing was ever
+	// registered under is not reported as a render that already finished.
+	if _, known := handler.previewJobs.get(id); !known {
+		return writeError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
 	}
 
-	return writeJSON(ctx, fiber.StatusOK, fiber.Map{"id": ctx.Params(paramID)})
+	if !handler.previewJobs.cancel(id) {
+		return writeError(
+			ctx,
+			fiber.StatusConflict,
+			errorPreviewNotRunning,
+			messagePreviewNotRunning,
+		)
+	}
+
+	return writeJSON(ctx, fiber.StatusOK, fiber.Map{"id": id})
 }
 
 // Create handles the create clip request.
@@ -327,8 +344,12 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	final := handler.clipStorage.PreviewPath(previewID)
 
 	// A preview already rendered for these exact parameters is returned without
-	// touching ffmpeg, so repeated passes over the same window cost nothing.
+	// touching ffmpeg, so repeated passes over the same window cost nothing. It
+	// is recorded as finished so the page it redirects to can poll a status
+	// rather than an unknown id.
 	if handler.clipStorage.FileExists(final) {
+		handler.previewJobs.remember(previewID)
+
 		return redirectTo(ctx, previewRedirect(req, previewID))
 	}
 

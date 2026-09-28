@@ -80,7 +80,7 @@ func (view previewView) done() bool {
 //   - job: The job to register.
 //
 // Returns:
-//   - added: False when the id is already registered.
+//   - added: False when the id is already registered and still rendering.
 func (registry *previewRegistry) add(job *previewJob) bool {
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
@@ -90,8 +90,21 @@ func (registry *previewRegistry) add(job *previewJob) bool {
 	// the same preview arriving twice is expected. Replacing would leave the
 	// first render's goroutine writing to the second render's state, and
 	// canceling the second render when the first finished.
-	if _, exists := registry.jobs[job.view.ID]; exists {
-		return false
+	if existing, exists := registry.jobs[job.view.ID]; exists {
+		// A render still in flight keeps its entry, so a second submission of
+		// the same parameters joins it. Replacing would leave the first render's
+		// goroutine writing to the second render's state, and canceling the
+		// second when the first finished.
+		if !existing.view.done() {
+			return false
+		}
+
+		// The earlier render reached a terminal state without leaving a usable
+		// preview, most often because it failed. Registering the id again is
+		// what lets it be retried at all: keeping the old entry rejects every
+		// later attempt and strands the page on a preview that never arrives.
+		delete(registry.jobs, job.view.ID)
+		registry.dropLocked(job.view.ID)
 	}
 
 	registry.jobs[job.view.ID] = job
@@ -138,6 +151,22 @@ func (registry *previewRegistry) countFinishedLocked() int {
 	}
 
 	return count
+}
+
+// dropLocked removes an id from the order.
+//
+// The caller must hold the lock.
+//
+// Parameters:
+//   - id: Preview id to remove.
+func (registry *previewRegistry) dropLocked(id string) {
+	for i, existing := range registry.order {
+		if existing == id {
+			registry.order = append(registry.order[:i], registry.order[i+1:]...)
+
+			return
+		}
+	}
 }
 
 // evictLocked drops the oldest finished previews beyond the retained count,
@@ -215,6 +244,28 @@ func (registry *previewRegistry) get(id string) (previewView, bool) {
 	}
 
 	return job.view, true
+}
+
+// remember records an id whose preview is already published, so a client
+// polling it finds a terminal status rather than an unknown one.
+//
+// A render already in flight is left alone, so remembering never disturbs a
+// render that is still going to overwrite the file.
+//
+// Parameters:
+//   - id: Preview id that is already on disk.
+func (registry *previewRegistry) remember(id string) {
+	registry.add(&previewJob{
+		view: previewView{
+			ID:       id,
+			Status:   queue.JobStatusCompleted,
+			Progress: previewProgressDone,
+			Error:    "",
+		},
+		cancel:  func() {},
+		created: time.Now(),
+		updated: time.Now(),
+	})
 }
 
 // render registers a preview, runs it in the background, and records how it
