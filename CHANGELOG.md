@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module modernc.org/sqlite to v1.60.0 by @renovate[bot] in [#246](https://github.com/PapagoLabs/outtake/pull/246)
 - Update module github.com/pierrec/lz4/v4 to v4.1.31 by @renovate[bot] in [#236](https://github.com/PapagoLabs/outtake/pull/236)
 - Update github.com/google/pprof digest to aaccee0 by @renovate[bot] in [#228](https://github.com/PapagoLabs/outtake/pull/228)
 - Update module github.com/onsi/gomega to v1.44.0 by @renovate[bot] in [#216](https://github.com/PapagoLabs/outtake/pull/216)
