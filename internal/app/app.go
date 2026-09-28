@@ -335,6 +335,8 @@ func mountAPI(
 	api := app.Group("/api")
 	api.Post(routeClips, guard, clipHandler.Create)
 	api.Post("/clips/preview", guard, clipHandler.Preview)
+	api.Get("/clips/preview/:id", guard, clipHandler.PreviewStatus)
+	api.Delete("/clips/preview/:id", guard, clipHandler.CancelPreview)
 	api.Post("/clips/:id/update", guard, clipHandler.Update)
 	api.Post("/clips/:id/cancel", guard, clipHandler.Cancel)
 	api.Get(routeClips, guard, clipHandler.List)

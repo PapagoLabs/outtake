@@ -37,6 +37,7 @@ type ClipHandler struct {
 	product     string
 	clientID    string
 	previews    *previewGate
+	previewJobs *previewRegistry
 }
 
 const (
@@ -67,8 +68,6 @@ const (
 	// failing, short enough that a queued request cannot outlive a browser's
 	// patience or a canceled client.
 	previewWait = 30 * time.Second
-	// ErrorPreviewBusy is the error code for a preview rejected by the bound.
-	errorPreviewBusy = "preview_busy"
 	// ErrorMediaPath is the error code for a source that could not be resolved.
 	errorMediaPath = "media_path"
 )
@@ -117,6 +116,7 @@ func NewClipHandler(
 		product:     product,
 		clientID:    clientID,
 		previews:    newPreviewGate(cfg.MaxConcurrentPreviews),
+		previewJobs: newPreviewRegistry(),
 	}
 }
 
@@ -153,6 +153,21 @@ func (handler *ClipHandler) Cancel(ctx fiber.Ctx) error {
 	}
 
 	return writeJSON(ctx, fiber.StatusOK, clipResponse(job))
+}
+
+// CancelPreview stops an in-flight preview render.
+//
+// Parameters:
+//   - ctx: Incoming request.
+//
+// Returns:
+//   - err: Non-nil when the response cannot be written.
+func (handler *ClipHandler) CancelPreview(ctx fiber.Ctx) error {
+	if !handler.previewJobs.cancel(ctx.Params(paramID)) {
+		return writeError(ctx, fiber.StatusConflict, errorNotFound, "preview is not running")
+	}
+
+	return writeJSON(ctx, fiber.StatusOK, fiber.Map{"id": ctx.Params(paramID)})
 }
 
 // Create handles the create clip request.
@@ -287,6 +302,12 @@ func (handler *ClipHandler) List(ctx fiber.Ctx) error {
 }
 
 // Preview renders a short low-quality segment without saving a clip.
+//
+// The render runs in the background and the redirect is returned immediately,
+// so the page is reached while the preview is still encoding. The id in the
+// redirect is what a client polls, and it is stable for the same parameters, so
+// a second submission while the first is still running joins that render rather
+// than starting another.
 func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	req, err := parseClipRequest(ctx)
 	if err != nil {
@@ -303,9 +324,34 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
 	}
 
-	// Both paths below land on the same redirect, whether the preview was
-	// rendered just now or was already on disk.
-	redirect := previewRedirectURL(
+	final := handler.clipStorage.PreviewPath(previewID)
+
+	// A preview already rendered for these exact parameters is returned without
+	// touching ffmpeg, so repeated passes over the same window cost nothing.
+	if handler.clipStorage.FileExists(final) {
+		return redirectTo(ctx, previewRedirect(req, previewID))
+	}
+
+	// The render detaches from this request, so the values it needs are captured
+	// by the closure rather than read from the context after the response has
+	// been written. None of them change once the request is parsed.
+	handler.previewJobs.render(ctx.Context(), previewID, func(renderCtx context.Context) error {
+		return handler.renderPreviewInBackground(renderCtx, inputPath, final, req)
+	})
+
+	return redirectTo(ctx, previewRedirect(req, previewID))
+}
+
+// previewRedirect builds the media item location a preview request returns to.
+//
+// Parameters:
+//   - req: Parsed request carrying the marks and form state.
+//   - previewID: Id the preview is being rendered under.
+//
+// Returns:
+//   - location: A path-only redirect target.
+func previewRedirect(req api.ClipRequest, previewID string) string {
+	return previewRedirectURL(
 		req.MediaID,
 		previewID,
 		req.StartTime,
@@ -313,48 +359,41 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		req.WebSafeColor,
 		exportFormFromRequest(req),
 	)
+}
 
-	final := handler.clipStorage.PreviewPath(previewID)
-
-	// A preview already rendered for these exact parameters is returned without
-	// touching ffmpeg, so repeated passes over the same window cost nothing.
-	if handler.clipStorage.FileExists(final) {
-		return redirectTo(ctx, redirect)
+// PreviewStatus reports how far a preview render has got.
+//
+// Parameters:
+//   - ctx: Incoming request.
+//
+// Returns:
+//   - err: Non-nil when the response cannot be written.
+func (handler *ClipHandler) PreviewStatus(ctx fiber.Ctx) error {
+	view, ok := handler.previewJobs.get(ctx.Params(paramID))
+	if !ok {
+		return writeError(ctx, fiber.StatusNotFound, errorNotFound, messageNotFound)
 	}
 
-	// Taken after the Plex lookup and the cache check so a slot is not held
-	// across a network call, or across a preview that needs no encoding.
-	release, err := handler.previews.acquire(ctx.Context(), previewWait)
-	if err != nil {
-		return writeError(
-			ctx,
-			fiber.StatusTooManyRequests,
-			errorPreviewBusy,
-			errPreviewBusy.Error(),
-		)
+	payload := fiber.Map{
+		"id":       view.ID,
+		"status":   view.Status,
+		"progress": view.Progress,
 	}
 
-	defer release()
+	// The file is only served once it is published, so the URL is withheld until
+	// then rather than pointing at something that is not there.
+	if view.Status == queue.JobStatusCompleted && handler.clipStorage.FileExists(
+		handler.clipStorage.PreviewPath(view.ID),
+	) {
 
-	// Re-checked under the slot. A request that queued behind another render of
-	// the same parameters would otherwise encode a preview that now exists.
-	if handler.clipStorage.FileExists(final) {
-		return redirectTo(ctx, redirect)
+		payload["url"] = "/previews/" + view.ID
 	}
 
-	err = renderPreview(
-		ctx.Context(),
-		handler.clipStorage,
-		media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath),
-		inputPath,
-		final,
-		req,
-	)
-	if err != nil {
-		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
+	if view.Error != "" {
+		payload["error"] = view.Error
 	}
 
-	return redirectTo(ctx, redirect)
+	return writeJSON(ctx, fiber.StatusOK, payload)
 }
 
 // renderPreview encodes a preview and publishes it under its final name.
@@ -656,6 +695,55 @@ func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job)
 	}
 
 	handler.clipQueue.Submit(job)
+
+	return nil
+}
+
+// renderPreviewInBackground renders a preview on a queued goroutine.
+//
+// Taking the render slot here rather than in the request means a request is
+// never held while another render finishes, and a preview the user is not
+// waiting on can queue. A slot that cannot be taken in time fails the render,
+// which the client reads from the status endpoint rather than from the response
+// that already returned.
+//
+// Parameters:
+//   - ctx: Cancellation for the render, held by the registry.
+//   - inputPath: Resolved source media path.
+//   - final: Final path the preview is published under.
+//   - req: Parsed request carrying the window and encoding options.
+//
+// Returns:
+//   - err: Non-nil when the preview could not be rendered.
+func (handler *ClipHandler) renderPreviewInBackground(
+	ctx context.Context,
+	inputPath, final string,
+	req api.ClipRequest,
+) error {
+	release, err := handler.previews.acquire(ctx, previewWait)
+	if err != nil {
+		return fmt.Errorf("preview slot: %w", err)
+	}
+
+	defer release()
+
+	// Re-checked under the slot. A render that queued behind another of the
+	// same parameters would otherwise encode a preview that now exists.
+	if handler.clipStorage.FileExists(final) {
+		return nil
+	}
+
+	err = renderPreview(
+		ctx,
+		handler.clipStorage,
+		media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath),
+		inputPath,
+		final,
+		req,
+	)
+	if err != nil {
+		return fmt.Errorf("render preview: %w", err)
+	}
 
 	return nil
 }
