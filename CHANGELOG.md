@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Render previews in the background by @nicholas-fedor in [#242](https://github.com/PapagoLabs/outtake/pull/242)
 - Key previews by their content and stage them before publishing by @nicholas-fedor in [#240](https://github.com/PapagoLabs/outtake/pull/240)
 - Bound concurrent preview encodes by @nicholas-fedor in [#232](https://github.com/PapagoLabs/outtake/pull/232)
 - Cache cropdetect and luma analysis by file identity by @nicholas-fedor in [#230](https://github.com/PapagoLabs/outtake/pull/230)
