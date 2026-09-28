@@ -33,6 +33,27 @@ type statusResponse struct {
 	Error    string `json:"error"`
 }
 
+// testSlots is the render slot count these tests admit against, chosen so the
+// handful of renders a test starts never reaches the admission limit.
+const testSlots = 4
+
+// newPendingJob builds a job that has not started, for exercising admission
+// without running a render.
+//
+// Parameters:
+//   - id: Preview id.
+//
+// Returns:
+//   - job: A pending job for that id.
+func newPendingJob(id string) *previewJob {
+	return &previewJob{
+		view:    previewView{ID: id, Status: "pending"},
+		cancel:  func() {},
+		created: time.Now(),
+		updated: time.Now(),
+	}
+}
+
 // newAsyncHandler builds a handler whose previews render in the background.
 func newAsyncHandler(t *testing.T) (*ClipHandler, *storage.Storage) {
 	t.Helper()
@@ -89,12 +110,16 @@ func TestPreviewStatusReportsAQueuedRender(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
 
-	require.True(t, handler.previewJobs.render(t.Context(), "p1", func(context.Context) error {
-		close(started)
-		<-release
+	require.Equal(
+		t,
+		admittedRender,
+		handler.previewJobs.render(t.Context(), "p1", testSlots, func(context.Context) error {
+			close(started)
+			<-release
 
-		return nil
-	}))
+			return nil
+		}),
+	)
 
 	<-started
 
@@ -167,14 +192,20 @@ func TestPreviewStatusReportsARenderWaitingForASlot(t *testing.T) {
 
 	waiting := make(chan struct{})
 
-	require.True(
+	require.Equal(
 		t,
-		handler.previewJobs.render(t.Context(), "queued", func(ctx context.Context) error {
-			close(waiting)
-			<-ctx.Done()
+		admittedRender,
+		handler.previewJobs.render(
+			t.Context(),
+			"queued",
+			testSlots,
+			func(ctx context.Context) error {
+				close(waiting)
+				<-ctx.Done()
 
-			return ctx.Err()
-		}),
+				return ctx.Err()
+			},
+		),
 	)
 
 	select {
@@ -250,20 +281,30 @@ func TestPreviewRegistryAllowsRetryingAFailedRender(t *testing.T) {
 
 	registry := newPreviewRegistry()
 
-	require.True(t, registry.render(t.Context(), "p1", func(context.Context) error {
-		return errRender
-	}), "the first attempt should start")
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), "p1", testSlots, func(context.Context) error {
+			return errRender
+		}),
+		"the first attempt should start",
+	)
 
 	view := awaitTerminal(t, registry, "p1")
 	require.Equal(t, "failed", string(view.Status))
 
 	ran := make(chan struct{})
 
-	require.True(t, registry.render(t.Context(), "p1", func(context.Context) error {
-		close(ran)
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), "p1", testSlots, func(context.Context) error {
+			close(ran)
 
-		return nil
-	}), "a failed render must be retryable")
+			return nil
+		}),
+		"a failed render must be retryable",
+	)
 
 	select {
 	case <-ran:
@@ -283,16 +324,21 @@ func TestPreviewRegistryAllowsRetryingAFailedRender(t *testing.T) {
 func TestPreviewAdmissionRefusesWhenTheQueueIsFull(t *testing.T) {
 	t.Parallel()
 
-	registry := newPreviewRegistry()
-	slots := 2
-	release := make(chan struct{})
+	handler, _ := newAsyncHandler(t)
+	registry := handler.previewJobs
+	slots := handler.previews.capacity()
 
+	// These renders do not take the gate themselves: the limit under test is
+	// outstanding renders, not held slots, and making eight renders contend for
+	// two slots would leave most of them waiting out the acquire timeout.
 	for i := range slots * previewQueuedPerSlot {
 		held := make(chan struct{})
+		id := "p" + strconv.Itoa(i)
 
-		require.True(
+		require.Equal(
 			t,
-			registry.render(t.Context(), "p"+strconv.Itoa(i), func(ctx context.Context) error {
+			admittedRender,
+			registry.render(t.Context(), id, slots, func(ctx context.Context) error {
 				close(held)
 				<-ctx.Done()
 
@@ -305,27 +351,35 @@ func TestPreviewAdmissionRefusesWhenTheQueueIsFull(t *testing.T) {
 		<-held
 	}
 
-	assert.False(t, registry.room(slots), "the queue should be full at the admission limit")
+	// A new id is refused once the queue is at the limit.
+	assert.Equal(t, refusedFull, registry.admit(newPendingJob("brand-new"), slots),
+		"a new preview must be refused at the admission limit")
 
-	// Freeing one slot of the gate does not free a registry admission, so the
-	// next request is still refused until a render finishes.
-	acquired, err := newPreviewGate(slots).acquire(t.Context(), time.Second)
+	// A slot is taken and released on the handler's own gate. Releasing it must
+	// not change the outcome: admission is bounded by outstanding renders, not
+	// by free gate slots.
+	spare, err := handler.previews.acquire(t.Context(), time.Second)
 	require.NoError(t, err)
-	acquired()
+	spare()
 
-	assert.False(t, registry.room(slots))
+	assert.Equal(t, refusedFull, registry.admit(newPendingJob("still-full"), slots),
+		"a free gate slot must not admit a render past the limit")
 
-	// Once a render finishes, room reappears.
+	// An id already rendering is joined even at the limit, because that work is
+	// underway and refusing it would deny the caller the page showing it.
+	assert.Equal(t, admittedExisting, registry.admit(newPendingJob("p0"), slots),
+		"a preview already rendering must be joined, not refused")
+
+	// Finishing a render frees one admission.
 	require.True(t, registry.cancel("p0"))
 	awaitTerminal(t, registry, "p0")
 
-	assert.True(t, registry.room(slots), "finishing a render must free an admission")
+	assert.Equal(t, admittedRender, registry.admit(newPendingJob("now-free"), slots),
+		"finishing a render must free an admission")
 
 	for i := 1; i < slots*previewQueuedPerSlot; i++ {
 		registry.cancel("p" + strconv.Itoa(i))
 	}
-
-	close(release)
 }
 
 // TestPreviewRegistryRejectsARunningRender is the counterpart: a render in
@@ -337,17 +391,26 @@ func TestPreviewRegistryRejectsARunningRender(t *testing.T) {
 	registry := newPreviewRegistry()
 	release := make(chan struct{})
 
-	require.True(t, registry.render(t.Context(), "p1", func(ctx context.Context) error {
-		<-ctx.Done()
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), "p1", testSlots, func(ctx context.Context) error {
+			<-ctx.Done()
 
-		return ctx.Err()
-	}))
+			return ctx.Err()
+		}),
+	)
 
-	require.False(t, registry.render(t.Context(), "p1", func(context.Context) error {
-		close(release)
+	require.Equal(
+		t,
+		admittedExisting,
+		registry.render(t.Context(), "p1", testSlots, func(context.Context) error {
+			close(release)
 
-		return nil
-	}), "a render in flight must keep its entry")
+			return nil
+		}),
+		"a render in flight must keep its entry",
+	)
 
 	assert.True(t, registry.cancel("p1"))
 }
@@ -397,7 +460,12 @@ func TestPreviewStatusOmitsURLUntilPublished(t *testing.T) {
 
 	handler, store := newAsyncHandler(t)
 
-	handler.previewJobs.render(t.Context(), "p1", func(context.Context) error { return nil })
+	handler.previewJobs.render(
+		t.Context(),
+		"p1",
+		testSlots,
+		func(context.Context) error { return nil },
+	)
 
 	awaitTerminal(t, handler.previewJobs, "p1")
 
@@ -434,7 +502,7 @@ func TestCancelPreviewStopsARunningRender(t *testing.T) {
 	running := make(chan struct{})
 	finished := make(chan struct{})
 
-	handler.previewJobs.render(t.Context(), "p1", func(ctx context.Context) error {
+	handler.previewJobs.render(t.Context(), "p1", testSlots, func(ctx context.Context) error {
 		close(running)
 		<-ctx.Done()
 		close(finished)
@@ -473,7 +541,12 @@ func TestCancelPreviewRejectsAFinishedRender(t *testing.T) {
 
 	handler, _ := newAsyncHandler(t)
 
-	handler.previewJobs.render(t.Context(), "p1", func(context.Context) error { return nil })
+	handler.previewJobs.render(
+		t.Context(),
+		"p1",
+		testSlots,
+		func(context.Context) error { return nil },
+	)
 
 	awaitTerminal(t, handler.previewJobs, "p1")
 

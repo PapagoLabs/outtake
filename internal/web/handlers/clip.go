@@ -355,9 +355,21 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		return redirectTo(ctx, previewRedirect(req, previewID))
 	}
 
-	// Refused before anything is registered, so a burst of clicks cannot leave
-	// behind a goroutine and an entry per request.
-	if !handler.previewJobs.room(handler.previews.capacity()) {
+	// The render detaches from this request, so the values it needs are captured
+	// by the closure rather than read from the context after the response has
+	// been written. None of them change once the request is parsed.
+	//
+	// Admission and registration happen together, so a burst of clicks cannot
+	// each observe the same headroom and collectively overshoot the limit.
+	admitted := handler.previewJobs.render(
+		ctx.Context(),
+		previewID,
+		handler.previews.capacity(),
+		func(renderCtx context.Context) error {
+			return handler.renderPreviewInBackground(renderCtx, inputPath, final, req)
+		},
+	)
+	if admitted == refusedFull {
 		return writeError(
 			ctx,
 			fiber.StatusTooManyRequests,
@@ -365,13 +377,6 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 			errPreviewBusy.Error(),
 		)
 	}
-
-	// The render detaches from this request, so the values it needs are captured
-	// by the closure rather than read from the context after the response has
-	// been written. None of them change once the request is parsed.
-	handler.previewJobs.render(ctx.Context(), previewID, func(renderCtx context.Context) error {
-		return handler.renderPreviewInBackground(renderCtx, inputPath, final, req)
-	})
 
 	return redirectTo(ctx, previewRedirect(req, previewID))
 }

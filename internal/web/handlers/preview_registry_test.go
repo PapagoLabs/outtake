@@ -61,7 +61,7 @@ func TestPreviewRegistryRecordsProgress(t *testing.T) {
 	callbacks := make(chan func(int), 1)
 	released := make(chan struct{})
 
-	registry.render(t.Context(), "p1", func(ctx context.Context) error {
+	registry.render(t.Context(), "p1", testSlots, func(ctx context.Context) error {
 		// The callback is published rather than exercised here, so the
 		// assertions run on the test goroutine. require calls FailNow, which is
 		// only legal there.
@@ -104,7 +104,7 @@ func TestPreviewRegistryRecordsFailure(t *testing.T) {
 
 	registry := newPreviewRegistry()
 
-	registry.render(t.Context(), "p1", func(context.Context) error {
+	registry.render(t.Context(), "p1", testSlots, func(context.Context) error {
 		return errRender
 	})
 
@@ -119,7 +119,7 @@ func TestPreviewRegistryRecordsCancellation(t *testing.T) {
 	registry := newPreviewRegistry()
 	started := make(chan struct{})
 
-	registry.render(t.Context(), "p1", func(ctx context.Context) error {
+	registry.render(t.Context(), "p1", testSlots, func(ctx context.Context) error {
 		close(started)
 
 		<-ctx.Done()
@@ -143,7 +143,7 @@ func TestPreviewRegistryCancelIgnoresFinished(t *testing.T) {
 
 	registry := newPreviewRegistry()
 
-	registry.render(t.Context(), "p1", func(context.Context) error { return nil })
+	registry.render(t.Context(), "p1", testSlots, func(context.Context) error { return nil })
 	awaitPreview(t, registry)
 
 	assert.False(t, registry.cancel("p1"), "a finished preview should not report canceled")
@@ -160,7 +160,7 @@ func TestPreviewRegistryOutlivesRequest(t *testing.T) {
 	requestCtx, endRequest := context.WithCancel(t.Context())
 	finished := make(chan struct{})
 
-	registry.render(requestCtx, "p1", func(ctx context.Context) error {
+	registry.render(requestCtx, "p1", testSlots, func(ctx context.Context) error {
 		// The request goes away immediately, as it would for a 202.
 		endRequest()
 
@@ -187,7 +187,7 @@ func TestPreviewRegistryClampsProgress(t *testing.T) {
 	registry := newPreviewRegistry()
 	held := make(chan struct{})
 
-	registry.render(t.Context(), "p1", func(ctx context.Context) error {
+	registry.render(t.Context(), "p1", testSlots, func(ctx context.Context) error {
 		onProgress := progress.From(ctx)
 		onProgress(-40)
 		onProgress(500)
@@ -223,7 +223,7 @@ func TestPreviewRegistryIgnoresProgressGoingBackwards(t *testing.T) {
 	registry := newPreviewRegistry()
 	released := make(chan struct{})
 
-	registry.render(t.Context(), testPreviewID, func(ctx context.Context) error {
+	registry.render(t.Context(), testPreviewID, testSlots, func(ctx context.Context) error {
 		report := progress.From(ctx)
 		report(60)
 		report(10)
@@ -274,29 +274,39 @@ func TestPreviewRegistryRejectsDuplicateID(t *testing.T) {
 		return renders
 	}
 
-	require.True(t, registry.render(t.Context(), testPreviewID, func(ctx context.Context) error {
-		mu.Lock()
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), testPreviewID, testSlots, func(ctx context.Context) error {
+			mu.Lock()
 
-		renders++
-		mu.Unlock()
+			renders++
+			mu.Unlock()
 
-		close(firstStarted)
+			close(firstStarted)
 
-		<-release
+			<-release
 
-		return ctx.Err()
-	}), "the first render should start")
+			return ctx.Err()
+		}),
+		"the first render should start",
+	)
 
 	<-firstStarted
 
-	require.False(t, registry.render(t.Context(), testPreviewID, func(context.Context) error {
-		mu.Lock()
+	require.Equal(
+		t,
+		admittedExisting,
+		registry.render(t.Context(), testPreviewID, testSlots, func(context.Context) error {
+			mu.Lock()
 
-		renders++
-		mu.Unlock()
+			renders++
+			mu.Unlock()
 
-		return nil
-	}), "a duplicate id should not start a second render")
+			return nil
+		}),
+		"a duplicate id should not start a second render",
+	)
 
 	assert.Equal(t, 1, count(), "the duplicate render must never run")
 
@@ -328,13 +338,22 @@ func TestPreviewRegistryEvictsBehindARunningPreview(t *testing.T) {
 	blocked := make(chan struct{})
 	started := make(chan struct{})
 
-	// A preview that never finishes sits at the front of the order.
-	require.True(t, registry.render(t.Context(), "blocked", func(context.Context) error {
-		close(started)
-		<-blocked
+	// This exercises eviction rather than admission, so the slot count is raised
+	// enough that every submission below is admitted. The division rounds up,
+	// because the limit is slots times the per-slot allowance.
+	slots := ((previewRetained + 5) / previewQueuedPerSlot) + 1
 
-		return nil
-	}))
+	// A preview that never finishes sits at the front of the order.
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), "blocked", slots, func(context.Context) error {
+			close(started)
+			<-blocked
+
+			return nil
+		}),
+	)
 
 	<-started
 
@@ -342,7 +361,7 @@ func TestPreviewRegistryEvictsBehindARunningPreview(t *testing.T) {
 	finished := make(chan struct{}, renders)
 
 	for i := range renders {
-		registry.render(t.Context(), previewID(i), func(context.Context) error {
+		registry.render(t.Context(), previewID(i), slots, func(context.Context) error {
 			finished <- struct{}{}
 
 			return nil
@@ -395,8 +414,13 @@ func TestPreviewRegistryEvictsOldestFinished(t *testing.T) {
 	renders := previewRetained + 5
 	done := make(chan struct{}, renders)
 
+	// As with the eviction test, the slot count is raised so the admission limit
+	// does not refuse submissions this test is waiting on. The division rounds
+	// up, because the limit is slots times the per-slot allowance.
+	slots := (renders / previewQueuedPerSlot) + 1
+
 	for i := range renders {
-		registry.render(t.Context(), previewID(i), func(context.Context) error {
+		registry.render(t.Context(), previewID(i), slots, func(context.Context) error {
 			done <- struct{}{}
 
 			// Hold the render open after signaling, so there is a real gap
@@ -519,14 +543,19 @@ func TestPreviewRegistryKeepsInFlightDuringEviction(t *testing.T) {
 	registry := newPreviewRegistry()
 	held := make(chan struct{})
 
-	registry.render(t.Context(), "in-flight", func(ctx context.Context) error {
+	registry.render(t.Context(), "in-flight", testSlots, func(ctx context.Context) error {
 		<-held
 
 		return nil
 	})
 
 	for i := range previewRetained + 5 {
-		registry.render(t.Context(), previewID(i), func(context.Context) error { return nil })
+		registry.render(
+			t.Context(),
+			previewID(i),
+			testSlots,
+			func(context.Context) error { return nil },
+		)
 	}
 
 	_, ok := registry.get("in-flight")
@@ -543,7 +572,7 @@ func TestPreviewRegistryConcurrentProgress(t *testing.T) {
 	registry := newPreviewRegistry()
 	held := make(chan struct{})
 
-	registry.render(t.Context(), "p1", func(ctx context.Context) error {
+	registry.render(t.Context(), "p1", testSlots, func(ctx context.Context) error {
 		onProgress := progress.From(ctx)
 
 		var wg sync.WaitGroup

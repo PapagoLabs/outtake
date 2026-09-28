@@ -49,6 +49,18 @@ type previewRegistry struct {
 	order []string
 }
 
+// admission is the outcome of registering a preview render.
+type admission int
+
+const (
+	// AdmittedRender means a new render was started.
+	admittedRender admission = iota
+	// AdmittedExisting means the id was already rendering and got joined.
+	admittedExisting
+	// RefusedFull means the queue is at its limit and the id is new.
+	refusedFull
+)
+
 const (
 	// PreviewRetained is how many finished previews the registry keeps so a
 	// client polling straight after submitting can still read the result.
@@ -122,6 +134,62 @@ func (registry *previewRegistry) add(job *previewJob) bool {
 	registry.evictLocked()
 
 	return true
+}
+
+// admit registers a render, or reports why it could not.
+//
+// The whole decision happens under one lock. Checking capacity and then
+// registering separately would let a burst of requests all observe the same
+// headroom and collectively overshoot the limit.
+//
+// An id that is already rendering is joined even at the limit, because that work
+// is underway: refusing it would deny the caller the page showing the preview
+// they are waiting for.
+//
+// Parameters:
+//   - job: The job to register.
+//   - slots: Number of render slots the gate allows.
+//
+// Returns:
+//   - result: What happened.
+func (registry *previewRegistry) admit(job *previewJob, slots int) admission {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	if existing, ok := registry.jobs[job.view.ID]; ok {
+		// A render still in flight keeps its entry, so a second submission of the
+		// same parameters joins it. Replacing would leave the first render's
+		// goroutine writing to the second render's state, and canceling the
+		// second when the first finished.
+		if !existing.view.done() {
+			return admittedExisting
+		}
+
+		// The earlier render reached a terminal state without leaving a usable
+		// preview, most often because it failed. Registering the id again is
+		// what lets it be retried at all: keeping the old entry rejects every
+		// later attempt and strands the page on a preview that never arrives.
+		delete(registry.jobs, job.view.ID)
+		registry.dropLocked(job.view.ID)
+	}
+
+	outstanding := 0
+
+	for _, existing := range registry.jobs {
+		if !existing.view.done() {
+			outstanding++
+		}
+	}
+
+	if outstanding >= slots*previewQueuedPerSlot {
+		return refusedFull
+	}
+
+	registry.jobs[job.view.ID] = job
+	registry.order = append(registry.order, job.view.ID)
+	registry.evictLocked()
+
+	return admittedRender
 }
 
 // cancel stops an in-flight preview.
@@ -300,8 +368,9 @@ func (registry *previewRegistry) remember(id string) {
 func (registry *previewRegistry) render(
 	ctx context.Context,
 	id string,
+	slots int,
 	fn func(context.Context) error,
-) bool {
+) admission {
 	jobCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	job := &previewJob{
@@ -316,12 +385,14 @@ func (registry *previewRegistry) render(
 		updated: time.Now(),
 	}
 
-	if !registry.add(job) {
-		// Nothing was registered, so nothing owns this cancel. Releasing it
-		// keeps the detached context from being retained.
+	result := registry.admit(job, slots)
+	if result != admittedRender {
+		// Nothing new was registered, so nothing owns this cancel. Releasing it
+		// keeps the detached context from being retained. An id that is already
+		// rendering must not start a second one over it.
 		cancel()
 
-		return false
+		return result
 	}
 
 	go func() {
@@ -336,7 +407,7 @@ func (registry *previewRegistry) render(
 		registry.finish(id, err)
 	}()
 
-	return true
+	return result
 }
 
 // retainLocked decides whether one preview stays, consuming a retained slot
@@ -377,30 +448,6 @@ func (registry *previewRegistry) retainLocked(id string, finished *int) bool {
 	}
 
 	return true
-}
-
-// room reports whether another preview may be admitted.
-//
-// The caller must hold the lock.
-//
-// Parameters:
-//   - slots: Number of render slots the gate allows.
-//
-// Returns:
-//   - room: True when the outstanding count is below the admission limit.
-func (registry *previewRegistry) room(slots int) bool {
-	registry.mu.Lock()
-	defer registry.mu.Unlock()
-
-	outstanding := 0
-
-	for _, job := range registry.jobs {
-		if !job.view.done() {
-			outstanding++
-		}
-	}
-
-	return outstanding < slots*previewQueuedPerSlot
 }
 
 // setProgress records how far a render has got, clamped to the reported range.
