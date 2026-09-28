@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -485,7 +486,9 @@ func renderPreview(
 	if err != nil {
 		discardStagedPreview(staged)
 
-		return fmt.Errorf("extract preview: %w", err)
+		// media names the operation, so this only adds which output it was
+		// writing, which is what tells two concurrent previews apart.
+		return fmt.Errorf("preview %s: %w", filepath.Base(output), err)
 	}
 
 	err = os.Rename(staged, output)

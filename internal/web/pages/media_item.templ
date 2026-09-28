@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/components/progress"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -158,6 +159,33 @@ templ MediaItemPage(props MediaItemPageProps) {
 					preload="metadata"
 					data-preview-id={ props.PreviewID }
 				></video>
+				<div class="mt-3 flex items-center gap-3">
+					@progress.Progress(progress.Props{
+						ID:    "preview-progress",
+						Max:   100,
+						Value: 0,
+						Size:  progress.SizeSm,
+						Class: "hidden flex-1",
+					})
+					@button.Button(button.Props{
+						ID:      "preview-cancel",
+						Type:    button.TypeButton,
+						Variant: button.VariantOutline,
+						Size:    button.SizeSm,
+						Class:   "hidden",
+						// htmx rather than fetch, so the request inherits the CSRF
+						// token the layout puts on the body. hx-swap none keeps the
+						// JSON reply from replacing the button; the poll reports
+						// the outcome.
+						Attributes: map[string]any{
+							"hx-delete":  "/api/clips/preview/" + props.PreviewID,
+							"hx-swap":    "none",
+							"hx-disable": "this",
+						},
+					}) {
+						Cancel
+					}
+				</div>
 				<p id="preview-status" class="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
 					Rendering preview…
 				</p>
@@ -248,14 +276,20 @@ templ MediaItemPage(props MediaItemPageProps) {
 					</div>
 					@clip.CropBlackBarsField(props.Export.CropBlackBars)
 					@clip.WebSafeColorField(props.Export.WebSafeColor)
-						<div class="flex gap-3">
-							<button type="submit" formaction="/api/clips/preview" formmethod="post" class="js-export-submit inline-flex items-center justify-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
-								Preview
-							</button>
-							@button.Button(button.Props{Type: button.TypeSubmit, Class: "js-export-submit", Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}) {
-								Save clip
-							}
-						</div>
+					<div class="flex gap-3">
+						@button.Button(button.Props{
+							ID:         "preview-button",
+							Type:       button.TypeSubmit,
+							Variant:    button.VariantOutline,
+							Class:      "js-export-submit",
+							Attributes: map[string]any{"formaction": "/api/clips/preview", "formmethod": "post"},
+						}) {
+							<span id="preview-button-label">Preview</span>
+						}
+						@button.Button(button.Props{Type: button.TypeSubmit, Class: "js-export-submit", Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}) {
+							Save clip
+						}
+					</div>
 					</form>
 				}
 			}
@@ -276,6 +310,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 			</div>
 		</div>
 		<div id="clip-form-config" data-max-dur={ strconv.Itoa(props.MaxDur) } class="hidden"></div>
+		@progress.Script()
 		<script src="/assets/js/media-item.js"></script>
 	}
 }

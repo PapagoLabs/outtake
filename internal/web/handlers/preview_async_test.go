@@ -6,6 +6,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -36,6 +37,11 @@ type statusResponse struct {
 // testSlots is the render slot count these tests admit against, chosen so the
 // handful of renders a test starts never reaches the admission limit.
 const testSlots = 4
+
+// errKilledProcess is what ffmpeg reports once its process is killed for a
+// canceled context. It is deliberately not context.Canceled, which is what
+// makes recognizing a deliberate cancel from the error alone unreliable.
+var errKilledProcess = errors.New("extract preview: ffmpeg: signal: killed")
 
 // newPendingJob builds a job that has not started, for exercising admission
 // without running a render.
@@ -560,4 +566,98 @@ func TestCancelPreviewRejectsAFinishedRender(t *testing.T) {
 	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	assert.Equal(t, fiber.StatusConflict, resp.StatusCode)
+}
+
+// TestPreviewRegistryRecordsCancellationWhenProcessIsKilled covers canceling a
+// render that is already inside ffmpeg.
+//
+// Killing the process yields an exec error reading "signal: killed", which does
+// not wrap context.Canceled, so recognizing a deliberate cancel from the error
+// alone would report it as a failure and show the user the killed process as
+// though something had gone wrong.
+func TestPreviewRegistryRecordsCancellationWhenProcessIsKilled(t *testing.T) {
+	t.Parallel()
+
+	registry := newPreviewRegistry()
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), "p1", testSlots, func(ctx context.Context) error {
+			close(started)
+			<-release
+
+			return errKilledProcess
+		}),
+	)
+
+	<-started
+	require.True(t, registry.cancel("p1"))
+	close(release)
+
+	view := awaitTerminal(t, registry, "p1")
+	assert.Equal(t, "canceled", string(view.Status), "a deliberate cancel is not a failure")
+	assert.Empty(t, view.Error, "the killed process error must not be shown to the user")
+}
+
+// TestPreviewRegistryKeepsRealFailures covers the opposite: a genuine failure
+// still reports as failed and still carries its message.
+func TestPreviewRegistryKeepsRealFailures(t *testing.T) {
+	t.Parallel()
+
+	registry := newPreviewRegistry()
+
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), "p1", testSlots, func(context.Context) error {
+			return errRender
+		}),
+	)
+
+	view := awaitTerminal(t, registry, "p1")
+	assert.Equal(t, "failed", string(view.Status))
+	assert.Equal(t, errRender.Error(), view.Error)
+}
+
+// TestPreviewRegistryKeepsCompletionWhenCancelArrivesLate covers a cancel that
+// lands in the window between a render publishing its file and the registry
+// recording the outcome.
+//
+// The render has already succeeded, so the preview is on disk. Reporting it
+// canceled would hide a finished preview, and the status endpoint withholds the
+// url for anything not marked completed.
+func TestPreviewRegistryKeepsCompletionWhenCancelArrivesLate(t *testing.T) {
+	t.Parallel()
+
+	registry := newPreviewRegistry()
+	published := make(chan struct{})
+	release := make(chan struct{})
+
+	require.Equal(
+		t,
+		admittedRender,
+		registry.render(t.Context(), "p1", testSlots, func(context.Context) error {
+			// The file is written and renamed at this point; only finish is pending.
+			close(published)
+			<-release
+
+			return nil
+		}),
+	)
+
+	<-published
+
+	// The user clicks cancel before the registry has recorded the outcome.
+	require.True(t, registry.cancel("p1"),
+		"the job is still marked running until finish records it")
+	close(release)
+
+	view := awaitTerminal(t, registry, "p1")
+	assert.Equal(t, "completed", string(view.Status),
+		"a render that succeeded must not be reported as canceled")
+	assert.Equal(t, previewProgressDone, view.Progress)
+	assert.Empty(t, view.Error)
 }

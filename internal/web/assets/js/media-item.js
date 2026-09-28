@@ -65,6 +65,12 @@
 	var statusEl = document.getElementById('preview-status');
 	if (!videoEl || !statusEl) { return; }
 
+	var progressEl = document.getElementById('preview-progress');
+	var cancelEl = document.getElementById('preview-cancel');
+	var buttonEl = document.getElementById('preview-button');
+	var buttonLabelEl = document.getElementById('preview-button-label');
+	var buttonIdleLabel = buttonLabelEl ? buttonLabelEl.textContent : 'Preview';
+
 	var previewId = videoEl.getAttribute('data-preview-id');
 	var pollIntervalMs = 1000;
 	var retryIntervalMs = 2000;
@@ -106,10 +112,58 @@
 		pendingTimer = window.setTimeout(pollPreview, delay);
 	}
 
+	// showProgress marks a render as underway: the bar appears and advances, a
+	// cancel control is offered, and the submit button is held down so a second
+	// click reads as "already rendering" rather than looking like it did nothing.
+	//
+	// Only aria-valuenow is set. The progress component's own script watches that
+	// attribute and drives the bar width, so writing style here would fight it.
+	function showProgress(percent) {
+		var value = Math.max(0, Math.min(100, percent || 0));
+
+		if (progressEl) {
+			progressEl.classList.remove('hidden');
+			progressEl.setAttribute('aria-valuenow', String(value));
+		}
+		if (cancelEl) {
+			cancelEl.classList.remove('hidden');
+		}
+		if (buttonEl) {
+			buttonEl.disabled = true;
+			buttonEl.classList.add('opacity-60');
+		}
+		if (buttonLabelEl) {
+			buttonLabelEl.textContent = 'Rendering…';
+		}
+	}
+
+	// clearProgress hides the in-flight affordances and restores the button.
+	function clearProgress() {
+		if (progressEl) { progressEl.classList.add('hidden'); }
+		if (cancelEl) { cancelEl.classList.add('hidden'); }
+		if (buttonEl) {
+			buttonEl.disabled = false;
+			buttonEl.classList.remove('opacity-60');
+		}
+		if (buttonLabelEl) { buttonLabelEl.textContent = buttonIdleLabel; }
+	}
+
 	function giveUp(message) {
-		stopped = true;
+		stopPolling();
+		clearProgress();
 		statusEl.classList.remove('hidden');
 		statusEl.textContent = message;
+	}
+
+	if (cancelEl) {
+		// The cancel itself is an htmx request, so it inherits the CSRF token the
+		// layout sets on the body. Polling continues either way: the render ends
+		// as canceled and the next poll reports it, so the status line settles on
+		// the outcome rather than freezing at the last percentage.
+		cancelEl.addEventListener('htmx:responseError', function () {
+			statusEl.classList.remove('hidden');
+			statusEl.textContent = 'Could not cancel the preview.';
+		});
 	}
 
 	function pollPreview() {
@@ -139,6 +193,7 @@
 				if (state === null || stopped || !document.contains(videoEl)) { return; }
 				if (state.status === 'completed' && state.url) {
 					stopPolling();
+					clearProgress();
 					statusEl.textContent = '';
 					statusEl.classList.add('hidden');
 					videoEl.src = state.url;
@@ -148,7 +203,11 @@
 				}
 				if (state.status === 'failed' || state.status === 'canceled') {
 					stopPolling();
-					statusEl.textContent = state.error || 'Preview was not rendered.';
+					clearProgress();
+					statusEl.classList.remove('hidden');
+					statusEl.textContent = state.error
+						? state.status.charAt(0).toUpperCase() + state.status.slice(1) + ': ' + state.error
+						: 'Preview was ' + state.status + '.';
 
 					return;
 				}
@@ -158,6 +217,7 @@
 
 					return;
 				}
+				showProgress(state.progress);
 				statusEl.textContent = state.progress
 					? 'Rendering preview… ' + state.progress + '%'
 					: 'Rendering preview…';
@@ -172,6 +232,7 @@
 
 					return;
 				}
+				showProgress(0);
 				statusEl.textContent = 'Waiting for the preview server…';
 				schedule(retryIntervalMs);
 			});
