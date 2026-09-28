@@ -398,8 +398,19 @@ func previewEncodeRequest(
 	}
 }
 
-// previewDuration caps a preview window so encodes stay cheap.
-func previewDuration(duration float64) float64 {
+// PreviewDuration caps a preview window so encodes stay cheap.
+//
+// It is exported so a caller keying a preview on its parameters can use the
+// same value ExtractPreview passes to ffmpeg. A key built from the requested
+// duration would miss on every clip longer than the cap, which is every clip
+// worth previewing.
+//
+// Parameters:
+//   - duration: Requested clip duration in seconds.
+//
+// Returns:
+//   - seconds: The window that will actually be encoded.
+func PreviewDuration(duration float64) float64 {
 	if duration < 0 {
 		return 0
 	}
@@ -705,7 +716,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 	cleanInput := filepath.Clean(input)
 	cleanOutput := filepath.Clean(output)
 
-	duration = previewDuration(duration)
+	duration = PreviewDuration(duration)
 
 	req := previewEncodeRequest(
 		execFFmpeg.ffmpegPath,

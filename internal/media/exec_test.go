@@ -197,9 +197,9 @@ func TestPreviewEncodeArgsWebSafeColor(t *testing.T) {
 func TestPreviewDuration(t *testing.T) {
 	t.Parallel()
 
-	assert.InDelta(t, 10.0, previewDuration(10), 0.001)
-	assert.InDelta(t, float64(previewMaxSecs), previewDuration(600), 0.001)
-	assert.InDelta(t, 0.0, previewDuration(0), 0.001)
+	assert.InDelta(t, 10.0, PreviewDuration(10), 0.001)
+	assert.InDelta(t, float64(previewMaxSecs), PreviewDuration(600), 0.001)
+	assert.InDelta(t, 0.0, PreviewDuration(0), 0.001)
 }
 
 func TestScaleFilterForcesEvenWidth(t *testing.T) {

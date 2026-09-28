@@ -20,6 +20,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/binding"
 	"github.com/PapagoLabs/outtake/internal/config"
 	"github.com/PapagoLabs/outtake/internal/database"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/queue"
@@ -68,6 +69,8 @@ const (
 	previewWait = 30 * time.Second
 	// ErrorPreviewBusy is the error code for a preview rejected by the bound.
 	errorPreviewBusy = "preview_busy"
+	// ErrorMediaPath is the error code for a source that could not be resolved.
+	errorMediaPath = "media_path"
 )
 
 var (
@@ -87,6 +90,9 @@ var (
 	errInvalidGIFWidth = fmt.Errorf("gif width must be between %d and %d", gifMinWidth, gifMaxWidth)
 	// ErrInvalidGIFFPS is returned when a GIF fps is outside the form bounds.
 	errInvalidGIFFPS = fmt.Errorf("gif fps must be between %d and %d", gifMinFPS, gifMaxFPS)
+
+	// ErrSourceUnreadable is returned when a preview's source cannot be read.
+	errSourceUnreadable = errors.New("source file is not readable")
 
 	// ErrPreviewBusy is returned when no preview slot frees in time.
 	errPreviewBusy = errors.New("too many previews are already rendering")
@@ -178,7 +184,7 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 
 	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
 	if err != nil {
-		return writeError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
+		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
 	}
 
 	job := buildJob(&req, jobType, inputPath)
@@ -289,11 +295,35 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 
 	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
 	if err != nil {
-		return writeError(ctx, fiber.StatusBadRequest, "media_path", err.Error())
+		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
 	}
 
-	// Taken after the Plex lookup so a slot is not held across a network call,
-	// and held across everything below because all of it is ffmpeg work.
+	previewID, err := previewRequestID(req, inputPath)
+	if err != nil {
+		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
+	}
+
+	// Both paths below land on the same redirect, whether the preview was
+	// rendered just now or was already on disk.
+	redirect := previewRedirectURL(
+		req.MediaID,
+		previewID,
+		req.StartTime,
+		req.StartTime+req.Duration,
+		req.WebSafeColor,
+		exportFormFromRequest(req),
+	)
+
+	final := handler.clipStorage.PreviewPath(previewID)
+
+	// A preview already rendered for these exact parameters is returned without
+	// touching ffmpeg, so repeated passes over the same window cost nothing.
+	if handler.clipStorage.FileExists(final) {
+		return redirectTo(ctx, redirect)
+	}
+
+	// Taken after the Plex lookup and the cache check so a slot is not held
+	// across a network call, or across a preview that needs no encoding.
 	release, err := handler.previews.acquire(ctx.Context(), previewWait)
 	if err != nil {
 		return writeError(
@@ -306,53 +336,46 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 
 	defer release()
 
-	previewID := uuid.New().String()
-	output := handler.clipStorage.PreviewPath(previewID)
-	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
+	// Re-checked under the slot. A request that queued behind another render of
+	// the same parameters would otherwise encode a preview that now exists.
+	if handler.clipStorage.FileExists(final) {
+		return redirectTo(ctx, redirect)
+	}
 
 	err = renderPreview(
 		ctx.Context(),
 		handler.clipStorage,
-		ffmpeg,
+		media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath),
 		inputPath,
-		output,
+		final,
 		req,
 	)
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "preview_failed", err.Error())
 	}
 
-	end := req.StartTime + req.Duration
-
-	return redirectTo(
-		ctx,
-		previewRedirectURL(
-			req.MediaID,
-			previewID,
-			req.StartTime,
-			end,
-			req.WebSafeColor,
-			exportFormFromRequest(req),
-		),
-	)
+	return redirectTo(ctx, redirect)
 }
 
-// renderPreview detects any crop, encodes the preview, and uploads it.
+// renderPreview encodes a preview and publishes it under its final name.
 //
-// The caller holds a preview slot, so every ffmpeg pass here is already
-// bounded. A crop detection failure is not fatal: the preview is simply encoded
-// uncropped, which is what a user would get with the toggle off.
+// Ffmpeg writes to a unique staged path rather than the final one, because the
+// final path is derived from the request: two renders of the same parameters
+// would otherwise write the same file at once, and a render killed part way
+// would leave a partial file that a later cache hit serves as if it were whole.
+// Staging in the same directory keeps the publish a rename within one
+// filesystem, which is atomic.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for the passes.
 //   - store: Destination for the finished preview.
 //   - ffmpeg: Runner used for detection and encoding.
 //   - inputPath: Source media path.
-//   - output: Local path to write the preview to.
+//   - output: Final path the preview is published under.
 //   - req: Parsed request carrying the window and encoding options.
 //
 // Returns:
-//   - err: Non-nil when the preview could not be written or uploaded.
+//   - err: Non-nil when the preview could not be written or published.
 func renderPreview(
 	ctx context.Context,
 	store storage.Blob,
@@ -369,10 +392,12 @@ func renderPreview(
 		}
 	}
 
+	staged := store.PreviewPath(uuid.New().String())
+
 	err := ffmpeg.ExtractPreview(
 		ctx,
 		inputPath,
-		output,
+		staged,
 		req.StartTime,
 		req.Duration,
 		req.AudioIndex,
@@ -380,15 +405,62 @@ func renderPreview(
 		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
 	)
 	if err != nil {
+		discardStagedPreview(staged)
+
 		return fmt.Errorf("extract preview: %w", err)
+	}
+
+	err = os.Rename(staged, output)
+	if err != nil {
+		discardStagedPreview(staged)
+
+		return fmt.Errorf("publish preview: %w", err)
 	}
 
 	err = store.Put(ctx, output)
 	if err != nil {
-		return fmt.Errorf("upload preview: %w", err)
+		// The rename published the file locally, so it is now a cache hit for
+		// every later request even though it never reached the bucket. That
+		// preview would vanish on restart or from another instance, so the
+		// upload failure is undone rather than left behind to look valid.
+		return fmt.Errorf("upload preview: %w%w", err, discardPublishedPreview(store, output))
 	}
 
 	return nil
+}
+
+// discardPublishedPreview removes a published preview that failed to upload.
+//
+// Parameters:
+//   - store: Store the preview was published through.
+//   - output: Published path to remove.
+//
+// Returns:
+//   - err: The cleanup failure, or nil when nothing needed removing.
+func discardPublishedPreview(store storage.Blob, output string) error {
+	err := store.DeleteFile(output)
+	if err != nil && !os.IsNotExist(err) {
+		logging.Logger.Warn().
+			Str("path", output).
+			Err(err).
+			Msg("failed to remove unpublished preview")
+
+		return fmt.Errorf("; discarding the published copy also failed: %w", err)
+	}
+
+	return nil
+}
+
+// discardStagedPreview removes a staged preview that never reached its final
+// name, so it cannot be served as a preview or mistaken for one.
+//
+// Parameters:
+//   - staged: Path of the staged file.
+func discardStagedPreview(staged string) {
+	err := os.Remove(staged)
+	if err != nil && !os.IsNotExist(err) {
+		logging.Logger.Warn().Str("path", staged).Err(err).Msg("failed to remove staged preview")
+	}
 }
 
 // previewRedirectURL builds the media item location that carries a rendered
