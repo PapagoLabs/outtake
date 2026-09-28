@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -272,6 +273,59 @@ func TestPreviewRegistryAllowsRetryingAFailedRender(t *testing.T) {
 
 	retry := awaitTerminal(t, registry, "p1")
 	assert.Equal(t, "completed", string(retry.Status))
+}
+
+// TestPreviewAdmissionRefusesWhenTheQueueIsFull covers the queue bound.
+//
+// The gate limits how many encodes run, not how many are waiting behind it, and
+// a running entry is exempt from retention. Without an admission limit a burst
+// of clicks leaves a goroutine and a registry entry per request.
+func TestPreviewAdmissionRefusesWhenTheQueueIsFull(t *testing.T) {
+	t.Parallel()
+
+	registry := newPreviewRegistry()
+	slots := 2
+	release := make(chan struct{})
+
+	for i := range slots * previewQueuedPerSlot {
+		held := make(chan struct{})
+
+		require.True(
+			t,
+			registry.render(t.Context(), "p"+strconv.Itoa(i), func(ctx context.Context) error {
+				close(held)
+				<-ctx.Done()
+
+				return ctx.Err()
+			}),
+			"render %d should be admitted",
+			i,
+		)
+
+		<-held
+	}
+
+	assert.False(t, registry.room(slots), "the queue should be full at the admission limit")
+
+	// Freeing one slot of the gate does not free a registry admission, so the
+	// next request is still refused until a render finishes.
+	acquired, err := newPreviewGate(slots).acquire(t.Context(), time.Second)
+	require.NoError(t, err)
+	acquired()
+
+	assert.False(t, registry.room(slots))
+
+	// Once a render finishes, room reappears.
+	require.True(t, registry.cancel("p0"))
+	awaitTerminal(t, registry, "p0")
+
+	assert.True(t, registry.room(slots), "finishing a render must free an admission")
+
+	for i := 1; i < slots*previewQueuedPerSlot; i++ {
+		registry.cancel("p" + strconv.Itoa(i))
+	}
+
+	close(release)
 }
 
 // TestPreviewRegistryRejectsARunningRender is the counterpart: a render in

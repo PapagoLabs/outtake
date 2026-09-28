@@ -57,4 +57,60 @@
 	startEl.addEventListener('input', syncDuration);
 	endEl.addEventListener('input', syncDuration);
 	syncDuration();
+
+	// The preview renders in the background, so the file this page was
+	// redirected to may not exist yet. Poll until the server publishes it, then
+	// hand the URL to the player rather than pointing at it up front.
+	var videoEl = document.getElementById('preview-video');
+	var statusEl = document.getElementById('preview-status');
+	if (!videoEl || !statusEl) { return; }
+
+	var previewId = videoEl.getAttribute('data-preview-id');
+	var attempts = 0;
+	var maxAttempts = 900; // roughly five minutes at the poll interval below
+	var stopped = false;
+
+	document.addEventListener('htmx:beforeCleanup', function () {
+		stopped = true;
+	});
+
+	function pollPreview() {
+		if (stopped) { return; }
+		fetch('/api/clips/preview/' + encodeURIComponent(previewId))
+			.then(function (response) {
+				if (!response.ok) { throw new Error('status ' + response.status); }
+
+				return response.json();
+			})
+			.then(function (state) {
+				if (state.status === 'completed' && state.url) {
+					statusEl.textContent = '';
+					statusEl.classList.add('hidden');
+					videoEl.src = state.url;
+					videoEl.load();
+
+					return;
+				}
+				if (state.status === 'failed' || state.status === 'canceled') {
+					statusEl.textContent = state.error || 'Preview was not rendered.';
+
+					return;
+				}
+				if (state.progress) {
+					statusEl.textContent = 'Rendering preview… ' + state.progress + '%';
+				}
+				attempts++;
+				if (attempts < maxAttempts) {
+					window.setTimeout(pollPreview, 1000);
+				}
+			})
+			.catch(function () {
+				attempts++;
+				if (attempts < maxAttempts) {
+					window.setTimeout(pollPreview, 2000);
+				}
+			});
+	}
+
+	pollPreview();
 })();

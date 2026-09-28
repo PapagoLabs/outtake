@@ -68,6 +68,8 @@ const (
 	// failing, short enough that a queued request cannot outlive a browser's
 	// patience or a canceled client.
 	previewWait = 30 * time.Second
+	// ErrorPreviewBusy is the error code for a preview refused at admission.
+	errorPreviewBusy = "preview_busy"
 	// ErrorMediaPath is the error code for a source that could not be resolved.
 	errorMediaPath = "media_path"
 	// ErrorPreviewNotRunning is the error code for canceling a finished preview.
@@ -351,6 +353,17 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		handler.previewJobs.remember(previewID)
 
 		return redirectTo(ctx, previewRedirect(req, previewID))
+	}
+
+	// Refused before anything is registered, so a burst of clicks cannot leave
+	// behind a goroutine and an entry per request.
+	if !handler.previewJobs.room(handler.previews.capacity()) {
+		return writeError(
+			ctx,
+			fiber.StatusTooManyRequests,
+			errorPreviewBusy,
+			errPreviewBusy.Error(),
+		)
 	}
 
 	// The render detaches from this request, so the values it needs are captured

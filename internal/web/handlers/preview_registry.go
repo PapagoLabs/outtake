@@ -59,6 +59,16 @@ const (
 
 	// PreviewProgressDone is the percent reported once a render finishes.
 	previewProgressDone = 100
+
+	// PreviewQueuedPerSlot is how many previews may be admitted per render slot
+	// before further requests are refused outright.
+	//
+	// The gate bounds how many encodes run at once, but not how much work waits
+	// behind it: every admitted request adds a goroutine and a registry entry,
+	// and a running entry is exempt from retention, so the queue would grow with
+	// request rate for as long as a render takes. Refusing at admission keeps
+	// both bounded.
+	previewQueuedPerSlot = 4
 )
 
 // newPreviewRegistry returns an empty registry.
@@ -367,6 +377,30 @@ func (registry *previewRegistry) retainLocked(id string, finished *int) bool {
 	}
 
 	return true
+}
+
+// room reports whether another preview may be admitted.
+//
+// The caller must hold the lock.
+//
+// Parameters:
+//   - slots: Number of render slots the gate allows.
+//
+// Returns:
+//   - room: True when the outstanding count is below the admission limit.
+func (registry *previewRegistry) room(slots int) bool {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	outstanding := 0
+
+	for _, job := range registry.jobs {
+		if !job.view.done() {
+			outstanding++
+		}
+	}
+
+	return outstanding < slots*previewQueuedPerSlot
 }
 
 // setProgress records how far a render has got, clamped to the reported range.
