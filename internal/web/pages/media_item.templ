@@ -151,9 +151,16 @@ templ MediaItemPage(props MediaItemPageProps) {
 				}
 			}
 			if props.PreviewID != "" {
-				<video class="w-full rounded-md bg-black" controls preload="metadata">
-					<source src={ "/previews/" + props.PreviewID } type="video/mp4"/>
-				</video>
+				<video
+					id="preview-video"
+					class="w-full rounded-md bg-black"
+					controls
+					preload="metadata"
+					data-preview-id={ props.PreviewID }
+				></video>
+				<p id="preview-status" class="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+					Rendering preview…
+				</p>
 			}
 			@card.Card() {
 				@card.Header() {
