@@ -347,9 +347,9 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 	final := handler.clipStorage.PreviewPath(previewID)
 
 	// A preview already rendered for these exact parameters is returned without
-	// touching ffmpeg, so repeated passes over the same window cost nothing. It
-	// is recorded as finished so the page it redirects to can poll a status
-	// rather than an unknown id.
+	// touching ffmpeg, so repeating the same selection costs nothing. It is
+	// recorded as finished so the page it redirects to can poll a status rather
+	// than an unknown id.
 	if handler.clipStorage.FileExists(final) {
 		handler.previewJobs.remember(previewID)
 
@@ -385,8 +385,8 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 // previewRedirect builds the media item location a preview request returns to.
 //
 // Parameters:
-//   - req: Parsed request carrying the marks and form state.
-//   - previewID: Id the preview is being rendered under.
+//   - req: Parsed request carrying the clip bounds.
+//   - previewID: Id the preview is rendered under.
 //
 // Returns:
 //   - location: A path-only redirect target.
@@ -451,7 +451,7 @@ func (handler *ClipHandler) PreviewStatus(ctx fiber.Ctx) error {
 //   - ffmpeg: Runner used for detection and encoding.
 //   - inputPath: Source media path.
 //   - output: Final path the preview is published under.
-//   - req: Parsed request carrying the window and encoding options.
+//   - req: Parsed request carrying the marks and encoding options.
 //
 // Returns:
 //   - err: Non-nil when the preview could not be written or published.
@@ -753,7 +753,7 @@ func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job)
 //   - ctx: Cancellation for the render, held by the registry.
 //   - inputPath: Resolved source media path.
 //   - final: Final path the preview is published under.
-//   - req: Parsed request carrying the window and encoding options.
+//   - req: Parsed request carrying the marks and encoding options.
 //
 // Returns:
 //   - err: Non-nil when the preview could not be rendered.

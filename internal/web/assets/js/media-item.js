@@ -166,6 +166,28 @@
 		});
 	}
 
+	// The proxy is a straight -ss/-t with no speed change, so a position in it
+	// is the same source time. Picking the end mark against the loaded footage
+	// is therefore exact, and Preview then renders the selection as typed.
+	var setEndEl = document.getElementById('preview-set-end');
+	var proxyStart = parseFloat(videoEl.getAttribute('data-preview-start')) || 0;
+
+	if (setEndEl) {
+		// Revealed once the player can be seeked, which is when a current position
+		// means anything. The poll can report the preview as already finished
+		// before the element ever loads, so waiting on the poll alone would leave
+		// the control hidden.
+		videoEl.addEventListener('loadedmetadata', function () {
+			setEndEl.classList.remove('hidden');
+		});
+
+		setEndEl.addEventListener('click', function () {
+			if (!endEl || !videoEl.currentTime) { return; }
+			endEl.value = formatTimecode(proxyStart + videoEl.currentTime);
+			endEl.dispatchEvent(new Event('input'));
+		});
+	}
+
 	function pollPreview() {
 		// A response can land after the page moved on, so the player is checked
 		// before it is touched.
