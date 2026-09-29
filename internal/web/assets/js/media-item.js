@@ -28,6 +28,17 @@
 		var dur = Math.max(0, end - start);
 		if (dur > maxDur) {
 			dur = maxDur;
+			// The end is pulled back to the limit rather than only the duration
+			// being clamped, so the form shows the range the clip will have.
+			// Clamping the duration alone left a longer end on screen than the
+			// clip would cover.
+			//
+			// The result is floored to the millisecond rather than rounded. Both
+			// land on the limit for the millisecond aligned values the timecode
+			// format produces, so flooring is not fixing an observed rejection.
+			// It just never rounds a boundary up, which keeps the field's value
+			// bounded by the limit it is clamped to.
+			endEl.value = formatTimecode(Math.floor((start + dur) * 1000) / 1000);
 			if (warning) { warning.classList.remove('hidden'); }
 		} else if (warning) {
 			warning.classList.add('hidden');

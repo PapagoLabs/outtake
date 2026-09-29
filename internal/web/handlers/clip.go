@@ -900,7 +900,14 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 		maxDur = defaultMaxClipDur
 	}
 
-	if duration <= 0 || duration > float64(maxDur) {
+	if duration <= 0 {
+		// The duration is derived from the marks, so a non-positive one always
+		// means the end is not after the start. Saying so is more use than
+		// reporting a duration the user never entered.
+		return fmt.Errorf("%w: the end must be after the start", errInvalidDuration)
+	}
+
+	if duration > float64(maxDur) {
 		return fmt.Errorf("%w: must be between 0 and %d seconds", errInvalidDuration, maxDur)
 	}
 
@@ -951,13 +958,26 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		return req, nil
 	}
 
-	start := formSeconds(ctx, "startTime")
-	duration := formSeconds(ctx, "duration")
-	if duration == 0 {
-		end := formSeconds(ctx, "endTime")
-		if end > start {
-			duration = end - start
-		}
+	start := formDuration(ctx, "startTime")
+
+	// The marks the user typed are authoritative, so the duration is derived from
+	// them rather than read from the hidden field the browser computes. That field
+	// is a second source of truth which can disagree with the form the user is
+	// looking at, and when it does the clip is silently the wrong length.
+	//
+	// The range is measured by subtracting the two marks as durations. Timecodes
+	// are millisecond aligned, so measuring it in seconds happens to land on the
+	// right side of the limit today, but whole nanoseconds are exact by
+	// construction rather than by that alignment, and the form would not stay
+	// aligned if the format ever gained precision.
+	//
+	// An end that is absent or not after the start leaves the duration at zero,
+	// which validation rejects for a clip and accepts for a screenshot, where the
+	// duration is unused.
+	var duration float64
+
+	if end := formDuration(ctx, "endTime"); end > start {
+		duration = (end - start).Seconds()
 	}
 
 	return api.ClipRequest{
@@ -965,7 +985,7 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		MediaID:       ctx.FormValue("mediaId"),
 		MediaTitle:    ctx.FormValue("mediaTitle"),
 		MediaType:     ctx.FormValue("mediaType"),
-		StartTime:     start,
+		StartTime:     start.Seconds(),
 		Duration:      duration,
 		Quality:       ctx.FormValue("quality"),
 		ClipType:      ctx.FormValue("clipType"),
@@ -1017,14 +1037,21 @@ func formInt(ctx fiber.Ctx, name string) int {
 	return value
 }
 
-// formSeconds parses a form field as a timecode or raw seconds.
-func formSeconds(ctx fiber.Ctx, name string) float64 {
+// formDuration parses a timecode form field as a duration.
+//
+// The value is kept as a duration rather than seconds so a range spanning two
+// marks is measured by subtracting whole nanoseconds. Timecodes are millisecond
+// aligned, so subtracting seconds happens to land on the right side of the limit
+// today, but whole nanoseconds are exact by construction rather than by that
+// alignment, and the form would not stay aligned if the format ever gained
+// precision.
+func formDuration(ctx fiber.Ctx, name string) time.Duration {
 	tc, err := media.Parse(ctx.FormValue(name))
 	if err != nil {
 		return 0
 	}
 
-	return tc.Seconds()
+	return tc.Duration()
 }
 
 // clipName prefers the user-supplied name, then the media title.
