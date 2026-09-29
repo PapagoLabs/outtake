@@ -109,7 +109,8 @@ func TestParseClipRequestKeepsMillisecondPrecision(t *testing.T) {
 
 	req := parseForm(t, markForm("00:01:02.345", "00:01:12.678"))
 
-	assert.InDelta(t, 10.333, req.Duration, 0.001)
+	// Half a millisecond, so a whole millisecond of loss is caught.
+	assert.InDelta(t, 10.333, req.Duration, 0.0005)
 }
 
 // TestParseClipRequestRejectsAnInvertedRange covers an end that is not after the
@@ -126,17 +127,23 @@ func TestParseClipRequestRejectsAnInvertedRange(t *testing.T) {
 	assert.Zero(t, req.Duration, "an end before the start must not produce a duration")
 }
 
-// TestValidateDurationNamesTheMarks is the diagnostic guard. A non-positive
-// duration is always an inverted range now, so the message should say so rather
-// than reporting a bound on a number the user never entered.
-func TestValidateDurationNamesTheMarks(t *testing.T) {
+// TestValidateDurationDescribesTheRange is the diagnostic guard.
+//
+// A non-positive duration means two different things. A form post has no
+// duration of its own, so it can only be an end that is not after the start. A
+// JSON caller sends a duration directly and never sends an end at all, so the
+// wording has to describe the range rather than name an end it may never have
+// sent.
+func TestValidateDurationDescribesTheRange(t *testing.T) {
 	t.Parallel()
 
 	handler := &ClipHandler{cfg: &config.Config{MaxClipDurSec: 600}}
 
 	err := handler.validateDuration(queue.JobTypeClip, 0)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "end must be after the start")
+	assert.Contains(t, err.Error(), "range must be longer than zero")
+	assert.NotContains(t, err.Error(), "end must be after the start",
+		"a JSON caller never sent an end, so the message must not assume one")
 
 	// A screenshot takes no duration, so zero is correct there.
 	require.NoError(t, handler.validateDuration(queue.JobTypeScreenshot, 0))

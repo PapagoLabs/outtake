@@ -901,10 +901,11 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 	}
 
 	if duration <= 0 {
-		// The duration is derived from the marks, so a non-positive one always
-		// means the end is not after the start. Saying so is more use than
-		// reporting a duration the user never entered.
-		return fmt.Errorf("%w: the end must be after the start", errInvalidDuration)
+		// A form post has its duration measured between two marks, so this can
+		// only be an end that is not after the start. A JSON caller sends a
+		// duration directly, so the wording has to describe the range rather than
+		// name an end it may never have sent.
+		return fmt.Errorf("%w: the range must be longer than zero", errInvalidDuration)
 	}
 
 	if duration > float64(maxDur) {
