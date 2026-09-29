@@ -64,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preview the selection instead of a fixed 30 seconds by @nicholas-fedor in [#248](https://github.com/PapagoLabs/outtake/pull/248)
 - Fix changelog automation workflows by @nicholas-fedor in [#234](https://github.com/PapagoLabs/outtake/pull/234)
 - Persist clip width and fps on update by @nicholas-fedor in [#224](https://github.com/PapagoLabs/outtake/pull/224)
 - Reject unsafe preview ids before building a path by @nicholas-fedor in [#222](https://github.com/PapagoLabs/outtake/pull/222)
