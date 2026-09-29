@@ -22,7 +22,7 @@ require (
 	github.com/templui/templui v1.13.2
 	github.com/tursodatabase/libsql-client-go v0.0.0-20260528064733-9d5d30a29a60
 	golang.org/x/net v0.59.0
-	modernc.org/sqlite v1.60.0
+	modernc.org/sqlite v1.60.1
 )
 
 require (
