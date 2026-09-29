@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/ncruces/go-strftime to v1.1.0 by @renovate[bot] in [#253](https://github.com/PapagoLabs/outtake/pull/253)
+- Update module modernc.org/sqlite to v1.60.1 by @renovate[bot] in [#252](https://github.com/PapagoLabs/outtake/pull/252)
 - Update module modernc.org/sqlite to v1.60.0 by @renovate[bot] in [#246](https://github.com/PapagoLabs/outtake/pull/246)
 - Update module github.com/pierrec/lz4/v4 to v4.1.31 by @renovate[bot] in [#236](https://github.com/PapagoLabs/outtake/pull/236)
 - Update github.com/google/pprof digest to aaccee0 by @renovate[bot] in [#228](https://github.com/PapagoLabs/outtake/pull/228)
