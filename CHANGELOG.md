@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Add github sponsorship configuration by @nicholas-fedor in [#255](https://github.com/PapagoLabs/outtake/pull/255)
 - Update module github.com/ncruces/go-strftime to v1.1.0 by @renovate[bot] in [#253](https://github.com/PapagoLabs/outtake/pull/253)
 - Update module modernc.org/sqlite to v1.60.1 by @renovate[bot] in [#252](https://github.com/PapagoLabs/outtake/pull/252)
 - Update module modernc.org/sqlite to v1.60.0 by @renovate[bot] in [#246](https://github.com/PapagoLabs/outtake/pull/246)
