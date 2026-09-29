@@ -256,9 +256,16 @@ func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 	assert.Contains(t, cancelTag, `hx-delete="/api/clips/preview/abc123"`)
 	assert.Contains(t, cancelTag, `hx-swap="none"`, "the JSON reply must not replace the button")
 
-	// Both start hidden, so nothing is shown before a render is underway.
+	// Both start hidden, so nothing is shown before a render is underway. The
+	// script reveals the cancel control when a render starts, and the set-end
+	// control once the player can be seeked.
 	assert.Regexp(t, `id="preview-progress"[^>]*class="[^"]*hidden`, body)
 	assert.Contains(t, cancelTag, "hidden")
+	assert.Regexp(t, `id="preview-set-end"[^>]*class="[^"]*hidden`, body)
+
+	// The proxy carries where it starts, so a position in it can be mapped back
+	// to a source time.
+	assert.Contains(t, body, `data-preview-start="`)
 }
 
 // TestMediaItemPageOmitsPreviewIndicatorWithoutAPreview covers the page without

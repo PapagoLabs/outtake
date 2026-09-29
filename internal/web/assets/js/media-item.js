@@ -151,7 +151,6 @@
 	function giveUp(message) {
 		stopPolling();
 		clearProgress();
-		hideWindowControls();
 		statusEl.classList.remove('hidden');
 		statusEl.textContent = message;
 	}
@@ -173,18 +172,15 @@
 	var setEndEl = document.getElementById('preview-set-end');
 	var proxyStart = parseFloat(videoEl.getAttribute('data-preview-start')) || 0;
 
-	// formatTimecode renders seconds the way the timecode inputs expect.
-	function formatTimecode(seconds) {
-		var total = Math.max(0, seconds);
-		var hours = Math.floor(total / 3600);
-		var minutes = Math.floor((total % 3600) / 60);
-		var rest = (total % 60).toFixed(3);
-		return [hours, minutes, rest].map(function (part, index) {
-			return index === 2 ? part : String(part).padStart(2, '0');
-		}).join(':');
-	}
-
 	if (setEndEl) {
+		// Revealed once the player can be seeked, which is when a current position
+		// means anything. The poll can report the preview as already finished
+		// before the element ever loads, so waiting on the poll alone would leave
+		// the control hidden.
+		videoEl.addEventListener('loadedmetadata', function () {
+			setEndEl.classList.remove('hidden');
+		});
+
 		setEndEl.addEventListener('click', function () {
 			if (!endEl || !videoEl.currentTime) { return; }
 			endEl.value = formatTimecode(proxyStart + videoEl.currentTime);
