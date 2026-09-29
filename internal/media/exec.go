@@ -94,7 +94,12 @@ const (
 	// PreviewAudioKbps is the AAC bitrate for previews.
 	previewAudioKbps = 96
 	// PreviewMaxSecs caps how long a preview encode may run.
-	previewMaxSecs = 30
+	//
+	// It matches the longest clip the form will accept, so a preview is never
+	// shorter than the selection the user asked to see. It is a backstop against
+	// an absurd request rather than a limit on normal use, and the ceiling it
+	// matches is the request validation bound.
+	previewMaxSecs = 600
 	// AnFlag disables audio decoding.
 	anFlag = "-an"
 	// UpdateFlag tells image2 to overwrite a single still.

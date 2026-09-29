@@ -158,6 +158,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					controls
 					preload="metadata"
 					data-preview-id={ props.PreviewID }
+					data-preview-start={ media.FormatSeconds(props.StartTime) }
 				></video>
 				<div class="mt-3 flex items-center gap-3">
 					@progress.Progress(progress.Props{
@@ -184,6 +185,15 @@ templ MediaItemPage(props MediaItemPageProps) {
 						},
 					}) {
 						Cancel
+					}
+					@button.Button(button.Props{
+						ID:      "preview-set-end",
+						Type:    button.TypeButton,
+						Variant: button.VariantOutline,
+						Size:    button.SizeSm,
+						Class:   "hidden",
+					}) {
+						Set end here
 					}
 				</div>
 				<p id="preview-status" class="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
@@ -245,6 +255,9 @@ templ MediaItemPage(props MediaItemPageProps) {
 							</div>
 						</div>
 						<input type="hidden" id="duration" name="duration" value="10"/>
+						// The rendered window travels with the form, so a plain
+						// Preview asks for the window already loaded and finds it
+						// in the cache rather than encoding it again.
 						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).String() }</span> (max { media.FromSeconds(float64(props.MaxDur)).String() }) <span data-duration-warning id="duration-warning" class="hidden text-destructive">Clamped to the maximum duration.</span></p>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2" data-export-for="clip">

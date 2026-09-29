@@ -151,6 +151,7 @@
 	function giveUp(message) {
 		stopPolling();
 		clearProgress();
+		hideWindowControls();
 		statusEl.classList.remove('hidden');
 		statusEl.textContent = message;
 	}
@@ -163,6 +164,31 @@
 		cancelEl.addEventListener('htmx:responseError', function () {
 			statusEl.classList.remove('hidden');
 			statusEl.textContent = 'Could not cancel the preview.';
+		});
+	}
+
+	// The proxy is a straight -ss/-t with no speed change, so a position in it
+	// is the same source time. Picking the end mark against the loaded footage
+	// is therefore exact, and Preview then renders the selection as typed.
+	var setEndEl = document.getElementById('preview-set-end');
+	var proxyStart = parseFloat(videoEl.getAttribute('data-preview-start')) || 0;
+
+	// formatTimecode renders seconds the way the timecode inputs expect.
+	function formatTimecode(seconds) {
+		var total = Math.max(0, seconds);
+		var hours = Math.floor(total / 3600);
+		var minutes = Math.floor((total % 3600) / 60);
+		var rest = (total % 60).toFixed(3);
+		return [hours, minutes, rest].map(function (part, index) {
+			return index === 2 ? part : String(part).padStart(2, '0');
+		}).join(':');
+	}
+
+	if (setEndEl) {
+		setEndEl.addEventListener('click', function () {
+			if (!endEl || !videoEl.currentTime) { return; }
+			endEl.value = formatTimecode(proxyStart + videoEl.currentTime);
+			endEl.dispatchEvent(new Event('input'));
 		});
 	}
 

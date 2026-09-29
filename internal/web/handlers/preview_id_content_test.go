@@ -188,33 +188,35 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 	})
 }
 
-// TestPreviewRequestIDClampsTheWindow is the saving this branch exists for.
+// TestPreviewRequestIDHonoursTheWholeSelection covers the preview cap matching
+// the longest clip the form accepts.
 //
-// Ffmpeg is given the clamped window, so a clip longer than the cap and one
-// exactly at it run an identical command. Keying on the requested duration would
-// miss on every clip worth previewing.
-func TestPreviewRequestIDClampsTheWindow(t *testing.T) {
+// The cap used to sit well below it, so a selection the form allowed was
+// silently previewed only in part. It is now a backstop at the request ceiling
+// rather than a limit on normal use, which means nothing the form can produce
+// gets truncated.
+func TestPreviewRequestIDHonoursTheWholeSelection(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "source.mkv")
 	require.NoError(t, os.WriteFile(path, []byte("source"), 0o600))
 
-	atCap, err := previewRequestID(api.ClipRequest{MediaID: "42", StartTime: 1, Duration: 30}, path)
-	require.NoError(t, err)
-
-	beyond, err := previewRequestID(
+	// The longest selection the form accepts is encoded whole.
+	longest, err := previewRequestID(
 		api.ClipRequest{MediaID: "42", StartTime: 1, Duration: 600},
 		path,
 	)
 	require.NoError(t, err)
 
-	assert.Equal(t, atCap, beyond, "a window past the cap encodes the same range")
-
-	below, err := previewRequestID(api.ClipRequest{MediaID: "42", StartTime: 1, Duration: 5}, path)
+	short, err := previewRequestID(api.ClipRequest{MediaID: "42", StartTime: 1, Duration: 30}, path)
 	require.NoError(t, err)
 
-	assert.NotEqual(t, atCap, below, "a window under the cap encodes something different")
-	assert.InDelta(t, 30.0, media.PreviewDuration(600), 0.0001)
+	assert.NotEqual(t, longest, short, "each selection must render its own range")
+
+	// The cap is the request ceiling, so the two agree and nothing arrives to be
+	// truncated. It is asserted directly because that relationship is the point.
+	assert.InDelta(t, 600, media.PreviewDuration(600), 0.0001,
+		"the preview cap must not sit below the longest clip the form accepts")
 }
 
 // TestPreviewRequestIDIgnoresSubMillisecondStart pins the quantisation to the
@@ -261,4 +263,56 @@ func TestPreviewRequestIDRejectsAnUnreadableSource(t *testing.T) {
 	)
 
 	require.ErrorIs(t, err, errSourceUnreadable)
+}
+
+// TestPreviewRequestIDFollowsTheSelection is the contract the form depends on.
+//
+// A user sets a start and an end, changes them, and presses Preview to see the
+// result. Every distinct selection must resolve to a distinct preview, otherwise
+// the button re-serves what is already on screen and changing a mark looks like
+// it did nothing.
+func TestPreviewRequestIDFollowsTheSelection(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "source.mkv")
+	require.NoError(t, os.WriteFile(path, []byte("source"), 0o600))
+
+	base := api.ClipRequest{MediaID: "42", StartTime: 180, Duration: 10}
+
+	first, err := previewRequestID(base, path)
+	require.NoError(t, err)
+
+	// The same selection twice is the same preview, which is what makes repeating
+	// a request free.
+	repeat, err := previewRequestID(base, path)
+	require.NoError(t, err)
+	assert.Equal(t, first, repeat, "the same selection must reuse its preview")
+
+	tests := []struct {
+		name   string
+		mutate func(*api.ClipRequest)
+	}{
+		{name: "start moved", mutate: func(r *api.ClipRequest) { r.StartTime = 190 }},
+		{name: "end moved", mutate: func(r *api.ClipRequest) { r.Duration = 20 }},
+		{
+			name:   "window lengthened past the cap",
+			mutate: func(r *api.ClipRequest) { r.Duration = 600 },
+		},
+		{name: "audio track changed", mutate: func(r *api.ClipRequest) { r.AudioIndex = 1 }},
+		{name: "crop toggled", mutate: func(r *api.ClipRequest) { r.CropBlackBars = true }},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := base
+			test.mutate(&req)
+
+			got, idErr := previewRequestID(req, path)
+			require.NoError(t, idErr)
+
+			assert.NotEqual(t, first, got, "%s must ask for a different preview", test.name)
+		})
+	}
 }
