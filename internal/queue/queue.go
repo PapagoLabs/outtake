@@ -25,6 +25,7 @@ type Queue struct {
 	jobs     map[string]*Job
 	cancels  map[string]context.CancelFunc
 	dropped  map[string]struct{}
+	deleted  map[string]struct{}
 	mu       sync.RWMutex
 	wg       sync.WaitGroup
 	handler  JobHandler
@@ -34,7 +35,24 @@ type Queue struct {
 }
 
 // StatusFunc is called whenever a job status changes.
+//
+// It is called with the queue's read lock held, so it must not call back into
+// the queue. Holding the lock is what makes the deleted check and the callback
+// one step: releasing the lock between them would let Delete land in the gap and
+// the callback would persist the job Delete had just removed.
 type StatusFunc func(job *Job)
+
+// outcome is how a job's processing ended.
+type outcome int
+
+const (
+	// Recorded means the job's final status was written.
+	outcomeRecorded outcome = iota
+	// Canceled means the job was canceled while running.
+	outcomeCanceled
+	// Deleted means the job was deleted while running, so nothing is written back.
+	outcomeDeleted
+)
 
 const (
 	// JobChannelSize is the size of the job channel buffer.
@@ -53,6 +71,7 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 		jobs:     make(map[string]*Job),
 		cancels:  make(map[string]context.CancelFunc),
 		dropped:  make(map[string]struct{}),
+		deleted:  make(map[string]struct{}),
 		mu:       sync.RWMutex{},
 		wg:       sync.WaitGroup{},
 		handler:  handler,
@@ -91,15 +110,40 @@ func (que *Queue) Cancel(id string) bool {
 }
 
 // Delete removes a job from the in-memory map.
+//
+// It records a tombstone rather than simply dropping the job. A worker that is
+// already running still holds the pointer and will write the job's result on the
+// way out, so without a marker it cannot tell the row was deleted and that write
+// puts the row back. The tombstone outlives the delete and is cleared by the
+// worker when it finishes.
 func (que *Queue) Delete(id string) {
 	que.mu.Lock()
 	defer que.mu.Unlock()
 
-	if cancel, exists := que.cancels[id]; exists {
+	job, exists := que.jobs[id]
+	if !exists {
+		return
+	}
+
+	if cancel, running := que.cancels[id]; running {
 		cancel()
 		delete(que.cancels, id)
 	}
 
+	// A tombstone is for any job a worker may still reach: one waiting in the
+	// channel, one running, and one canceled while it was waiting — which is
+	// still in the channel and would otherwise run, since the canceled marker
+	// is cleared below. Only a job that has run to a finish is excluded, because
+	// no worker is left to clear a marker for it. Marking an unknown id would
+	// grow the map for the life of the process, which is why the early return
+	// above comes first.
+	if job.Status != JobStatusCompleted && job.Status != JobStatusFailed {
+		que.deleted[id] = struct{}{}
+	}
+
+	// The canceled marker goes too, now that the tombstone is what stops a
+	// job still waiting in the channel from running. Clearing it here is what
+	// stops the marker outliving the worker that would have removed it.
 	delete(que.dropped, id)
 	delete(que.jobs, id)
 }
@@ -189,10 +233,29 @@ func (que *Queue) Submit(job *Job) {
 }
 
 // notify invokes the status callback when one is registered.
+//
+// A deleted job is skipped. The callback persists the job, and the queue no
+// longer owns one it deleted, so writing it back would put the row Delete
+// removed. The tombstone is left for the running worker to clear.
+//
+// The check and the callback are one step under a single read lock. Releasing
+// the lock between them would leave a gap that Delete could land in, and the
+// callback would then persist the job after it had been removed — which is the
+// same resurrection the tombstone exists to prevent, arriving by a different
+// route. See StatusFunc for what holding the lock asks of the callback.
 func (que *Queue) notify(job *Job) {
-	if que.statusFn != nil {
-		que.statusFn(job)
+	if que.statusFn == nil {
+		return
 	}
+
+	que.mu.RLock()
+	defer que.mu.RUnlock()
+
+	if _, deleted := que.deleted[job.ID]; deleted {
+		return
+	}
+
+	que.statusFn(job)
 }
 
 // processJob processes a single job.
@@ -201,6 +264,16 @@ func (que *Queue) processJob(job *Job) {
 	defer cancel()
 
 	que.mu.Lock()
+
+	if _, gone := que.deleted[job.ID]; gone {
+		// Deleted before it ever started. Both markers go, so neither outlives
+		// the worker that would have removed it.
+		delete(que.deleted, job.ID)
+		delete(que.dropped, job.ID)
+		que.mu.Unlock()
+
+		return
+	}
 
 	if _, dropped := que.dropped[job.ID]; dropped {
 		delete(que.dropped, job.ID)
@@ -223,40 +296,78 @@ func (que *Queue) processJob(job *Job) {
 
 	err := que.handler(ctx, job)
 
-	que.mu.Lock()
+	result := que.settle(job, err)
 
-	_, canceled := que.dropped[job.ID]
-	delete(que.dropped, job.ID)
-	delete(que.cancels, job.ID)
-
-	if canceled {
-		job.Status = JobStatusCancelled
-		job.Error = "canceled"
-	} else if err != nil {
-		job.Status = JobStatusFailed
-		job.Error = err.Error()
-	} else {
-		job.Status = JobStatusCompleted
-		job.Progress = progressDone
-	}
-
-	job.UpdatedAt = time.Now()
-	que.mu.Unlock()
-
-	if canceled {
+	switch {
+	case result == outcomeDeleted:
+		logging.Logger.Info().Str("job_id", job.ID).Msg("job deleted while processing")
+	case result == outcomeCanceled:
 		logging.Logger.Info().Str("job_id", job.ID).Msg("job canceled")
-	} else if err != nil {
+	case err != nil:
 		logging.Logger.Error().
 			Str("job_id", job.ID).
 			Err(err).
 			Msg("job failed")
-	} else {
+	default:
 		logging.Logger.Info().
 			Str("job_id", job.ID).
 			Msg("job completed")
 	}
 
+	if result == outcomeDeleted {
+		return
+	}
+
 	que.notify(job)
+}
+
+// settle records how a job ended and releases its bookkeeping.
+//
+// The tombstones are cleared here rather than in Delete, so they live exactly as
+// long as a worker might still write the job back.
+//
+// Parameters:
+//   - job: The job that was processed.
+//   - err: What the handler returned.
+//
+// Returns:
+//   - outcome: How the job ended.
+func (que *Queue) settle(job *Job, err error) outcome {
+	que.mu.Lock()
+	defer que.mu.Unlock()
+
+	_, canceled := que.dropped[job.ID]
+	_, gone := que.deleted[job.ID]
+	delete(que.dropped, job.ID)
+	delete(que.deleted, job.ID)
+	delete(que.cancels, job.ID)
+
+	if gone {
+		// The row was deleted while this was running, so the result is not
+		// written back. The status is left as the handler left it rather than
+		// being recorded, since there is no longer a job to record it against.
+		return outcomeDeleted
+	}
+
+	switch {
+	case canceled:
+		job.Status = JobStatusCancelled
+		job.Error = "canceled"
+	case err != nil:
+		job.Status = JobStatusFailed
+		job.Error = err.Error()
+	default:
+		job.Status = JobStatusCompleted
+		job.Progress = progressDone
+	}
+
+	job.UpdatedAt = time.Now()
+
+	if canceled {
+		return outcomeCanceled
+	}
+
+	return outcomeRecorded
 }
 
 // worker processes jobs from the queue.

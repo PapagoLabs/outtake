@@ -406,6 +406,37 @@ func (app *App) Test(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
+// persistProgress returns the callback that records a render's progress.
+//
+// A canceled or deleted job has no row left to update. The save deliberately
+// ignores cancellation so a tick can still land on a queue that is shutting
+// down, which is why cancellation is checked here rather than left to the
+// context: without it, deleting a clip mid-render resurrects the row on the next
+// tick of a render that is still winding down.
+//
+// Parameters:
+//   - ctx: The job's context, canceled when the job is canceled or deleted.
+//   - job: The job being rendered.
+//   - db: Database handle.
+//
+// Returns:
+//   - report: Callback for media.WithProgress.
+func persistProgress(ctx context.Context, job *queue.Job, db *database.DB) func(int) {
+	return func(percent int) {
+		job.Progress = percent
+		job.UpdatedAt = time.Now()
+
+		if ctx.Err() != nil {
+			return
+		}
+
+		saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
+		if saveErr != nil {
+			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip progress")
+		}
+	}
+}
+
 // startQueue creates the worker queue and restores persisted jobs.
 func startQueue(
 	cfg *config.Config,
@@ -414,18 +445,11 @@ func startQueue(
 	store storage.Blob,
 ) *queue.Queue {
 	jobQueue := queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *queue.Job) error {
-		progressCtx := media.WithProgress(ctx, func(percent int) {
-			job.Progress = percent
-			job.UpdatedAt = time.Now()
-
-			saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
-			if saveErr != nil {
-				log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip progress")
-			}
-		})
+		progressCtx := media.WithProgress(ctx, persistProgress(ctx, job, db))
 
 		return processJob(progressCtx, job, ffmpeg, db, store)
 	})
+
 	jobQueue.SetStatusFunc(func(job *queue.Job) {
 		saveErr := db.SaveClip(context.Background(), job)
 		if saveErr != nil {

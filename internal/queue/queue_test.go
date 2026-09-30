@@ -268,3 +268,226 @@ func TestQueue_Stop(t *testing.T) {
 		}
 	})
 }
+
+// TestQueue_DeleteDuringProcessingSuppressesEveryWrite covers the tombstone.
+//
+// Delete removes the row while a worker still holds the pointer. Everything the
+// queue does on the way out persists the job, so without the tombstone the row
+// Delete just removed is written straight back — a delete that appears to do
+// nothing until the next render.
+func TestQueue_DeleteDuringProcessingSuppressesEveryWrite(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		handler := func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return nil
+		}
+
+		var notified []string
+
+		q := NewQueue(1, handler)
+		q.SetStatusFunc(func(job *Job) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			notified = append(notified, job.ID)
+		})
+		q.Start()
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "deleted-mid-render", Type: JobTypeClip, Status: JobStatusPending})
+
+		<-started
+
+		// The job is now inside the handler, holding the only pointer to it. The
+		// "processing" notification it already produced is expected, since the job
+		// existed then, so the count is taken here and only a later rise is a
+		// resurrection.
+		mu.Lock()
+
+		beforeDelete := len(notified)
+		mu.Unlock()
+
+		q.Delete("deleted-mid-render")
+
+		close(release)
+
+		// Let the worker run its whole exit path before asserting on it.
+		synctest.Wait()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		assert.Len(t, notified, beforeDelete,
+			"a deleted job must not be reported again, or the status callback writes the row back")
+		assert.Empty(t, q.deleted, "the worker clears the tombstone when it finishes")
+	})
+}
+
+// TestQueue_DeleteBlocksUntilTheCallbackFinishes covers the one step.
+//
+// The deleted check and the callback are held under a single read lock, so a
+// Delete cannot land between them. That is observable as a Delete that waits
+// for a callback already in flight rather than racing past it.
+func TestQueue_DeleteBlocksUntilTheCallbackFinishes(t *testing.T) {
+	t.Parallel()
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	deleted := make(chan struct{})
+
+	q := NewQueue(1, nil)
+	q.SetStatusFunc(func(_ *Job) {
+		close(entered)
+		<-release
+	})
+
+	go func() {
+		q.notify(&Job{ID: "in-callback", Type: JobTypeClip, Status: JobStatusCompleted})
+	}()
+
+	<-entered
+
+	go func() {
+		q.Delete("in-callback")
+		close(deleted)
+	}()
+
+	// The callback is parked, so the lock is still held and Delete cannot be
+	// past it. A delete that completed here would be the gap.
+	select {
+	case <-deleted:
+		t.Fatal("delete ran while the callback was still in flight")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(release)
+	<-deleted
+}
+
+// TestQueue_NotifySkipsAJobDeletedFirst is the deterministic half: once Delete
+// has returned, the tombstone is in place and no later notify persists the job.
+func TestQueue_NotifySkipsAJobDeletedFirst(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+
+	var persisted []string
+
+	q := NewQueue(1, nil)
+	q.SetStatusFunc(func(job *Job) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		persisted = append(persisted, job.ID)
+	})
+
+	q.Submit(&Job{ID: "gone-first", Type: JobTypeClip, Status: JobStatusProcessing})
+
+	// Submit notifies in its own right, so the count is taken after that and
+	// only a later rise is the resurrection this guards against.
+	mu.Lock()
+
+	afterSubmit := len(persisted)
+	mu.Unlock()
+
+	q.Delete("gone-first")
+	q.notify(&Job{ID: "gone-first", Type: JobTypeClip, Status: JobStatusCompleted})
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	assert.Len(t, persisted, afterSubmit,
+		"a job deleted before the notify must not be persisted again")
+}
+
+// TestQueue_DeleteTombstonesOnlyWorkableJobs keeps the tombstone map bounded.
+//
+// A finished job has no worker coming to clear a marker, so leaving one behind
+// would grow the map for the life of the process.
+func TestQueue_DeleteTombstonesOnlyWorkableJobs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a pending job is tombstoned so a worker skips it", func(t *testing.T) {
+		t.Parallel()
+
+		q := NewQueue(1, nil)
+		q.Submit(&Job{ID: "pending", Type: JobTypeClip, Status: JobStatusPending})
+
+		q.Delete("pending")
+
+		assert.Contains(t, q.deleted, "pending",
+			"a job still in the channel can be picked up, so it needs a tombstone")
+	})
+
+	t.Run("a finished job is not", func(t *testing.T) {
+		t.Parallel()
+
+		q := NewQueue(1, nil)
+		q.Submit(&Job{ID: "finished", Type: JobTypeClip, Status: JobStatusCompleted})
+
+		q.Delete("finished")
+
+		assert.Empty(t, q.deleted,
+			"no worker will ever clear a marker for a job that already finished")
+	})
+
+	t.Run("an unknown job is not", func(t *testing.T) {
+		t.Parallel()
+
+		q := NewQueue(1, nil)
+		q.Delete("never-queued")
+
+		assert.Empty(t, q.deleted)
+	})
+}
+
+// TestQueue_DeleteStopsACancelledJobStillWaitingInTheChannel covers the marker
+// bookkeeping for a job that was canceled and then deleted before a worker
+// picked it up.
+//
+// The canceled marker is cleared by the delete, so the tombstone is the only
+// thing left stopping a job that is still sitting in the channel from running.
+// Asserting on which marker exists would not catch a job that runs anyway.
+func TestQueue_DeleteStopsACancelledJobStillWaitingInTheChannel(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var mu sync.Mutex
+
+		ran := false
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			mu.Lock()
+			defer mu.Unlock()
+
+			ran = true
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "canceled-then-deleted", Type: JobTypeClip, Status: JobStatusPending})
+		q.Cancel("canceled-then-deleted")
+		q.Delete("canceled-then-deleted")
+
+		synctest.Wait()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		assert.False(t, ran, "a job deleted while still queued must not run")
+		assert.Empty(t, q.dropped, "the canceled marker is cleared by the delete")
+		assert.Empty(t, q.deleted, "the worker clears the tombstone it returned on")
+	})
+}
