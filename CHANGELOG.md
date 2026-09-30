@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/tinylib/msgp to v1.6.5 by @renovate[bot] in [#270](https://github.com/PapagoLabs/outtake/pull/270)
 - Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.114.0 by @renovate[bot] in [#271](https://github.com/PapagoLabs/outtake/pull/271)
 - Update module github.com/minio/minlz to v1.2.1 by @renovate[bot] in [#266](https://github.com/PapagoLabs/outtake/pull/266)
 - Update module github.com/klauspost/pgzip to v1.2.7 by @renovate[bot] in [#265](https://github.com/PapagoLabs/outtake/pull/265)
@@ -73,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restore ownership when a clip delete cannot be completed by @nicholas-fedor in [#274](https://github.com/PapagoLabs/outtake/pull/274)
 - Stop a deleted job from being written back by @nicholas-fedor in [#269](https://github.com/PapagoLabs/outtake/pull/269)
 - Bound a clip selection by the source and report it in place by @nicholas-fedor in [#263](https://github.com/PapagoLabs/outtake/pull/263)
 - Derive clip length from the marks instead of the posted duration by @nicholas-fedor in [#250](https://github.com/PapagoLabs/outtake/pull/250)
