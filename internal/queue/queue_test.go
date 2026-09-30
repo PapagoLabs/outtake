@@ -5,6 +5,7 @@ package queue
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -13,6 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// errRenderAborted stands in for the error a handler returns when its context is
+// canceled under it.
+var errRenderAborted = errors.New("context canceled")
 
 func datedJob(id string, created time.Time) *Job {
 	job := testJob(id, JobStatusCompleted)
@@ -561,5 +566,188 @@ func TestQueue_DeleteTombstonesAJobAWorkerCanStillReach(t *testing.T) {
 
 		close(release)
 		synctest.Wait()
+	})
+}
+
+// TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind covers the
+// compensation.
+//
+// Delete takes the job out before the row goes, so a status change cannot write
+// the row back in between. If the row removal then fails, the job has to come
+// back: left out, the row has nothing owning it, a cancel would not find it,
+// and the next start would resubmit a render the delete had already stopped.
+func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a job still in the channel is owned again, and stays stopped", func(t *testing.T) {
+		t.Parallel()
+
+		synctest.Test(t, func(t *testing.T) {
+			var mu sync.Mutex
+
+			ran := false
+			blockerStarted := make(chan struct{})
+			releaseBlocker := make(chan struct{})
+
+			q := NewQueue(1, func(_ context.Context, job *Job) error {
+				if job.ID == "blocker" {
+					close(blockerStarted)
+					<-releaseBlocker
+
+					return nil
+				}
+
+				mu.Lock()
+				defer mu.Unlock()
+
+				ran = true
+
+				return nil
+			})
+			q.Start()
+
+			t.Cleanup(q.Stop)
+
+			// The single worker is held on another job, so this one is known to be
+			// sitting in the channel rather than in a worker.
+			q.Submit(&Job{ID: "blocker", Type: JobTypeClip, Status: JobStatusPending})
+			<-blockerStarted
+
+			abandoned := &Job{ID: "abandoned", Type: JobTypeClip, Status: JobStatusPending}
+			q.Submit(abandoned)
+
+			q.Delete("abandoned")
+			require.Nil(t, q.GetJob("abandoned"), "the delete took the job out of the map")
+			require.Contains(t, q.deleted, "abandoned", "a queued job is marked as one to stop")
+
+			q.Reinstate(abandoned)
+
+			assert.Same(t, abandoned, q.GetJob("abandoned"),
+				"the row that survived the failed delete is owned again")
+			assert.Empty(t, q.deleted, "the tombstone is consumed by the reinstate")
+
+			// The job was still in the channel, so nothing else stops it starting
+			// now. It has to have become a canceled one rather than run.
+			close(releaseBlocker)
+			synctest.Wait()
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			assert.False(t, ran, "a job the delete stopped must not start afterwards")
+			assert.Empty(t, q.dropped,
+				"the worker returned on the canceled marker and consumed it, so none is retained")
+			assert.Same(t, abandoned, q.GetJob("abandoned"),
+				"and the job is still owned, since its row survived")
+		})
+	})
+
+	t.Run("it comes back canceled so the next start does not resubmit", func(t *testing.T) {
+		t.Parallel()
+
+		q := NewQueue(1, nil)
+		q.Submit(&Job{ID: "not-resumed", Type: JobTypeClip, Status: JobStatusPending})
+
+		job := q.GetJob("not-resumed")
+
+		q.Delete("not-resumed")
+		q.Reinstate(job)
+
+		restored := q.GetJob("not-resumed")
+		require.NotNil(t, restored)
+		assert.Equal(t, JobStatusCancelled, restored.Status,
+			"a pending render the delete stopped must not be picked up again")
+		assert.Equal(t, string(JobStatusCancelled), restored.Error)
+	})
+}
+
+// TestQueue_SettleClearsTheErrorOnAReinstatedJobThatSucceeds covers the state a
+// reinstated job can reach.
+//
+// Reinstate marks a job canceled while a worker is unwinding, and that worker
+// may then report success. Without clearing the error, the job ends up completed
+// with an error saying it was canceled, which reads as a contradiction to
+// anything showing both.
+func TestQueue_SettleClearsTheErrorOnAReinstatedJobThatSucceeds(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "reinstated", Type: JobTypeClip, Status: JobStatusPending})
+
+		<-started
+
+		// The delete takes the job out, then the row removal fails and the job
+		// is handed back marked canceled. The worker is still unwinding.
+		job := q.GetJob("reinstated")
+		q.Delete("reinstated")
+		q.Reinstate(job)
+
+		close(release)
+		synctest.Wait()
+
+		settled := q.GetJob("reinstated")
+		require.NotNil(t, settled)
+		assert.Equal(t, JobStatusCompleted, settled.Status)
+		assert.Empty(t, settled.Error,
+			"a completed job must not still be carrying its cancellation error")
+	})
+}
+
+// TestQueue_ReinstateLeavesAnUnwindingJobToRecordItsOutcome is the other half of
+// the queued case.
+//
+// A worker already holding the job must be left alone. Marking it would make
+// that worker discard a real outcome, so the reinstate records the cancellation
+// and then the worker's own settle overwrites it with what the render ended as.
+func TestQueue_ReinstateLeavesAnUnwindingJobToRecordItsOutcome(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return errRenderAborted
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "unwinding-reinstate", Type: JobTypeClip, Status: JobStatusPending})
+
+		<-started
+
+		job := q.GetJob("unwinding-reinstate")
+
+		q.Delete("unwinding-reinstate")
+		q.Reinstate(job)
+
+		assert.Empty(t, q.dropped,
+			"a job a worker is unwinding must not be marked to stop, or its outcome is lost")
+
+		close(release)
+		synctest.Wait()
+
+		settled := q.GetJob("unwinding-reinstate")
+		require.NotNil(t, settled)
+		assert.Equal(t, JobStatusFailed, settled.Status,
+			"the worker's own outcome is recorded, not the cancellation the reinstate wrote")
+		assert.Equal(t, errRenderAborted.Error(), settled.Error)
 	})
 }

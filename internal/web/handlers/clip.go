@@ -276,6 +276,24 @@ func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 
 	err := handler.db.DeleteClip(ctx.Context(), id)
 	if err != nil {
+		// The queue has already forgotten the job, so it has to take it back.
+		// Left out, the row that survived the failed delete has nothing owning
+		// it: a cancel would not find it, and the next start would resubmit a
+		// render this delete already stopped.
+		handler.clipQueue.Reinstate(job)
+
+		// The row still describes the job as it was, so it is brought into line
+		// with what the queue now holds. A save failure is logged rather than
+		// returned: the caller can act on the delete failing and not on a second
+		// write, and swapping them would report the wrong problem.
+		saveErr := handler.db.SaveClip(ctx.Context(), job)
+		if saveErr != nil {
+			logging.Logger.Warn().
+				Str("job_id", id).
+				Err(saveErr).
+				Msg("failed to persist reinstated clip")
+		}
+
 		return writeError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
 	}
 
