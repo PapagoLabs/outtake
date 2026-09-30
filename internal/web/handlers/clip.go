@@ -269,12 +269,15 @@ func (handler *ClipHandler) Delete(ctx fiber.Ctx) error {
 		}
 	}
 
+	// The queue forgets the job first, so the tombstone is in place before the
+	// row goes. The other order leaves a window: a status change landing between
+	// the two writes the row back, and the delete silently does nothing.
+	handler.clipQueue.Delete(id)
+
 	err := handler.db.DeleteClip(ctx.Context(), id)
 	if err != nil {
 		return writeError(ctx, fiber.StatusInternalServerError, "delete_failed", err.Error())
 	}
-
-	handler.clipQueue.Delete(id)
 
 	// 200 rather than 204: htmx ships 204 in its noSwap list, so a 204 makes it
 	// skip the swap and the card's hx-swap="delete" never removes the row.
