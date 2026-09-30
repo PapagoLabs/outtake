@@ -162,6 +162,89 @@
 		return form.querySelector('[name="' + name + '"]');
 	}
 
+	// isSingleFrame reports whether the form is exporting a single frame.
+	//
+	// A screenshot is one frame at the start mark, so the end mark is hidden and
+	// has no bearing on whether the selection is usable.
+	function isSingleFrame(form) {
+		var type = formControl(form, 'clipType');
+		return !!type && type.value === 'screenshot';
+	}
+
+	// setSubmitsBlocked disables the export buttons and outlines them.
+	//
+	// The outline classes are carried on the button as data-invalid-css and are
+	// appended rather than swapped in, so the button keeps its own variant and
+	// shape. Appending also avoids a Tailwind conflict, since two border colours
+	// in one class list resolve by stylesheet order, not attribute order.
+	function setSubmitsBlocked(form, blocked) {
+		form.querySelectorAll('.js-export-submit').forEach(function (btn) {
+			if (!btn.dataset.okCss) {
+				btn.dataset.okCss = btn.className;
+			}
+			btn.disabled = blocked;
+			btn.className = blocked
+				? btn.dataset.okCss + ' ' + btn.dataset.invalidCss
+				: btn.dataset.okCss;
+		});
+	}
+
+	// setFieldError marks a field invalid and shows its limit beside the label.
+	//
+	// The message is a fragment — "max 10min", "after 1hr" — rather than a
+	// sentence, because it sits on the label's own line and a full sentence
+	// wraps onto the row below.
+	//
+	// Only the first reason is shown. Several can apply at once and the field has
+	// room for one; the order the caller passes them in is the order of
+	// specificity, so the binding limit is the one reported.
+	//
+	// Every slot is written, not just the first. A mark has one label for a clip
+	// and another for a screenshot, each carrying its own slot, and the two
+	// containers are toggled by the export type. Writing only the first would
+	// leave the other carrying a stale limit when the type changed.
+	function setFieldError(form, name, invalid, message) {
+		var el = formControl(form, name);
+		if (el) {
+			if (invalid) {
+				el.setAttribute('aria-invalid', 'true');
+			} else {
+				el.removeAttribute('aria-invalid');
+			}
+		}
+		var selector = '[data-' + name.replace(/([A-Z])/g, '-$1').toLowerCase() + '-error]';
+		form.querySelectorAll(selector).forEach(function (slot) {
+			if (invalid && message) {
+				slot.textContent = message;
+				slot.classList.remove('hidden');
+			} else {
+				// Cleared too, or a stale limit shows the moment the field is
+				// corrected.
+				slot.textContent = '';
+				slot.classList.add('hidden');
+			}
+		});
+	}
+
+	// announce reads the full reasons for a screen reader.
+	//
+	// The visible text is deliberately terse, so this carries the whole
+	// explanation for anyone not reading it by eye.
+	function announce(form, reasons) {
+		var live = form.querySelector('[data-duration-warning]');
+		if (live) {
+			live.textContent = reasons.join(' ');
+		}
+	}
+
+	// syncExportDuration reports whether the selection is usable and shows the
+	// result.
+	//
+	// It never rewrites a mark. Whatever the user typed is what they keep, so a
+	// mistyped hour stays visible and correctable rather than being reset to
+	// something they did not ask for. An out-of-bounds selection marks the
+	// offending field, explains itself, and blocks the buttons that would encode
+	// it.
 	function syncExportDuration(form) {
 		var startEl = formControl(form, 'startTime');
 		var endEl = formControl(form, 'endTime');
@@ -170,18 +253,55 @@
 			return;
 		}
 		var maxDur = parseInt(form.getAttribute('data-max-dur'), 10) || 600;
+		// The source length, or zero when the page did not probe it. An 11 hour
+		// start on a 2 hour film is a legal clip length, so only the media's own
+		// duration catches a mark past the end of the source.
+		var mediaDur = parseFloat(form.getAttribute('data-media-dur')) || 0;
+		var warning = form.querySelector('[data-duration-warning]');
+
 		var start = parseTimecode(startEl.value);
 		var end = parseTimecode(endEl.value);
-		var dur = Math.max(0, end - start);
-		var warning = form.querySelector('[data-duration-warning]');
-		if (dur > maxDur) {
-			dur = maxDur;
-			if (warning) {
-				warning.classList.remove('hidden');
-			}
-		} else if (warning) {
-			warning.classList.add('hidden');
+		var single = isSingleFrame(form);
+		var dur = single ? 0 : Math.max(0, end - start);
+
+		var startWhy = '';
+		var endWhy = '';
+		var reasons = [];
+
+		// maxDur caps how long a clip may be, not how far into a film it may
+		// start, so it is never applied to the start. Only the source's own length
+		// bounds it, and an 11 hour start on a 2 hour film is a legal clip length.
+		if (start < 0) {
+			startWhy = 'min 0s';
+			reasons.push('The start cannot be negative.');
+		} else if (mediaDur > 0 && start >= mediaDur) {
+			startWhy = 'max ' + formatDuration(mediaDur);
+			reasons.push('The start is past the end of the media, which is ' + formatDuration(mediaDur) + '.');
 		}
+		if (!single) {
+			// The end's binding limit is whichever arrives first, the length cap or
+			// the end of the source.
+			var ceiling = mediaDur > 0 ? Math.min(start + maxDur, mediaDur) : start + maxDur;
+			if (mediaDur > 0 && end > mediaDur) {
+				endWhy = 'max ' + formatDuration(mediaDur);
+				reasons.push('The end is past the end of the media, which is ' + formatDuration(mediaDur) + '.');
+			} else if (dur > maxDur) {
+				endWhy = 'max ' + formatDuration(maxDur);
+				reasons.push('The selection is longer than the maximum of ' + formatDuration(maxDur) + '.');
+			} else if (end <= start) {
+				endWhy = 'after ' + formatDuration(start);
+				reasons.push('The end must be after the start.');
+			} else if (end > ceiling) {
+				endWhy = 'max ' + formatDuration(ceiling);
+				reasons.push('The end is past ' + formatDuration(ceiling) + '.');
+			}
+		}
+
+		setFieldError(form, 'startTime', !!startWhy, startWhy);
+		setFieldError(form, 'endTime', !!endWhy, endWhy);
+		setSubmitsBlocked(form, reasons.length > 0);
+		announce(form, reasons);
+
 		durEl.value = dur.toFixed(3);
 		var label = form.querySelector('[data-duration-label]');
 		if (label) {
@@ -198,6 +318,11 @@
 				select.dataset.exportBound = '1';
 				select.addEventListener('change', function () {
 					applyExportForm(form);
+					// The type decides which marks matter. A screenshot hides the
+					// end mark and is bounded by its start alone, so the bounds and
+					// the button state have to be worked out again after the switch
+					// rather than left over from the previous type.
+					syncExportDuration(form);
 				});
 			}
 			if (!form.dataset.durationBound) {

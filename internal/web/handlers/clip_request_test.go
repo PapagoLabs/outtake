@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -280,6 +281,315 @@ func TestPreserveHDRFor(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, test.want, preserveHDRFor(test.requested, test.fallback))
+		})
+	}
+}
+
+// TestCheckRange covers the bound the duration checks cannot catch.
+//
+// An 11 hour start on a 2 hour film is a legal clip length, so it passes every
+// other bound and is persisted before ffmpeg reports that it seeked past the
+// end. Only the source's own length rejects it.
+func TestCheckRange(t *testing.T) {
+	t.Parallel()
+
+	const film = 2 * 60 * 60 // a two hour feature
+
+	tests := []struct {
+		name      string
+		start     float64
+		duration  float64
+		media     float64
+		wantError bool
+	}{
+		{name: "a range inside the film is accepted", start: 30, duration: 20, media: film},
+		{
+			name:     "a range ending exactly at the end is accepted",
+			start:    100,
+			duration: film - 100,
+			media:    film,
+		},
+		{
+			name:      "a start past the end is rejected",
+			start:     11 * 3600,
+			duration:  20,
+			media:     film,
+			wantError: true,
+		},
+		{
+			name:      "a range reaching past the end is rejected",
+			start:     3600,
+			duration:  3601,
+			media:     film,
+			wantError: true,
+		},
+		{
+			name:     "a start one second before the end is accepted",
+			start:    film - 1,
+			duration: 1,
+			media:    film,
+		},
+		{
+			name:      "a negative start is rejected",
+			start:     -1,
+			duration:  10,
+			media:     film,
+			wantError: true,
+		},
+		{
+			name:      "a screenshot is bounded by its start alone",
+			start:     film,
+			duration:  0,
+			media:     film,
+			wantError: true,
+		},
+		{name: "an unprobed source is not rejected", start: 11 * 3600, duration: 20, media: 0},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := checkRange(test.start, test.duration, test.media)
+
+			if test.wantError {
+				require.Error(t, err)
+				assert.ErrorIs(t, err, errRangeOutsideMedia)
+
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestCheckRangeNamesTheBounds keeps the diagnostic usable.
+//
+// The whole point of rejecting is that the user is told which mark was wrong and
+// by how much, so the message has to name both times rather than only complain.
+func TestCheckRangeNamesTheBounds(t *testing.T) {
+	t.Parallel()
+
+	err := checkRange(11*3600, 20, 2*3600)
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "11hr", "the message names the start the user typed")
+	assert.Contains(t, err.Error(), "2hr", "the message names the media's real length")
+}
+
+// TestApplyClipEditsKeepsARejectedSelectionOutOfTheRow covers the seam that
+// turned a bad selection into saved metadata.
+//
+// A start of 11 hours on a 2 hour film is a legal clip length, so the duration
+// checks accepted it, the row was written, and only the render then failed. The
+// row outlived the failure with marks that describe nothing.
+//
+// The bound needs a probe, which a white-box test may not run, so this pins the
+// ordering it depends on: checkRange rejects first, and the edits are never
+// applied when it does.
+func TestApplyClipEditsKeepsARejectedSelectionOutOfTheRow(t *testing.T) {
+	t.Parallel()
+
+	const film = 2 * 60 * 60
+
+	job := testClipJob("out-of-range", queue.JobTypeClip)
+
+	job.StartTime = 30
+	job.Duration = 20
+
+	before := *job
+
+	req := api.ClipRequest{
+		ClipType:  clipTypeClip,
+		StartTime: 11 * 3600,
+		Duration:  20,
+	}
+
+	// The gate the handler runs before touching the row.
+	err := checkRange(req.StartTime, req.Duration, film)
+	require.Error(t, err, "an 11 hour start on a 2 hour film is outside the source")
+
+	if err == nil {
+		applyClipEdits(job, req)
+	}
+
+	assert.InDelta(t, before.StartTime, job.StartTime, 0.0005, "the stored start is untouched")
+	assert.InDelta(t, before.Duration, job.Duration, 0.0005, "the stored length is untouched")
+}
+
+// TestCheckRangeAcceptsWhatApplyClipEditsWouldStore is the other half: a
+// selection the gate accepts is one the row can legitimately carry.
+func TestCheckRangeAcceptsWhatApplyClipEditsWouldStore(t *testing.T) {
+	t.Parallel()
+
+	const film = 2 * 60 * 60
+
+	job := testClipJob("in-range", queue.JobTypeClip)
+	req := api.ClipRequest{ClipType: clipTypeClip, StartTime: 3600, Duration: 600}
+
+	require.NoError(t, checkRange(req.StartTime, req.Duration, film))
+
+	applyClipEdits(job, req)
+
+	assert.InDelta(t, req.StartTime, job.StartTime, 0.0005)
+	assert.InDelta(t, req.Duration, job.Duration, 0.0005)
+}
+
+// TestValidateSelectionIgnoresAnEndAScreenshotNeverUses covers the false
+// rejection this bound would otherwise cause.
+//
+// ExtractScreenshot seeks to StartTime and nothing else, but parseClipRequest
+// still derives a duration from the two marks, and validateDuration accepts it
+// for a screenshot. Without the type check, a frame at 8000s of an 8013s film is
+// rejected because the end mark beside it reaches past the source.
+func TestValidateSelectionIgnoresAnEndAScreenshotNeverUses(t *testing.T) {
+	t.Parallel()
+
+	const film = 8013.846 // the runtime this was reported against
+
+	// A frame four seconds from the end, with an end mark ten seconds past it.
+	req := api.ClipRequest{
+		ClipType:  "screenshot",
+		StartTime: 8000,
+		Duration:  23.846,
+	}
+
+	// The raw range is what a clip would be judged on, and it is out of bounds.
+	require.Error(t,
+		checkRange(req.StartTime, req.Duration, film),
+		"a range reaching past the end is out of bounds for a clip",
+	)
+
+	// A screenshot is bounded by its start alone, so the same marks are fine.
+	// selectionDuration is what decides that, so it is called rather than a
+	// hand-picked zero, and dropping its screenshot case fails this test.
+	require.Zero(t, selectionDuration(queue.JobTypeScreenshot, req),
+		"a screenshot renders one frame, so it has no range to bound")
+	require.NoError(t,
+		checkRange(req.StartTime, selectionDuration(queue.JobTypeScreenshot, req), film),
+		"a screenshot is a single frame at the start, so the end mark is not its concern")
+}
+
+// TestSelectionDurationKeepsTheRangeForEveryOtherType guards the other
+// direction: the relaxation is for screenshots only.
+func TestSelectionDurationKeepsTheRangeForEveryOtherType(t *testing.T) {
+	t.Parallel()
+
+	const film = 8013.846
+
+	req := api.ClipRequest{StartTime: 8000, Duration: 23.846}
+
+	for _, jobType := range []queue.JobType{queue.JobTypeClip, queue.JobTypeGIF} {
+		assert.InDelta(t, req.Duration, selectionDuration(jobType, req), 0.0005,
+			"%s renders a range, so it is still bounded", jobType)
+		require.Error(t, checkRange(8000, selectionDuration(jobType, req), film),
+			"a clip and a GIF both render a range, so the end is still bounded")
+	}
+}
+
+// parseJSON posts a JSON body through parseClipRequest, the way an API client
+// would rather than a browser form.
+//
+// Parameters:
+//   - t: Test context.
+//   - body: Request payload.
+//
+// Returns:
+//   - req: The parsed request.
+func parseJSON(t *testing.T, body string) api.ClipRequest {
+	t.Helper()
+
+	app := fiber.New()
+
+	var gotReq api.ClipRequest
+
+	app.Post("/api/clips", func(ctx fiber.Ctx) error {
+		parsed, err := parseClipRequest(ctx)
+		if err != nil {
+			return ctx.SendStatus(fiber.StatusBadRequest)
+		}
+
+		gotReq = parsed
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	post := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips",
+		strings.NewReader(body),
+	)
+	post.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	resp, err := app.Test(post)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	return gotReq
+}
+
+// TestAnAPIClientGetsTheSameBoundsAsTheForm pins that the bounds are a property
+// of the request, not of the form that produced it.
+//
+// The form validates in the browser and blocks its own buttons, but a JSON
+// client sends the same fields with no form and no script, so the server has to
+// hold the line on its own.
+func TestAnAPIClientGetsTheSameBoundsAsTheForm(t *testing.T) {
+	t.Parallel()
+
+	const film = 2 * 60 * 60
+
+	tests := []struct {
+		name      string
+		start     float64
+		duration  float64
+		wantError bool
+	}{
+		{name: "a range inside the film is accepted", start: 30, duration: 20},
+		{name: "a start past the end is rejected", start: 11 * 3600, duration: 20, wantError: true},
+		{
+			name:      "a range reaching past the end is rejected",
+			start:     3600,
+			duration:  3601,
+			wantError: true,
+		},
+		{name: "a zero length range is rejected", start: 30, duration: 0, wantError: true},
+		{name: "a negative start is rejected", start: -5, duration: 20, wantError: true},
+		{name: "a range over the maximum is rejected", start: 0, duration: film, wantError: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := fmt.Sprintf(
+				`{"mediaId":"42","clipType":"clip","startTime":%v,"duration":%v}`,
+				test.start,
+				test.duration,
+			)
+
+			req := parseJSON(t, body)
+
+			// The parse succeeds either way, since binding is not validation.
+			// What matters is that both bounds are then applied to what it parsed:
+			// the length cap from validateDuration, and the source's own length
+			// from checkRange. That is the pair validateNewClip runs.
+			handler := &ClipHandler{cfg: &config.Config{MaxClipDurSec: 600}}
+
+			err := handler.validateDuration(queue.JobTypeClip, req.Duration)
+			if err == nil {
+				err = checkRange(req.StartTime, req.Duration, film)
+			}
+
+			if test.wantError {
+				require.Error(t, err, "the server must reject %s", body)
+
+				return
+			}
+
+			require.NoError(t, err)
 		})
 	}
 }

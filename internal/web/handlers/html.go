@@ -294,6 +294,7 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	for index := range clips {
 		clips[index].AudioTracks = tracks
 		clips[index].SourceHDR = sourceHDR
+		clips[index].MediaDuration = source.Duration
 	}
 
 	maxDur := handler.cfg.MaxClipDurSec
@@ -370,6 +371,7 @@ func (handler *HTMLHandler) MediaItemClips(ctx fiber.Ctx) error {
 	for index := range clips {
 		clips[index].AudioTracks = tracks
 		clips[index].SourceHDR = sourceHDR
+		clips[index].MediaDuration = source.Duration
 	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
