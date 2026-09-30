@@ -125,25 +125,34 @@ func (que *Queue) Delete(id string) {
 		return
 	}
 
-	if cancel, running := que.cancels[id]; running {
+	// Captured before the cleanup below takes them away, because either one means
+	// a worker may still be reaching for this job.
+	_, running := que.cancels[id]
+	_, wasDropped := que.dropped[id]
+
+	if cancel, ok := que.cancels[id]; ok {
 		cancel()
 		delete(que.cancels, id)
 	}
 
-	// A tombstone is for any job a worker may still reach: one waiting in the
-	// channel, one running, and one canceled while it was waiting — which is
-	// still in the channel and would otherwise run, since the canceled marker
-	// is cleared below. Only a job that has run to a finish is excluded, because
-	// no worker is left to clear a marker for it. Marking an unknown id would
-	// grow the map for the life of the process, which is why the early return
-	// above comes first.
-	if job.Status != JobStatusCompleted && job.Status != JobStatusFailed {
+	// A tombstone exists so a worker can find it and clear it, so only a job a
+	// worker can still reach gets one: a pending or processing one, or one
+	// carrying a live marker — canceled while still waiting in the channel, or
+	// mid-unwind in a worker.
+	//
+	// A job that has already settled, or that Restore put in the map without
+	// enqueueing it, has no worker coming at all. Tombstoning those would leave
+	// the entry behind for the life of the process, since the delete that would
+	// clear it returns early once the job has left the map.
+	reachable := job.Status == JobStatusPending || job.Status == JobStatusProcessing ||
+		running || wasDropped
+	if reachable {
 		que.deleted[id] = struct{}{}
 	}
 
-	// The canceled marker goes too, now that the tombstone is what stops a
-	// job still waiting in the channel from running. Clearing it here is what
-	// stops the marker outliving the worker that would have removed it.
+	// The canceled marker goes too, now that the tombstone is what stops a job
+	// still waiting in the channel from running. Clearing it here is what stops
+	// the marker outliving the worker that would have removed it.
 	delete(que.dropped, id)
 	delete(que.jobs, id)
 }
@@ -181,6 +190,29 @@ func (que *Queue) GetJob(id string) *Job {
 	defer que.mu.RUnlock()
 
 	return que.jobs[id]
+}
+
+// IfLive runs fn only while the queue still owns the job, holding the read
+// lock for its duration.
+//
+// It is the same one-step guarantee notify gets, for a caller that persists the
+// job rather than observing it. A delete cannot land between the check and fn, so
+// a job removed in that window is not written back.
+//
+// Like the status callback, fn must not call back into the queue.
+//
+// Parameters:
+//   - id: Job the caller is about to write.
+//   - fn: The write.
+func (que *Queue) IfLive(id string, fn func()) {
+	que.mu.RLock()
+	defer que.mu.RUnlock()
+
+	if _, deleted := que.deleted[id]; deleted {
+		return
+	}
+
+	fn()
 }
 
 // Restore registers a job without enqueueing it.

@@ -491,3 +491,75 @@ func TestQueue_DeleteStopsACancelledJobStillWaitingInTheChannel(t *testing.T) {
 		assert.Empty(t, q.deleted, "the worker clears the tombstone it returned on")
 	})
 }
+
+// TestQueue_DeleteDoesNotTombstoneAJobNoWorkerWillReach is the containment guard.
+//
+// A tombstone is only ever cleared by a worker. Restore registers a job without
+// enqueueing it, so a restored job has no worker coming: tombstoning it leaves
+// the entry in the map for the life of the process, and the next delete returns
+// early because the job has left the map. Repeated cancel-and-delete cycles
+// would then retain a marker each.
+func TestQueue_DeleteDoesNotTombstoneAJobNoWorkerWillReach(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		status JobStatus
+	}{
+		{name: "a restored canceled job", status: JobStatusCancelled},
+		{name: "a restored completed job", status: JobStatusCompleted},
+		{name: "a restored failed job", status: JobStatusFailed},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			q := NewQueue(1, nil)
+			q.Restore(&Job{ID: "restored", Type: JobTypeClip, Status: test.status})
+
+			for range 50 {
+				q.Delete("restored")
+			}
+
+			assert.Empty(t, q.deleted,
+				"no worker will ever clear a marker for a job that was never enqueued")
+		})
+	}
+}
+
+// TestQueue_DeleteTombstonesAJobAWorkerCanStillReach is the other half: the
+// guard above must not have gone too far and stopped marking jobs that really
+// do have a worker behind them.
+func TestQueue_DeleteTombstonesAJobAWorkerCanStillReach(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "unwinding", Type: JobTypeClip, Status: JobStatusPending})
+
+		<-started
+		q.Cancel("unwinding")
+		q.Delete("unwinding")
+
+		// Canceled while the worker held it, so the status alone no longer says a
+		// worker is involved. The live cancel entry is what has to keep it marked,
+		// or the worker's own write on the way out goes through.
+		assert.Contains(t, q.deleted, "unwinding")
+
+		close(release)
+		synctest.Wait()
+	})
+}
