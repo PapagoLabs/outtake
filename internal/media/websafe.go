@@ -10,6 +10,24 @@ import (
 	"strings"
 )
 
+// hdrInputs are the settings that decide how an HDR source is handled.
+type hdrInputs struct {
+	// webSafe reports that web-safe color is enabled for the request.
+	webSafe bool
+	// preserve reports that the preset asked to keep the source's HDR transfer.
+	preserve bool
+}
+
+// remapDecision is how an encode treats an HDR source.
+type remapDecision int
+
+const (
+	// PreserveHDRDecision keeps a source's HDR transfer as it is.
+	preserveHDR remapDecision = iota
+	// WebSafeRemapDecision tone maps an HDR source down to Rec.709.
+	webSafeRemap
+)
+
 const (
 	// DefaultWebSafePeak is 400 nits relative to a 100-nit SDR white.
 	// Used when luma cannot be measured. Do not use disc MaxCLL tags.
@@ -40,12 +58,65 @@ const (
 	transferPQAlias = "pq"
 	// TransferHLGAlias is a short name some probes use for HLG.
 	transferHLGAlias = "hlg"
+	// PrimariesBT2020 is the BT.2020 primaries name ffmpeg expects.
+	primariesBT2020 = "bt2020"
+	// MatrixBT2020NC is the BT.2020 non-constant luminance matrix.
+	matrixBT2020NC = "bt2020nc"
+	// TransferRec709 is the sRGB transfer ffmpeg expects for Rec.709 output.
+	TransferRec709 = "iec61966-2-1"
+	// TransferRec709Probe is ffprobe's Rec.709 transfer name, for SDR sources.
+	transferRec709Probe = "bt709"
 	// PeakFormatPrec is the number of decimals on tonemap peak=.
 	peakFormatPrec = 4
 )
 
 // signalstatsYMaxPattern matches lavfi.signalstats YMAX lines.
 var signalstatsYMaxPattern = regexp.MustCompile(`YMAX=([0-9.]+)`)
+
+// remapDecisionFor maps an encode request onto the HDR handling it needs.
+//
+// An HDR source is tone mapped unless web-safe color is off and the preset asked
+// to keep it.
+//
+// Parameters:
+//   - in: The request's HDR-relevant settings.
+//
+// Returns:
+//   - decision: Why an HDR source is being handled.
+func remapDecisionFor(in hdrInputs) remapDecision {
+	if in.webSafe || !in.preserve {
+		return webSafeRemap
+	}
+
+	return preserveHDR
+}
+
+// hdrColorArgs tags an encode with the HDR transfer it actually carries.
+//
+// Used when a source is preserved rather than tone mapped. Leaving those files
+// untagged is the defect this branch addresses, so a preserved source is
+// described rather than left for the player to guess at.
+//
+// Parameters:
+//   - kind: Transfer alias, transferPQAlias or transferHLGAlias.
+//
+// Returns:
+//   - args: ffmpeg color and x264-params flags.
+func hdrColorArgs(kind string) []string {
+	transfer := transferPQ
+	if kind == transferHLGAlias {
+		transfer = transferHLG
+	}
+
+	return []string{
+		"-color_primaries", primariesBT2020,
+		"-color_trc", transfer,
+		"-colorspace", matrixBT2020NC,
+		"-color_range", "tv",
+		"-x264-params", "colorprim=" + primariesBT2020 + ":transfer=" + transfer +
+			":colormatrix=" + matrixBT2020NC,
+	}
+}
 
 // isPQTransfer reports whether ffprobe color_transfer is HDR10/PQ.
 //

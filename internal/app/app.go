@@ -580,11 +580,17 @@ func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) med
 //   - job: Clip job whose Quality and WebSafeColor are applied.
 //
 // Returns:
-//   - preset: Encode settings with WebSafeColor copied from the job.
-func clipEncodePreset(ctx context.Context, db *database.DB, job *queue.Job) media.QualityPreset {
+//   - preset: Encode settings with the color decisions applied.
+func clipEncodePreset(
+	ctx context.Context,
+	db *database.DB,
+	job *queue.Job,
+) media.QualityPreset {
 	preset := clipPreset(ctx, db, job.Quality)
 
 	preset.WebSafeColor = job.WebSafeColor
+	// The clip decides; the server setting only seeds the form's default state.
+	preset.PreserveHDR = job.PreserveHDR
 
 	return preset
 }

@@ -60,6 +60,11 @@ type Config struct {
 	CropBlackBars bool `mapstructure:"crop-black-bars"`
 	// WebSafeColor is the default for HDR tone-mapping on saved clips.
 	WebSafeColor bool `mapstructure:"web-safe-color"`
+	// PreserveHDR keeps an HDR source as it is instead of tone mapping it to
+	// Rec.709. An HDR source is tone mapped by default, because leaving it
+	// untagged leaves every player to guess at the transfer and guess
+	// differently. The output is still tagged either way.
+	PreserveHDR bool `mapstructure:"preserve-hdr"`
 	// PlexServerURL is the Plex server URL.
 	PlexServerURL string `mapstructure:"plex-server-url"`
 	// PlexToken is the Plex token.
@@ -187,6 +192,7 @@ func emptyConfig() *Config {
 		MaxClipDurSec:   0,
 		CropBlackBars:   false,
 		WebSafeColor:    false,
+		PreserveHDR:     false,
 		PlexServerURL:   "",
 		PlexToken:       "",
 		PlexClientID:    "",
@@ -219,6 +225,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("max-concurrent-previews", defaultMaxConcurrentPreviews)
 	viperInstance.SetDefault("max-clip-dur-sec", defaultMaxClipDur)
 	viperInstance.SetDefault("crop-black-bars", false)
+	viperInstance.SetDefault("preserve-hdr", false)
 	viperInstance.SetDefault("web-safe-color", false)
 	viperInstance.SetDefault("plex-media-root", "")
 	viperInstance.SetDefault("local-media-root", "")

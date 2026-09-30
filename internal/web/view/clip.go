@@ -23,10 +23,15 @@ type ClipItem struct {
 	AudioTracks   []AudioTrackOption
 	CropBlackBars bool
 	WebSafeColor  bool
-	Width         int
-	FPS           int
-	MaxDur        int
-	Error         string
+	// PreserveHDR is the keep-HDR-as-is toggle.
+	PreserveHDR bool
+	// SourceHDR reports whether the source carries an HDR transfer, which is
+	// what decides whether the keep-HDR control is shown at all.
+	SourceHDR bool
+	Width     int
+	FPS       int
+	MaxDur    int
+	Error     string
 }
 
 // ClipProfileOption is a named encode profile in a quality select.

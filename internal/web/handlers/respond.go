@@ -83,6 +83,8 @@ const (
 
 	// QueryCropBlackBars carries the New export crop toggle across a redirect.
 	queryCropBlackBars = "cropBlackBars"
+	// QueryPreserveHDR carries the keep-HDR toggle across the preview redirect.
+	queryPreserveHDR = "preserveHdr"
 
 	// QueryEnd is the New export end mark on a media item page.
 	queryEnd = "end"

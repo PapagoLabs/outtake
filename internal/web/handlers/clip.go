@@ -452,6 +452,8 @@ func (handler *ClipHandler) PreviewStatus(ctx fiber.Ctx) error {
 //   - inputPath: Source media path.
 //   - output: Final path the preview is published under.
 //   - req: Parsed request carrying the marks and encoding options.
+//   - preserveHDR: Whether an HDR source is kept rather than tone mapped. It
+//     comes from the request, because the clip is where the user decides.
 //
 // Returns:
 //   - err: Non-nil when the preview could not be written or published.
@@ -461,6 +463,7 @@ func renderPreview(
 	ffmpeg media.FFmpeg,
 	inputPath, output string,
 	req api.ClipRequest,
+	preserveHDR bool,
 ) error {
 	crop := media.CropRect{}
 
@@ -481,7 +484,10 @@ func renderPreview(
 		req.Duration,
 		req.AudioIndex,
 		crop,
-		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
+		media.QualityPreset{
+			WebSafeColor: derefBool(req.WebSafeColor),
+			PreserveHDR:  preserveHDR,
+		},
 	)
 	if err != nil {
 		discardStagedPreview(staged)
@@ -782,6 +788,7 @@ func (handler *ClipHandler) renderPreviewInBackground(
 		inputPath,
 		final,
 		req,
+		derefBool(req.PreserveHDR),
 	)
 	if err != nil {
 		return fmt.Errorf("render preview: %w", err)
@@ -995,6 +1002,7 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		AudioIndex:    formInt(ctx, "audioIndex"),
 		CropBlackBars: ctx.FormValue("cropBlackBars") == formChecked,
 		WebSafeColor:  new(ctx.FormValue("webSafeColor") == formChecked),
+		PreserveHDR:   new(ctx.FormValue("preserveHdr") == formChecked),
 	}, nil
 }
 
@@ -1111,6 +1119,7 @@ func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *qu
 		AudioIndex:    req.AudioIndex,
 		CropBlackBars: req.CropBlackBars,
 		WebSafeColor:  derefBool(req.WebSafeColor),
+		PreserveHDR:   derefBool(req.PreserveHDR),
 		Status:        queue.JobStatusPending,
 		Progress:      0,
 		Error:         "",
@@ -1138,5 +1147,6 @@ func clipResponse(job *queue.Job) api.ClipResponse {
 		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
 		WebSafeColor:  job.WebSafeColor,
+		PreserveHDR:   job.PreserveHDR,
 	}
 }

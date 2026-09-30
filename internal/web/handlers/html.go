@@ -286,11 +286,14 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	item, itemErr := handler.loadMediaItem(ctx, id)
 	query := parseClipListQuery(ctx)
-	tracks := handler.mediaAudioTracks(ctx, id)
+	source := handler.mediaSourceInfo(ctx, id)
+	sourceHDR := media.IsHDRSource(source.ColorTransfer)
+	tracks := audioTrackOptions(source.AudioTracks)
 	clips := handler.clipsForMedia(ctx, id)
 
 	for index := range clips {
 		clips[index].AudioTracks = tracks
+		clips[index].SourceHDR = sourceHDR
 	}
 
 	maxDur := handler.cfg.MaxClipDurSec
@@ -319,6 +322,8 @@ func (handler *HTMLHandler) MediaItem(ctx fiber.Ctx) error {
 		EndTime:     window.End,
 		Crumbs:      nil,
 		LibraryID:   "",
+		Quality:     media.SourceQuality(source),
+		SourceHDR:   sourceHDR,
 	}
 	if itemErr == nil {
 		props.Title = item.DisplayTitle()
@@ -357,11 +362,14 @@ func previewWebSafeColor(ctx fiber.Ctx, fallback bool) bool {
 func (handler *HTMLHandler) MediaItemClips(ctx fiber.Ctx) error {
 	id := ctx.Params(paramID)
 	query := parseClipListQuery(ctx)
-	tracks := handler.mediaAudioTracks(ctx, id)
+	source := handler.mediaSourceInfo(ctx, id)
+	sourceHDR := media.IsHDRSource(source.ColorTransfer)
+	tracks := audioTrackOptions(source.AudioTracks)
 	clips := handler.clipsForMedia(ctx, id)
 
 	for index := range clips {
 		clips[index].AudioTracks = tracks
+		clips[index].SourceHDR = sourceHDR
 	}
 
 	return renderHTML(ctx, func(writer io.Writer) error {
@@ -669,38 +677,6 @@ func (handler *HTMLHandler) lookupClip(ctx fiber.Ctx, id string) *queue.Job {
 	return stored
 }
 
-// mediaAudioTracks probes audio streams for a media item.
-func (handler *HTMLHandler) mediaAudioTracks(
-	ctx fiber.Ctx,
-	mediaID string,
-) []view.AudioTrackOption {
-	// Skip probing when the media id is missing.
-	if mediaID == "" {
-		return nil
-	}
-
-	path, err := resolveMediaPath(
-		ctx.Context(),
-		handler.cfg,
-		handler.bind,
-		handler.product,
-		handler.clientID,
-		mediaID,
-	)
-	if err != nil {
-		return nil
-	}
-
-	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
-
-	info, err := ffmpeg.Probe(ctx.Context(), path)
-	if err != nil {
-		return nil
-	}
-
-	return audioTrackOptions(info.AudioTracks)
-}
-
 // audioTrackOptions maps probed streams onto select options.
 func audioTrackOptions(tracks []media.AudioTrack) []view.AudioTrackOption {
 	options := make([]view.AudioTrackOption, 0, len(tracks))
@@ -830,6 +806,48 @@ func (handler *HTMLHandler) mediaLetters(
 
 		return orderJumpIndex(index, query.Sort)
 	}
+}
+
+// mediaSourceInfo probes a media item for its audio streams and video color.
+//
+// It is the one probe the page already paid for, so the quality label and the
+// keep-HDR control read off it rather than starting a second one.
+//
+// Parameters:
+//   - ctx: Incoming page request.
+//   - mediaID: Plex media item id.
+//
+// Returns:
+//   - info: Probed source information, zero when the probe could not run.
+func (handler *HTMLHandler) mediaSourceInfo(
+	ctx fiber.Ctx,
+	mediaID string,
+) media.MediaInfo {
+	// Skip probing when the media id is missing.
+	if mediaID == "" {
+		return media.MediaInfo{}
+	}
+
+	path, err := resolveMediaPath(
+		ctx.Context(),
+		handler.cfg,
+		handler.bind,
+		handler.product,
+		handler.clientID,
+		mediaID,
+	)
+	if err != nil {
+		return media.MediaInfo{}
+	}
+
+	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
+
+	info, err := ffmpeg.Probe(ctx.Context(), path)
+	if err != nil {
+		return media.MediaInfo{}
+	}
+
+	return info
 }
 
 // searchMediaContent runs a Plex hub search and keeps library names for crumbs.
@@ -1050,6 +1068,7 @@ func toClipItem(job *queue.Job, profiles []view.ClipProfileOption, maxDur int) v
 		AudioTracks:   nil,
 		CropBlackBars: job.CropBlackBars,
 		WebSafeColor:  job.WebSafeColor,
+		PreserveHDR:   job.PreserveHDR,
 		Width:         job.Width,
 		FPS:           job.FPS,
 		MaxDur:        maxDur,

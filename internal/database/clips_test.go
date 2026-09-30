@@ -58,13 +58,26 @@ func TestClipPersistence(t *testing.T) {
 	assert.Equal(t, 1, got.AudioIndex)
 	assert.True(t, got.CropBlackBars)
 	assert.False(t, got.WebSafeColor)
+	assert.False(t, got.PreserveHDR,
+		"a clip saved before the column existed must tone map, as it always did")
 
 	job.WebSafeColor = true
+	job.PreserveHDR = true
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
 	got, err = db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
 	assert.True(t, got.WebSafeColor)
+	assert.True(t, got.PreserveHDR)
+
+	// The two are separate columns, so clearing one must not clear the other.
+	job.PreserveHDR = false
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	got, err = db.GetClip(t.Context(), job.ID)
+	require.NoError(t, err)
+	assert.True(t, got.WebSafeColor)
+	assert.False(t, got.PreserveHDR)
 
 	byMedia, err := db.ListClipsForMedia(t.Context(), "100")
 	require.NoError(t, err)

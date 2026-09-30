@@ -23,7 +23,7 @@ const (
 	clipSelectCols = `id, media_id, media_title, media_type, clip_type, status, progress,
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
-		web_safe_color`
+		web_safe_color, preserve_hdr`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
@@ -36,8 +36,8 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 			id, media_id, media_title, media_type, clip_type, status, progress,
 			input_path, output_path, start_time, duration, quality, width, fps,
 			error_message, created_at, updated_at, name, audio_index, crop_black_bars,
-			web_safe_color
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			web_safe_color, preserve_hdr
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			clip_type = excluded.clip_type,
@@ -52,6 +52,7 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 			audio_index = excluded.audio_index,
 			crop_black_bars = excluded.crop_black_bars,
 			web_safe_color = excluded.web_safe_color,
+			preserve_hdr = excluded.preserve_hdr,
 			error_message = excluded.error_message,
 			updated_at = excluded.updated_at
 	`)
@@ -79,6 +80,7 @@ func (db *DB) SaveClip(ctx context.Context, job *queue.Job) error {
 		job.AudioIndex,
 		cropBlackBarsColumn(job),
 		webSafeColorColumn(job),
+		preserveHDRColumn(job),
 	)
 	if err != nil {
 		return fmt.Errorf("save clip: %w", err)
@@ -192,6 +194,7 @@ func scanJob(row Scannable) (*queue.Job, error) {
 	var updated time.Time
 	var cropBlackBars int
 	var webSafeColor int
+	var preserveHDR int
 
 	err := row.Scan(
 		&job.ID,
@@ -215,6 +218,7 @@ func scanJob(row Scannable) (*queue.Job, error) {
 		&job.AudioIndex,
 		&cropBlackBars,
 		&webSafeColor,
+		&preserveHDR,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan clip: %w", err)
@@ -226,6 +230,7 @@ func scanJob(row Scannable) (*queue.Job, error) {
 	job.UpdatedAt = updated
 	job.CropBlackBars = cropBlackBars != 0
 	job.WebSafeColor = webSafeColor != 0
+	job.PreserveHDR = preserveHDR != 0
 
 	return job, nil
 }
@@ -269,6 +274,21 @@ func cropBlackBarsColumn(job *queue.Job) int {
 //   - value: 1 when WebSafeColor is set, otherwise 0.
 func webSafeColorColumn(job *queue.Job) int {
 	if job.WebSafeColor {
+		return 1
+	}
+
+	return 0
+}
+
+// preserveHDRColumn stores the preserve-HDR setting as 0 or 1.
+//
+// Parameters:
+//   - job: Clip job to persist.
+//
+// Returns:
+//   - value: 1 when PreserveHDR is set, otherwise 0.
+func preserveHDRColumn(job *queue.Job) int {
+	if job.PreserveHDR {
 		return 1
 	}
 

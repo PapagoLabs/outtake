@@ -31,11 +31,15 @@ type Job struct {
 	AudioIndex    int
 	CropBlackBars bool
 	WebSafeColor  bool
-	Status        JobStatus
-	Progress      int
-	Error         string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// PreserveHDR keeps an HDR source as it is instead of tone mapping it.
+	// It is per clip, like WebSafeColor, because the two interact and a user
+	// decides both at the point they make the clip.
+	PreserveHDR bool
+	Status      JobStatus
+	Progress    int
+	Error       string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 const (

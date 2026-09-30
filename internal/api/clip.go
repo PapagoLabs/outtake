@@ -23,6 +23,10 @@ type ClipRequest struct {
 	AudioIndex    int     `json:"audioIndex"`
 	CropBlackBars bool    `json:"cropBlackBars"`
 	WebSafeColor  *bool   `json:"webSafeColor"`
+	// PreserveHDR keeps an HDR source as it is instead of tone mapping it. A nil
+	// value falls back to the server default, so an older client that omits it
+	// still gets the configured behavior.
+	PreserveHDR *bool `json:"preserveHdr"`
 }
 
 // ClipResponse represents the response for a clip job.
@@ -43,4 +47,5 @@ type ClipResponse struct {
 	AudioIndex    int       `json:"audioIndex"`
 	CropBlackBars bool      `json:"cropBlackBars"`
 	WebSafeColor  bool      `json:"webSafeColor"`
+	PreserveHDR   bool      `json:"preserveHdr"`
 }

@@ -28,6 +28,8 @@ type exportFormState struct {
 	Width         int
 	FPS           int
 	CropBlackBars bool
+	// PreserveHDR keeps an HDR source as it is instead of tone mapping it.
+	PreserveHDR bool
 }
 
 // mediaItemWindow is the New export form's start and end marks.
@@ -58,6 +60,7 @@ func exportFormFromRequest(req api.ClipRequest) exportFormState {
 		Width:         req.Width,
 		FPS:           req.FPS,
 		CropBlackBars: req.CropBlackBars,
+		PreserveHDR:   derefBool(req.PreserveHDR),
 	}
 }
 
@@ -99,6 +102,12 @@ func (state exportFormState) applyToQuery(values url.Values) {
 	} else {
 		values.Set(queryCropBlackBars, queryUnchecked)
 	}
+
+	if state.PreserveHDR {
+		values.Set(queryPreserveHDR, formChecked)
+	} else {
+		values.Set(queryPreserveHDR, queryUnchecked)
+	}
 }
 
 // viewProps maps the carried state onto the page view model.
@@ -114,6 +123,7 @@ func (state exportFormState) viewProps() view.ExportForm {
 		Width:         state.Width,
 		FPS:           state.FPS,
 		CropBlackBars: state.CropBlackBars,
+		PreserveHDR:   state.PreserveHDR,
 	}
 }
 
@@ -127,11 +137,17 @@ func (state exportFormState) viewProps() view.ExportForm {
 // Parameters:
 //   - ctx: Incoming page request.
 //   - defaultCrop: Configured crop-black-bars default.
+//   - defaultPreserve: Configured keep-HDR default.
 //   - title: Media title, used when the query carries no clip name.
 //
 // Returns:
 //   - state: The export form state to render.
-func exportFormFromQuery(ctx fiber.Ctx, defaultCrop bool, title string) exportFormState {
+func exportFormFromQuery(
+	ctx fiber.Ctx,
+	defaultCrop bool,
+	defaultPreserve bool,
+	title string,
+) exportFormState {
 	state := exportFormState{
 		Type:          normalizeExportType(ctx.Query(queryExportType)),
 		Name:          title,
@@ -140,12 +156,17 @@ func exportFormFromQuery(ctx fiber.Ctx, defaultCrop bool, title string) exportFo
 		Width:         queryInt(ctx, queryWidth),
 		FPS:           queryInt(ctx, queryFPS),
 		CropBlackBars: defaultCrop,
+		PreserveHDR:   defaultPreserve,
 	}
 
 	// A carried name is kept exactly as submitted, including when empty, so
 	// clearing the field survives instead of being refilled with the title.
 	if carried, ok := ctx.Queries()[queryExportName]; ok {
 		state.Name = carried
+	}
+
+	if raw := ctx.Query(queryPreserveHDR); raw != "" {
+		state.PreserveHDR = raw == formChecked
 	}
 
 	if raw := ctx.Query(queryCropBlackBars); raw != "" {
@@ -206,7 +227,12 @@ func mediaItemClipWindow(ctx fiber.Ctx) mediaItemWindow {
 // Returns:
 //   - form: The export form state to render.
 func (handler *HTMLHandler) mediaItemExportForm(ctx fiber.Ctx, title string) view.ExportForm {
-	form := exportFormFromQuery(ctx, handler.cfg.CropBlackBars, title).viewProps()
+	form := exportFormFromQuery(
+		ctx,
+		handler.cfg.CropBlackBars,
+		handler.cfg.PreserveHDR,
+		title,
+	).viewProps()
 
 	form.WebSafeColor = previewWebSafeColor(ctx, handler.cfg.WebSafeColor)
 

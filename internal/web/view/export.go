@@ -25,4 +25,6 @@ type ExportForm struct {
 	CropBlackBars bool
 	// WebSafeColor is the HDR tone-map toggle.
 	WebSafeColor bool
+	// PreserveHDR is the keep-HDR-as-is toggle.
+	PreserveHDR bool
 }

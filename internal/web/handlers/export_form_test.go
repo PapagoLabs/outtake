@@ -35,12 +35,26 @@ func exportFormFromTargetWithTitle(
 ) exportFormState {
 	t.Helper()
 
+	return exportFormFromTargetWithDefaults(t, location, defaultCrop, false, title)
+}
+
+// exportFormFromTargetWithDefaults is exportFormFromTarget with both configured
+// HDR defaults supplied, so the keep-HDR fallback is under test.
+func exportFormFromTargetWithDefaults(
+	t *testing.T,
+	location string,
+	defaultCrop bool,
+	defaultPreserve bool,
+	title string,
+) exportFormState {
+	t.Helper()
+
 	app := fiber.New()
 
 	var got exportFormState
 
 	app.Get("/media/item/:id", func(ctx fiber.Ctx) error {
-		got = exportFormFromQuery(ctx, defaultCrop, title)
+		got = exportFormFromQuery(ctx, defaultCrop, defaultPreserve, title)
 
 		return nil
 	})
