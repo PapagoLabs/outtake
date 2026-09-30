@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.114.0 by @renovate[bot] in [#271](https://github.com/PapagoLabs/outtake/pull/271)
 - Update module github.com/minio/minlz to v1.2.1 by @renovate[bot] in [#266](https://github.com/PapagoLabs/outtake/pull/266)
 - Update module github.com/klauspost/pgzip to v1.2.7 by @renovate[bot] in [#265](https://github.com/PapagoLabs/outtake/pull/265)
 - Update module github.com/andybalholm/brotli to v1.2.6 by @renovate[bot] in [#259](https://github.com/PapagoLabs/outtake/pull/259)
