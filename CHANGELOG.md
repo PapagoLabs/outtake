@@ -70,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bound a clip selection by the source and report it in place by @nicholas-fedor in [#263](https://github.com/PapagoLabs/outtake/pull/263)
 - Derive clip length from the marks instead of the posted duration by @nicholas-fedor in [#250](https://github.com/PapagoLabs/outtake/pull/250)
 - Preview the selection instead of a fixed 30 seconds by @nicholas-fedor in [#248](https://github.com/PapagoLabs/outtake/pull/248)
 - Fix changelog automation workflows by @nicholas-fedor in [#234](https://github.com/PapagoLabs/outtake/pull/234)
