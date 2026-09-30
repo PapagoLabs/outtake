@@ -751,3 +751,73 @@ func TestQueue_ReinstateLeavesAnUnwindingJobToRecordItsOutcome(t *testing.T) {
 		assert.Equal(t, errRenderAborted.Error(), settled.Error)
 	})
 }
+
+// TestQueue_WorkerSurvivesAPanickingHandler covers the whole point.
+//
+// A panic in a worker goroutine takes the process with it. The handler is the
+// only part of a worker running code this package does not control, so that is
+// where the recovery goes, and the job it loses is recorded as failed rather than
+// left showing as processing forever.
+func TestQueue_WorkerSurvivesAPanickingHandler(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		panicked := JobStatusPending
+
+		q := NewQueue(1, func(_ context.Context, job *Job) error {
+			if job.ID == "boom" {
+				panic("handler exploded")
+			}
+
+			panicked = JobStatusCompleted
+
+			return nil
+		})
+		q.SetStatusFunc(func(*Job) {})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "boom", Type: JobTypeClip, Status: JobStatusPending})
+		q.Submit(&Job{ID: "after", Type: JobTypeClip, Status: JobStatusPending})
+
+		synctest.Wait()
+
+		failed := q.GetJob("boom")
+		require.NotNil(t, failed)
+		assert.Equal(t, JobStatusFailed, failed.Status)
+		assert.Equal(t, ErrJobPanicked.Error(), failed.Error,
+			"the job reports a panic rather than the value it was handed")
+
+		assert.Equal(t, JobStatusCompleted, panicked,
+			"the worker carried on and ran the next job, which is what recovering is for")
+	})
+}
+
+// TestQueue_PanicNilIsStillRecovered covers the case recover alone would miss.
+//
+// A bare panic(nil) used to return nil from recover, which would read as "no
+// panic" and leave the job stuck processing. Since Go 1.21 it arrives as a
+// PanicNilError instead, so the nil check is safe, and this pins that.
+func TestQueue_PanicNilIsStillRecovered(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			//nolint:govet // nilness: panicking with nil is the case under test.
+			panic(nil)
+		})
+		q.SetStatusFunc(func(*Job) {})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "nil-panic", Type: JobTypeClip, Status: JobStatusPending})
+
+		synctest.Wait()
+
+		failed := q.GetJob("nil-panic")
+		require.NotNil(t, failed)
+		assert.Equal(t, JobStatusFailed, failed.Status)
+	})
+}

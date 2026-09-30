@@ -7,6 +7,7 @@ package queue
 import (
 	"cmp"
 	"context"
+	"errors"
 	"maps"
 	"slices"
 	"sync"
@@ -66,6 +67,13 @@ const (
 	progressDone = 100
 )
 
+// ErrJobPanicked is recorded against a job whose handler panicked.
+//
+// It is a fixed error rather than the panic value, because a job's stored error
+// is shown to whoever is watching the queue and a recovered panic value is not
+// something to put in front of them.
+var ErrJobPanicked = errors.New("job handler panicked")
+
 // NewQueue creates a new job queue.
 func NewQueue(workers int, handler JobHandler) *Queue {
 	_, cancel := context.WithCancel(context.Background())
@@ -88,27 +96,27 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 }
 
 // Cancel stops a pending or processing job.
-func (que *Queue) Cancel(id string) bool {
-	que.mu.Lock()
+func (q *Queue) Cancel(id string) bool {
+	q.mu.Lock()
 
-	job, ok := que.jobs[id]
+	job, ok := q.jobs[id]
 	if !ok || (job.Status != JobStatusPending && job.Status != JobStatusProcessing) {
-		que.mu.Unlock()
+		q.mu.Unlock()
 
 		return false
 	}
 
-	if cancel, exists := que.cancels[id]; exists {
+	if cancel, exists := q.cancels[id]; exists {
 		cancel()
 	}
 
-	que.dropped[id] = struct{}{}
+	q.dropped[id] = struct{}{}
 	job.Status = JobStatusCancelled
 	job.Error = string(JobStatusCancelled)
 	job.UpdatedAt = time.Now()
-	que.mu.Unlock()
+	q.mu.Unlock()
 
-	que.notify(job)
+	q.notify(job)
 
 	return true
 }
@@ -120,23 +128,23 @@ func (que *Queue) Cancel(id string) bool {
 // way out, so without a marker it cannot tell the row was deleted and that write
 // puts the row back. The tombstone outlives the delete and is cleared by the
 // worker when it finishes.
-func (que *Queue) Delete(id string) {
-	que.mu.Lock()
-	defer que.mu.Unlock()
+func (q *Queue) Delete(id string) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-	job, exists := que.jobs[id]
+	job, exists := q.jobs[id]
 	if !exists {
 		return
 	}
 
 	// Captured before the cleanup below takes them away, because either one means
 	// a worker may still be reaching for this job.
-	_, running := que.cancels[id]
-	_, wasDropped := que.dropped[id]
+	_, running := q.cancels[id]
+	_, wasDropped := q.dropped[id]
 
-	if cancel, ok := que.cancels[id]; ok {
+	if cancel, ok := q.cancels[id]; ok {
 		cancel()
-		delete(que.cancels, id)
+		delete(q.cancels, id)
 	}
 
 	// reached: Pending and processing jobs, and any carrying a live marker —
@@ -152,29 +160,29 @@ func (que *Queue) Delete(id string) {
 		// A live cancel entry means a worker is holding the job, so whatever
 		// settles it is that worker. Without one the job is still in the channel
 		// and has to be stopped before it starts, which is what the flag records.
-		que.deleted[id] = !running
+		q.deleted[id] = !running
 	}
 
 	// The canceled marker goes too, now that the tombstone is what stops a job
 	// still waiting in the channel from running. Clearing it here is what stops
 	// the marker outliving the worker that would have removed it.
-	delete(que.dropped, id)
-	delete(que.jobs, id)
+	delete(q.dropped, id)
+	delete(q.jobs, id)
 }
 
 // Done returns a channel that is closed when the queue is stopped.
-func (que *Queue) Done() <-chan struct{} {
-	return que.done
+func (q *Queue) Done() <-chan struct{} {
+	return q.done
 }
 
 // GetAllJobs returns every job, newest first.
 //
 // Jobs with the same CreatedAt are ordered by ID descending.
-func (que *Queue) GetAllJobs() []*Job {
-	que.mu.RLock()
-	defer que.mu.RUnlock()
+func (q *Queue) GetAllJobs() []*Job {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
-	result := slices.Collect(maps.Values(que.jobs))
+	result := slices.Collect(maps.Values(q.jobs))
 	slices.SortFunc(result, compareJobsNewestFirst)
 
 	return result
@@ -190,11 +198,11 @@ func compareJobsNewestFirst(left, right *Job) int {
 }
 
 // GetJob gets a job by ID.
-func (que *Queue) GetJob(id string) *Job {
-	que.mu.RLock()
-	defer que.mu.RUnlock()
+func (q *Queue) GetJob(id string) *Job {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
-	return que.jobs[id]
+	return q.jobs[id]
 }
 
 // IfLive runs fn only while the queue still owns the job, holding the read
@@ -209,11 +217,11 @@ func (que *Queue) GetJob(id string) *Job {
 // Parameters:
 //   - id: Job the caller is about to write.
 //   - fn: The write.
-func (que *Queue) IfLive(id string, fn func()) {
-	que.mu.RLock()
-	defer que.mu.RUnlock()
+func (q *Queue) IfLive(id string, fn func()) {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
-	if _, deleted := que.deleted[id]; deleted {
+	if _, deleted := q.deleted[id]; deleted {
 		return
 	}
 
@@ -235,71 +243,71 @@ func (que *Queue) IfLive(id string, fn func()) {
 //
 // Parameters:
 //   - job: The job Delete took.
-func (que *Queue) Reinstate(job *Job) {
-	que.mu.Lock()
-	defer que.mu.Unlock()
+func (q *Queue) Reinstate(job *Job) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
 	// The marker is cleared, but a job still sitting in the channel has nothing
 	// else stopping it from starting now, so it becomes a canceled one instead.
 	// A job a worker is already unwinding must not be: marking it would make
 	// that worker discard a real outcome, and setting its status here would be
 	// overwritten anyway.
-	queued := que.deleted[job.ID]
-	delete(que.deleted, job.ID)
-	delete(que.dropped, job.ID)
+	queued := q.deleted[job.ID]
+	delete(q.deleted, job.ID)
+	delete(q.dropped, job.ID)
 
 	if queued {
-		que.dropped[job.ID] = struct{}{}
+		q.dropped[job.ID] = struct{}{}
 	}
 
 	job.Status = JobStatusCancelled
 	job.Error = string(JobStatusCancelled)
 	job.UpdatedAt = time.Now()
-	que.jobs[job.ID] = job
+	q.jobs[job.ID] = job
 }
 
 // Restore registers a job without enqueueing it.
-func (que *Queue) Restore(job *Job) {
-	que.mu.Lock()
-	defer que.mu.Unlock()
+func (q *Queue) Restore(job *Job) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-	que.jobs[job.ID] = job
+	q.jobs[job.ID] = job
 }
 
 // SetStatusFunc registers a callback invoked on job status changes.
-func (que *Queue) SetStatusFunc(fn StatusFunc) {
-	que.statusFn = fn
+func (q *Queue) SetStatusFunc(fn StatusFunc) {
+	q.statusFn = fn
 }
 
 // Start starts the job queue workers.
-func (que *Queue) Start() {
-	for i := range que.workers {
-		que.wg.Go(func() {
-			que.worker(i)
+func (q *Queue) Start() {
+	for i := range q.workers {
+		q.wg.Go(func() {
+			q.worker(i)
 		})
 	}
 
-	logging.Logger.Info().Int("workers", que.workers).Msg("job queue started")
+	logging.Logger.Info().Int("workers", q.workers).Msg("job queue started")
 }
 
 // Stop stops the job queue.
-func (que *Queue) Stop() {
-	que.cancel()
-	close(que.jobChan)
-	close(que.done)
-	que.wg.Wait()
+func (q *Queue) Stop() {
+	q.cancel()
+	close(q.jobChan)
+	close(q.done)
+	q.wg.Wait()
 }
 
 // Submit submits a job to the queue.
-func (que *Queue) Submit(job *Job) {
-	que.mu.Lock()
+func (q *Queue) Submit(job *Job) {
+	q.mu.Lock()
 
-	que.jobs[job.ID] = job
-	que.mu.Unlock()
+	q.jobs[job.ID] = job
+	q.mu.Unlock()
 
-	que.jobChan <- job
+	q.jobChan <- job
 
-	que.notify(job)
+	q.notify(job)
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
@@ -318,60 +326,60 @@ func (que *Queue) Submit(job *Job) {
 // callback would then persist the job after it had been removed — which is the
 // same resurrection the tombstone exists to prevent, arriving by a different
 // route. See StatusFunc for what holding the lock asks of the callback.
-func (que *Queue) notify(job *Job) {
-	if que.statusFn == nil {
+func (q *Queue) notify(job *Job) {
+	if q.statusFn == nil {
 		return
 	}
 
-	que.mu.RLock()
-	defer que.mu.RUnlock()
+	q.mu.RLock()
+	defer q.mu.RUnlock()
 
-	if _, deleted := que.deleted[job.ID]; deleted {
+	if _, deleted := q.deleted[job.ID]; deleted {
 		return
 	}
 
-	que.statusFn(job)
+	q.statusFn(job)
 }
 
 // processJob processes a single job.
-func (que *Queue) processJob(job *Job) {
+func (q *Queue) processJob(job *Job) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	que.mu.Lock()
+	q.mu.Lock()
 
-	if _, gone := que.deleted[job.ID]; gone {
+	if _, gone := q.deleted[job.ID]; gone {
 		// Deleted before it ever started. Both markers go, so neither outlives
 		// the worker that would have removed it.
-		delete(que.deleted, job.ID)
-		delete(que.dropped, job.ID)
-		que.mu.Unlock()
+		delete(q.deleted, job.ID)
+		delete(q.dropped, job.ID)
+		q.mu.Unlock()
 
 		return
 	}
 
-	if _, dropped := que.dropped[job.ID]; dropped {
-		delete(que.dropped, job.ID)
-		que.mu.Unlock()
+	if _, dropped := q.dropped[job.ID]; dropped {
+		delete(q.dropped, job.ID)
+		q.mu.Unlock()
 
 		return
 	}
 
 	job.Status = JobStatusProcessing
 	job.UpdatedAt = time.Now()
-	que.cancels[job.ID] = cancel
-	que.mu.Unlock()
+	q.cancels[job.ID] = cancel
+	q.mu.Unlock()
 
-	que.notify(job)
+	q.notify(job)
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
 		Str("type", string(job.Type)).
 		Msg("processing job")
 
-	err := que.handler(ctx, job)
+	err := q.runHandler(ctx, job)
 
-	result := que.settle(job, err)
+	result := q.settle(job, err)
 
 	switch {
 	case result == outcomeDeleted:
@@ -393,7 +401,54 @@ func (que *Queue) processJob(job *Job) {
 		return
 	}
 
-	que.notify(job)
+	q.notify(job)
+}
+
+// runHandler invokes the job handler, turning a panic into an error.
+//
+// A panic in a worker goroutine takes the process down with it, and the handler
+// is the only part of a worker that runs code this package does not control:
+// ffmpeg, the database and object storage all sit behind it. Recovering keeps one
+// bad job from ending the run, and the stack goes to the log where it is useful
+// rather than into the job's error where it is not.
+//
+// The job is recorded as failed rather than retried. A panic is a programming
+// error rather than a transient condition, so retrying would put the same panic
+// on a timer.
+//
+// Parameters:
+//   - ctx: Cancellation for the job.
+//   - job: The job being handled.
+//
+// Returns:
+//   - err: The handler's error, or ErrJobPanicked if it panicked.
+//
+// A deferred recover can only replace the result through a named return. It is
+// the one place the pattern is the reason rather than a convenience.
+//
+//nolint:nonamedreturns // a deferred recover writes the result through the name.
+func (q *Queue) runHandler(ctx context.Context, job *Job) (err error) {
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			return
+		}
+
+		logging.Logger.Error().
+			Str("job_id", job.ID).
+			Str("type", string(job.Type)).
+			Interface("panic", recovered).
+			Stack().
+			Msg("job handler panicked")
+
+		err = ErrJobPanicked
+	}()
+
+	// The handler is the queue's own contract with its caller. Wrapping its error
+	// here would rewrite what the job records and what the caller sees, so it is
+	// passed through as it is.
+	//nolint:wrapcheck // the handler's error belongs to the caller that supplied it.
+	return q.handler(ctx, job)
 }
 
 // settle records how a job ended and releases its bookkeeping.
@@ -407,15 +462,15 @@ func (que *Queue) processJob(job *Job) {
 //
 // Returns:
 //   - outcome: How the job ended.
-func (que *Queue) settle(job *Job, err error) outcome {
-	que.mu.Lock()
-	defer que.mu.Unlock()
+func (q *Queue) settle(job *Job, err error) outcome {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 
-	_, canceled := que.dropped[job.ID]
-	_, gone := que.deleted[job.ID]
-	delete(que.dropped, job.ID)
-	delete(que.deleted, job.ID)
-	delete(que.cancels, job.ID)
+	_, canceled := q.dropped[job.ID]
+	_, gone := q.deleted[job.ID]
+	delete(q.dropped, job.ID)
+	delete(q.deleted, job.ID)
+	delete(q.cancels, job.ID)
 
 	if gone {
 		// The row was deleted while this was running, so the result is not
@@ -451,17 +506,17 @@ func (que *Queue) settle(job *Job, err error) outcome {
 }
 
 // worker processes jobs from the queue.
-func (que *Queue) worker(_ int) {
+func (q *Queue) worker(_ int) {
 	for {
 		select {
-		case <-que.done:
+		case <-q.done:
 			return
-		case job, ok := <-que.jobChan:
+		case job, ok := <-q.jobChan:
 			if !ok {
 				return
 			}
 
-			que.processJob(job)
+			q.processJob(job)
 		}
 	}
 }
