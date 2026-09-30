@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/minio/minlz to v1.2.1 by @renovate[bot] in [#266](https://github.com/PapagoLabs/outtake/pull/266)
 - Update module github.com/klauspost/pgzip to v1.2.7 by @renovate[bot] in [#265](https://github.com/PapagoLabs/outtake/pull/265)
 - Update module github.com/andybalholm/brotli to v1.2.6 by @renovate[bot] in [#259](https://github.com/PapagoLabs/outtake/pull/259)
 - Add github sponsorship configuration by @nicholas-fedor in [#255](https://github.com/PapagoLabs/outtake/pull/255)
@@ -71,6 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stop a deleted job from being written back by @nicholas-fedor in [#269](https://github.com/PapagoLabs/outtake/pull/269)
 - Bound a clip selection by the source and report it in place by @nicholas-fedor in [#263](https://github.com/PapagoLabs/outtake/pull/263)
 - Derive clip length from the marks instead of the posted duration by @nicholas-fedor in [#250](https://github.com/PapagoLabs/outtake/pull/250)
 - Preview the selection instead of a fixed 30 seconds by @nicholas-fedor in [#248](https://github.com/PapagoLabs/outtake/pull/248)
