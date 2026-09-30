@@ -39,6 +39,10 @@ type ClipHandler struct {
 	clientID    string
 	previews    *previewGate
 	previewJobs *previewRegistry
+	// mediaDurationFn reports a source's length. It is a field rather than a
+	// direct probe so the range bound can be driven from a test, which D8 forbids
+	// reaching for an external binary to do.
+	mediaDurationFn func(ctx context.Context, inputPath string) (float64, bool)
 }
 
 // clipErrorCode is the API error code a pre-persistence failure is reported
@@ -756,6 +760,10 @@ func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error
 //   - duration: The source length in seconds.
 //   - ok: False when the probe could not run or reported no length.
 func (handler *ClipHandler) mediaDuration(ctx context.Context, inputPath string) (float64, bool) {
+	if handler.mediaDurationFn != nil {
+		return handler.mediaDurationFn(ctx, inputPath)
+	}
+
 	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
 
 	info, err := ffmpeg.Probe(ctx, inputPath)
@@ -1062,7 +1070,10 @@ func (handler *ClipHandler) validateSelection(
 ) error {
 	mediaDuration, ok := handler.mediaDuration(ctx, inputPath)
 	if !ok {
-		return nil
+		// The length is unknown, so the bounds that need it cannot be applied.
+		// The one that does not is still checked, by handing checkRange a zero
+		// length: it rejects a negative start and declines to judge the rest.
+		mediaDuration = 0
 	}
 
 	err := checkRange(req.StartTime, selectionDuration(jobType, req), mediaDuration)
@@ -1109,12 +1120,17 @@ func selectionDuration(jobType queue.JobType, req api.ClipRequest) float64 {
 // Returns:
 //   - err: Non-nil when the selection reaches past the end of the source.
 func checkRange(start, duration, mediaDuration float64) error {
-	if mediaDuration <= 0 {
-		return nil
-	}
-
+	// A negative start is rejected before the length is consulted. It is wrong
+	// whatever the source turns out to be, so an unknown length is no reason to
+	// let it through.
 	if start < 0 {
 		return fmt.Errorf("%w: the start must not be negative", errRangeOutsideMedia)
+	}
+
+	// With no length there is nothing to compare against, and guessing one would
+	// reject valid selections rather than the invalid ones.
+	if mediaDuration <= 0 {
+		return nil
 	}
 
 	if start >= mediaDuration {

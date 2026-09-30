@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,9 +19,14 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/config"
+	"github.com/PapagoLabs/outtake/internal/database"
 	"github.com/PapagoLabs/outtake/internal/media"
 	"github.com/PapagoLabs/outtake/internal/queue"
+	"github.com/PapagoLabs/outtake/internal/storage"
 )
+
+// testMediaPath is the source path a stubbed probe reports a length for.
+const testMediaPath = "/media/movie.mkv"
 
 // parseForm posts form values through parseClipRequest and returns the result.
 //
@@ -393,29 +399,122 @@ func TestApplyClipEditsKeepsARejectedSelectionOutOfTheRow(t *testing.T) {
 
 	const film = 2 * 60 * 60
 
+	db, err := database.New(t.TempDir() + "/clips.db")
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = db.Close() })
+
 	job := testClipJob("out-of-range", queue.JobTypeClip)
 
 	job.StartTime = 30
 	job.Duration = 20
+	job.InputPath = testMediaPath
+	require.NoError(t, db.SaveClip(t.Context(), job))
 
-	before := *job
-
-	req := api.ClipRequest{
-		ClipType:  clipTypeClip,
-		StartTime: 11 * 3600,
-		Duration:  20,
+	// The probe is stubbed rather than run, since a white-box test may not reach
+	// for ffprobe. The source is two hours long. The queue is only there for
+	// lookupJob and is never asked to run a job, since the request is rejected
+	// before anything is queued.
+	handler := &ClipHandler{
+		db:          db,
+		cfg:         &config.Config{MaxClipDurSec: 600},
+		clipQueue:   queue.NewQueue(1, nil),
+		clipStorage: &storage.Storage{},
+		mediaDurationFn: func(_ context.Context, _ string) (float64, bool) {
+			return film, true
+		},
 	}
 
-	// The gate the handler runs before touching the row.
-	err := checkRange(req.StartTime, req.Duration, film)
-	require.Error(t, err, "an 11 hour start on a 2 hour film is outside the source")
+	app := fiber.New()
+	app.Post("/api/clips/:id/update", handler.Update)
 
-	if err == nil {
-		applyClipEdits(job, req)
+	form := url.Values{
+		"mediaId":   {job.MediaID},
+		"startTime": {"11:00:00.000"},
+		"endTime":   {"11:00:20.000"},
+		"quality":   {defaultQuality},
 	}
 
-	assert.InDelta(t, before.StartTime, job.StartTime, 0.0005, "the stored start is untouched")
-	assert.InDelta(t, before.Duration, job.Duration, 0.0005, "the stored length is untouched")
+	post := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips/"+job.ID+"/update",
+		strings.NewReader(form.Encode()),
+	)
+	post.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationForm)
+
+	resp, err := app.Test(post)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	// A form post is redirected back to the media page with the reason in the
+	// query, rather than being answered with a status the browser would render
+	// as a bare error page.
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get(fiber.HeaderLocation), "error=",
+		"the redirect carries the reason back to the form")
+
+	stored, err := db.GetClip(t.Context(), job.ID)
+	require.NoError(t, err)
+
+	assert.InDelta(t, 30, stored.StartTime, 0.0005, "the stored start is untouched")
+	assert.InDelta(t, 20, stored.Duration, 0.0005, "the stored length is untouched")
+}
+
+// TestUpdateRejectsAnOutOfRangeSelectionForAnAPIClient is the same rejection
+// seen by a JSON caller, who gets a status rather than a redirect.
+func TestUpdateRejectsAnOutOfRangeSelectionForAnAPIClient(t *testing.T) {
+	t.Parallel()
+
+	const film = 2 * 60 * 60
+
+	db, err := database.New(t.TempDir() + "/clips.db")
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testClipJob("api-out-of-range", queue.JobTypeClip)
+
+	job.StartTime = 30
+	job.Duration = 20
+	job.InputPath = testMediaPath
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	handler := &ClipHandler{
+		db:          db,
+		cfg:         &config.Config{MaxClipDurSec: 600},
+		clipQueue:   queue.NewQueue(1, nil),
+		clipStorage: &storage.Storage{},
+		mediaDurationFn: func(_ context.Context, _ string) (float64, bool) {
+			return film, true
+		},
+	}
+
+	app := fiber.New()
+	app.Post("/api/clips/:id/update", handler.Update)
+
+	post := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips/"+job.ID+"/update",
+		strings.NewReader(`{"clipType":"clip","startTime":39600,"duration":20}`),
+	)
+	post.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	resp, err := app.Test(post)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode,
+		"an API client is told the status rather than being redirected")
+
+	stored, err := db.GetClip(t.Context(), job.ID)
+	require.NoError(t, err)
+
+	assert.InDelta(t, 30, stored.StartTime, 0.0005, "the stored start is untouched")
+	assert.InDelta(t, 20, stored.Duration, 0.0005, "the stored length is untouched")
 }
 
 // TestCheckRangeAcceptsWhatApplyClipEditsWouldStore is the other half: a

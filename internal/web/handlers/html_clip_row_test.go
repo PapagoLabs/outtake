@@ -53,7 +53,7 @@ func newClipRowTestHandler(
 		MediaID:    "42",
 		MediaTitle: testMovie,
 		MediaType:  "movie",
-		InputPath:  "/media/movie.mkv",
+		InputPath:  testMediaPath,
 		OutputPath: outputPath,
 		StartTime:  1,
 		Duration:   5,
