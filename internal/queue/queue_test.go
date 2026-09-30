@@ -4,6 +4,7 @@
 package queue
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sync"
@@ -11,9 +12,15 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/logging"
 )
+
+// testPanicJobID is the job id used by the panic tests.
+const testPanicJobID = "boom"
 
 // errRenderAborted stands in for the error a handler returns when its context is
 // canceled under it.
@@ -778,7 +785,7 @@ func TestQueue_WorkerSurvivesAPanickingHandler(t *testing.T) {
 
 		t.Cleanup(q.Stop)
 
-		q.Submit(&Job{ID: "boom", Type: JobTypeClip, Status: JobStatusPending})
+		q.Submit(&Job{ID: testPanicJobID, Type: JobTypeClip, Status: JobStatusPending})
 		q.Submit(&Job{ID: "after", Type: JobTypeClip, Status: JobStatusPending})
 
 		synctest.Wait()
@@ -820,4 +827,37 @@ func TestQueue_PanicNilIsStillRecovered(t *testing.T) {
 		require.NotNil(t, failed)
 		assert.Equal(t, JobStatusFailed, failed.Status)
 	})
+}
+
+// TestQueue_PanicLogCarriesTheStack guards the one thing that makes the log
+// trustworthy when a handler panics.
+//
+// The zerolog Stack method only renders when an error is attached to the event, and
+// this one carries the panic value as a field rather than as an error. Left as
+// it was, the trace was silently dropped and the log said a job panicked without
+// saying where.
+//
+//nolint:paralleltest // swaps the package-level logger, which is shared state.
+func TestQueue_PanicLogCarriesTheStack(t *testing.T) {
+	original := logging.Logger
+
+	t.Cleanup(func() { logging.Logger = original })
+
+	var out bytes.Buffer
+
+	logging.Logger = zerolog.New(&out)
+
+	q := NewQueue(1, func(_ context.Context, _ *Job) error {
+		panic("handler exploded")
+	})
+	q.SetStatusFunc(func(*Job) {})
+
+	q.runHandler(t.Context(), &Job{ID: testPanicJobID, Type: JobTypeClip})
+
+	entry := out.String()
+
+	assert.Contains(t, entry, `"panic":"handler exploded"`, "the value is reported")
+	assert.Contains(t, entry, `"stack":"goroutine `, "the trace is reported, not dropped")
+	assert.Contains(t, entry, "queue_test.go",
+		"and it names the frame that panicked, so the trace is this job's")
 }

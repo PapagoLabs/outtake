@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
@@ -434,11 +435,15 @@ func (q *Queue) runHandler(ctx context.Context, job *Job) (err error) {
 			return
 		}
 
+		// The stack is captured here rather than through zerolog's Stack, which
+		// only renders when an error is attached and this event carries none. A
+		// panic with no stack is the one thing that makes this log untrustworthy,
+		// so the trace is taken explicitly while the frames are still live.
 		logging.Logger.Error().
 			Str("job_id", job.ID).
 			Str("type", string(job.Type)).
 			Interface("panic", recovered).
-			Stack().
+			Str("stack", string(debug.Stack())).
 			Msg("job handler panicked")
 
 		err = ErrJobPanicked
