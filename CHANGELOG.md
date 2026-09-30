@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Tone map HDR sources by default and tag the output for its transfer by @nicholas-fedor in [#257](https://github.com/PapagoLabs/outtake/pull/257)
 - Show preview progress and allow cancelling a render by @nicholas-fedor in [#244](https://github.com/PapagoLabs/outtake/pull/244)
 - Render previews in the background by @nicholas-fedor in [#242](https://github.com/PapagoLabs/outtake/pull/242)
 - Key previews by their content and stage them before publishing by @nicholas-fedor in [#240](https://github.com/PapagoLabs/outtake/pull/240)
