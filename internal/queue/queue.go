@@ -20,12 +20,16 @@ type JobHandler func(ctx context.Context, job *Job) error
 
 // Queue represents a job queue.
 type Queue struct {
-	workers  int
-	jobChan  chan *Job
-	jobs     map[string]*Job
-	cancels  map[string]context.CancelFunc
-	dropped  map[string]struct{}
-	deleted  map[string]struct{}
+	workers int
+	jobChan chan *Job
+	jobs    map[string]*Job
+	cancels map[string]context.CancelFunc
+	dropped map[string]struct{}
+	// deleted records a job the queue has given up on, and whether it was still
+	// queued. True means no worker holds it, so it has to be stopped before it
+	// starts. False means a worker is unwinding and must be left to record its
+	// own outcome.
+	deleted  map[string]bool
 	mu       sync.RWMutex
 	wg       sync.WaitGroup
 	handler  JobHandler
@@ -71,7 +75,7 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 		jobs:     make(map[string]*Job),
 		cancels:  make(map[string]context.CancelFunc),
 		dropped:  make(map[string]struct{}),
-		deleted:  make(map[string]struct{}),
+		deleted:  make(map[string]bool),
 		mu:       sync.RWMutex{},
 		wg:       sync.WaitGroup{},
 		handler:  handler,
@@ -135,19 +139,20 @@ func (que *Queue) Delete(id string) {
 		delete(que.cancels, id)
 	}
 
-	// A tombstone exists so a worker can find it and clear it, so only a job a
-	// worker can still reach gets one: a pending or processing one, or one
-	// carrying a live marker — canceled while still waiting in the channel, or
-	// mid-unwind in a worker.
+	// reached: Pending and processing jobs, and any carrying a live marker —
+	// canceled while still waiting in the channel, or mid-unwind in a worker.
 	//
 	// A job that has already settled, or that Restore put in the map without
-	// enqueueing it, has no worker coming at all. Tombstoning those would leave
-	// the entry behind for the life of the process, since the delete that would
+	// enqueueing it, has no worker coming at all. Marking those would leave the
+	// entry behind for the life of the process, since the delete that would
 	// clear it returns early once the job has left the map.
 	reachable := job.Status == JobStatusPending || job.Status == JobStatusProcessing ||
 		running || wasDropped
 	if reachable {
-		que.deleted[id] = struct{}{}
+		// A live cancel entry means a worker is holding the job, so whatever
+		// settles it is that worker. Without one the job is still in the channel
+		// and has to be stopped before it starts, which is what the flag records.
+		que.deleted[id] = !running
 	}
 
 	// The canceled marker goes too, now that the tombstone is what stops a job
@@ -234,11 +239,18 @@ func (que *Queue) Reinstate(job *Job) {
 	que.mu.Lock()
 	defer que.mu.Unlock()
 
-	// The markers go with it. A worker still unwinding will find no tombstone and
-	// record its outcome normally, and one that never started leaves nothing
-	// behind to clear a marker.
+	// The marker is cleared, but a job still sitting in the channel has nothing
+	// else stopping it from starting now, so it becomes a canceled one instead.
+	// A job a worker is already unwinding must not be: marking it would make
+	// that worker discard a real outcome, and setting its status here would be
+	// overwritten anyway.
+	queued := que.deleted[job.ID]
 	delete(que.deleted, job.ID)
 	delete(que.dropped, job.ID)
+
+	if queued {
+		que.dropped[job.ID] = struct{}{}
+	}
 
 	job.Status = JobStatusCancelled
 	job.Error = string(JobStatusCancelled)
