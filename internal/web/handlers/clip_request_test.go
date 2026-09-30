@@ -235,3 +235,51 @@ func TestParseClipRequestReadsTheKeepHDRCheckbox(t *testing.T) {
 		})
 	}
 }
+
+// TestPreserveHDRFor covers the documented fallback for an absent field.
+//
+// The field's documentation promises the server default when a request omits
+// it, and an explicit false is the caller declining rather than an absent value.
+func TestPreserveHDRFor(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		requested *bool
+		fallback  bool
+		want      bool
+	}{
+		{
+			name:      "an absent field takes the configured default",
+			requested: nil,
+			fallback:  true,
+			want:      true,
+		},
+		{
+			name:      "an absent field with no default stays off",
+			requested: nil,
+			fallback:  false,
+			want:      false,
+		},
+		{
+			name:      "an explicit true is honored against a false default",
+			requested: new(true),
+			fallback:  false,
+			want:      true,
+		},
+		{
+			name:      "an explicit false is honored against a true default",
+			requested: new(false),
+			fallback:  true,
+			want:      false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, preserveHDRFor(test.requested, test.fallback))
+		})
+	}
+}

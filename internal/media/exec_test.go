@@ -130,7 +130,7 @@ func TestClipEncodeArgsWebSafeColor(t *testing.T) {
 	assert.Contains(t, joined, "zscale=tin=smpte2084")
 	assert.Contains(t, joined, "tonemap=tonemap=hable")
 	assert.Contains(t, args, "-color_primaries")
-	assert.Contains(t, args, transferRec709Probe)
+	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
 	assert.Contains(t, args, "iec61966-2-1")
 	assert.Contains(t, args, webSafeMovFlags)
@@ -186,7 +186,7 @@ func TestPreviewEncodeArgsWebSafeColor(t *testing.T) {
 	assert.Contains(t, args, wantFilter)
 	assert.Contains(t, joined, "tonemap=tonemap=hable")
 	assert.Contains(t, args, "-color_primaries")
-	assert.Contains(t, args, transferRec709Probe)
+	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
 	assert.Contains(t, args, "iec61966-2-1")
 	assert.Contains(t, args, webSafeMovFlags)
@@ -371,11 +371,27 @@ func TestDecideColor(t *testing.T) {
 		wantPixFmt    string
 	}{
 		{
-			name:        "sdr is tagged rec709",
-			transfer:    transferRec709Probe,
+			name:        "an sdr source keeps the transfer it was probed with",
+			transfer:    nameBT709,
 			remap:       webSafeRemap,
 			wantHDRKind: "",
-			wantTags:    TransferRec709,
+			wantTags:    nameBT709,
+			wantPixFmt:  pixelFormatYUV420P,
+		},
+		{
+			name:        "an sdr source with an unreported transfer is left untagged",
+			transfer:    "unknown",
+			remap:       webSafeRemap,
+			wantHDRKind: "",
+			wantTags:    "",
+			wantPixFmt:  pixelFormatYUV420P,
+		},
+		{
+			name:        "a pal sdr source is not claimed as srgb",
+			transfer:    "bt470bg",
+			remap:       webSafeRemap,
+			wantHDRKind: "",
+			wantTags:    "bt470bg",
 			wantPixFmt:  pixelFormatYUV420P,
 		},
 		{
@@ -384,7 +400,7 @@ func TestDecideColor(t *testing.T) {
 			remap:         webSafeRemap,
 			wantHDRKind:   transferPQAlias,
 			wantToneMap:   true,
-			wantTags:      TransferRec709,
+			wantTags:      TransferSRGB,
 			wantNeedsPeak: true,
 			wantPixFmt:    pixelFormatYUV420P,
 		},
@@ -402,7 +418,7 @@ func TestDecideColor(t *testing.T) {
 			remap:       webSafeRemap,
 			wantHDRKind: transferHLGAlias,
 			wantToneMap: true,
-			wantTags:    TransferRec709,
+			wantTags:    TransferSRGB,
 			wantPixFmt:  pixelFormatYUV420P,
 		},
 		{
@@ -425,9 +441,15 @@ func TestDecideColor(t *testing.T) {
 			assert.Equal(t, test.wantToneMap, plan.toneMap)
 			assert.Equal(t, test.wantNeedsPeak, plan.needsPeak)
 			assert.Equal(t, test.wantPixFmt, plan.pixFmt)
-			assert.Contains(t, plan.colorTags, "-color_primaries")
-			assert.Contains(t, plan.colorTags, test.wantTags,
-				"an output must declare the transfer it carries")
+
+			if test.wantTags == "" {
+				assert.Empty(t, plan.colorTags,
+					"an unreported transfer is left untagged rather than guessed")
+			} else {
+				assert.Contains(t, plan.colorTags, "-color_primaries")
+				assert.Contains(t, plan.colorTags, test.wantTags,
+					"an output must declare the transfer it carries")
+			}
 		})
 	}
 }
@@ -500,7 +522,7 @@ func TestPreservedHDRStaysTenBit(t *testing.T) {
 		},
 		{
 			name:     "sdr is 8-bit",
-			transfer: transferRec709Probe,
+			transfer: nameBT709,
 			remap:    preserveHDR,
 			want:     pixelFormatYUV420P,
 		},

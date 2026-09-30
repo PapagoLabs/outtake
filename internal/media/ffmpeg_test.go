@@ -163,7 +163,7 @@ func TestSourceQuality(t *testing.T) {
 		},
 		{
 			name:    "an sdr source carries no transfer name",
-			info:    MediaInfo{Height: 1080, ColorTransfer: transferRec709Probe},
+			info:    MediaInfo{Height: 1080, ColorTransfer: nameBT709},
 			want:    "1080p",
 			wantHDR: false,
 		},

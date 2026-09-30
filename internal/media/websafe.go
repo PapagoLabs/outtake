@@ -58,16 +58,32 @@ const (
 	transferPQAlias = "pq"
 	// TransferHLGAlias is a short name some probes use for HLG.
 	transferHLGAlias = "hlg"
+	// NameBT709 is the name ffmpeg uses for the BT.709 primaries, matrix and
+	// transfer alike, so one constant covers all three positions.
+	nameBT709 = "bt709"
 	// PrimariesBT2020 is the BT.2020 primaries name ffmpeg expects.
 	primariesBT2020 = "bt2020"
 	// MatrixBT2020NC is the BT.2020 non-constant luminance matrix.
 	matrixBT2020NC = "bt2020nc"
-	// TransferRec709 is the sRGB transfer ffmpeg expects for Rec.709 output.
-	TransferRec709 = "iec61966-2-1"
-	// TransferRec709Probe is ffprobe's Rec.709 transfer name, for SDR sources.
-	transferRec709Probe = "bt709"
+	// TransferSRGB is the sRGB transfer function. It is not the Rec.709 transfer,
+	// which ffprobe reports as bt709; this is the curve the tone map writes.
+	TransferSRGB = "iec61966-2-1"
+	// TransferSDRUnknown is what ffprobe reports for a stream with no transfer.
+	transferSDRUnknown = "unknown"
 	// PeakFormatPrec is the number of decimals on tonemap peak=.
 	peakFormatPrec = 4
+	// The ffmpeg color flag names, shared by every tagging path.
+	flagColorPrimaries = "-color_primaries"
+	// FlagColorTransfer carries the transfer.
+	flagColorTransfer = "-color_trc"
+	// FlagColorSpace carries the matrix.
+	flagColorSpace = "-colorspace"
+	// FlagColorRange carries the range.
+	flagColorRange = "-color_range"
+	// FlagX264Params carries the same values in x264's own spelling.
+	flagX264Params = "-x264-params"
+	// FlagRangeTV is the limited range every tag here describes.
+	flagRangeTV = "tv"
 )
 
 // signalstatsYMaxPattern matches lavfi.signalstats YMAX lines.

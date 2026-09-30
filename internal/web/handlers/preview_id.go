@@ -38,6 +38,10 @@ type previewKeyInput struct {
 	Crop bool
 	// WebSafe is whether HDR is tone mapped.
 	WebSafe bool
+	// PreserveHDR is whether the source's HDR transfer is kept. It changes the
+	// encoded bytes, so a preview differing only here is a different file. The
+	// caller resolves the server default onto the request before deriving the id.
+	PreserveHDR bool
 }
 
 // previewIDFieldSeparator terminates each field hashed into a preview id.
@@ -118,15 +122,16 @@ func previewRequestID(req api.ClipRequest, path string) (string, error) {
 	}
 
 	return previewContentID(previewKeyInput{
-		MediaID:    req.MediaID,
-		Path:       path,
-		ModTime:    modTime,
-		Size:       size,
-		Start:      req.StartTime,
-		Duration:   media.PreviewDuration(req.Duration),
-		AudioIndex: req.AudioIndex,
-		Crop:       req.CropBlackBars,
-		WebSafe:    derefBool(req.WebSafeColor),
+		MediaID:     req.MediaID,
+		Path:        path,
+		ModTime:     modTime,
+		Size:        size,
+		Start:       req.StartTime,
+		Duration:    media.PreviewDuration(req.Duration),
+		AudioIndex:  req.AudioIndex,
+		Crop:        req.CropBlackBars,
+		WebSafe:     derefBool(req.WebSafeColor),
+		PreserveHDR: derefBool(req.PreserveHDR),
 	}), nil
 }
 
@@ -154,6 +159,7 @@ func previewContentID(input previewKeyInput) string {
 		strconv.FormatInt(input.Size, decimalBase),
 		strconv.FormatBool(input.Crop),
 		strconv.FormatBool(input.WebSafe),
+		strconv.FormatBool(input.PreserveHDR),
 		strconv.Itoa(input.AudioIndex),
 		input.ModTime.UTC().Format(time.RFC3339Nano),
 	}

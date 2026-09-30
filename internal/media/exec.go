@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
@@ -537,11 +538,40 @@ func h264EncodeArgs(req *h264EncodeRequest) []string {
 //   - args: ffmpeg color and x264-params flags.
 func webSafeColorArgs() []string {
 	return []string{
-		"-color_primaries", "bt709",
-		"-color_trc", TransferRec709,
-		"-colorspace", "bt709",
-		"-color_range", "tv",
-		"-x264-params", "colorprim=bt709:transfer=" + TransferRec709 + ":colormatrix=bt709",
+		flagColorPrimaries, nameBT709,
+		flagColorTransfer, TransferSRGB,
+		flagColorSpace, nameBT709,
+		flagColorRange, flagRangeTV,
+		flagX264Params, "colorprim=" + nameBT709 + ":transfer=" + TransferSRGB +
+			":colormatrix=" + nameBT709,
+	}
+}
+
+// sdrColorArgs tags a passthrough of an SDR source with the transfer it carries.
+//
+// A source that is not tone mapped keeps its own transfer, so tagging it sRGB
+// would misdescribe it. An unreported transfer is left untagged rather than
+// guessed, which leaves the player with the same ambiguity the tone map exists
+// to remove, but only where the source itself gave nothing to work from.
+//
+// Parameters:
+//   - transfer: ffprobe's color_transfer for the source.
+//
+// Returns:
+//   - args: ffmpeg color and x264-params flags, empty when the transfer is unknown.
+func sdrColorArgs(transfer string) []string {
+	name := strings.ToLower(strings.TrimSpace(transfer))
+	if name == "" || name == transferSDRUnknown {
+		return nil
+	}
+
+	return []string{
+		flagColorPrimaries, nameBT709,
+		flagColorTransfer, name,
+		flagColorSpace, nameBT709,
+		flagColorRange, flagRangeTV,
+		flagX264Params, "colorprim=" + nameBT709 + ":transfer=" + name +
+			":colormatrix=" + nameBT709,
 	}
 }
 
@@ -947,7 +977,11 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 
 	ymax, ok := execFFmpeg.signalstatsYMax(ctx, req.input, req.start, req.duration)
 	if !ok {
-		req.toneMap = false
+		// Tone map against the nominal peak rather than abandoning the map. The
+		// tags already say Rec.709, so leaving the source's HDR pixels in place
+		// would ship them mislabelled. A nominal peak is a less precise map, not
+		// a wrong one.
+		req.tonePeak = defaultWebSafePeak
 
 		return
 	}
@@ -967,7 +1001,7 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 //   - plan: What the encode should do.
 func decideColor(transfer string, remap remapDecision) colorPlan {
 	if !isHDRTransfer(transfer) {
-		return colorPlan{colorTags: webSafeColorArgs(), pixFmt: pixelFormatYUV420P}
+		return colorPlan{colorTags: sdrColorArgs(transfer), pixFmt: pixelFormatYUV420P}
 	}
 
 	kind := transferPQAlias
