@@ -86,10 +86,6 @@ templ ClipStatus(item view.ClipItem) {
 				</div>
 				<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
 					<span>{ view.ClipTypeLabel(item.ClipType) }</span>
-					if item.ProfileName != "" {
-						<span>&middot;</span>
-						<span>{ item.ProfileName }</span>
-					}
 					if item.MediaTitle != "" {
 						<span>&middot;</span>
 						if item.MediaID != "" {
@@ -98,11 +94,13 @@ templ ClipStatus(item view.ClipItem) {
 							<span>{ item.MediaTitle }</span>
 						}
 					}
-					<span>&middot;</span>
-					<span>{ media.FromSeconds(item.StartTime).HMS() }</span>
-					if item.ClipType != "screenshot" {
-						<span>+</span>
-						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
+					if item.ProfileName != "" {
+						<span>&middot;</span>
+						<span>{ item.ProfileName }</span>
+					}
+					if item.ClipType != "screenshot" && item.Duration > 0 {
+						<span>&middot;</span>
+						<span>{ media.FromSeconds(item.Duration).Short() }</span>
 					}
 					if item.CreatedAt != "" {
 						<span>&middot;</span>
@@ -235,14 +233,20 @@ templ ClipCard(item view.ClipItem) {
 							<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
 						</div>
 					</div>
-					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).String() }</span> (max { media.FromSeconds(float64(item.MaxDur)).String() }) <span data-duration-warning class="hidden text-destructive">Clamped to the maximum duration.</span></p>
-					@CropBlackBarsField(item.CropBlackBars)
-					@WebSafeColorField(item.WebSafeColor)
-					if item.SourceHDR {
-						@PreserveHDRField(item.PreserveHDR)
-					}
+					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).Short() }</span> (max { media.FromSeconds(float64(item.MaxDur)).Short() }) <span data-duration-warning class="hidden text-destructive">Clamped to the maximum duration.</span></p>
+					@ColorFields(item.CropBlackBars, item.WebSafeColor, item.PreserveHDR, item.SourceHDR)
 				</form>
 			}
+		}
+	</div>
+}
+
+templ ColorFields(cropBlackBars, webSafeColor, preserveHDR, sourceHDR bool) {
+	<div class="flex flex-wrap items-center gap-4">
+		@CropBlackBarsField(cropBlackBars)
+		@WebSafeColorField(webSafeColor)
+		if sourceHDR {
+			@PreserveHDRField(preserveHDR)
 		}
 	</div>
 }

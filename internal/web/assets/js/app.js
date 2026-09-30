@@ -112,6 +112,36 @@
 		return pad2(h) + ':' + pad2(m) + ':' + pad2(s) + '.' + String(frac).padStart(3, '0');
 	}
 
+	// formatDuration renders seconds in the short form used by the duration
+	// readout, with empty parts left out. It mirrors media.Timecode.Short.
+	//
+	// This is separate from formatTimecode because that one also writes the mark
+	// inputs, which have to stay in HH:MM:SS.mmm for parseTimecode and the
+	// server to agree on.
+	function formatDuration(sec) {
+		if (!isFinite(sec) || sec < 0) {
+			sec = 0;
+		}
+		var whole = Math.round(sec);
+		if (whole < 60) {
+			return whole + 's';
+		}
+		var out = '';
+		var h = Math.floor(whole / 3600);
+		var m = Math.floor((whole % 3600) / 60);
+		var s = whole % 60;
+		if (h) {
+			out += h + 'hr';
+		}
+		if (m) {
+			out += m + 'min';
+		}
+		if (s) {
+			out += s + 's';
+		}
+		return out;
+	}
+
 	function parseTimecode(value) {
 		var parts = String(value).trim().split(':');
 		var sec;
@@ -155,7 +185,7 @@
 		durEl.value = dur.toFixed(3);
 		var label = form.querySelector('[data-duration-label]');
 		if (label) {
-			label.textContent = formatTimecode(dur);
+			label.textContent = formatDuration(dur);
 		}
 	}
 

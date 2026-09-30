@@ -104,3 +104,44 @@ func TestParseOverflow(t *testing.T) {
 	_, err = Parse("2562048:00:00")
 	require.ErrorIs(t, err, ErrInvalidTimecode)
 }
+
+// TestShort pins the short form used on the metadata lines.
+//
+// HH:MM:SS spends most of its width on zeros, so a short clip should read as
+// "20s" and an hour and twenty seconds as "1hr20s".
+func TestShort(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		seconds float64
+		want    string
+	}{
+		{name: "zero still reads as a value", seconds: 0, want: "0s"},
+		{name: "seconds only", seconds: 20, want: "20s"},
+		{name: "rounds to the nearest second", seconds: 20.6, want: "21s"},
+		{name: "minutes and seconds", seconds: 80, want: "1min20s"},
+		{name: "whole minutes drop the seconds", seconds: 120, want: "2min"},
+		{name: "a whole hour drops the rest", seconds: 3600, want: "1hr"},
+		{name: "hours and seconds skip the empty minutes", seconds: 3620, want: "1hr20s"},
+		{name: "hours and minutes skip the empty seconds", seconds: 3660, want: "1hr1min"},
+		{name: "all three parts", seconds: 7325, want: "2hr2min5s"},
+		{name: "a long runtime stays short", seconds: 7845, want: "2hr10min45s"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, FromSeconds(test.seconds).Short())
+		})
+	}
+}
+
+// TestShortClampsNegativeDurations covers a timecode before zero, which can
+// arrive from a mark the user typed badly.
+func TestShortClampsNegativeDurations(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "0s", FromSeconds(-30).Short())
+}

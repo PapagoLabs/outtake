@@ -82,11 +82,7 @@ templ NewClip(props NewClipProps) {
 								@quality.AudioSelect("audioIndex", props.AudioTracks, 0)
 							</div>
 						}
-						@clip.CropBlackBarsField(props.CropBlackBars)
-						@clip.WebSafeColorField(props.WebSafeColor)
-						if props.SourceHDR {
-							@clip.PreserveHDRField(props.PreserveHDR)
-						}
+						@clip.ColorFields(props.CropBlackBars, props.WebSafeColor, props.PreserveHDR, props.SourceHDR)
 						@button.Button(button.Props{Type: button.TypeSubmit}) {
 							Create
 						}

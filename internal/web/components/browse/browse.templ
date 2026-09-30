@@ -389,7 +389,7 @@ templ mediaCard(item view.MediaItem, sort string) {
 					}
 					if item.Duration > 0 && item.Type != "show" && item.Type != "season" && item.Type != "artist" {
 						<span>&middot;</span>
-						<span>{ media.FromSeconds(item.Duration).HMS() }</span>
+						<span>{ media.FromSeconds(item.Duration).Short() }</span>
 					}
 				</div>
 			</div>

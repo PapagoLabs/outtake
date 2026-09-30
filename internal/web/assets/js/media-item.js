@@ -6,6 +6,36 @@
 	var warning = document.getElementById('duration-warning');
 	var maxDur = parseInt(document.getElementById('clip-form-config').getAttribute('data-max-dur'), 10) || 600;
 	function pad2(n) { return String(n).padStart(2, '0'); }
+	// formatDuration renders seconds in the short form used by the duration
+	// readout, with empty parts left out. It mirrors media.Timecode.Short.
+	//
+	// This is separate from formatTimecode because that one also writes the mark
+	// inputs, which have to stay in HH:MM:SS.mmm for parseTimecode and the
+	// server to agree on.
+	function formatDuration(sec) {
+		if (!isFinite(sec) || sec < 0) {
+			sec = 0;
+		}
+		var whole = Math.round(sec);
+		if (whole < 60) {
+			return whole + 's';
+		}
+		var out = '';
+		var h = Math.floor(whole / 3600);
+		var m = Math.floor((whole % 3600) / 60);
+		var s = whole % 60;
+		if (h) {
+			out += h + 'hr';
+		}
+		if (m) {
+			out += m + 'min';
+		}
+		if (s) {
+			out += s + 's';
+		}
+		return out;
+	}
+
 	function formatTimecode(sec) {
 		if (!isFinite(sec) || sec < 0) { sec = 0; }
 		var ms = Math.round(sec * 1000);
@@ -44,7 +74,7 @@
 			warning.classList.add('hidden');
 		}
 		durEl.value = dur.toFixed(3);
-		label.textContent = formatTimecode(dur);
+		label.textContent = formatDuration(dur);
 	}
 	document.addEventListener('click', function (event) {
 		var startBtn = event.target.closest('.js-mark-start');

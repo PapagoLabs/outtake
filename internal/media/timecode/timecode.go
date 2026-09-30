@@ -37,6 +37,10 @@ const (
 	signPlus = "+"
 	// SecondsBitSize is the bit size used when parsing decimal fields.
 	secondsBitSize = 64
+	// DecimalBase is the base used when formatting a number as text.
+	decimalBase = 10
+	// ShortParts is how many units a short duration can carry.
+	shortParts = 3
 )
 
 // ErrInvalidTimecode is returned when a timestamp string cannot be parsed.
@@ -116,6 +120,40 @@ func (t Timecode) HMS() string {
 //   - seconds: The timestamp as a floating-point second count.
 func (t Timecode) Seconds() float64 {
 	return t.d.Seconds()
+}
+
+// Short renders a duration in the short form, with empty parts left out.
+//
+// It exists for the metadata lines, where HH:MM:SS spends six characters
+// describing zeros: a twenty second clip reads as "20s" rather than "00:00:20",
+// and an hour and twenty seconds reads as "1hr20s". The name follows the
+// ECMA-402 short duration style, though that style spells the units out with
+// separators and keeps the empty parts. A duration of zero still reads as "0s"
+// rather than blank. Sub-second remainders round to the nearest second first.
+//
+// Returns:
+//   - short: The duration in short form.
+func (t Timecode) Short() string {
+	duration := max(t.d.Round(time.Second), 0)
+	if duration < time.Minute {
+		return strconv.FormatInt(int64(duration/time.Second), decimalBase) + "s"
+	}
+
+	parts := make([]string, 0, shortParts)
+
+	if hours := int64(duration / time.Hour); hours > 0 {
+		parts = append(parts, strconv.FormatInt(hours, decimalBase)+"hr")
+	}
+
+	if minutes := int64((duration % time.Hour) / time.Minute); minutes > 0 {
+		parts = append(parts, strconv.FormatInt(minutes, decimalBase)+"min")
+	}
+
+	if seconds := int64((duration % time.Minute) / time.Second); seconds > 0 {
+		parts = append(parts, strconv.FormatInt(seconds, decimalBase)+"s")
+	}
+
+	return strings.Join(parts, "")
 }
 
 // String renders HH:MM:SS.mmm.

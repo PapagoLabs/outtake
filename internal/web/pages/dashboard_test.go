@@ -15,6 +15,9 @@ import (
 
 const testMovie = "Movie"
 
+// TestMovieType is the Plex media type for a feature film.
+const TestMovieType = "movie"
+
 func TestLiveSessions(t *testing.T) {
 	t.Parallel()
 

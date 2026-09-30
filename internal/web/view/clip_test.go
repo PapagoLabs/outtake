@@ -14,7 +14,7 @@ const testMediaTitle = "Movie"
 func TestClipTypeLabel(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "Video clip", ClipTypeLabel("clip"))
+	assert.Equal(t, "Clip", ClipTypeLabel("clip"))
 	assert.Equal(t, "GIF", ClipTypeLabel("gif"))
 	assert.Equal(t, "Screenshot", ClipTypeLabel("screenshot"))
 }

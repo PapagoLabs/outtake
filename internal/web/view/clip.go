@@ -76,7 +76,7 @@ func ClipTypeLabel(clipType string) string {
 	case "screenshot":
 		return "Screenshot"
 	default:
-		return "Video clip"
+		return "Clip"
 	}
 }
 

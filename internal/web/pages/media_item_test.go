@@ -333,7 +333,7 @@ func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
 			err := MediaItemPage(MediaItemPageProps{
 				ID:        "42",
 				Title:     testMovie,
-				Type:      "movie",
+				Type:      TestMovieType,
 				Quality:   test.quality,
 				SourceHDR: test.sourceHDR,
 				MaxDur:    600,
@@ -347,4 +347,28 @@ func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
 				"the keep-HDR control is only offered when the source is HDR")
 		})
 	}
+}
+
+// TestMediaItemPageShowsAShortDuration covers the header's duration format.
+//
+// The header is a metadata line, not a timecode field, so it reads as "2hr2min5s"
+// rather than spending six characters on "02:02:05".
+func TestMediaItemPageShowsAShortDuration(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := MediaItemPage(MediaItemPageProps{
+		ID:       "42",
+		Title:    testMovie,
+		Type:     TestMovieType,
+		Duration: 7325,
+		MaxDur:   600,
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+
+	assert.Contains(t, body, "2hr2min5s")
+	assert.NotContains(t, body, "02:02:05")
 }
