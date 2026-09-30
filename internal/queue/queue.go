@@ -100,7 +100,7 @@ func (que *Queue) Cancel(id string) bool {
 
 	que.dropped[id] = struct{}{}
 	job.Status = JobStatusCancelled
-	job.Error = "canceled"
+	job.Error = string(JobStatusCancelled)
 	job.UpdatedAt = time.Now()
 	que.mu.Unlock()
 
@@ -213,6 +213,37 @@ func (que *Queue) IfLive(id string, fn func()) {
 	}
 
 	fn()
+}
+
+// Reinstate puts a job back after a delete that could not be completed.
+//
+// Delete takes the job out of the queue and marks it before the row is removed,
+// so that a status change cannot write the row back in between. If the row
+// removal then fails, the job has to come back: left out, the row has nothing
+// owning it, a cancel would not find it, and the next start would resubmit a
+// render the delete had already stopped.
+//
+// It comes back canceled rather than as it was. The render is not resuming, and
+// a job that never started must not be picked up again on the next boot. A
+// worker that is still unwinding will settle it afterwards and record whatever
+// the render actually ended as, which is the honest answer.
+//
+// Parameters:
+//   - job: The job Delete took.
+func (que *Queue) Reinstate(job *Job) {
+	que.mu.Lock()
+	defer que.mu.Unlock()
+
+	// The markers go with it. A worker still unwinding will find no tombstone and
+	// record its outcome normally, and one that never started leaves nothing
+	// behind to clear a marker.
+	delete(que.deleted, job.ID)
+	delete(que.dropped, job.ID)
+
+	job.Status = JobStatusCancelled
+	job.Error = string(JobStatusCancelled)
+	job.UpdatedAt = time.Now()
+	que.jobs[job.ID] = job
 }
 
 // Restore registers a job without enqueueing it.
@@ -384,12 +415,17 @@ func (que *Queue) settle(job *Job, err error) outcome {
 	switch {
 	case canceled:
 		job.Status = JobStatusCancelled
-		job.Error = "canceled"
+		job.Error = string(JobStatusCancelled)
 	case err != nil:
 		job.Status = JobStatusFailed
 		job.Error = err.Error()
 	default:
 		job.Status = JobStatusCompleted
+		// Cleared, because a job can arrive here still carrying an error. A
+		// reinstated one is marked canceled while a worker unwinds, and that
+		// worker may then report success — leaving a completed job whose error
+		// says it was canceled.
+		job.Error = ""
 		job.Progress = progressDone
 	}
 

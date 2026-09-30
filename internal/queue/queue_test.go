@@ -563,3 +563,97 @@ func TestQueue_DeleteTombstonesAJobAWorkerCanStillReach(t *testing.T) {
 		synctest.Wait()
 	})
 }
+
+// TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind covers the
+// compensation.
+//
+// Delete takes the job out before the row goes, so a status change cannot write
+// the row back in between. If the row removal then fails, the job has to come
+// back: left out, the row has nothing owning it, a cancel would not find it,
+// and the next start would resubmit a render the delete had already stopped.
+func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a job still in the channel is owned again", func(t *testing.T) {
+		t.Parallel()
+
+		q := NewQueue(1, nil)
+		q.Submit(&Job{ID: "abandoned", Type: JobTypeClip, Status: JobStatusPending})
+
+		job := q.GetJob("abandoned")
+
+		q.Delete("abandoned")
+		require.Nil(t, q.GetJob("abandoned"), "delete took the job out")
+		require.Contains(t, q.deleted, "abandoned")
+
+		q.Reinstate(job)
+
+		assert.Same(t, job, q.GetJob("abandoned"),
+			"the row that survived the failed delete is owned again")
+		assert.Empty(t, q.deleted, "the tombstone goes with it, or nothing clears it")
+		assert.Empty(t, q.dropped)
+	})
+
+	t.Run("it comes back canceled so the next start does not resubmit", func(t *testing.T) {
+		t.Parallel()
+
+		q := NewQueue(1, nil)
+		q.Submit(&Job{ID: "not-resumed", Type: JobTypeClip, Status: JobStatusPending})
+
+		job := q.GetJob("not-resumed")
+
+		q.Delete("not-resumed")
+		q.Reinstate(job)
+
+		restored := q.GetJob("not-resumed")
+		require.NotNil(t, restored)
+		assert.Equal(t, JobStatusCancelled, restored.Status,
+			"a pending render the delete stopped must not be picked up again")
+		assert.Equal(t, string(JobStatusCancelled), restored.Error)
+	})
+}
+
+// TestQueue_SettleClearsTheErrorOnAReinstatedJobThatSucceeds covers the state a
+// reinstated job can reach.
+//
+// Reinstate marks a job canceled while a worker is unwinding, and that worker
+// may then report success. Without clearing the error, the job ends up completed
+// with an error saying it was canceled, which reads as a contradiction to
+// anything showing both.
+func TestQueue_SettleClearsTheErrorOnAReinstatedJobThatSucceeds(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		q.Submit(&Job{ID: "reinstated", Type: JobTypeClip, Status: JobStatusPending})
+
+		<-started
+
+		// The delete takes the job out, then the row removal fails and the job
+		// is handed back marked canceled. The worker is still unwinding.
+		job := q.GetJob("reinstated")
+		q.Delete("reinstated")
+		q.Reinstate(job)
+
+		close(release)
+		synctest.Wait()
+
+		settled := q.GetJob("reinstated")
+		require.NotNil(t, settled)
+		assert.Equal(t, JobStatusCompleted, settled.Status)
+		assert.Empty(t, settled.Error,
+			"a completed job must not still be carrying its cancellation error")
+	})
+}

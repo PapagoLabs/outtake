@@ -59,7 +59,7 @@ func newDeleteTestHandler(t *testing.T, id string) *ClipHandler {
 		Name:       testClipName,
 		MediaID:    "100",
 		MediaTitle: testMovie,
-		MediaType:  "movie",
+		MediaType:  defaultMediaType,
 		InputPath:  testMediaPath,
 		OutputPath: "",
 		StartTime:  10,
@@ -149,4 +149,55 @@ func TestDeleteMissingClipIsNotFound(t *testing.T) {
 	status := deleteClip(t, handler, "does-not-exist")
 
 	assert.Equal(t, fiber.StatusNotFound, status)
+}
+
+// TestDeleteClipRestoresOwnershipWhenTheRowSurvives covers the compensation.
+//
+// The delete takes the job out of the queue before removing the row, so a status
+// change cannot write the row back in between. When the row removal fails the
+// job has to come back, or the surviving row is left with nothing owning it: a
+// cancel would not find it, and the next start would resubmit a render this
+// delete had already stopped.
+func TestDeleteClipRestoresOwnershipWhenTheRowSurvives(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/clips.db")
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = db.Close() })
+
+	const id = "delete-ownership"
+
+	job := &queue.Job{
+		ID:         id,
+		Type:       queue.JobTypeClip,
+		MediaID:    "100",
+		MediaTitle: testMovie,
+		MediaType:  defaultMediaType,
+		InputPath:  testMediaPath,
+		StartTime:  10,
+		Duration:   15,
+		Quality:    defaultQuality,
+		Status:     queue.JobStatusPending,
+	}
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	jobQueue := queue.NewQueue(1, noopJobHandler)
+	t.Cleanup(jobQueue.Stop)
+	jobQueue.Restore(job)
+
+	handler := NewClipHandler(jobQueue, nil, db, &config.Config{}, nil, "outtake", "test")
+
+	// Closing the database is what makes the row removal fail. The job is in the
+	// queue, so the lookup ahead of it still succeeds.
+	require.NoError(t, db.Close())
+
+	assert.Equal(t, fiber.StatusInternalServerError, deleteClip(t, handler, id),
+		"the failure is reported rather than swallowed")
+
+	restored := jobQueue.GetJob(id)
+	require.NotNil(t, restored,
+		"the row survived, so the job that owns it has to come back")
+	assert.Equal(t, queue.JobStatusCancelled, restored.Status,
+		"it comes back canceled so the next start does not resubmit a stopped render")
 }
