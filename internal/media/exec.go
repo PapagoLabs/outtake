@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
@@ -23,6 +24,20 @@ type ExecFFmpeg struct {
 	ffmpegPath  string
 	ffprobePath string
 	timeout     time.Duration
+}
+
+// colorPlan is how an encode handles a source's color.
+type colorPlan struct {
+	// hdrKind is the transfer alias the tone map filter expects, empty for SDR.
+	hdrKind string
+	// toneMap reports that the tone map chain should run.
+	toneMap bool
+	// colorTags describe the output's color.
+	colorTags []string
+	// needsPeak reports that the PQ peak still has to be sampled.
+	needsPeak bool
+	// pixFmt is the pixel format the output should carry.
+	pixFmt string
 }
 
 // h264EncodeRequest is the input for a browser-safe libx264 encode.
@@ -38,8 +53,18 @@ type h264EncodeRequest struct {
 	scaleFlags   string
 	crop         CropRect
 	webSafeColor bool
-	hdrKind      string
-	tonePeak     float64
+	// hdrKind is the detected transfer, empty for SDR. It drives the tone map.
+	hdrKind string
+	// toneMap reports that the tone map chain should run, which needs an HDR
+	// source and a preset that did not ask to preserve it.
+	toneMap bool
+	// colorTags are the flags describing the output's color, resolved once so
+	// every encode is tagged even when nothing is remapped.
+	colorTags []string
+	// pixFmt is the pixel format the output should carry. It is 10-bit only when
+	// an HDR source is preserved, because 8-bit PQ bands.
+	pixFmt   string
+	tonePeak float64
 }
 
 const (
@@ -77,6 +102,11 @@ const (
 	defaultAudioCodec = "aac"
 	// PixelFormatYUV420P is the browser-safe 8-bit 4:2:0 pixel format.
 	pixelFormatYUV420P = "yuv420p"
+	// PixelFormatYUV420P10LE is the 10-bit 4:2:0 pixel format.
+	//
+	// A preserved PQ or HLG source needs this. Eight-bit PQ is legal but bands
+	// badly on gradients, and libx264 needs the High 10 profile to store it.
+	pixelFormatYUV420P10LE = "yuv420p10le"
 	// PixelFormatFlag is the FFmpeg pixel-format flag.
 	pixelFormatFlag = "-pix_fmt"
 	// VideoFilterFlag is the FFmpeg video-filter flag.
@@ -233,11 +263,9 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		audioIndex,
 		rect,
 	)
-	if req.webSafeColor {
-		execFFmpeg.applyWebSafe(ctx, &req)
-	}
+	execFFmpeg.resolveColor(ctx, &req)
 
-	err := execFFmpeg.run(ctx, duration, h264EncodeArgs(req)...)
+	err := execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
 	if err != nil {
 		return fmt.Errorf("extract clip: %w", err)
 	}
@@ -266,7 +294,7 @@ func clipEncodeArgs(
 	audioIndex int,
 	rect CropRect,
 ) []string {
-	return h264EncodeArgs(clipEncodeRequest(
+	req := clipEncodeRequest(
 		ffmpegPath,
 		input,
 		output,
@@ -275,7 +303,9 @@ func clipEncodeArgs(
 		preset,
 		audioIndex,
 		rect,
-	))
+	)
+
+	return h264EncodeArgs(&req)
 }
 
 // clipEncodeRequest builds the shared H.264 encode request for a saved clip.
@@ -299,10 +329,9 @@ func clipEncodeRequest(
 	audioIndex int,
 	rect CropRect,
 ) h264EncodeRequest {
+	// The transfer is resolved from the source before the arguments are built,
+	// so it is not seeded here.
 	hdrKind := ""
-	if preset.WebSafeColor {
-		hdrKind = transferPQAlias
-	}
 
 	return h264EncodeRequest{
 		ffmpegPath:   ffmpegPath,
@@ -342,7 +371,7 @@ func previewEncodeArgs(
 	rect CropRect,
 	preset QualityPreset,
 ) []string {
-	return h264EncodeArgs(previewEncodeRequest(
+	req := previewEncodeRequest(
 		ffmpegPath,
 		input,
 		output,
@@ -351,7 +380,9 @@ func previewEncodeArgs(
 		audioIndex,
 		rect,
 		preset,
-	))
+	)
+
+	return h264EncodeArgs(&req)
 }
 
 // previewEncodeRequest builds the shared H.264 encode request for a preview.
@@ -375,10 +406,9 @@ func previewEncodeRequest(
 	rect CropRect,
 	preset QualityPreset,
 ) h264EncodeRequest {
+	// The transfer is resolved from the source before the arguments are built,
+	// so it is not seeded here.
 	hdrKind := ""
-	if preset.WebSafeColor {
-		hdrKind = transferPQAlias
-	}
 
 	return h264EncodeRequest{
 		ffmpegPath: ffmpegPath,
@@ -428,6 +458,21 @@ func scaleFilter(maxWidth int, flags string) string {
 	return fmt.Sprintf("scale=w='trunc(min(%d,iw)/2)*2':h=-2:flags=%s", maxWidth, flags)
 }
 
+// pixelFormat reports the pixel format an encode should carry.
+//
+// Parameters:
+//   - req: Encode request.
+//
+// Returns:
+//   - pixFmt: The requested format, or 8-bit 4:2:0 when none was planned.
+func pixelFormat(req *h264EncodeRequest) string {
+	if req.pixFmt != "" {
+		return req.pixFmt
+	}
+
+	return pixelFormatYUV420P
+}
+
 // prependCrop puts a valid crop filter in front of an ffmpeg filter chain.
 func prependCrop(rect CropRect, chain string) string {
 	if !rect.Valid() {
@@ -444,9 +489,9 @@ func prependCrop(rect CropRect, chain string) string {
 //
 // Returns:
 //   - filter: The ffmpeg -vf chain.
-func videoFilter(req h264EncodeRequest) string {
+func videoFilter(req *h264EncodeRequest) string {
 	chain := scaleFilter(req.maxWidth, req.scaleFlags)
-	if req.webSafeColor && req.hdrKind != "" {
+	if req.toneMap && req.hdrKind != "" {
 		chain = webSafeToneMapFilter(req.hdrKind, req.tonePeak) + "," + chain
 	}
 
@@ -460,7 +505,7 @@ func videoFilter(req h264EncodeRequest) string {
 //
 // Returns:
 //   - args: ffmpeg argv including the binary path.
-func h264EncodeArgs(req h264EncodeRequest) []string {
+func h264EncodeArgs(req *h264EncodeRequest) []string {
 	preset := NormalizePreset(req.preset)
 	audioIndex := max(req.audioIndex, 0)
 
@@ -473,7 +518,7 @@ func h264EncodeArgs(req h264EncodeRequest) []string {
 		"-map", "0:v:0",
 		"-map", "0:a:" + strconv.Itoa(audioIndex) + "?",
 		"-c:v", defaultVideoCodec,
-		pixelFormatFlag, pixelFormatYUV420P,
+		pixelFormatFlag, pixelFormat(req),
 		videoFilterFlag, videoFilter(req),
 		"-crf", strconv.Itoa(preset.CRF),
 		"-preset", preset.Preset,
@@ -481,9 +526,8 @@ func h264EncodeArgs(req h264EncodeRequest) []string {
 		"-b:a", strconv.Itoa(preset.AudioKbps) + "k",
 		"-ac", "2",
 	}
-	if req.webSafeColor {
-		args = append(args, webSafeColorArgs()...)
-	}
+
+	args = append(args, req.colorTags...)
 
 	return append(args, "-movflags", movFlags(req), req.output)
 }
@@ -494,11 +538,40 @@ func h264EncodeArgs(req h264EncodeRequest) []string {
 //   - args: ffmpeg color and x264-params flags.
 func webSafeColorArgs() []string {
 	return []string{
-		"-color_primaries", "bt709",
-		"-color_trc", "iec61966-2-1",
-		"-colorspace", "bt709",
-		"-color_range", "tv",
-		"-x264-params", "colorprim=bt709:transfer=iec61966-2-1:colormatrix=bt709",
+		flagColorPrimaries, nameBT709,
+		flagColorTransfer, TransferSRGB,
+		flagColorSpace, nameBT709,
+		flagColorRange, flagRangeTV,
+		flagX264Params, "colorprim=" + nameBT709 + ":transfer=" + TransferSRGB +
+			":colormatrix=" + nameBT709,
+	}
+}
+
+// sdrColorArgs tags a passthrough of an SDR source with the transfer it carries.
+//
+// A source that is not tone mapped keeps its own transfer, so tagging it sRGB
+// would misdescribe it. An unreported transfer is left untagged rather than
+// guessed, which leaves the player with the same ambiguity the tone map exists
+// to remove, but only where the source itself gave nothing to work from.
+//
+// Parameters:
+//   - transfer: ffprobe's color_transfer for the source.
+//
+// Returns:
+//   - args: ffmpeg color and x264-params flags, empty when the transfer is unknown.
+func sdrColorArgs(transfer string) []string {
+	name := strings.ToLower(strings.TrimSpace(transfer))
+	if name == "" || name == transferSDRUnknown {
+		return nil
+	}
+
+	return []string{
+		flagColorPrimaries, nameBT709,
+		flagColorTransfer, name,
+		flagColorSpace, nameBT709,
+		flagColorRange, flagRangeTV,
+		flagX264Params, "colorprim=" + nameBT709 + ":transfer=" + name +
+			":colormatrix=" + nameBT709,
 	}
 }
 
@@ -509,8 +582,8 @@ func webSafeColorArgs() []string {
 //
 // Returns:
 //   - flags: +faststart, or +faststart+write_colr when web-safe color is on.
-func movFlags(req h264EncodeRequest) string {
-	if req.webSafeColor {
+func movFlags(req *h264EncodeRequest) string {
+	if req.toneMap {
 		return webSafeMovFlags
 	}
 
@@ -733,11 +806,9 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 		rect,
 		preset,
 	)
-	if req.webSafeColor {
-		execFFmpeg.applyWebSafe(ctx, &req)
-	}
+	execFFmpeg.resolveColor(ctx, &req)
 
-	err := execFFmpeg.run(ctx, duration, h264EncodeArgs(req)...)
+	err := execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
 	if err != nil {
 		return fmt.Errorf("extract preview: %w", err)
 	}
@@ -855,43 +926,108 @@ func (execFFmpeg *ExecFFmpeg) SetTimeout(d time.Duration) {
 	execFFmpeg.timeout = d
 }
 
-// applyWebSafe sets CPU tone-map parameters from the source stream.
+// resolveColor decides how an encode handles the source's color.
 //
-// SDR sources keep Rec.709 tags only. Probe or peak failures leave tags
-// without a remaster.
+// It runs for every encode rather than only on request, because the defect it
+// fixes is untagged output: a PQ or HLG source written as an untagged 8-bit file
+// leaves every player guessing, and guessing differently. An HDR source is tone
+// mapped to Rec.709 unless the preset asked to preserve it, and either way the
+// encode is tagged for what it actually carries.
+//
+// A probe failure leaves the request untagged, which is the previous behavior
+// and beats tagging a source that could not be identified.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for probe and luma sampling.
 //   - req: Encode request to update in place.
-func (execFFmpeg *ExecFFmpeg) applyWebSafe(ctx context.Context, req *h264EncodeRequest) {
+func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeRequest) {
+	req.hdrKind = ""
+	req.toneMap = false
+	req.colorTags = nil
+	req.tonePeak = 0
+
 	info, err := execFFmpeg.Probe(ctx, req.input)
 	if err != nil {
-		req.hdrKind = ""
-
+		// Untagged, as before. That beats tagging a source we could not identify.
 		return
 	}
 
-	if !isHDRTransfer(info.ColorTransfer) {
-		req.hdrKind = ""
+	transfer := ""
+	if isHDRTransfer(info.ColorTransfer) {
+		transfer = info.ColorTransfer
+	}
 
+	plan := decideColor(transfer, remapDecisionFor(hdrInputs{
+		webSafe:  req.webSafeColor,
+		preserve: req.preset.PreserveHDR,
+	}))
+
+	req.hdrKind = plan.hdrKind
+	req.toneMap = plan.toneMap
+	req.colorTags = plan.colorTags
+	req.pixFmt = plan.pixFmt
+
+	if plan.hdrKind == transferHLGAlias {
+		req.tonePeak = defaultWebSafePeak
+	}
+
+	if !plan.needsPeak {
 		return
 	}
 
-	if isHLGTransfer(info.ColorTransfer) {
-		req.hdrKind = transferHLGAlias
+	ymax, ok := execFFmpeg.signalstatsYMax(ctx, req.input, req.start, req.duration)
+	if !ok {
+		// Tone map against the nominal peak rather than abandoning the map. The
+		// tags already say Rec.709, so leaving the source's HDR pixels in place
+		// would ship them mislabelled. A nominal peak is a less precise map, not
+		// a wrong one.
 		req.tonePeak = defaultWebSafePeak
 
 		return
 	}
 
-	req.hdrKind = transferPQAlias
+	req.tonePeak = tonePeakFromNits(pqNitsFromLimitedY(ymax))
+}
 
-	ymax, ok := execFFmpeg.signalstatsYMax(ctx, req.input, req.start, req.duration)
-	if !ok {
-		return
+// decideColor maps a source's transfer onto an encode's color handling.
+//
+// It is separate from the probe so the decision can be exercised without one.
+//
+// Parameters:
+//   - transfer: ffprobe's color transfer, empty for SDR.
+//   - remap: Why an HDR source is being handled at all.
+//
+// Returns:
+//   - plan: What the encode should do.
+func decideColor(transfer string, remap remapDecision) colorPlan {
+	if !isHDRTransfer(transfer) {
+		return colorPlan{colorTags: sdrColorArgs(transfer), pixFmt: pixelFormatYUV420P}
 	}
 
-	req.tonePeak = tonePeakFromNits(pqNitsFromLimitedY(ymax))
+	kind := transferPQAlias
+	if isHLGTransfer(transfer) {
+		kind = transferHLGAlias
+	}
+
+	// A remapped encode outputs Rec.709 whatever it was given, so it is tagged
+	// Rec.709. Only a source that keeps its transfer is tagged for that transfer,
+	// and a PQ peak still has to be sampled to scale the tone map. HLG carries a
+	// nominal peak and needs no sample.
+	if remap == webSafeRemap {
+		return colorPlan{
+			hdrKind:   kind,
+			toneMap:   true,
+			colorTags: webSafeColorArgs(),
+			needsPeak: kind == transferPQAlias,
+			pixFmt:    pixelFormatYUV420P,
+		}
+	}
+
+	return colorPlan{
+		hdrKind:   kind,
+		colorTags: hdrColorArgs(kind),
+		pixFmt:    pixelFormatYUV420P10LE,
+	}
 }
 
 // run executes the FFmpeg command.

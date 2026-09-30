@@ -27,6 +27,9 @@ type NewClipProps struct {
 	AudioTracks   []view.AudioTrackOption
 	CropBlackBars bool
 	WebSafeColor  bool
+	PreserveHDR   bool
+	// SourceHDR reports whether the source carries an HDR transfer.
+	SourceHDR bool
 }
 
 templ NewClip(props NewClipProps) {
@@ -81,6 +84,9 @@ templ NewClip(props NewClipProps) {
 						}
 						@clip.CropBlackBarsField(props.CropBlackBars)
 						@clip.WebSafeColorField(props.WebSafeColor)
+						if props.SourceHDR {
+							@clip.PreserveHDRField(props.PreserveHDR)
+						}
 						@button.Button(button.Props{Type: button.TypeSubmit}) {
 							Create
 						}

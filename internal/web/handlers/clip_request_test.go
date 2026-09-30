@@ -182,3 +182,104 @@ func TestParseClipRequestAcceptsAnExactlyMaximumRange(t *testing.T) {
 			"an exactly maximum range must not be rejected as too long, start %v", start)
 	}
 }
+
+// TestParseClipRequestReadsTheKeepHDRCheckbox covers the per-clip preserve-HDR
+// control.
+//
+// It is a checkbox, so an absent field and a present-but-false one are the same
+// answer, and only a checked box may preserve the source.
+func TestParseClipRequestReadsTheKeepHDRCheckbox(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		form url.Values
+		want bool
+	}{
+		{
+			name: "an omitted checkbox tone maps",
+			form: markForm("10", "15"),
+			want: false,
+		},
+		{
+			name: "a checked checkbox preserves the source",
+			form: func() url.Values {
+				form := markForm("10", "15")
+				form.Set("preserveHdr", formChecked)
+
+				return form
+			}(),
+			want: true,
+		},
+		{
+			name: "an unchecked checkbox tone maps",
+			form: func() url.Values {
+				form := markForm("10", "15")
+				form.Set("preserveHdr", "0")
+
+				return form
+			}(),
+			want: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := parseForm(t, test.form)
+
+			require.NotNil(t, got.PreserveHDR,
+				"the form always decides, so the value is never left to the server")
+			assert.Equal(t, test.want, *got.PreserveHDR)
+		})
+	}
+}
+
+// TestPreserveHDRFor covers the documented fallback for an absent field.
+//
+// The field's documentation promises the server default when a request omits
+// it, and an explicit false is the caller declining rather than an absent value.
+func TestPreserveHDRFor(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		requested *bool
+		fallback  bool
+		want      bool
+	}{
+		{
+			name:      "an absent field takes the configured default",
+			requested: nil,
+			fallback:  true,
+			want:      true,
+		},
+		{
+			name:      "an absent field with no default stays off",
+			requested: nil,
+			fallback:  false,
+			want:      false,
+		},
+		{
+			name:      "an explicit true is honored against a false default",
+			requested: new(true),
+			fallback:  false,
+			want:      true,
+		},
+		{
+			name:      "an explicit false is honored against a true default",
+			requested: new(false),
+			fallback:  true,
+			want:      false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, preserveHDRFor(test.requested, test.fallback))
+		})
+	}
+}

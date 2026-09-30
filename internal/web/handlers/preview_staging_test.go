@@ -149,6 +149,7 @@ func TestRenderPreviewStagesBeforePublishing(t *testing.T) {
 		"/media/source.mkv",
 		final,
 		api.ClipRequest{MediaID: "42", Duration: 5},
+		false,
 	)
 	require.NoError(t, err)
 
@@ -180,6 +181,7 @@ func TestRenderPreviewRemovesStagedFileOnFailure(t *testing.T) {
 		"/media/source.mkv",
 		final,
 		api.ClipRequest{MediaID: "42", Duration: 5},
+		false,
 	)
 	require.ErrorIs(t, err, errRender)
 
@@ -207,6 +209,7 @@ func TestRenderPreviewKeepsAnEarlierPreviewOnFailure(t *testing.T) {
 		"/media/source.mkv",
 		final,
 		api.ClipRequest{MediaID: "42", Duration: 5},
+		false,
 	)
 	require.ErrorIs(t, err, errRender)
 
@@ -237,6 +240,7 @@ func TestRenderPreviewStagingIsUniquePerRender(t *testing.T) {
 			"/media/source.mkv",
 			final,
 			api.ClipRequest{MediaID: "42", Duration: 5},
+			false,
 		)
 		require.NoError(t, err)
 	}
@@ -288,6 +292,7 @@ func TestRenderPreviewRemovesAPublishedPreviewThatFailedToUpload(t *testing.T) {
 		"/media/source.mkv",
 		final,
 		api.ClipRequest{MediaID: "42", Duration: 5},
+		false,
 	)
 	require.ErrorIs(t, err, errUpload)
 
@@ -313,6 +318,7 @@ func TestRenderPreviewReportsAFailedCleanup(t *testing.T) {
 		"/media/source.mkv",
 		final,
 		api.ClipRequest{MediaID: "42", Duration: 5},
+		false,
 	)
 	require.ErrorIs(t, err, errUpload, "the upload failure must be preserved")
 	require.ErrorIs(t, err, errRemove, "a cleanup that also failed must be reported")

@@ -135,3 +135,70 @@ func TestDefaultFFmpegTimeout(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 30*60*1000000000, int(DefaultFFmpegTimeout()))
 }
+
+// TestSourceQuality pins the source label shown beside a media title.
+//
+// It is derived from the probed height and transfer, because a container tag can
+// claim a transfer the pixel data does not carry.
+func TestSourceQuality(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		info    MediaInfo
+		want    string
+		wantHDR bool
+	}{
+		{
+			name:    "a 4k pq source reads as 4k hdr10",
+			info:    MediaInfo{Height: 2160, ColorTransfer: transferPQ},
+			want:    "4K HDR10",
+			wantHDR: true,
+		},
+		{
+			name:    "a 1080p hlg source reads as 1080p hlg",
+			info:    MediaInfo{Height: 1080, ColorTransfer: transferHLG},
+			want:    "1080p HLG",
+			wantHDR: true,
+		},
+		{
+			name:    "an sdr source carries no transfer name",
+			info:    MediaInfo{Height: 1080, ColorTransfer: nameBT709},
+			want:    "1080p",
+			wantHDR: false,
+		},
+		{
+			name:    "a short pq alias is still hdr",
+			info:    MediaInfo{Height: 720, ColorTransfer: transferPQAlias},
+			want:    "720p HDR10",
+			wantHDR: true,
+		},
+		{
+			name:    "an unknown height drops the resolution class",
+			info:    MediaInfo{ColorTransfer: transferPQ},
+			want:    "HDR10",
+			wantHDR: true,
+		},
+		{
+			name:    "an unprobed source has no label",
+			info:    MediaInfo{},
+			want:    "",
+			wantHDR: false,
+		},
+		{
+			name:    "an odd height keeps its own number",
+			info:    MediaInfo{Height: 576},
+			want:    "576p",
+			wantHDR: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, SourceQuality(test.info))
+			assert.Equal(t, test.wantHDR, IsHDRSource(test.info.ColorTransfer))
+		})
+	}
+}

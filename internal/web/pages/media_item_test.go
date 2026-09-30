@@ -306,3 +306,45 @@ func TestItemClipListOmitsLayout(t *testing.T) {
 	assert.NotContains(t, body, "Outtake")
 	assert.NotContains(t, body, `id="clip-list-type"`)
 }
+
+// TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources covers the control
+// that decides whether an HDR source is passed through.
+//
+// Showing it on an SDR source would offer a control that cannot do anything, so
+// the probe result decides whether the option is there at all.
+func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		sourceHDR bool
+		quality   string
+	}{
+		{name: "an hdr source offers the control", sourceHDR: true, quality: "4K HDR10"},
+		{name: "an sdr source hides the control", sourceHDR: false, quality: "1080p"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			var buf strings.Builder
+
+			err := MediaItemPage(MediaItemPageProps{
+				ID:        "42",
+				Title:     testMovie,
+				Type:      "movie",
+				Quality:   test.quality,
+				SourceHDR: test.sourceHDR,
+				MaxDur:    600,
+			}).Render(t.Context(), &buf)
+			require.NoError(t, err)
+
+			body := buf.String()
+
+			assert.Contains(t, body, test.quality, "the header carries the source quality")
+			assert.Equal(t, test.sourceHDR, strings.Contains(body, `name="preserveHdr"`),
+				"the keep-HDR control is only offered when the source is HDR")
+		})
+	}
+}

@@ -137,6 +137,11 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 
 			r.WebSafeColor = &on
 		}},
+		{name: "preserve hdr", mutate: func(r *api.ClipRequest) {
+			on := true
+
+			r.PreserveHDR = &on
+		}},
 		{name: "media id", mutate: func(r *api.ClipRequest) { r.MediaID = "43" }},
 		{name: "source path", path: other, mutate: func(*api.ClipRequest) {}},
 	}

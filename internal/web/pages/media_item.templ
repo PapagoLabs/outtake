@@ -90,7 +90,12 @@ type MediaItemPageProps struct {
 	ID          string
 	Title       string
 	Type        string
-	Duration    float64
+	// Quality is a short source label such as "4K HDR10", empty when unknown.
+	Quality string
+	// SourceHDR reports whether the source carries an HDR transfer. It hides the
+	// keep-HDR control, which would otherwise do nothing on an SDR source.
+	SourceHDR  bool
+	Duration   float64
 	MaxDur      int
 	Clips       []view.ClipItem
 	ClipStatus  string
@@ -132,6 +137,9 @@ templ MediaItemPage(props MediaItemPageProps) {
 				<h2 class="text-2xl font-bold tracking-tight mt-2">{ props.Title }</h2>
 				<p class="text-muted-foreground capitalize">
 					{ props.Type }
+					if props.Quality != "" {
+						<span> · { props.Quality }</span>
+					}
 					if props.Duration > 0 {
 						<span> · { media.FromSeconds(props.Duration).HMS() }</span>
 					}
@@ -289,6 +297,9 @@ templ MediaItemPage(props MediaItemPageProps) {
 					</div>
 					@clip.CropBlackBarsField(props.Export.CropBlackBars)
 					@clip.WebSafeColorField(props.Export.WebSafeColor)
+					if props.SourceHDR {
+						@clip.PreserveHDRField(props.Export.PreserveHDR)
+					}
 					<div class="flex gap-3">
 						@button.Button(button.Props{
 							ID:         "preview-button",

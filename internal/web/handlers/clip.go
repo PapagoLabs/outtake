@@ -222,7 +222,12 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
 	}
 
-	job := buildJob(&req, jobType, inputPath)
+	job := buildJob(
+		&req,
+		jobType,
+		inputPath,
+		preserveHDRFor(req.PreserveHDR, handler.cfg.PreserveHDR),
+	)
 	assignOutputPaths(job, handler.clipStorage)
 	applyDefaults(job)
 
@@ -339,6 +344,10 @@ func (handler *ClipHandler) Preview(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
 	}
 
+	// Resolved before the id is derived, because the id has to reflect the
+	// setting the render will actually use, not only what the form sent.
+	req.PreserveHDR = new(preserveHDRFor(req.PreserveHDR, handler.cfg.PreserveHDR))
+
 	previewID, err := previewRequestID(req, inputPath)
 	if err != nil {
 		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
@@ -452,6 +461,8 @@ func (handler *ClipHandler) PreviewStatus(ctx fiber.Ctx) error {
 //   - inputPath: Source media path.
 //   - output: Final path the preview is published under.
 //   - req: Parsed request carrying the marks and encoding options.
+//   - preserveHDR: Whether an HDR source is kept rather than tone mapped. It
+//     comes from the request, because the clip is where the user decides.
 //
 // Returns:
 //   - err: Non-nil when the preview could not be written or published.
@@ -461,6 +472,7 @@ func renderPreview(
 	ffmpeg media.FFmpeg,
 	inputPath, output string,
 	req api.ClipRequest,
+	preserveHDR bool,
 ) error {
 	crop := media.CropRect{}
 
@@ -481,7 +493,10 @@ func renderPreview(
 		req.Duration,
 		req.AudioIndex,
 		crop,
-		media.QualityPreset{WebSafeColor: derefBool(req.WebSafeColor)},
+		media.QualityPreset{
+			WebSafeColor: derefBool(req.WebSafeColor),
+			PreserveHDR:  preserveHDR,
+		},
 	)
 	if err != nil {
 		discardStagedPreview(staged)
@@ -782,6 +797,7 @@ func (handler *ClipHandler) renderPreviewInBackground(
 		inputPath,
 		final,
 		req,
+		preserveHDRFor(req.PreserveHDR, handler.cfg.PreserveHDR),
 	)
 	if err != nil {
 		return fmt.Errorf("render preview: %w", err)
@@ -995,6 +1011,7 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		AudioIndex:    formInt(ctx, "audioIndex"),
 		CropBlackBars: ctx.FormValue("cropBlackBars") == formChecked,
 		WebSafeColor:  new(ctx.FormValue("webSafeColor") == formChecked),
+		PreserveHDR:   new(ctx.FormValue("preserveHdr") == formChecked),
 	}, nil
 }
 
@@ -1005,6 +1022,28 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 //
 // Returns:
 //   - result: *value when set, otherwise false.
+//
+// preserveHDRFor resolves the requested keep-HDR setting.
+//
+// A request that omits the field takes the configured default, which is what the
+// field documents. An explicit false is the caller declining, and is honored
+// rather than overwritten by a server-wide setting.
+//
+// Parameters:
+//   - requested: The request's value, nil when the field was absent.
+//   - fallback: The configured default.
+//
+// Returns:
+//   - preserve: Whether the source's HDR transfer is kept.
+func preserveHDRFor(requested *bool, fallback bool) bool {
+	if requested == nil {
+		return fallback
+	}
+
+	return *requested
+}
+
+// derefBool reads an optional flag, treating an absent one as false.
 func derefBool(value *bool) bool {
 	if value == nil {
 		return false
@@ -1093,7 +1132,12 @@ func isFormRequest(ctx fiber.Ctx) bool {
 }
 
 // buildJob constructs a pending queue job from a clip request.
-func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *queue.Job {
+func buildJob(
+	req *api.ClipRequest,
+	jobType queue.JobType,
+	inputPath string,
+	preserveHDR bool,
+) *queue.Job {
 	return &queue.Job{
 		ID:            uuid.New().String(),
 		Type:          jobType,
@@ -1111,6 +1155,7 @@ func buildJob(req *api.ClipRequest, jobType queue.JobType, inputPath string) *qu
 		AudioIndex:    req.AudioIndex,
 		CropBlackBars: req.CropBlackBars,
 		WebSafeColor:  derefBool(req.WebSafeColor),
+		PreserveHDR:   preserveHDR,
 		Status:        queue.JobStatusPending,
 		Progress:      0,
 		Error:         "",
@@ -1138,5 +1183,6 @@ func clipResponse(job *queue.Job) api.ClipResponse {
 		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
 		WebSafeColor:  job.WebSafeColor,
+		PreserveHDR:   job.PreserveHDR,
 	}
 }

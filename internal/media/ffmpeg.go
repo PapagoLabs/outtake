@@ -77,8 +77,12 @@ type QualityPreset struct {
 	Preset    string
 	AudioKbps int
 	MaxWidth  int
-	// WebSafeColor tone-maps HDR to Rec.709 when true.
+	// WebSafeColor forces the HDR tone map on, whatever the source is.
 	WebSafeColor bool
+	// PreserveHDR keeps an HDR source as it is instead of tone mapping it to
+	// Rec.709. The output is still tagged for the transfer it carries, because an
+	// untagged file leaves every player to guess.
+	PreserveHDR bool
 }
 
 const (
@@ -126,6 +130,12 @@ const (
 	OutputWidth1440p = 2560
 	// OutputWidth2160p is 3840px wide (4K).
 	OutputWidth2160p = 3840
+	// Height720p is the smallest height still called 720p.
+	Height720p = 720
+	// Height1080p is the smallest height still called 1080p.
+	Height1080p = 1080
+	// Height2160p is the smallest height called 4K.
+	Height2160p = 2160
 )
 
 // EncoderPresets lists valid libx264 -preset values from fastest to slowest.
@@ -234,6 +244,79 @@ func OutputWidthLabel(width int) string {
 	default:
 		return strconv.Itoa(width)
 	}
+}
+
+// SourceQuality is a short label for what a source's video is.
+//
+// It is derived from the probed stream rather than any container tag, because
+// the label has to describe what the encoder will actually see. Only the height
+// decides the resolution class; the transfer decides the dynamic range.
+func SourceQuality(info MediaInfo) string {
+	resolution := SourceResolutionLabel(info.Height)
+	transfer := DynamicRangeLabel(info.ColorTransfer)
+
+	switch {
+	case resolution == "" && transfer == "":
+		return ""
+	case resolution == "":
+		return transfer
+	case transfer == "":
+		return resolution
+	default:
+		return resolution + " " + transfer
+	}
+}
+
+// SourceResolutionLabel classifies a source height the way a viewer would name
+// it.
+//
+// Parameters:
+//   - height: Video height in pixels.
+//
+// Returns:
+//   - label: The class name, or empty when the height is unknown.
+func SourceResolutionLabel(height int) string {
+	switch {
+	case height >= Height2160p:
+		return "4K"
+	case height >= Height1080p:
+		return "1080p"
+	case height >= Height720p:
+		return "720p"
+	case height > 0:
+		return strconv.Itoa(height) + "p"
+	default:
+		return ""
+	}
+}
+
+// DynamicRangeLabel names a color transfer for display.
+//
+// Parameters:
+//   - transfer: ffprobe color_transfer of the source.
+//
+// Returns:
+//   - label: The transfer's display name, or empty when it is not HDR.
+func DynamicRangeLabel(transfer string) string {
+	switch {
+	case isPQTransfer(transfer):
+		return "HDR10"
+	case isHLGTransfer(transfer):
+		return "HLG"
+	default:
+		return ""
+	}
+}
+
+// IsHDRSource reports whether a source carries an HDR transfer.
+//
+// Parameters:
+//   - transfer: ffprobe color_transfer of the source.
+//
+// Returns:
+//   - hdr: True when the source is PQ or HLG.
+func IsHDRSource(transfer string) bool {
+	return isPQTransfer(transfer) || isHLGTransfer(transfer)
 }
 
 // ResolvePreset maps a stored quality id onto ffmpeg settings.

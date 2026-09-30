@@ -110,21 +110,19 @@ func TestClipEncodeArgsCropsBlackBars(t *testing.T) {
 func TestClipEncodeArgsWebSafeColor(t *testing.T) {
 	t.Parallel()
 
-	preset := QualityPresets[ClipQualityHigh]
-
-	preset.WebSafeColor = true
-
-	args := clipEncodeArgs(
+	req := clipEncodeRequest(
 		"ffmpeg",
 		"/in.mkv",
 		"/out.mp4",
 		10,
 		5,
-		preset,
+		QualityPresets[ClipQualityHigh],
 		1,
 		CropRect{},
 	)
+	applyColorPlan(&req, transferPQ, webSafeRemap)
 
+	args := h264EncodeArgs(&req)
 	joined := strings.Join(args, " ")
 	wantFilter := webSafeToneMapFilter(transferPQAlias, defaultWebSafePeak) +
 		"," + scaleFilter(OutputWidth2160p, scaleFlagsLanczos)
@@ -132,7 +130,7 @@ func TestClipEncodeArgsWebSafeColor(t *testing.T) {
 	assert.Contains(t, joined, "zscale=tin=smpte2084")
 	assert.Contains(t, joined, "tonemap=tonemap=hable")
 	assert.Contains(t, args, "-color_primaries")
-	assert.Contains(t, args, "bt709")
+	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
 	assert.Contains(t, args, "iec61966-2-1")
 	assert.Contains(t, args, webSafeMovFlags)
@@ -169,7 +167,7 @@ func TestPreviewEncodeArgs(t *testing.T) {
 func TestPreviewEncodeArgsWebSafeColor(t *testing.T) {
 	t.Parallel()
 
-	args := previewEncodeArgs(
+	req := previewEncodeRequest(
 		"ffmpeg",
 		"/in.mkv",
 		"/out.mp4",
@@ -177,16 +175,18 @@ func TestPreviewEncodeArgsWebSafeColor(t *testing.T) {
 		5,
 		1,
 		CropRect{},
-		QualityPreset{WebSafeColor: true},
+		QualityPreset{},
 	)
+	applyColorPlan(&req, transferPQ, webSafeRemap)
 
+	args := h264EncodeArgs(&req)
 	joined := strings.Join(args, " ")
 	wantFilter := webSafeToneMapFilter(transferPQAlias, defaultWebSafePeak) +
 		"," + scaleFilter(previewMaxWidth, scaleFlagsFast)
 	assert.Contains(t, args, wantFilter)
 	assert.Contains(t, joined, "tonemap=tonemap=hable")
 	assert.Contains(t, args, "-color_primaries")
-	assert.Contains(t, args, "bt709")
+	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
 	assert.Contains(t, args, "iec61966-2-1")
 	assert.Contains(t, args, webSafeMovFlags)
@@ -331,4 +331,214 @@ func TestScreenshotEncodeArgsOmitsCropWhenEmpty(t *testing.T) {
 
 	assert.NotContains(t, args, "-vf")
 	assert.NotContains(t, args, "crop=")
+}
+
+// applyColorPlan resolves a request's color for a given source transfer, the
+// part resolveColor does once the probe has answered.
+//
+// Parameters:
+//   - req: Encode request to update.
+//   - transfer: ffprobe's color transfer for the source.
+//   - remap: How an HDR source should be handled.
+func applyColorPlan(req *h264EncodeRequest, transfer string, remap remapDecision) {
+	plan := decideColor(transfer, remap)
+
+	req.hdrKind = plan.hdrKind
+	req.toneMap = plan.toneMap
+	req.colorTags = plan.colorTags
+	req.pixFmt = plan.pixFmt
+	if req.hdrKind == transferHLGAlias {
+		req.tonePeak = defaultWebSafePeak
+	}
+}
+
+// TestDecideColor pins how a source is tagged and whether it is remapped.
+//
+// The behavior under test is what a player sees. An SDR source and a preserved
+// HDR source are both tagged, because an untagged file is the defect that
+// started this: the player has to guess the transfer, and guesses differ.
+func TestDecideColor(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		transfer      string
+		remap         remapDecision
+		wantHDRKind   string
+		wantToneMap   bool
+		wantTags      string
+		wantNeedsPeak bool
+		wantPixFmt    string
+	}{
+		{
+			name:        "an sdr source keeps the transfer it was probed with",
+			transfer:    nameBT709,
+			remap:       webSafeRemap,
+			wantHDRKind: "",
+			wantTags:    nameBT709,
+			wantPixFmt:  pixelFormatYUV420P,
+		},
+		{
+			name:        "an sdr source with an unreported transfer is left untagged",
+			transfer:    "unknown",
+			remap:       webSafeRemap,
+			wantHDRKind: "",
+			wantTags:    "",
+			wantPixFmt:  pixelFormatYUV420P,
+		},
+		{
+			name:        "a pal sdr source is not claimed as srgb",
+			transfer:    "bt470bg",
+			remap:       webSafeRemap,
+			wantHDRKind: "",
+			wantTags:    "bt470bg",
+			wantPixFmt:  pixelFormatYUV420P,
+		},
+		{
+			name:          "pq is remapped by default and tagged rec709",
+			transfer:      transferPQ,
+			remap:         webSafeRemap,
+			wantHDRKind:   transferPQAlias,
+			wantToneMap:   true,
+			wantTags:      TransferSRGB,
+			wantNeedsPeak: true,
+			wantPixFmt:    pixelFormatYUV420P,
+		},
+		{
+			name:        "pq is preserved, tagged, and kept 10-bit",
+			transfer:    transferPQ,
+			remap:       preserveHDR,
+			wantHDRKind: transferPQAlias,
+			wantTags:    transferPQ,
+			wantPixFmt:  pixelFormatYUV420P10LE,
+		},
+		{
+			name:        "hlg is remapped, tagged rec709, and needs no peak sample",
+			transfer:    transferHLG,
+			remap:       webSafeRemap,
+			wantHDRKind: transferHLGAlias,
+			wantToneMap: true,
+			wantTags:    TransferSRGB,
+			wantPixFmt:  pixelFormatYUV420P,
+		},
+		{
+			name:        "hlg is preserved, tagged, and kept 10-bit",
+			transfer:    transferHLG,
+			remap:       preserveHDR,
+			wantHDRKind: transferHLGAlias,
+			wantTags:    transferHLG,
+			wantPixFmt:  pixelFormatYUV420P10LE,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			plan := decideColor(test.transfer, test.remap)
+
+			assert.Equal(t, test.wantHDRKind, plan.hdrKind)
+			assert.Equal(t, test.wantToneMap, plan.toneMap)
+			assert.Equal(t, test.wantNeedsPeak, plan.needsPeak)
+			assert.Equal(t, test.wantPixFmt, plan.pixFmt)
+
+			if test.wantTags == "" {
+				assert.Empty(t, plan.colorTags,
+					"an unreported transfer is left untagged rather than guessed")
+			} else {
+				assert.Contains(t, plan.colorTags, "-color_primaries")
+				assert.Contains(t, plan.colorTags, test.wantTags,
+					"an output must declare the transfer it carries")
+			}
+		})
+	}
+}
+
+// TestPreservedHDRIsTaggedForItsTransfer covers the case the branch exists for.
+// A preserved PQ source is not remapped, but it is still described, so the file
+// is not left for a player to guess at.
+func TestPreservedHDRIsTaggedForItsTransfer(t *testing.T) {
+	t.Parallel()
+
+	req := clipEncodeRequest(
+		"ffmpeg",
+		"/in.mkv",
+		"/out.mp4",
+		10,
+		5,
+		QualityPresets[ClipQualityHigh],
+		1,
+		CropRect{},
+	)
+	applyColorPlan(&req, transferPQ, preserveHDR)
+
+	args := h264EncodeArgs(&req)
+	joined := strings.Join(args, " ")
+
+	assert.Contains(t, args, primariesBT2020)
+	assert.Contains(t, args, transferPQ)
+	assert.NotContains(t, joined, "tonemap=tonemap=hable",
+		"a preserved source must not be remapped")
+	assert.NotContains(t, joined, "zscale=tin=smpte2084")
+	assert.Contains(t, args, pixelFormatYUV420P10LE,
+		"a preserved PQ source needs 10-bit, because 8-bit PQ bands")
+}
+
+// TestPreservedHDRStaysTenBit guards the bit depth that the pixel format
+// carries. Tagging a file PQ while storing it in 8-bit leaves it banded, so the
+// two have to move together.
+func TestPreservedHDRStaysTenBit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		transfer string
+		remap    remapDecision
+		want     string
+	}{
+		{
+			name:     "preserved pq is 10-bit",
+			transfer: transferPQ,
+			remap:    preserveHDR,
+			want:     pixelFormatYUV420P10LE,
+		},
+		{
+			name:     "preserved hlg is 10-bit",
+			transfer: transferHLG,
+			remap:    preserveHDR,
+			want:     pixelFormatYUV420P10LE,
+		},
+		{
+			name:     "remapped pq is 8-bit",
+			transfer: transferPQ,
+			remap:    webSafeRemap,
+			want:     pixelFormatYUV420P,
+		},
+		{
+			name:     "remapped hlg is 8-bit",
+			transfer: transferHLG,
+			remap:    webSafeRemap,
+			want:     pixelFormatYUV420P,
+		},
+		{
+			name:     "sdr is 8-bit",
+			transfer: nameBT709,
+			remap:    preserveHDR,
+			want:     pixelFormatYUV420P,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := clipEncodeRequest(
+				"ffmpeg", "/in.mkv", "/out.mp4", 10, 5,
+				QualityPresets[ClipQualityHigh], 1, CropRect{},
+			)
+			applyColorPlan(&req, test.transfer, test.remap)
+
+			assert.Equal(t, test.want, pixelFormat(&req))
+		})
+	}
 }
