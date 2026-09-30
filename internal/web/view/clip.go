@@ -28,10 +28,14 @@ type ClipItem struct {
 	// SourceHDR reports whether the source carries an HDR transfer, which is
 	// what decides whether the keep-HDR control is shown at all.
 	SourceHDR bool
-	Width     int
-	FPS       int
-	MaxDur    int
-	Error     string
+	// MediaDuration is the source length in seconds, zero when the page did not
+	// probe it. The form clamps the end mark against it when it is known, and
+	// the server rejects an out-of-range selection either way.
+	MediaDuration float64
+	Width         int
+	FPS           int
+	MaxDur        int
+	Error         string
 }
 
 // ClipProfileOption is a named encode profile in a quality select.

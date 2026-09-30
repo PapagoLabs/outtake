@@ -29,6 +29,11 @@ const (
 	// exportTypeScreenshot is the screenshot export type.
 	exportTypeScreenshot = "screenshot"
 
+	// invalidSubmitClass is the styling an export button takes when the selection
+	// is out of bounds. It is an outline rather than a fill, so the button keeps
+	// its shape and the change reads as a state rather than a different button.
+	invalidSubmitClass = "outline-2 outline-destructive outline-offset-2"
+
 	// defaultExportType is the export type prefilled in the New export form.
 	defaultExportType = exportTypeClip
 	// defaultGIFWidth is the GIF export width prefilled in the New export form.
@@ -218,7 +223,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				}
 				@card.Content() {
-					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(props.MaxDur) }>
+					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(props.MaxDur) } data-media-dur={ media.FormatSeconds(props.Duration) }>
 						@csrf.Field()
 						<input type="hidden" name="mediaId" value={ props.ID }/>
 						<input type="hidden" name="mediaTitle" value={ props.Title }/>
@@ -242,23 +247,28 @@ templ MediaItemPage(props MediaItemPageProps) {
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2">
 								<div class="grid">
-									<div class="col-start-1 row-start-1 flex" data-export-for="clip,gif">
+									<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="clip,gif">
 										@label.Label(label.Props{For: "startTime"}) {
 											Start
 										}
+										<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
 									</div>
-									<div class="col-start-1 row-start-1 flex" data-export-for="screenshot">
+									<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="screenshot">
 										@label.Label(label.Props{For: "startTime"}) {
 											Time
 										}
+										<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
 									</div>
 								</div>
 								<input id="startTime" name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.StartTime).String() } class={ utils.ControlClass }/>
 							</div>
 							<div class="flex flex-col gap-2" data-export-for="clip,gif">
-								@label.Label(label.Props{For: "endTime"}) {
-									End
-								}
+								<div class="flex items-baseline gap-2">
+									@label.Label(label.Props{For: "endTime"}) {
+										End
+									}
+									<span data-end-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
+								</div>
 								<input id="endTime" name="endTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ media.FromSeconds(props.EndTime).String() } class={ utils.ControlClass }/>
 							</div>
 						</div>
@@ -266,7 +276,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 						// The rendered window travels with the form, so a plain
 						// Preview asks for the window already loaded and finds it
 						// in the cache rather than encoding it again.
-						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).Short() }</span> (max { media.FromSeconds(float64(props.MaxDur)).Short() }) <span data-duration-warning id="duration-warning" class="hidden text-destructive">Clamped to the maximum duration.</span></p>
+						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label id="duration-label">{ media.FromSeconds(props.EndTime - props.StartTime).Short() }</span> (max { media.FromSeconds(float64(props.MaxDur)).Short() }) <span data-duration-warning id="duration-warning" role="status" aria-live="polite" class="sr-only"></span></p>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2" data-export-for="clip">
 								@label.Label(label.Props{For: "quality"}) {
@@ -307,11 +317,24 @@ templ MediaItemPage(props MediaItemPageProps) {
 							Type:       button.TypeSubmit,
 							Variant:    button.VariantOutline,
 							Class:      "js-export-submit",
-							Attributes: map[string]any{"formaction": "/api/clips/preview", "formmethod": "post"},
+							Attributes: map[string]any{
+								"formaction":       "/api/clips/preview",
+								"formmethod":       "post",
+								"data-invalid-css": invalidSubmitClass,
+							},
 						}) {
 							<span id="preview-button-label">Preview</span>
 						}
-						@button.Button(button.Props{Type: button.TypeSubmit, Class: "js-export-submit", Attributes: map[string]any{"formaction": "/api/clips", "formmethod": "post"}}) {
+						@button.Button(button.Props{
+							Type:    button.TypeSubmit,
+							Class:   "js-export-submit",
+							Variant: button.VariantDefault,
+							Attributes: map[string]any{
+								"formaction":       "/api/clips",
+								"formmethod":       "post",
+								"data-invalid-css": invalidSubmitClass,
+							},
+						}) {
 							Save clip
 						}
 					</div>
@@ -334,7 +357,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 				</div>
 			</div>
 		</div>
-		<div id="clip-form-config" data-max-dur={ strconv.Itoa(props.MaxDur) } class="hidden"></div>
+		<div id="clip-form-config" data-max-dur={ strconv.Itoa(props.MaxDur) } data-media-dur={ media.FormatSeconds(props.Duration) } class="hidden"></div>
 		@progress.Script()
 		<script src="/assets/js/media-item.js"></script>
 	}

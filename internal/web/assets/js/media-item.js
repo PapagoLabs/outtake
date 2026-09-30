@@ -2,39 +2,10 @@
 	var startEl = document.getElementById('startTime');
 	var endEl = document.getElementById('endTime');
 	var durEl = document.getElementById('duration');
-	var label = document.getElementById('duration-label');
-	var warning = document.getElementById('duration-warning');
-	var maxDur = parseInt(document.getElementById('clip-form-config').getAttribute('data-max-dur'), 10) || 600;
-	function pad2(n) { return String(n).padStart(2, '0'); }
-	// formatDuration renders seconds in the short form used by the duration
-	// readout, with empty parts left out. It mirrors media.Timecode.Short.
-	//
-	// This is separate from formatTimecode because that one also writes the mark
-	// inputs, which have to stay in HH:MM:SS.mmm for parseTimecode and the
-	// server to agree on.
-	function formatDuration(sec) {
-		if (!isFinite(sec) || sec < 0) {
-			sec = 0;
-		}
-		var whole = Math.round(sec);
-		if (whole < 60) {
-			return whole + 's';
-		}
-		var out = '';
-		var h = Math.floor(whole / 3600);
-		var m = Math.floor((whole % 3600) / 60);
-		var s = whole % 60;
-		if (h) {
-			out += h + 'hr';
-		}
-		if (m) {
-			out += m + 'min';
-		}
-		if (s) {
-			out += s + 's';
-		}
-		return out;
+	if (!startEl || !endEl || !durEl) {
+		return;
 	}
+	function pad2(n) { return String(n).padStart(2, '0'); }
 
 	function formatTimecode(sec) {
 		if (!isFinite(sec) || sec < 0) { sec = 0; }
@@ -52,29 +23,14 @@
 		if (parts.length === 2) { return (parseInt(parts[0], 10) || 0) * 60 + (parseFloat(parts[1]) || 0); }
 		return (parseInt(parts[0], 10) || 0) * 3600 + (parseInt(parts[1], 10) || 0) * 60 + (parseFloat(parts[2]) || 0);
 	}
-	function syncDuration() {
-		var start = parseTimecode(startEl.value);
-		var end = parseTimecode(endEl.value);
-		var dur = Math.max(0, end - start);
-		if (dur > maxDur) {
-			dur = maxDur;
-			// The end is pulled back to the limit rather than only the duration
-			// being clamped, so the form shows the range the clip will have.
-			// Clamping the duration alone left a longer end on screen than the
-			// clip would cover.
-			//
-			// The result is floored to the millisecond rather than rounded. Both
-			// land on the limit for the millisecond aligned values the timecode
-			// format produces, so flooring is not fixing an observed rejection.
-			// It just never rounds a boundary up, which keeps the field's value
-			// bounded by the limit it is clamped to.
-			endEl.value = formatTimecode(Math.floor((start + dur) * 1000) / 1000);
-			if (warning) { warning.classList.remove('hidden'); }
-		} else if (warning) {
-			warning.classList.add('hidden');
-		}
-		durEl.value = dur.toFixed(3);
-		label.textContent = formatDuration(dur);
+	// The bounds themselves live in app.js, which already binds every
+	// [data-export-form] including this one. This file only moves the marks; it
+	// never validates or rewrites them, so there is only one implementation and
+	// the two cannot disagree.
+	//
+	// requestSync asks the shared binder to re-validate the form.
+	function requestSync() {
+		startEl.dispatchEvent(new Event('input', { bubbles: true }));
 	}
 	document.addEventListener('click', function (event) {
 		var startBtn = event.target.closest('.js-mark-start');
@@ -84,20 +40,22 @@
 			var start = parseTimecode(startEl.value);
 			var end = parseTimecode(endEl.value);
 			if (end <= start) {
+				// The end is carried along so the range keeps its length. The
+				// shared binder then reports it, rather than the change being
+				// silent, which is how a start of 11 hours ended up saved as an
+				// 11 hour 10 second range with nothing on screen to explain it.
 				var dur = parseFloat(durEl.value) || 0;
 				if (dur <= 0) { dur = 10; }
 				endEl.value = formatTimecode(start + dur);
 			}
-			syncDuration();
+			requestSync();
 		}
 		if (endBtn) {
 			endEl.value = formatTimecode(parseFloat(endBtn.getAttribute('data-offset')));
-			syncDuration();
+			requestSync();
 		}
 	});
-	startEl.addEventListener('input', syncDuration);
-	endEl.addEventListener('input', syncDuration);
-	syncDuration();
+	requestSync();
 
 	// The preview renders in the background, so the file this page was
 	// redirected to may not exist yet. Poll until the server publishes it, then

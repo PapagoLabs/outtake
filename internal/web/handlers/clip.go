@@ -39,7 +39,16 @@ type ClipHandler struct {
 	clientID    string
 	previews    *previewGate
 	previewJobs *previewRegistry
+	// mediaDurationFn reports a source's length. It is a field rather than a
+	// direct probe so the range bound can be driven from a test, which D8 forbids
+	// reaching for an external binary to do.
+	mediaDurationFn func(ctx context.Context, inputPath string) (float64, bool)
 }
+
+// clipErrorCode is the API error code a pre-persistence failure is reported
+// under. It is its own type so the code cannot be confused with the path beside
+// it in a return, and so a caller cannot pass a path where a code is expected.
+type clipErrorCode string
 
 const (
 	// DefaultQuality is the default clip quality.
@@ -85,6 +94,11 @@ var (
 
 	// ErrInvalidDuration is returned when a clip duration is out of range.
 	errInvalidDuration = errors.New("invalid duration")
+
+	// ErrRangeOutsideMedia is returned when a selection reaches past the end of
+	// the source. Without it an 11 hour start on a 2 hour film is a legal clip
+	// length, so it is accepted, persisted, and then fails to render.
+	errRangeOutsideMedia = errors.New("selection is outside the media")
 
 	// ErrUnknownQuality is returned when a clip profile id is not recognized.
 	errUnknownQuality = errors.New("unknown clip profile")
@@ -212,14 +226,9 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
 	}
 
-	req.Quality, err = handler.resolveQuality(ctx.Context(), req.Quality)
-	if err != nil {
-		return writeError(ctx, fiber.StatusBadRequest, "invalid_quality", err.Error())
-	}
-
-	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
-	if err != nil {
-		return writeError(ctx, fiber.StatusBadRequest, errorMediaPath, err.Error())
+	inputPath, failCode, resolveErr := handler.resolveNewClip(ctx, &req, jobType)
+	if resolveErr != nil {
+		return writeError(ctx, fiber.StatusBadRequest, string(failCode), resolveErr.Error())
 	}
 
 	job := buildJob(
@@ -620,7 +629,7 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusBadRequest, "invalid_clip_type", err.Error())
 	}
 
-	err = handler.validateClipParams(jobType, req)
+	err = handler.validateNewClip(ctx.Context(), job.InputPath, jobType, req)
 	if err != nil {
 		return writeError(ctx, fiber.StatusBadRequest, invalidRequest, err.Error())
 	}
@@ -736,6 +745,33 @@ func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error
 	}
 
 	return nil
+}
+
+// mediaDuration probes the source for its length.
+//
+// The probe is cached by file identity, so a source already opened for the page
+// or a preview costs a map lookup rather than an ffprobe.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - inputPath: Resolved source media path.
+//
+// Returns:
+//   - duration: The source length in seconds.
+//   - ok: False when the probe could not run or reported no length.
+func (handler *ClipHandler) mediaDuration(ctx context.Context, inputPath string) (float64, bool) {
+	if handler.mediaDurationFn != nil {
+		return handler.mediaDurationFn(ctx, inputPath)
+	}
+
+	ffmpeg := media.NewExecFFmpeg(handler.cfg.FFmpegPath, handler.cfg.FFprobePath)
+
+	info, err := ffmpeg.Probe(ctx, inputPath)
+	if err != nil || info.Duration <= 0 {
+		return 0, false
+	}
+
+	return info.Duration, true
 }
 
 // queueRegenerate re-queues a clip after metadata changes.
@@ -859,6 +895,50 @@ func resolveMediaPath(
 	return cfg.RemapMediaPath(path), nil
 }
 
+// resolveNewClip resolves a new clip's quality and source, then bounds the
+// selection by the source's own length.
+//
+// The range check runs last because it is the only one that needs the resolved
+// path, and it runs before anything is persisted because a rejected selection
+// must not leave a row behind that a render is then going to fail on. An 11 hour
+// start on a 2 hour film is a legal clip length, so no other check catches it.
+//
+// The three steps are one seam so the caller reads as resolve-then-persist, and
+// each keeps its own code because API clients distinguish them.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - req: Parsed request, updated with the resolved quality.
+//
+// Returns:
+//   - inputPath: Resolved source media path.
+//   - code: API error code for whatever failed.
+//   - err: Non-nil when the clip may not be persisted.
+func (handler *ClipHandler) resolveNewClip(
+	ctx fiber.Ctx,
+	req *api.ClipRequest,
+	jobType queue.JobType,
+) (string, clipErrorCode, error) {
+	quality, err := handler.resolveQuality(ctx.Context(), req.Quality)
+	if err != nil {
+		return "", "invalid_quality", fmt.Errorf("resolve profile: %w", err)
+	}
+
+	req.Quality = quality
+
+	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
+	if err != nil {
+		return "", errorMediaPath, fmt.Errorf("resolve input: %w", err)
+	}
+
+	err = handler.validateSelection(ctx.Context(), inputPath, jobType, *req)
+	if err != nil {
+		return "", invalidRequest, fmt.Errorf("validate range: %w", err)
+	}
+
+	return inputPath, "", nil
+}
+
 // resolveQuality maps an empty or named quality onto a stored profile id.
 func (handler *ClipHandler) resolveQuality(ctx context.Context, quality string) (string, error) {
 	if quality == "" {
@@ -926,6 +1006,149 @@ func (handler *ClipHandler) validateDuration(jobType queue.JobType, duration flo
 
 	if duration > float64(maxDur) {
 		return fmt.Errorf("%w: must be between 0 and %d seconds", errInvalidDuration, maxDur)
+	}
+
+	return nil
+}
+
+// validateNewClip runs every check that must pass before a clip is persisted.
+//
+// The range bound needs the resolved source, so it cannot join validateClipParams
+// on the request alone. Both run before anything is written, because a rejected
+// selection must not leave a row behind that a render is then going to fail on.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - inputPath: Resolved source media path.
+//   - jobType: Normalized job type.
+//   - req: Parsed request carrying the marks and encoding options.
+//
+// Returns:
+//   - err: Non-nil when the clip may not be persisted.
+func (handler *ClipHandler) validateNewClip(
+	ctx context.Context,
+	inputPath string,
+	jobType queue.JobType,
+	req api.ClipRequest,
+) error {
+	err := handler.validateClipParams(jobType, req)
+	if err != nil {
+		return fmt.Errorf("validate params: %w", err)
+	}
+
+	err = handler.validateSelection(ctx, inputPath, jobType, req)
+	if err != nil {
+		return fmt.Errorf("validate range: %w", err)
+	}
+
+	return nil
+}
+
+// validateSelection enforces that a selection lies inside the source.
+//
+// The duration checks in validateDuration cannot catch this. A start of eleven
+// hours on a two hour film is a perfectly legal clip *length*, so it passes
+// every other bound, and the job is persisted before ffmpeg reports that it
+// seeked past the end. The range is only wrong relative to the source, so the
+// source's own length is the only thing that can reject it.
+//
+// A source that cannot be probed is not rejected. The render would fail, but so
+// would any guess made here, and a wrong rejection is worse than a late one.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - inputPath: Resolved source media path.
+//   - req: Parsed request carrying the marks.
+//
+// Returns:
+//   - err: Non-nil when the selection reaches past the end of the source.
+func (handler *ClipHandler) validateSelection(
+	ctx context.Context,
+	inputPath string,
+	jobType queue.JobType,
+	req api.ClipRequest,
+) error {
+	mediaDuration, ok := handler.mediaDuration(ctx, inputPath)
+	if !ok {
+		// The length is unknown, so the bounds that need it cannot be applied.
+		// The one that does not is still checked, by handing checkRange a zero
+		// length: it rejects a negative start and declines to judge the rest.
+		mediaDuration = 0
+	}
+
+	err := checkRange(req.StartTime, selectionDuration(jobType, req), mediaDuration)
+	if err != nil {
+		return fmt.Errorf("check range: %w", err)
+	}
+
+	return nil
+}
+
+// selectionDuration is the range length a job type is actually bounded by.
+//
+// It is separate from validateSelection so the choice is testable without a
+// probe. Extracting it also means dropping the screenshot case fails a test
+// rather than quietly widening the bound.
+//
+// Parameters:
+//   - jobType: Normalized job type.
+//   - req: Parsed request carrying the marks.
+//
+// Returns:
+//   - duration: The range length to bound by, in seconds.
+func selectionDuration(jobType queue.JobType, req api.ClipRequest) float64 {
+	// A screenshot is a single frame at the start mark, so the end mark is
+	// derived from the form but never used. Bounding it would reject a frame
+	// that sits inside the source purely because the end past it does not.
+	if jobType == queue.JobTypeScreenshot {
+		return 0
+	}
+
+	return req.Duration
+}
+
+// checkRange reports whether a selection fits inside a source of the given
+// length.
+//
+// It is separate from the probe so the bound can be exercised without one.
+//
+// Parameters:
+//   - start: Selection start in seconds.
+//   - duration: Selection length in seconds, zero for a screenshot.
+//   - mediaDuration: Source length in seconds.
+//
+// Returns:
+//   - err: Non-nil when the selection reaches past the end of the source.
+func checkRange(start, duration, mediaDuration float64) error {
+	// A negative start is rejected before the length is consulted. It is wrong
+	// whatever the source turns out to be, so an unknown length is no reason to
+	// let it through.
+	if start < 0 {
+		return fmt.Errorf("%w: the start must not be negative", errRangeOutsideMedia)
+	}
+
+	// With no length there is nothing to compare against, and guessing one would
+	// reject valid selections rather than the invalid ones.
+	if mediaDuration <= 0 {
+		return nil
+	}
+
+	if start >= mediaDuration {
+		return fmt.Errorf(
+			"%w: the start is %s but the media is only %s long",
+			errRangeOutsideMedia,
+			media.FromSeconds(start).Short(),
+			media.FromSeconds(mediaDuration).Short(),
+		)
+	}
+
+	if end := start + duration; end > mediaDuration {
+		return fmt.Errorf(
+			"%w: the end is %s but the media is only %s long",
+			errRangeOutsideMedia,
+			media.FromSeconds(end).Short(),
+			media.FromSeconds(mediaDuration).Short(),
+		)
 	}
 
 	return nil

@@ -163,7 +163,7 @@ templ ClipCard(item view.ClipItem) {
 	<div id={ "clip-" + item.ID }>
 		@card.Card() {
 			@card.Content() {
-				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(item.MaxDur) }>
+				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(item.MaxDur) } data-media-dur={ media.FormatSeconds(item.MediaDuration) }>
 					@csrf.Field()
 					<input type="hidden" name="mediaId" value={ item.MediaID }/>
 					@ClipStatus(item)
@@ -185,24 +185,29 @@ templ ClipCard(item view.ClipItem) {
 							<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
 						</div>
 						<div class="flex flex-col gap-2">
-							<div class="grid">
-								<div class="col-start-1 row-start-1 flex" data-export-for="clip,gif">
-									@label.Label(label.Props{For: "start-" + item.ID}) {
-										Start
-									}
-								</div>
-								<div class="col-start-1 row-start-1 flex" data-export-for="screenshot">
+						<div class="grid">
+							<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="clip,gif">
+								@label.Label(label.Props{For: "start-" + item.ID}) {
+									Start
+								}
+								<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
+							</div>
+								<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="screenshot">
 									@label.Label(label.Props{For: "start-" + item.ID}) {
 										Time
 									}
+									<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
 								</div>
 							</div>
 							<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" value={ media.FromSeconds(item.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
 						</div>
 						<div class="flex flex-col gap-2" data-export-for="clip,gif">
-							@label.Label(label.Props{For: "end-" + item.ID}) {
-								End
-							}
+							<div class="flex items-baseline gap-2">
+								@label.Label(label.Props{For: "end-" + item.ID}) {
+									End
+								}
+								<span data-end-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
+							</div>
 							<input id={ "end-" + item.ID } name="endTime" type="text" inputmode="decimal" value={ media.FromSeconds(item.EndTime()).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
 						</div>
 						<input type="hidden" id={ "dur-" + item.ID } name="duration" value={ media.FromSeconds(item.Duration).String() }/>
@@ -233,7 +238,7 @@ templ ClipCard(item view.ClipItem) {
 							<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
 						</div>
 					</div>
-					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).Short() }</span> (max { media.FromSeconds(float64(item.MaxDur)).Short() }) <span data-duration-warning class="hidden text-destructive">Clamped to the maximum duration.</span></p>
+					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).Short() }</span> (max { media.FromSeconds(float64(item.MaxDur)).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
 					@ColorFields(item.CropBlackBars, item.WebSafeColor, item.PreserveHDR, item.SourceHDR)
 				</form>
 			}

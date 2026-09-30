@@ -60,7 +60,7 @@ func newDeleteTestHandler(t *testing.T, id string) *ClipHandler {
 		MediaID:    "100",
 		MediaTitle: testMovie,
 		MediaType:  "movie",
-		InputPath:  "/media/movie.mkv",
+		InputPath:  testMediaPath,
 		OutputPath: "",
 		StartTime:  10,
 		Duration:   15,
