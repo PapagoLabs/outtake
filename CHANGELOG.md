@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/klauspost/pgzip to v1.2.7 by @renovate[bot] in [#265](https://github.com/PapagoLabs/outtake/pull/265)
 - Update module github.com/andybalholm/brotli to v1.2.6 by @renovate[bot] in [#259](https://github.com/PapagoLabs/outtake/pull/259)
 - Add github sponsorship configuration by @nicholas-fedor in [#255](https://github.com/PapagoLabs/outtake/pull/255)
 - Update module github.com/ncruces/go-strftime to v1.1.0 by @renovate[bot] in [#253](https://github.com/PapagoLabs/outtake/pull/253)
