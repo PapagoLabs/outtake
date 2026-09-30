@@ -118,7 +118,7 @@ templ LiveSessions(sessions []SessionItem) {
 								}
 							</p>
 							<p class="text-sm text-muted-foreground">
-								{ media.FromSeconds(sess.ViewOffset).HMS() } / { media.FromSeconds(sess.Duration).HMS() }
+								{ media.FromSeconds(sess.ViewOffset).Short() } / { media.FromSeconds(sess.Duration).Short() }
 							</p>
 						</div>
 						if sess.MediaID != "" {
