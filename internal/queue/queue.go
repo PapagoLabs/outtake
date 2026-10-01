@@ -536,7 +536,7 @@ func (q *Queue) processJob(job *Job) {
 
 	err := q.runHandler(ctx, job)
 
-	result := q.settle(job, err)
+	result, settled := q.settle(job, err)
 
 	switch {
 	case result == outcomeDeleted:
@@ -558,7 +558,10 @@ func (q *Queue) processJob(job *Job) {
 		return
 	}
 
-	q.notify(job)
+	// The entry settle recorded against, not the object this worker captured.
+	// A reinstate replaces the entry with a caller's copy, so notifying the
+	// captured one would persist a status the settle had already moved on from.
+	q.notify(settled)
 }
 
 // runHandler invokes the job handler, turning a panic into an error.
@@ -623,7 +626,9 @@ func (q *Queue) runHandler(ctx context.Context, job *Job) (err error) {
 //
 // Returns:
 //   - outcome: How the job ended.
-func (q *Queue) settle(job *Job, err error) outcome {
+//   - settled: The entry the outcome was recorded against, nil when the job was
+//     deleted while running and nothing should be written.
+func (q *Queue) settle(job *Job, err error) (outcome, *Job) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -637,7 +642,7 @@ func (q *Queue) settle(job *Job, err error) outcome {
 		// The row was deleted while this was running, so the result is not
 		// written back. The status is left as the handler left it rather than
 		// being recorded, since there is no longer a job to record it against.
-		return outcomeDeleted
+		return outcomeDeleted, nil
 	}
 
 	// Everything downstream reads the entry the queue holds, so the outcome
@@ -670,10 +675,10 @@ func (q *Queue) settle(job *Job, err error) outcome {
 	live.UpdatedAt = time.Now()
 
 	if canceled {
-		return outcomeCanceled
+		return outcomeCanceled, live
 	}
 
-	return outcomeRecorded
+	return outcomeRecorded, live
 }
 
 // worker processes jobs from the queue.

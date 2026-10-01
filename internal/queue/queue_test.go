@@ -27,6 +27,7 @@ const (
 	testIdleID    = "idle"
 	testHeldID    = "held"
 	testCopyID    = "copy"
+	testNotifyID  = "notify"
 )
 
 // testPanicJobID is the job id used by the panic tests.
@@ -1181,4 +1182,61 @@ func TestSetProgressWritesUnderTheLock(t *testing.T) {
 
 	assert.Nil(t, q.SetProgress("never-queued", 10),
 		"a job the queue does not have has nowhere to record progress")
+}
+
+// TestSettleNotifiesTheEntryItRecordedAgainst covers the notification after a
+// reinstate.
+//
+// Settle records the outcome against the entry the queue currently holds, which
+// after a reinstate is the caller's copy rather than the object the worker
+// captured. Notifying the captured one would persist a status the settle had
+// already moved on from, so the row would land back on processing.
+func TestSettleNotifiesTheEntryItRecordedAgainst(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		var mu sync.Mutex
+
+		notified := make(map[string]JobStatus)
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return nil
+		})
+		q.SetStatusFunc(func(job *Job) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			notified[job.ID] = job.Status
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(&Job{
+			ID: testNotifyID, Type: JobTypeClip, Status: JobStatusPending,
+		}))
+
+		<-started
+
+		// A reinstate installs a caller's copy while the worker still holds the
+		// one it started with.
+		q.Delete(testNotifyID)
+		q.Reinstate(&Job{ID: testNotifyID, Type: JobTypeClip, Status: JobStatusCancelled})
+
+		close(release)
+		synctest.Wait()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		assert.Equal(t, JobStatusCompleted, notified[testNotifyID],
+			"the notification carries the settled status, not the captured one")
+		assert.Equal(t, JobStatusCompleted, q.GetJob(testNotifyID).Status)
+	})
 }
