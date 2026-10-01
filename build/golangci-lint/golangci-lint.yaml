@@ -3739,6 +3739,7 @@ linters:
         - T any
         - m map[string]int
         - m Model
+        - q *Queue
 
     whitespace:
       # Enforces newlines (or comments) after every multi-line if statement.
