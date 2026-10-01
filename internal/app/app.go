@@ -44,6 +44,14 @@ type App struct {
 	queue  *queue.Queue
 	db     *database.DB
 	bind   *binding.Binding
+	// ctx is canceled by a shutdown signal and is the parent of every job's
+	// context. It is built here rather than in Run so the queue can be given it
+	// before any worker exists. This is a lifetime rather than a request scope:
+	// it is never attached to a single request, and it lasts as long as the
+	// process does.
+	//nolint:containedctx // a service holding its own lifetime context, not a request one.
+	ctx  context.Context
+	stop context.CancelFunc
 }
 
 const (
@@ -70,13 +78,22 @@ var errUnknownJobType = errors.New("unknown job type")
 
 // New creates a new App with all dependencies initialized.
 func New(cfg *config.Config) (*App, error) {
+	// The signal registration is released on every path that does not produce an
+	// App, since nothing else holds the cancel func yet. Close only takes over
+	// once construction has succeeded.
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+
 	db, err := database.NewFromConfig(cfg)
 	if err != nil {
+		stop()
+
 		return nil, fmt.Errorf("init database: %w", err)
 	}
 
 	store, err := storage.NewFromConfig(cfg)
 	if err != nil {
+		stop()
+
 		_ = db.Close()
 
 		return nil, fmt.Errorf("init storage: %w", err)
@@ -92,11 +109,13 @@ func New(cfg *config.Config) (*App, error) {
 	bind := binding.New(plexProduct, plexClientID, time.Duration(cfg.SessionPollSec)*time.Second)
 	restoreBinding(cfg, db, bind)
 
-	jobQueue := startQueue(cfg, db, ffmpeg, store)
+	jobQueue := startQueue(ctx, cfg, db, ffmpeg, store)
 
 	router := newRouter(cfg, db, jobQueue, store, bind, plexProduct, plexClientID)
 
 	return &App{
+		ctx:    ctx,
+		stop:   stop,
 		cfg:    cfg,
 		router: router,
 		queue:  jobQueue,
@@ -354,6 +373,10 @@ func mountAPI(
 
 // Close cleans up application resources.
 func (app *App) Close() {
+	// Releases the signal handler, and cancels anything still following the
+	// application's context before the queue is torn down explicitly.
+	app.stop()
+
 	app.queue.Stop()
 	app.bind.Stop()
 
@@ -365,12 +388,7 @@ func (app *App) Close() {
 
 // Run starts the application server and blocks until shutdown.
 func (app *App) Run() error {
-	ctx, stop := signal.NotifyContext(
-		context.Background(),
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
-	defer stop()
+	ctx := app.ctx
 
 	go func() {
 		<-ctx.Done()
@@ -474,6 +492,7 @@ func saveProgress(
 
 // startQueue creates the worker queue and restores persisted jobs.
 func startQueue(
+	ctx context.Context,
 	cfg *config.Config,
 	db *database.DB,
 	ffmpeg media.FFmpeg,
@@ -489,14 +508,16 @@ func startQueue(
 		return processJob(progressCtx, job, ffmpeg, db, store)
 	})
 
+	// Deliberately not the queue's context. A status write has to land even while
+	// the queue is shutting down, which is exactly when that context is canceled.
 	jobQueue.SetStatusFunc(func(job *queue.Job) {
-		saveErr := db.SaveClip(context.Background(), job)
+		saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
 		if saveErr != nil {
 			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip status")
 		}
 	})
-	jobQueue.Start()
-	restoreJobs(db, jobQueue)
+	jobQueue.Start(ctx)
+	restoreJobs(ctx, db, jobQueue)
 
 	return jobQueue
 }
@@ -522,8 +543,8 @@ func restoreBinding(cfg *config.Config, db *database.DB, bind *binding.Binding) 
 }
 
 // restoreJobs reloads persisted clips into the in-memory queue.
-func restoreJobs(db *database.DB, jobQueue *queue.Queue) {
-	jobs, err := db.ListClips(context.Background())
+func restoreJobs(ctx context.Context, db *database.DB, jobQueue *queue.Queue) {
+	jobs, err := db.ListClips(ctx)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to restore clips")
 

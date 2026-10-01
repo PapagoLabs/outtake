@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"testing/synctest"
@@ -28,6 +29,8 @@ const (
 	testHeldID    = "held"
 	testCopyID    = "copy"
 	testNotifyID  = "notify"
+	testStopID    = "stop"
+	testFillerID  = "filler"
 )
 
 // testPanicJobID is the job id used by the panic tests.
@@ -152,7 +155,7 @@ func TestQueue_ProcessJob_Success(t *testing.T) {
 		}
 
 		q := NewQueue(1, handler)
-		q.Start()
+		q.Start(t.Context())
 		t.Cleanup(q.Stop)
 
 		q.Submit(&Job{
@@ -200,7 +203,7 @@ func TestQueue_ProcessJob_Failure(t *testing.T) {
 		}
 
 		q := NewQueue(1, handler)
-		q.Start()
+		q.Start(t.Context())
 		t.Cleanup(q.Stop)
 
 		q.Submit(&Job{
@@ -260,7 +263,7 @@ func TestQueue_CancelProcessing(t *testing.T) {
 		}
 
 		q := NewQueue(1, handler)
-		q.Start()
+		q.Start(t.Context())
 		t.Cleanup(q.Stop)
 
 		q.Submit(testJob("cancel-me", JobStatusPending))
@@ -281,7 +284,7 @@ func TestQueue_Stop(t *testing.T) {
 
 	synctest.Test(t, func(t *testing.T) {
 		q := NewQueue(1, nil)
-		q.Start()
+		q.Start(t.Context())
 		q.Stop()
 
 		select {
@@ -323,7 +326,7 @@ func TestQueue_DeleteDuringProcessingSuppressesEveryWrite(t *testing.T) {
 
 			notified = append(notified, job.ID)
 		})
-		q.Start()
+		q.Start(t.Context())
 		t.Cleanup(q.Stop)
 
 		q.Submit(&Job{ID: "deleted-mid-render", Type: JobTypeClip, Status: JobStatusPending})
@@ -496,7 +499,7 @@ func TestQueue_DeleteStopsACancelledJobStillWaitingInTheChannel(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -567,7 +570,7 @@ func TestQueue_DeleteTombstonesAJobAWorkerCanStillReach(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -622,7 +625,7 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 
 				return nil
 			})
-			q.Start()
+			q.Start(t.Context())
 
 			t.Cleanup(q.Stop)
 
@@ -701,7 +704,7 @@ func TestQueue_SettleClearsTheErrorOnAReinstatedJobThatSucceeds(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -745,7 +748,7 @@ func TestQueue_ReinstateLeavesAnUnwindingJobToRecordItsOutcome(t *testing.T) {
 
 			return errRenderAborted
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -794,7 +797,7 @@ func TestQueue_WorkerSurvivesAPanickingHandler(t *testing.T) {
 			return nil
 		})
 		q.SetStatusFunc(func(*Job) {})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -828,7 +831,7 @@ func TestQueue_PanicNilIsStillRecovered(t *testing.T) {
 			panic(nil)
 		})
 		q.SetStatusFunc(func(*Job) {})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -905,7 +908,7 @@ func TestQueue_SubmitRefusesASecondJobForAnActiveID(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -948,7 +951,7 @@ func TestQueue_RequeueTakesAnIdleJobAgain(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -985,7 +988,7 @@ func TestQueue_RequeueRefusesWhileAWorkerHoldsTheJob(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -1028,7 +1031,7 @@ func TestQueue_RequeueIsIdempotentWhileQueued(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -1098,7 +1101,7 @@ func TestQueue_WaitingIsClearedWithTheWorkerRegistration(t *testing.T) {
 
 			return nil
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -1214,7 +1217,7 @@ func TestSettleNotifiesTheEntryItRecordedAgainst(t *testing.T) {
 
 			notified[job.ID] = job.Status
 		})
-		q.Start()
+		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
@@ -1238,5 +1241,211 @@ func TestSettleNotifiesTheEntryItRecordedAgainst(t *testing.T) {
 		assert.Equal(t, JobStatusCompleted, notified[testNotifyID],
 			"the notification carries the settled status, not the captured one")
 		assert.Equal(t, JobStatusCompleted, q.GetJob(testNotifyID).Status)
+	})
+}
+
+// TestStopIsIdempotent covers the double close.
+//
+// Stop closed both channels with no guard, so a second call panicked. Anything
+// that tears the queue down from two paths — a signal and an explicit close, say
+// — would take the process with it on the way out.
+func TestStopIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Start(t.Context())
+
+	q.Stop()
+	q.Stop()
+}
+
+// TestStopCancelsARunningJob is the point of the queue's own context.
+//
+// ProcessJob used to build its context from context.Background(), so stopping
+// the queue could not reach a running ffmpeg: the worker was left waiting on a
+// render nobody was going to stop.
+func TestStopCancelsARunningJob(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		var mu sync.Mutex
+
+		var seen error
+
+		// Stands in for a handler that runs until its context is done.
+		q := NewQueue(1, func(ctx context.Context, _ *Job) error {
+			close(started)
+
+			<-ctx.Done()
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			seen = ctx.Err()
+
+			return ctx.Err()
+		})
+		q.Start(t.Context())
+
+		require.NoError(
+			t,
+			q.Submit(&Job{ID: testStopID, Type: JobTypeClip, Status: JobStatusPending}),
+		)
+
+		<-started
+
+		q.Stop()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		require.ErrorIs(t, seen, context.Canceled,
+			"the job's context follows the queue's, so stopping the queue reaches it")
+	})
+}
+
+// TestCancelingTheContextStopsTheQueue covers the other half of the lifetime.
+//
+// A caller that already owns a shutdown signal should not have to know the
+// queue exists to stop it. Canceling the parent has to close the queue by
+// itself — the same path Stop takes — rather than only canceling the jobs in
+// flight and leaving workers waiting on a channel nobody will feed again.
+//
+// Stop is called only afterwards, as cleanup, and is not part of what is being
+// observed here.
+func TestCancelingTheContextStopsTheQueue(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+
+		q := NewQueue(1, nil)
+		q.Start(ctx)
+
+		t.Cleanup(q.Stop)
+
+		shut := make(chan struct{})
+
+		go func() {
+			defer close(shut)
+
+			<-q.Done()
+		}()
+
+		cancel()
+
+		select {
+		case <-shut:
+		case <-time.After(2 * time.Second):
+			t.Fatal("canceling the parent did not stop the queue on its own")
+		}
+
+		err := q.Submit(&Job{ID: testStopID, Type: JobTypeClip, Status: JobStatusPending})
+		require.ErrorIs(t, err, ErrQueueStopped,
+			"and a queue canceled out from under its owner refuses further work")
+
+		q.mu.RLock()
+		defer q.mu.RUnlock()
+
+		assert.True(t, q.stopped, "the queue is marked stopped, so a submit can refuse")
+	})
+}
+
+// TestSubmitToAStoppedQueueIsRefused covers the panic.
+//
+// Stop used to close the job channel, so a Submit racing it sent on a closed
+// channel and panicked. The channel stays open and a stopped queue refuses.
+func TestSubmitToAStoppedQueueIsRefused(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Start(t.Context())
+
+	q.Stop()
+
+	err := q.Submit(&Job{ID: testStopID, Type: JobTypeClip, Status: JobStatusPending})
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrQueueStopped)
+
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
+	assert.NotContains(t, q.waiting, testStopID,
+		"a refused submit leaves no mark, since nothing will reach it")
+}
+
+// TestSubmitUnblocksWhenTheBufferIsFullAndTheQueueStops covers a submit that
+// would otherwise never return.
+//
+// The job channel is buffered and the workers stop on the done channel, so a
+// full buffer plus a stopped queue left the send with nothing coming. It now
+// waits on the shutdown too, and gives the job back rather than holding it.
+func TestSubmitUnblocksWhenTheBufferIsFullAndTheQueueStops(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		holding := make(chan struct{})
+
+		// Ends on the job's context as well as the release, because stopping the
+		// queue waits for this worker and it is the stop that has to unblock it.
+		q := NewQueue(1, func(ctx context.Context, job *Job) error {
+			if job.ID == testFillerID {
+				close(holding)
+			}
+
+			select {
+			case <-release:
+			case <-ctx.Done():
+			}
+
+			return nil
+		})
+		q.Start(t.Context())
+
+		t.Cleanup(q.Stop)
+
+		// One worker held on a filler, and the rest of the buffer filled behind
+		// it, so the next submit has nowhere to go.
+		q.Submit(&Job{ID: testFillerID, Type: JobTypeClip, Status: JobStatusPending})
+		<-holding
+
+		for i := range jobChannelSize {
+			require.NoError(t, q.Submit(&Job{
+				ID:     fmt.Sprintf("%s-%d", testFillerID, i),
+				Type:   JobTypeClip,
+				Status: JobStatusPending,
+			}))
+		}
+
+		// Stop while a submit is waiting. Cancel reaches the worker, which
+		// finishes and leaves; the done channel closes and the waiting submit
+		// gives up rather than blocking on a buffer nothing drains.
+		done := make(chan error, 1)
+
+		go func() {
+			done <- q.Submit(&Job{
+				ID: testStopID, Type: JobTypeClip, Status: JobStatusPending,
+			})
+		}()
+
+		q.Stop()
+
+		select {
+		case err := <-done:
+			require.ErrorIs(t, err, ErrQueueStopped,
+				"a submit that cannot be queued reports the shutdown rather than hanging")
+		case <-time.After(2 * time.Second):
+			t.Fatal("the submit never returned")
+		}
+
+		q.mu.RLock()
+		defer q.mu.RUnlock()
+
+		assert.NotContains(t, q.waiting, testStopID,
+			"and it leaves no mark, since nothing was going to reach it")
+
+		close(release)
 	})
 }
