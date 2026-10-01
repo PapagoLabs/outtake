@@ -36,7 +36,15 @@ type Queue struct {
 	// queued. True means no worker holds it, so it has to be stopped before it
 	// starts. False means a worker is unwinding and must be left to record its
 	// own outcome.
-	deleted  map[string]bool
+	deleted map[string]bool
+	// stop guards the one-time teardown, so a second Stop or a Stop racing a
+	// Submit is a no-op rather than a panic on a closed channel.
+	stop sync.Once
+	// stopped is set under the lock when the queue is torn down, so a submit can
+	// refuse deterministically rather than relying on a select against the done
+	// channel. A stopped queue still has buffer room, so a send would succeed
+	// into a buffer nothing is left to drain.
+	stopped  bool
 	mu       sync.RWMutex
 	wg       sync.WaitGroup
 	handler  JobHandler
@@ -66,6 +74,8 @@ const (
 )
 
 const (
+	// ErrQueueStoppedFormat wraps ErrQueueStopped with the id it refused.
+	errQueueStoppedFormat = "%w: %s"
 	// JobChannelSize is the size of the job channel buffer.
 	jobChannelSize = 100
 
@@ -79,6 +89,9 @@ const (
 // is already queued or running.
 var ErrJobActive = errors.New("a job with this id is already active")
 
+// ErrQueueStopped is returned when a job is submitted to a stopped queue.
+var ErrQueueStopped = errors.New("queue is stopped")
+
 // ErrJobPanicked is recorded against a job whose handler panicked.
 //
 // It is a fixed error rather than the panic value, because a job's stored error
@@ -87,9 +100,21 @@ var ErrJobActive = errors.New("a job with this id is already active")
 var ErrJobPanicked = errors.New("job handler panicked")
 
 // NewQueue creates a new job queue.
+//
+// The queue has no lifetime until Start is given one. Start's context is the
+// queue's lifetime and the parent of every job it runs, so canceling it stops
+// the queue the same way Stop does.
+//
+// Parameters:
+//   - workers: How many jobs may run at once.
+//   - handler: Invoked for each job.
+//
+// Returns:
+//   - queue: A queue ready to Start.
 func NewQueue(workers int, handler JobHandler) *Queue {
 	_, cancel := context.WithCancel(context.Background())
 	queue := &Queue{
+		stop:     sync.Once{},
 		workers:  workers,
 		jobChan:  make(chan *Job, jobChannelSize),
 		jobs:     make(map[string]*Job),
@@ -307,11 +332,22 @@ func (q *Queue) Reinstate(job *Job) {
 func (q *Queue) Requeue(job *Job) error {
 	q.mu.Lock()
 
+	if q.stopped {
+		q.mu.Unlock()
+
+		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
+	}
+
 	if reason := q.heldReason(job.ID); reason != "" {
 		q.mu.Unlock()
 
 		return fmt.Errorf("%w: %s is %s", ErrJobActive, job.ID, reason)
 	}
+
+	// Kept so the reset below can be undone if the queue stops between taking the
+	// job and queueing it. A value copy is complete here for the same reason it
+	// is on the accessors.
+	previous := *job
 
 	job.Status = JobStatusPending
 	job.Progress = progressReset
@@ -333,7 +369,24 @@ func (q *Queue) Requeue(job *Job) error {
 	// have this write pending over the top — the newer state losing to the older.
 	q.notify(job)
 
-	q.jobChan <- job
+	select {
+	case q.jobChan <- job:
+	case <-q.done:
+		// Shutdown between taking the job and queueing it. The job goes back to
+		// what it said before this call, in the queue, on the caller's own object
+		// and in the row. Leaving it reset would be the stranded case again:
+		// pending, with nothing running it and nothing queued to pick it up.
+		q.mu.Lock()
+		delete(q.waiting, job.ID)
+
+		*job = previous
+		q.jobs[job.ID] = job
+		q.mu.Unlock()
+
+		q.notify(job)
+
+		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
+	}
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
@@ -385,21 +438,63 @@ func (q *Queue) SetStatusFunc(fn StatusFunc) {
 }
 
 // Start starts the job queue workers.
-func (q *Queue) Start() {
+//
+// The context is the lifetime of the queue and of every job it runs, so a
+// caller that already holds a shutdown signal does not need to know about the
+// queue to stop it. Canceling it is equivalent to Stop, and it is what lets a
+// running ffmpeg be torn down rather than abandoned.
+//
+// Parameters:
+//   - ctx: Lifetime for the queue and for every job.
+func (q *Queue) Start(ctx context.Context) {
+	// Stop cancels this rather than the context it was built from, because this is
+	// the one every job's context descends from. Canceling the caller's context
+	// instead would be wrong — Stop does not own it — and would leave a running
+	// ffmpeg unwinding on nothing.
+	ctx, cancel := context.WithCancel(ctx)
+
+	q.mu.Lock()
+
+	q.cancel = cancel
+	q.mu.Unlock()
+
+	// Canceling the caller's context stops the queue through the same guarded
+	// path Stop uses, rather than only canceling the jobs in flight. Without it
+	// the workers would sit waiting on the channel with nothing left to feed
+	// them, and a later Submit would be accepted by a queue that can never run
+	// it.
+	context.AfterFunc(ctx, q.Stop)
+
 	for i := range q.workers {
 		q.wg.Go(func() {
-			q.worker(i)
+			q.worker(ctx, i)
 		})
 	}
 
 	logging.Logger.Info().Int("workers", q.workers).Msg("job queue started")
 }
 
-// Stop stops the job queue.
+// Stop stops the job queue and waits for its workers.
+//
+// It is safe to call more than once and to race a Submit. Canceling the
+// queue's context is what stops a running job, so an in-flight ffmpeg is torn
+// down rather than abandoned.
+//
+// The job channel is deliberately left open. Closing it would be a second exit
+// for the workers, and it is the one Submit sends on, so closing it turns a
+// concurrent Submit into a panic. The workers leave on the done channel instead,
+// and Submit refuses rather than sending.
 func (q *Queue) Stop() {
-	q.cancel()
-	close(q.jobChan)
-	close(q.done)
+	q.stop.Do(func() {
+		q.mu.Lock()
+
+		q.stopped = true
+		q.mu.Unlock()
+
+		q.cancel()
+		close(q.done)
+	})
+
 	q.wg.Wait()
 }
 
@@ -418,6 +513,12 @@ func (q *Queue) Stop() {
 func (q *Queue) Submit(job *Job) error {
 	q.mu.Lock()
 
+	if q.stopped {
+		q.mu.Unlock()
+
+		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
+	}
+
 	if reason := q.heldReason(job.ID); reason != "" {
 		q.mu.Unlock()
 
@@ -433,7 +534,22 @@ func (q *Queue) Submit(job *Job) error {
 	// this would then write pending over it.
 	q.notify(job)
 
-	q.jobChan <- job
+	// Waiting on the shutdown as well as the channel. The stopped check above
+	// catches a queue that is already down; this covers the narrow window where
+	// it goes down between that check and this send, and a full buffer would
+	// otherwise leave the submit waiting on a queue whose workers may all have
+	// left without draining it.
+	select {
+	case q.jobChan <- job:
+	case <-q.done:
+		// Shutdown between taking the job and queueing it. The mark goes back,
+		// since nothing is going to reach it.
+		q.mu.Lock()
+		delete(q.waiting, job.ID)
+		q.mu.Unlock()
+
+		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
+	}
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
@@ -492,8 +608,10 @@ func (q *Queue) notify(job *Job) {
 }
 
 // processJob processes a single job.
-func (q *Queue) processJob(job *Job) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (q *Queue) processJob(ctx context.Context, job *Job) {
+	// The worker's own context, so a single job can be canceled without
+	// disturbing the rest of the queue.
+	jobCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	q.mu.Lock()
@@ -534,7 +652,7 @@ func (q *Queue) processJob(job *Job) {
 		Str("type", string(job.Type)).
 		Msg("processing job")
 
-	err := q.runHandler(ctx, job)
+	err := q.runHandler(jobCtx, job)
 
 	result, settled := q.settle(job, err)
 
@@ -656,6 +774,14 @@ func (q *Queue) settle(job *Job, err error) (outcome, *Job) {
 	}
 
 	switch {
+	case q.stopped && !canceled && err != nil:
+		// The queue is shutting down, so the job was interrupted rather than
+		// broken. It goes back to pending with no error, which is what restoreJobs
+		// looks for, so the render is picked up again on the next start. Recording
+		// it as failed would leave a clip that only the user can recover by
+		// regenerating it by hand.
+		live.Status = JobStatusPending
+		live.Error = ""
 	case canceled:
 		live.Status = JobStatusCancelled
 		live.Error = string(JobStatusCancelled)
@@ -682,7 +808,7 @@ func (q *Queue) settle(job *Job, err error) (outcome, *Job) {
 }
 
 // worker processes jobs from the queue.
-func (q *Queue) worker(_ int) {
+func (q *Queue) worker(ctx context.Context, _ int) {
 	for {
 		select {
 		case <-q.done:
@@ -692,7 +818,7 @@ func (q *Queue) worker(_ int) {
 				return
 			}
 
-			q.processJob(job)
+			q.processJob(ctx, job)
 		}
 	}
 }

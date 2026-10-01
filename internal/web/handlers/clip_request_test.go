@@ -727,7 +727,7 @@ func TestQueueRegenerateAfterACancel(t *testing.T) {
 			settled <- struct{}{}
 		}
 	})
-	jobQueue.Start()
+	jobQueue.Start(t.Context())
 
 	t.Cleanup(jobQueue.Stop)
 
