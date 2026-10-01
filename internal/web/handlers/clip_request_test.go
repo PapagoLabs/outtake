@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -691,4 +692,80 @@ func TestAnAPIClientGetsTheSameBoundsAsTheForm(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+// TestQueueRegenerateAfterACancel covers the sequence a clip gets stuck on: start
+// a render, cancel it without deleting the clip, then regenerate.
+//
+// The regenerate resets the job's status to pending, which is the very state a
+// duplicate check reads. Doing the reset before the check made the clip look
+// like a second job for its own id, so it was refused while the row had already
+// been written saying pending with nothing running it. Restarting the process
+// appeared to fix it, because a fresh queue holds no jobs for the check to find.
+//
+// Parameters:
+//   - t: Test context.
+func TestQueueRegenerateAfterACancel(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/clips.db")
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = db.Close() })
+
+	settled := make(chan struct{}, 1)
+
+	jobQueue := queue.NewQueue(1, func(_ context.Context, _ *queue.Job) error {
+		return nil
+	})
+	// Persist on every status change, the way the real handler does, so the
+	// end state in the row is what the user would see.
+	jobQueue.SetStatusFunc(func(job *queue.Job) {
+		_ = db.SaveClip(t.Context(), job)
+
+		if job.Status == queue.JobStatusCompleted {
+			settled <- struct{}{}
+		}
+	})
+	jobQueue.Start()
+
+	t.Cleanup(jobQueue.Stop)
+
+	handler := &ClipHandler{
+		clipQueue:   jobQueue,
+		clipStorage: &storage.Storage{},
+		db:          db,
+		cfg:         &config.Config{MaxClipDurSec: 600},
+	}
+
+	job := &queue.Job{
+		ID:         "cancel-then-regenerate",
+		Type:       queue.JobTypeClip,
+		MediaID:    "100",
+		MediaTitle: testMovie,
+		MediaType:  defaultMediaType,
+		InputPath:  testMediaPath,
+		Quality:    defaultQuality,
+		Status:     queue.JobStatusPending,
+	}
+	require.NoError(t, db.SaveClip(t.Context(), job))
+	jobQueue.Restore(job)
+
+	// Cancel without deleting, which is what leaves the job in the map, idle.
+	require.True(t, jobQueue.Cancel(job.ID), "the render is canceled")
+	require.False(t, jobQueue.Cancel(job.ID), "and canceling it twice changes nothing")
+
+	require.NoError(t, handler.queueRegenerate(job),
+		"a canceled clip is idle, so it can be run again")
+
+	select {
+	case <-settled:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the regenerated job was queued but never finished")
+	}
+
+	stored, err := db.GetClip(t.Context(), job.ID)
+	require.NoError(t, err)
+	assert.Equal(t, queue.JobStatusCompleted, stored.Status,
+		"the row ends where the render does, rather than pending with nothing running it")
 }

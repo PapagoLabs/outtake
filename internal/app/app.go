@@ -510,7 +510,14 @@ func restoreJobs(db *database.DB, jobQueue *queue.Queue) {
 		case queue.JobStatusPending, queue.JobStatusProcessing:
 			job.Status = queue.JobStatusPending
 			job.Error = ""
-			jobQueue.Submit(job)
+
+			// A refusal here would mean the same id is already queued, which the
+			// rows cannot produce. It is logged rather than returned because there
+			// is nothing to report to: nothing is waiting on this loop.
+			err := jobQueue.Submit(job)
+			if err != nil {
+				log.Error().Err(err).Str("job_id", job.ID).Msg("failed to restore job")
+			}
 		default:
 			jobQueue.Restore(job)
 		}

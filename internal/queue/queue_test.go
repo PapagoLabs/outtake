@@ -19,6 +19,15 @@ import (
 	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
+// Job ids used by the submit and requeue tests.
+const (
+	testOnceID    = "once"
+	testProbeID   = "probe"
+	testBlockerID = "blocker"
+	testIdleID    = "idle"
+	testHeldID    = "held"
+)
+
 // testPanicJobID is the job id used by the panic tests.
 const testPanicJobID = "boom"
 
@@ -597,7 +606,7 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 			releaseBlocker := make(chan struct{})
 
 			q := NewQueue(1, func(_ context.Context, job *Job) error {
-				if job.ID == "blocker" {
+				if job.ID == testBlockerID {
 					close(blockerStarted)
 					<-releaseBlocker
 
@@ -617,7 +626,7 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 
 			// The single worker is held on another job, so this one is known to be
 			// sitting in the channel rather than in a worker.
-			q.Submit(&Job{ID: "blocker", Type: JobTypeClip, Status: JobStatusPending})
+			q.Submit(&Job{ID: testBlockerID, Type: JobTypeClip, Status: JobStatusPending})
 			<-blockerStarted
 
 			abandoned := &Job{ID: "abandoned", Type: JobTypeClip, Status: JobStatusPending}
@@ -860,4 +869,248 @@ func TestQueue_PanicLogCarriesTheStack(t *testing.T) {
 	assert.Contains(t, entry, `"stack":"goroutine `, "the trace is reported, not dropped")
 	assert.Contains(t, entry, "queue_test.go",
 		"and it names the frame that panicked, so the trace is this job's")
+}
+
+// TestQueue_SubmitRefusesASecondJobForAnActiveID covers the duplicate.
+//
+// Two workers on one id render the same output path at once and race on the
+// status the first one writes. Re-submitting a clip that is already queued or
+// rendering has to be refused, not queued behind it.
+func TestQueue_SubmitRefusesASecondJobForAnActiveID(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		renders := 0
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, job *Job) error {
+			if job.ID != testOnceID {
+				return nil
+			}
+
+			renders++
+
+			select {
+			case <-started:
+			default:
+				close(started)
+			}
+
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(&Job{
+			ID: testOnceID, Type: JobTypeClip, Status: JobStatusPending,
+		}))
+
+		<-started
+
+		err := q.Submit(&Job{ID: testOnceID, Type: JobTypeClip, Status: JobStatusPending})
+		require.Error(t, err, "a second job for a rendering id is refused")
+		require.ErrorIs(t, err, ErrJobActive)
+
+		close(release)
+		synctest.Wait()
+
+		assert.Equal(t, 1, renders, "the job ran once, not twice")
+	})
+}
+
+// TestQueue_RequeueTakesAnIdleJobAgain is the case the guard must not refuse.
+//
+// A clip that was canceled is still in the map, marked canceled, with nothing
+// running or queued for it. Re-running it is the whole point of the regenerate
+// button, and a check that reads the status would see the Pending the requeue
+// itself writes and call it a second job for its own id.
+func TestQueue_RequeueTakesAnIdleJobAgain(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		renders := 0
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			renders++
+
+			close(started)
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		job := &Job{ID: testIdleID, Type: JobTypeClip, Status: JobStatusCancelled}
+		q.Restore(job)
+
+		require.NoError(t, q.Requeue(job),
+			"a canceled clip is idle, not active, so it can be run again")
+		// The job's own fields are not asserted here. A worker would be writing
+		// them under the queue's lock, and reading them from the test would race
+		// with it. TestQueue_RequeueResetsTheJob covers the reset with no worker
+		// running to touch it.
+
+		<-started
+		close(release)
+		synctest.Wait()
+
+		assert.Equal(t, 1, renders, "the clip ran")
+	})
+}
+
+// TestQueue_RequeueRefusesWhileAWorkerHoldsTheJob is the other direction, and
+// the one the status-based check was never able to get right on its own.
+func TestQueue_RequeueRefusesWhileAWorkerHoldsTheJob(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		job := &Job{ID: "running", Type: JobTypeClip, Status: JobStatusPending}
+		require.NoError(t, q.Submit(job))
+
+		<-started
+
+		err := q.Requeue(job)
+		require.Error(t, err, "a rendering clip is not re-runnable")
+		require.ErrorIs(t, err, ErrJobActive)
+		assert.Equal(t, JobStatusProcessing, job.Status,
+			"and the status is left as it was, or the clip would look queued while it renders")
+
+		close(release)
+		synctest.Wait()
+
+		assert.Empty(t, q.waiting, "and nothing is left queued behind it")
+	})
+}
+
+// TestQueue_RequeueIsIdempotentWhileQueued covers the window between a requeue
+// and a worker picking it up.
+//
+// The job is in the channel and nothing is holding it yet, which is a second
+// attempt just as much as a running one.
+func TestQueue_RequeueIsIdempotentWhileQueued(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		blocking := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, job *Job) error {
+			if job.ID == testBlockerID {
+				close(blocking)
+			}
+
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		// Hold the worker so the job under test stays in the channel.
+		require.NoError(t, q.Submit(&Job{
+			ID: testBlockerID, Type: JobTypeClip, Status: JobStatusPending,
+		}))
+		<-blocking
+
+		job := &Job{ID: "waiting", Type: JobTypeClip, Status: JobStatusPending}
+		require.NoError(t, q.Requeue(job))
+
+		err := q.Requeue(job)
+		require.ErrorIs(t, err, ErrJobActive,
+			"a job already in the channel would be handed to a second worker")
+
+		close(release)
+		synctest.Wait()
+	})
+}
+
+// TestQueue_RequeueResetsTheJob covers the fields a requeue clears.
+//
+// It runs without a worker so the job is not being written underneath the
+// assertions. A test that read them while a worker was live would race with it,
+// which is the hazard the queue's state encapsulation work is for.
+func TestQueue_RequeueResetsTheJob(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+
+	job := &Job{
+		ID:       "reset",
+		Type:     JobTypeClip,
+		Status:   JobStatusCancelled,
+		Progress: 40,
+		Error:    "canceled",
+	}
+	q.Restore(job)
+
+	require.NoError(t, q.Requeue(job))
+
+	assert.Equal(t, JobStatusPending, job.Status, "queued for another attempt")
+	assert.Equal(t, 0, job.Progress, "and progress starts over, not from where it stopped")
+	assert.Empty(t, job.Error, "with no leftover from the canceled attempt")
+	assert.NotEmpty(t, q.heldReason(job.ID), "and the id is queued again")
+}
+
+// TestQueue_WaitingIsClearedWithTheWorkerRegistration covers the gap between a
+// worker taking an entry out of the channel and registering itself on it.
+//
+// Clearing the waiting mark when the entry was received left a window where
+// nothing recorded the id at all: the channel no longer held it and the cancel
+// entry was not set yet. A submit landing there was let through, and the job was
+// then handed to a second worker.
+func TestQueue_WaitingIsClearedWithTheWorkerRegistration(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		entered := make(chan struct{})
+		release := make(chan struct{})
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(entered)
+
+			<-release
+
+			return nil
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		job := &Job{ID: testHeldID, Type: JobTypeClip, Status: JobStatusPending}
+		require.NoError(t, q.Submit(job))
+
+		// Wait for the worker to be inside the handler, which is only reachable
+		// once both the waiting mark and the cancel entry are set.
+		<-entered
+		close(release)
+		synctest.Wait()
+
+		q.mu.RLock()
+		defer q.mu.RUnlock()
+
+		_, waiting := q.waiting[job.ID]
+		assert.False(t, waiting, "a worker holds the job, so it is not waiting")
+	})
 }
