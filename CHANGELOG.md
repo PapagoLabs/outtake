@@ -74,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refuse a second job for an id that is already rendering by @nicholas-fedor in [#277](https://github.com/PapagoLabs/outtake/pull/277)
 - Recover a panic in a job handler instead of taking the process down by @nicholas-fedor in [#275](https://github.com/PapagoLabs/outtake/pull/275)
 - Restore ownership when a clip delete cannot be completed by @nicholas-fedor in [#274](https://github.com/PapagoLabs/outtake/pull/274)
 - Stop a deleted job from being written back by @nicholas-fedor in [#269](https://github.com/PapagoLabs/outtake/pull/269)
