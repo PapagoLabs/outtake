@@ -69,3 +69,24 @@ const (
 	// outcomes.
 	JobStatusCancelled JobStatus = "canceled"
 )
+
+// clone returns an independent copy of the job.
+//
+// The copy is a value copy, so it is only independent while every field is
+// scalar. Adding a pointer, slice or map field would leave the copy sharing
+// whatever that field points at, which is the whole thing this exists to
+// prevent, and a field added quietly would not fail any test — it would just
+// reintroduce the shared state. A reference-typed field needs its own deep copy
+// here.
+//
+// Returns:
+//   - copy: A job that shares nothing with the original.
+func (job *Job) clone() *Job {
+	if job == nil {
+		return nil
+	}
+
+	copied := *job
+
+	return &copied
+}

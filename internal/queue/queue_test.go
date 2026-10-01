@@ -26,6 +26,8 @@ const (
 	testBlockerID = "blocker"
 	testIdleID    = "idle"
 	testHeldID    = "held"
+	testCopyID    = "copy"
+	testNotifyID  = "notify"
 )
 
 // testPanicJobID is the job id used by the panic tests.
@@ -638,7 +640,9 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 
 			q.Reinstate(abandoned)
 
-			assert.Same(t, abandoned, q.GetJob("abandoned"),
+			// Compared by value, not by identity. The accessors hand back copies, so
+			// the queue owns an equal job rather than the caller's object.
+			assert.Equal(t, abandoned, q.GetJob("abandoned"),
 				"the row that survived the failed delete is owned again")
 			assert.Empty(t, q.deleted, "the tombstone is consumed by the reinstate")
 
@@ -653,7 +657,7 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 			assert.False(t, ran, "a job the delete stopped must not start afterwards")
 			assert.Empty(t, q.dropped,
 				"the worker returned on the canceled marker and consumed it, so none is retained")
-			assert.Same(t, abandoned, q.GetJob("abandoned"),
+			assert.Equal(t, abandoned, q.GetJob("abandoned"),
 				"and the job is still owned, since its row survived")
 		})
 	})
@@ -1119,5 +1123,120 @@ func TestQueue_WaitingIsClearedWithTheWorkerRegistration(t *testing.T) {
 
 		close(release)
 		synctest.Wait()
+	})
+}
+
+// TestGetJobHandsBackACopy is the accessor contract this item exists for.
+//
+// The accessors used to return the queue's own pointer, so a caller could read
+// or write a job's status without the lock while a worker was settling it. The
+// race detector found exactly that in a test added for another item.
+func TestGetJobHandsBackACopy(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Restore(&Job{ID: testCopyID, Type: JobTypeClip, Status: JobStatusPending})
+
+	read := q.GetJob(testCopyID)
+	require.NotNil(t, read)
+
+	read.Status = JobStatusFailed
+	read.Progress = 99
+
+	after := q.GetJob(testCopyID)
+	assert.Equal(t, JobStatusPending, after.Status,
+		"writing to what GetJob returned must not reach the queue's entry")
+	assert.Equal(t, 0, after.Progress)
+}
+
+// TestGetAllJobsHandsBackCopies covers the listing accessor, which the clip list
+// and the browse pages both read while renders are running.
+func TestGetAllJobsHandsBackCopies(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Restore(&Job{ID: testCopyID, Type: JobTypeClip, Status: JobStatusPending})
+
+	jobs := q.GetAllJobs()
+	require.Len(t, jobs, 1)
+
+	jobs[0].Status = JobStatusFailed
+
+	assert.Equal(t, JobStatusPending, q.GetJob(testCopyID).Status,
+		"the listing handed out a copy, not the entry")
+}
+
+// TestSetProgressWritesUnderTheLock is the other half. The progress callback
+// runs on the render's own goroutine, so a plain field write races the worker
+// settling the same job.
+func TestSetProgressWritesUnderTheLock(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Restore(&Job{ID: testCopyID, Type: JobTypeClip, Status: JobStatusProcessing})
+
+	updated := q.SetProgress(testCopyID, 40)
+	require.NotNil(t, updated)
+	assert.Equal(t, 40, updated.Progress, "the copy carries what was set")
+	assert.Equal(t, 40, q.GetJob(testCopyID).Progress, "and so does the entry")
+
+	assert.Nil(t, q.SetProgress("never-queued", 10),
+		"a job the queue does not have has nowhere to record progress")
+}
+
+// TestSettleNotifiesTheEntryItRecordedAgainst covers the notification after a
+// reinstate.
+//
+// Settle records the outcome against the entry the queue currently holds, which
+// after a reinstate is the caller's copy rather than the object the worker
+// captured. Notifying the captured one would persist a status the settle had
+// already moved on from, so the row would land back on processing.
+func TestSettleNotifiesTheEntryItRecordedAgainst(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+		release := make(chan struct{})
+
+		var mu sync.Mutex
+
+		notified := make(map[string]JobStatus)
+
+		q := NewQueue(1, func(_ context.Context, _ *Job) error {
+			close(started)
+			<-release
+
+			return nil
+		})
+		q.SetStatusFunc(func(job *Job) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			notified[job.ID] = job.Status
+		})
+		q.Start()
+
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(&Job{
+			ID: testNotifyID, Type: JobTypeClip, Status: JobStatusPending,
+		}))
+
+		<-started
+
+		// A reinstate installs a caller's copy while the worker still holds the
+		// one it started with.
+		q.Delete(testNotifyID)
+		q.Reinstate(&Job{ID: testNotifyID, Type: JobTypeClip, Status: JobStatusCancelled})
+
+		close(release)
+		synctest.Wait()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		assert.Equal(t, JobStatusCompleted, notified[testNotifyID],
+			"the notification carries the settled status, not the captured one")
+		assert.Equal(t, JobStatusCompleted, q.GetJob(testNotifyID).Status)
 	})
 }

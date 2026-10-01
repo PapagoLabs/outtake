@@ -431,20 +431,45 @@ func persistProgress(
 	jobQueue *queue.Queue,
 ) func(int) {
 	return func(percent int) {
-		job.Progress = percent
-		job.UpdatedAt = time.Now()
-
-		if ctx.Err() != nil {
-			return
-		}
-
-		jobQueue.IfLive(job.ID, func() {
-			saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
-			if saveErr != nil {
-				log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip progress")
-			}
-		})
+		saveProgress(ctx, job, db, jobQueue, percent)
 	}
+}
+
+// saveProgress records how far a render has got, if the job still wants it.
+//
+// The value is written through the queue so the update is made under its lock,
+// on the job it is holding, rather than on a pointer the worker may be settling
+// at the same time. The copy that comes back is what gets persisted, so the save
+// carries the value the queue accepted.
+//
+// Parameters:
+//   - ctx: The job's context, canceled when the job is canceled or deleted.
+//   - job: The job being rendered.
+//   - db: Database handle.
+//   - jobQueue: The queue that owns the job.
+//   - percent: Progress so far.
+func saveProgress(
+	ctx context.Context,
+	job *queue.Job,
+	db *database.DB,
+	jobQueue *queue.Queue,
+	percent int,
+) {
+	if ctx.Err() != nil {
+		return
+	}
+
+	updated := jobQueue.SetProgress(job.ID, percent)
+	if updated == nil {
+		return
+	}
+
+	jobQueue.IfLive(job.ID, func() {
+		saveErr := db.SaveClip(context.WithoutCancel(ctx), updated)
+		if saveErr != nil {
+			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip progress")
+		}
+	})
 }
 
 // startQueue creates the worker queue and restores persisted jobs.
