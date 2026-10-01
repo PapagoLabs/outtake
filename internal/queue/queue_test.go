@@ -1449,3 +1449,44 @@ func TestSubmitUnblocksWhenTheBufferIsFullAndTheQueueStops(t *testing.T) {
 		close(release)
 	})
 }
+
+// TestAJobInterruptedByShutdownStaysPending covers what a shutdown does to a
+// render it interrupted.
+//
+// Stopping the queue cancels a running job, and the handler reports that as an
+// error like any other. Recording it as failed would be wrong: nothing was
+// broken, the work is simply unfinished, and restoreJobs only picks up pending
+// or processing jobs. A clip left failed can only be recovered by the user
+// regenerating it by hand after the restart they just did.
+func TestAJobInterruptedByShutdownStaysPending(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		started := make(chan struct{})
+
+		q := NewQueue(1, func(ctx context.Context, _ *Job) error {
+			close(started)
+
+			<-ctx.Done()
+
+			return ctx.Err()
+		})
+		q.Start(t.Context())
+
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(&Job{
+			ID: testStopID, Type: JobTypeClip, Status: JobStatusPending,
+		}))
+
+		<-started
+
+		q.Stop()
+
+		settled := q.GetJob(testStopID)
+		require.NotNil(t, settled)
+		assert.Equal(t, JobStatusPending, settled.Status,
+			"an interrupted render is unfinished work, not a failure")
+		assert.Empty(t, settled.Error, "and carries no error from being stopped")
+	})
+}

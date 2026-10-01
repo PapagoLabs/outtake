@@ -101,12 +101,11 @@ var ErrJobPanicked = errors.New("job handler panicked")
 
 // NewQueue creates a new job queue.
 //
-// The queue's lifetime follows ctx. Canceling it stops the queue the same way
-// Stop does, so a caller that already owns a shutdown signal does not need to
-// know about the queue at all.
+// The queue has no lifetime until Start is given one. Start's context is the
+// queue's lifetime and the parent of every job it runs, so canceling it stops
+// the queue the same way Stop does.
 //
 // Parameters:
-//   - ctx: Lifetime for the queue and for every job it runs.
 //   - workers: How many jobs may run at once.
 //   - handler: Invoked for each job.
 //
@@ -374,18 +373,17 @@ func (q *Queue) Requeue(job *Job) error {
 	case q.jobChan <- job:
 	case <-q.done:
 		// Shutdown between taking the job and queueing it. The job goes back to
-		// what it said before this call, in the queue and in the row. Leaving it
-		// reset would be the stranded case again: pending, with nothing running
-		// it and nothing queued to pick it up.
-		restored := previous.clone()
-
+		// what it said before this call, in the queue, on the caller's own object
+		// and in the row. Leaving it reset would be the stranded case again:
+		// pending, with nothing running it and nothing queued to pick it up.
 		q.mu.Lock()
 		delete(q.waiting, job.ID)
 
-		q.jobs[job.ID] = restored
+		*job = previous
+		q.jobs[job.ID] = job
 		q.mu.Unlock()
 
-		q.notify(restored)
+		q.notify(job)
 
 		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
 	}
@@ -776,6 +774,14 @@ func (q *Queue) settle(job *Job, err error) (outcome, *Job) {
 	}
 
 	switch {
+	case q.stopped && !canceled && err != nil:
+		// The queue is shutting down, so the job was interrupted rather than
+		// broken. It goes back to pending with no error, which is what restoreJobs
+		// looks for, so the render is picked up again on the next start. Recording
+		// it as failed would leave a clip that only the user can recover by
+		// regenerating it by hand.
+		live.Status = JobStatusPending
+		live.Error = ""
 	case canceled:
 		live.Status = JobStatusCancelled
 		live.Error = string(JobStatusCancelled)
