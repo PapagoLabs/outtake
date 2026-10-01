@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"runtime/debug"
 	"slices"
 	"sync"
@@ -191,12 +190,18 @@ func (q *Queue) Done() <-chan struct{} {
 
 // GetAllJobs returns every job, newest first.
 //
-// Jobs with the same CreatedAt are ordered by ID descending.
+// Jobs with the same CreatedAt are ordered by ID descending. Each is a copy, so
+// the caller can read it without the lock and without racing a worker that is
+// settling the job underneath.
 func (q *Queue) GetAllJobs() []*Job {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
-	result := slices.Collect(maps.Values(q.jobs))
+	result := make([]*Job, 0, len(q.jobs))
+	for _, job := range q.jobs {
+		result = append(result, job.clone())
+	}
+
 	slices.SortFunc(result, compareJobsNewestFirst)
 
 	return result
@@ -211,12 +216,18 @@ func compareJobsNewestFirst(left, right *Job) int {
 	return cmp.Compare(right.ID, left.ID)
 }
 
-// GetJob gets a job by ID.
+// GetJob gets a job by ID, as a copy.
+//
+// The copy is what makes it safe to read the returned job's fields without the
+// queue's lock: a worker mutates status and progress in place, so handing out
+// the queue's own pointer would let a reader tear. A caller that wants to change
+// a job persists its copy and, where it is still live, hands it back through
+// Submit or Requeue rather than writing through the pointer.
 func (q *Queue) GetJob(id string) *Job {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
-	return q.jobs[id]
+	return q.jobs[id].clone()
 }
 
 // IfLive runs fn only while the queue still owns the job, holding the read
@@ -338,6 +349,34 @@ func (q *Queue) Restore(job *Job) {
 	defer q.mu.Unlock()
 
 	q.jobs[job.ID] = job
+}
+
+// SetProgress records how far a render has got.
+//
+// The write happens under the lock, because the progress callback runs on the
+// render's own goroutine while a worker settles the same job from another. The
+// updated job is returned as a copy so the caller can persist it without touching
+// the queue's entry.
+//
+// Parameters:
+//   - id: Job being rendered.
+//   - percent: Progress so far.
+//
+// Returns:
+//   - job: The updated job, nil when the queue no longer has it.
+func (q *Queue) SetProgress(id string, percent int) *Job {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	job, ok := q.jobs[id]
+	if !ok {
+		return nil
+	}
+
+	job.Progress = percent
+	job.UpdatedAt = time.Now()
+
+	return job.clone()
 }
 
 // SetStatusFunc registers a callback invoked on job status changes.
@@ -601,24 +640,34 @@ func (q *Queue) settle(job *Job, err error) outcome {
 		return outcomeDeleted
 	}
 
+	// Everything downstream reads the entry the queue holds, so the outcome
+	// belongs on that one rather than on the object this worker captured. A
+	// reinstate hands the job back as a copy from the caller, and writing to the
+	// captured object would record the result against something the queue has
+	// already dropped.
+	live, tracked := q.jobs[job.ID]
+	if !tracked {
+		live = job
+	}
+
 	switch {
 	case canceled:
-		job.Status = JobStatusCancelled
-		job.Error = string(JobStatusCancelled)
+		live.Status = JobStatusCancelled
+		live.Error = string(JobStatusCancelled)
 	case err != nil:
-		job.Status = JobStatusFailed
-		job.Error = err.Error()
+		live.Status = JobStatusFailed
+		live.Error = err.Error()
 	default:
-		job.Status = JobStatusCompleted
+		live.Status = JobStatusCompleted
 		// Cleared, because a job can arrive here still carrying an error. A
 		// reinstated one is marked canceled while a worker unwinds, and that
 		// worker may then report success — leaving a completed job whose error
 		// says it was canceled.
-		job.Error = ""
-		job.Progress = progressDone
+		live.Error = ""
+		live.Progress = progressDone
 	}
 
-	job.UpdatedAt = time.Now()
+	live.UpdatedAt = time.Now()
 
 	if canceled {
 		return outcomeCanceled
