@@ -82,6 +82,11 @@ const (
 	errorPreviewBusy = "preview_busy"
 	// ErrorMediaPath is the error code for a source that could not be resolved.
 	errorMediaPath = "media_path"
+	// ErrorJobActive is the error code for a clip already queued or rendering.
+	//
+	// A conflict rather than a failure: the request was well formed, it just
+	// cannot be carried out while the current attempt is still running.
+	errorJobActive = "job_active"
 	// ErrorPreviewNotRunning is the error code for canceling a finished preview.
 	errorPreviewNotRunning = "preview_not_running"
 	// MessagePreviewNotRunning explains a cancel that changed nothing.
@@ -245,7 +250,11 @@ func (handler *ClipHandler) Create(ctx fiber.Ctx) error {
 		return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
 	}
 
-	handler.clipQueue.Submit(job)
+	err = handler.clipQueue.Submit(job)
+	if err != nil {
+		//nolint:wrapcheck // the error becomes a response body, not a returned chain.
+		return writeJobSubmitError(ctx, err)
+	}
 
 	if isFormRequest(ctx) {
 		return redirectTo(ctx, clipReturnPath(req.MediaID))
@@ -664,10 +673,31 @@ func (handler *ClipHandler) Update(ctx fiber.Ctx) error {
 
 	err = handler.maybeRegenerate(ctx, job)
 	if err != nil {
-		return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
+		//nolint:wrapcheck // the error becomes a response body, not a returned chain.
+		return writeJobSubmitError(ctx, err)
 	}
 
 	return redirectTo(ctx, clipReturnPath(job.MediaID))
+}
+
+// writeJobSubmitError reports a job the queue would not take.
+//
+// Only a duplicate id is a conflict. Anything else is a failure like any other,
+// and reporting it as a conflict would tell the caller to retry a request that
+// cannot succeed.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - err: The failure from the queue.
+//
+// Returns:
+//   - err: The response write result.
+func writeJobSubmitError(ctx fiber.Ctx, err error) error {
+	if errors.Is(err, queue.ErrJobActive) {
+		return writeError(ctx, fiber.StatusConflict, errorJobActive, err.Error())
+	}
+
+	return writeError(ctx, fiber.StatusInternalServerError, persistFailed, err.Error())
 }
 
 // applyClipEdits writes editable clip fields onto a stored job.
@@ -760,7 +790,7 @@ func (handler *ClipHandler) maybeRegenerate(ctx fiber.Ctx, job *queue.Job) error
 		return nil
 	}
 
-	err := handler.queueRegenerate(ctx.Context(), job)
+	err := handler.queueRegenerate(job)
 	if err != nil {
 		return fmt.Errorf("regenerate: %w", err)
 	}
@@ -796,19 +826,24 @@ func (handler *ClipHandler) mediaDuration(ctx context.Context, inputPath string)
 }
 
 // queueRegenerate re-queues a clip after metadata changes.
-func (handler *ClipHandler) queueRegenerate(ctx context.Context, job *queue.Job) error {
+//
+// The reset belongs to the queue, which does it under the same lock as its own
+// check. Doing it here first would write Pending, which is the state the check
+// reads, and the clip would be refused for looking like a second job for its own
+// id — while the row it had just saved said pending with nothing running it.
+//
+// Parameters:
+//   - job: The clip to run again.
+//
+// Returns:
+//   - err: ErrJobActive when the clip is already rendering or queued.
+func (handler *ClipHandler) queueRegenerate(job *queue.Job) error {
 	assignOutputPaths(job, handler.clipStorage)
 
-	job.Status = queue.JobStatusPending
-	job.Progress = 0
-	job.Error = ""
-
-	err := handler.db.SaveClip(ctx, job)
+	err := handler.clipQueue.Requeue(job)
 	if err != nil {
-		return fmt.Errorf("save regenerate: %w", err)
+		return fmt.Errorf("requeue: %w", err)
 	}
-
-	handler.clipQueue.Submit(job)
 
 	return nil
 }

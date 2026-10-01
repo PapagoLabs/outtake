@@ -8,6 +8,7 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"runtime/debug"
 	"slices"
@@ -27,6 +28,11 @@ type Queue struct {
 	jobs    map[string]*Job
 	cancels map[string]context.CancelFunc
 	dropped map[string]struct{}
+	// waiting records the ids with an entry sitting in the channel, not yet
+	// picked up. Reachability is tracked here rather than read off a status,
+	// because a caller legitimately writes Pending while re-queueing an idle job
+	// and that must not look like a second job for the same id.
+	waiting map[string]struct{}
 	// deleted records a job the queue has given up on, and whether it was still
 	// queued. True means no worker holds it, so it has to be stopped before it
 	// starts. False means a worker is unwinding and must be left to record its
@@ -66,7 +72,13 @@ const (
 
 	// ProgressDone represents 100% progress.
 	progressDone = 100
+	// ProgressReset is the progress a re-queued job starts from.
+	progressReset = 0
 )
+
+// ErrJobActive is returned when a job is submitted while one with the same id
+// is already queued or running.
+var ErrJobActive = errors.New("a job with this id is already active")
 
 // ErrJobPanicked is recorded against a job whose handler panicked.
 //
@@ -84,6 +96,7 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 		jobs:     make(map[string]*Job),
 		cancels:  make(map[string]context.CancelFunc),
 		dropped:  make(map[string]struct{}),
+		waiting:  make(map[string]struct{}),
 		deleted:  make(map[string]bool),
 		mu:       sync.RWMutex{},
 		wg:       sync.WaitGroup{},
@@ -267,6 +280,58 @@ func (q *Queue) Reinstate(job *Job) {
 	q.jobs[job.ID] = job
 }
 
+// Requeue puts an idle job back on the queue for another attempt.
+//
+// The reset happens under the same lock as the check, because the caller cannot
+// safely do it first: it writes Pending, which is the very state the check reads,
+// so it would report the job it just reset as a second job for its own id. Doing
+// it after leaves a refusal having changed a job the queue then refused to take,
+// which the map would keep showing as pending with nothing running it.
+//
+// Parameters:
+//   - job: Job to run again.
+//
+// Returns:
+//   - err: ErrJobActive when a worker holds the job or the channel already has it.
+func (q *Queue) Requeue(job *Job) error {
+	q.mu.Lock()
+
+	if reason := q.heldReason(job.ID); reason != "" {
+		q.mu.Unlock()
+
+		return fmt.Errorf("%w: %s is %s", ErrJobActive, job.ID, reason)
+	}
+
+	job.Status = JobStatusPending
+	job.Progress = progressReset
+	job.Error = ""
+	job.UpdatedAt = time.Now()
+
+	// A cancellation marker left by a job that was never picked up would
+	// otherwise skip this one instead. Re-running is the explicit intent, and
+	// there is no worker here to have cleared it: one that had picked the job up
+	// would be holding it, which is refused above.
+	delete(q.dropped, job.ID)
+
+	q.jobs[job.ID] = job
+	q.waiting[job.ID] = struct{}{}
+	q.mu.Unlock()
+
+	// Reported before the entry is on the channel. The worker notifies the moment
+	// it picks the job up, so enqueuing first could let it record processing and
+	// have this write pending over the top — the newer state losing to the older.
+	q.notify(job)
+
+	q.jobChan <- job
+
+	logging.Logger.Info().
+		Str("job_id", job.ID).
+		Str("type", string(job.Type)).
+		Msg("job requeued")
+
+	return nil
+}
+
 // Restore registers a job without enqueueing it.
 func (q *Queue) Restore(job *Job) {
 	q.mu.Lock()
@@ -300,20 +365,65 @@ func (q *Queue) Stop() {
 }
 
 // Submit submits a job to the queue.
-func (q *Queue) Submit(job *Job) {
+//
+// It refuses a second job for an id that is already queued or running. Two
+// workers on one id would render the same output path at once and race on the
+// status the first one writes, so a caller wanting to re-render has to wait for
+// the current attempt rather than overlap it.
+//
+// Parameters:
+//   - job: Job to queue.
+//
+// Returns:
+//   - err: ErrJobActive when the id is already queued or running.
+func (q *Queue) Submit(job *Job) error {
 	q.mu.Lock()
 
+	if reason := q.heldReason(job.ID); reason != "" {
+		q.mu.Unlock()
+
+		return fmt.Errorf("%w: %s is %s", ErrJobActive, job.ID, reason)
+	}
+
 	q.jobs[job.ID] = job
+	q.waiting[job.ID] = struct{}{}
 	q.mu.Unlock()
 
-	q.jobChan <- job
-
+	// Reported before the entry is on the channel, for the same reason as
+	// Requeue: a worker that picks the job up first would record processing, and
+	// this would then write pending over it.
 	q.notify(job)
+
+	q.jobChan <- job
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
 		Str("type", string(job.Type)).
 		Msg("job submitted")
+
+	return nil
+}
+
+// heldReason reports why an id is already taken, and whether it is.
+//
+// It must be called with the lock held, so the answer is taken before the lock
+// is released rather than by reading the job afterwards.
+//
+// Parameters:
+//   - id: Job id to check.
+//
+// Returns:
+//   - reason: What has the id, empty when nothing does.
+func (q *Queue) heldReason(id string) string {
+	if _, running := q.cancels[id]; running {
+		return "rendering"
+	}
+
+	if _, waiting := q.waiting[id]; waiting {
+		return "already queued"
+	}
+
+	return ""
 }
 
 // notify invokes the status callback when one is registered.
@@ -348,6 +458,13 @@ func (q *Queue) processJob(job *Job) {
 	defer cancel()
 
 	q.mu.Lock()
+
+	// The entry is in a worker's hands now, so the queue no longer has it
+	// waiting. This is cleared here rather than where the entry was received,
+	// because between those two locks nothing records the id at all: the channel
+	// has let it go and the cancel entry is not set until below. A submit landing
+	// in that gap was let through, and the job went to a second worker.
+	delete(q.waiting, job.ID)
 
 	if _, gone := q.deleted[job.ID]; gone {
 		// Deleted before it ever started. Both markers go, so neither outlives
