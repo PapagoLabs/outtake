@@ -1101,16 +1101,23 @@ func TestQueue_WaitingIsClearedWithTheWorkerRegistration(t *testing.T) {
 		job := &Job{ID: testHeldID, Type: JobTypeClip, Status: JobStatusPending}
 		require.NoError(t, q.Submit(job))
 
-		// Wait for the worker to be inside the handler, which is only reachable
-		// once both the waiting mark and the cancel entry are set.
+		// Wait for the worker to be inside the handler. That is only reachable
+		// once it has both registered itself and stopped waiting, which is
+		// exactly the state under test. Asserting after the worker finished would
+		// pass even if the mark were only cleared at settle time.
 		<-entered
-		close(release)
-		synctest.Wait()
 
 		q.mu.RLock()
-		defer q.mu.RUnlock()
 
 		_, waiting := q.waiting[job.ID]
-		assert.False(t, waiting, "a worker holds the job, so it is not waiting")
+		_, running := q.cancels[job.ID]
+
+		q.mu.RUnlock()
+
+		assert.False(t, waiting, "a worker holds the entry, so the id is not waiting")
+		assert.True(t, running, "and it is registered, or the id was recorded by nothing")
+
+		close(release)
+		synctest.Wait()
 	})
 }

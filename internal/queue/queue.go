@@ -317,9 +317,12 @@ func (q *Queue) Requeue(job *Job) error {
 	q.waiting[job.ID] = struct{}{}
 	q.mu.Unlock()
 
-	q.jobChan <- job
-
+	// Reported before the entry is on the channel. The worker notifies the moment
+	// it picks the job up, so enqueuing first could let it record processing and
+	// have this write pending over the top — the newer state losing to the older.
 	q.notify(job)
+
+	q.jobChan <- job
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
@@ -386,9 +389,12 @@ func (q *Queue) Submit(job *Job) error {
 	q.waiting[job.ID] = struct{}{}
 	q.mu.Unlock()
 
-	q.jobChan <- job
-
+	// Reported before the entry is on the channel, for the same reason as
+	// Requeue: a worker that picks the job up first would record processing, and
+	// this would then write pending over it.
 	q.notify(job)
+
+	q.jobChan <- job
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
