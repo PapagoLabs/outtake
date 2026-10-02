@@ -76,6 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refuse a clip mark that is not a timecode by @nicholas-fedor in [#287](https://github.com/PapagoLabs/outtake/pull/287)
 - Give the queue a lifetime and make its teardown safe by @nicholas-fedor in [#283](https://github.com/PapagoLabs/outtake/pull/283)
 - Hand out job copies instead of the queue's own pointers by @nicholas-fedor in [#279](https://github.com/PapagoLabs/outtake/pull/279)
 - Refuse a second job for an id that is already rendering by @nicholas-fedor in [#277](https://github.com/PapagoLabs/outtake/pull/277)
