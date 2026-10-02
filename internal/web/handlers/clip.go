@@ -1254,25 +1254,31 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		return req, nil
 	}
 
-	start := formDuration(ctx, "startTime")
+	start, err := formDuration(ctx, "startTime", "start")
+	if err != nil {
+		//nolint:wrapcheck // The message names the field and the value, and is shown to the user as-is.
+		return api.ClipRequest{}, err
+	}
+
+	end, err := formDuration(ctx, "endTime", "end")
+	if err != nil {
+		//nolint:wrapcheck // The message names the field and the value, and is shown to the user as-is.
+		return api.ClipRequest{}, err
+	}
 
 	// The marks the user typed are authoritative, so the duration is derived from
 	// them rather than read from the hidden field the browser computes. That field
 	// is a second source of truth which can disagree with the form the user is
 	// looking at, and when it does the clip is silently the wrong length.
 	//
-	// The range is measured by subtracting the two marks as durations. Timecodes
-	// are millisecond aligned, so measuring it in seconds happens to land on the
-	// right side of the limit today, but whole nanoseconds are exact by
-	// construction rather than by that alignment, and the form would not stay
-	// aligned if the format ever gained precision.
+	// The range is measured by subtracting the two marks as durations.
 	//
 	// An end that is absent or not after the start leaves the duration at zero,
 	// which validation rejects for a clip and accepts for a screenshot, where the
 	// duration is unused.
 	var duration float64
 
-	if end := formDuration(ctx, "endTime"); end > start {
+	if end > start {
 		duration = (end - start).Seconds()
 	}
 
@@ -1358,19 +1364,39 @@ func formInt(ctx fiber.Ctx, name string) int {
 
 // formDuration parses a timecode form field as a duration.
 //
+// An absent or empty field is zero, which media.Parse reports without an error.
+// Zero is a position the user can legitimately mean, so an empty field is not a
+// malformed mark. A field that is present and cannot be read is one, and is
+// reported as an error naming the field and the value so the form can say which
+// of the two marks to correct.
+//
 // The value is kept as a duration rather than seconds so a range spanning two
 // marks is measured by subtracting whole nanoseconds. Timecodes are millisecond
 // aligned, so subtracting seconds happens to land on the right side of the limit
 // today, but whole nanoseconds are exact by construction rather than by that
 // alignment, and the form would not stay aligned if the format ever gained
 // precision.
-func formDuration(ctx fiber.Ctx, name string) time.Duration {
-	tc, err := media.Parse(ctx.FormValue(name))
+//
+// Parameters:
+//   - ctx: Request context.
+//   - name: Form field holding the timecode.
+//   - label: How the field is named to the user.
+//
+// Returns:
+//   - duration: The parsed duration, zero when the field is absent or empty.
+//   - err: Non-nil when the field holds something that is not a timecode.
+func formDuration(ctx fiber.Ctx, name, label string) (time.Duration, error) {
+	value := ctx.FormValue(name)
+
+	tc, err := media.Parse(value)
 	if err != nil {
-		return 0
+		return 0, fmt.Errorf(
+			"%w: the %s must be a timecode such as 00:01:23.456, not %q",
+			media.ErrInvalidTimecode, label, value,
+		)
 	}
 
-	return tc.Duration()
+	return tc.Duration(), nil
 }
 
 // clipName prefers the user-supplied name, then the media title.

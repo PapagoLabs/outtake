@@ -29,6 +29,15 @@ import (
 // testMediaPath is the source path a stubbed probe reports a length for.
 const testMediaPath = "/media/movie.mkv"
 
+const (
+	// FormMediaID is the media id field the clip form posts.
+	FormMediaID = "mediaId"
+	// FormStartTime is the start mark field the clip form posts.
+	FormStartTime = "startTime"
+	// FormEndTime is the end mark field the clip form posts.
+	FormEndTime = "endTime"
+)
+
 // parseForm posts form values through parseClipRequest and returns the result.
 //
 // Parameters:
@@ -40,15 +49,37 @@ const testMediaPath = "/media/movie.mkv"
 func parseForm(t *testing.T, form url.Values) api.ClipRequest {
 	t.Helper()
 
+	req, err := parseFormResult(t, form)
+	require.NoError(t, err, "a form post is always parseable")
+
+	return req
+}
+
+// parseFormResult posts form values through parseClipRequest and reports what
+// the parser decided.
+//
+// The parser runs on the server's goroutine, where a failure cannot stop the
+// test, so its verdict is carried back for the caller to inspect.
+//
+// Parameters:
+//   - t: Test context.
+//   - form: Form values to post.
+//
+// Returns:
+//   - req: The parsed request, zero when parsing failed.
+//   - err: The parser's error, nil when the form was accepted.
+func parseFormResult(t *testing.T, form url.Values) (api.ClipRequest, error) {
+	t.Helper()
+
 	app := fiber.New()
 
-	var gotReq api.ClipRequest
+	var (
+		gotReq api.ClipRequest
+		gotErr error
+	)
 
 	app.Post("/api/clips", func(ctx fiber.Ctx) error {
-		parsed, err := parseClipRequest(ctx)
-		require.NoError(t, err, "a form post is always parseable")
-
-		gotReq = parsed
+		gotReq, gotErr = parseClipRequest(ctx)
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -65,17 +96,18 @@ func parseForm(t *testing.T, form url.Values) api.ClipRequest {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = resp.Body.Close() })
 
-	return gotReq
+	//nolint:wrapcheck // The parser's own error carries the field and value, and a test reads both from it.
+	return gotReq, gotErr
 }
 
 // markForm is a minimal form body with the given marks.
 func markForm(start, end string) url.Values {
 	return url.Values{
-		"mediaId":    {"42"},
-		"mediaTitle": {testMovie},
-		"startTime":  {start},
-		"endTime":    {end},
-		"clipType":   {"clip"},
+		FormMediaID:   {"42"},
+		"mediaTitle":  {testMovie},
+		FormStartTime: {start},
+		FormEndTime:   {end},
+		"clipType":    {clipTypeClip},
 	}
 }
 
@@ -133,6 +165,126 @@ func TestParseClipRequestRejectsAnInvertedRange(t *testing.T) {
 	req := parseForm(t, form)
 
 	assert.Zero(t, req.Duration, "an end before the start must not produce a duration")
+}
+
+// TestParseClipRequestRejectsAMalformedMark covers a mark that is present but is
+// not a timecode.
+//
+// Zero is a position the form can legitimately carry, so a mark that cannot be
+// read is refused rather than taken for the start of the source. A screenshot
+// accepts a zero duration in validation, which leaves this refusal as the only
+// thing between a mistyped mark and a stored clip.
+//
+// The cases are the shapes a hand-typed field takes, including one the browser
+// reads as valid: its parser treats a bare "10:" as ten minutes, so nothing on
+// the client stops it.
+//
+// A negative mark is not one of them. It parses as a position before the start,
+// which checkRange rejects.
+func TestParseClipRequestRejectsAMalformedMark(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		clipType string
+		form     url.Values
+	}{
+		{
+			name:     "a bare minutes prefix the browser reads as ten minutes",
+			clipType: clipTypeClip,
+			form:     markForm("10:", "00:00:25.000"),
+		},
+		{
+			name:     "letters in the seconds field",
+			clipType: clipTypeClip,
+			form:     markForm("00:00:10.000", "00:00:ab.000"),
+		},
+		{
+			name:     "four colon separated fields",
+			clipType: clipTypeClip,
+			form:     markForm("00:00:00:10.000", "00:00:25.000"),
+		},
+		{
+			name:     "non numeric minutes",
+			clipType: clipTypeClip,
+			form:     markForm("00:aa:10.000", "00:00:25.000"),
+		},
+		{
+			name:     "two fractional separators",
+			clipType: clipTypeClip,
+			form:     markForm("00:00:10.000.000", "00:00:25.000"),
+		},
+		{
+			name:     "a bare word",
+			clipType: clipTypeClip,
+			form:     markForm("start", "00:00:25.000"),
+		},
+		{
+			name:     "a malformed mark on a screenshot",
+			clipType: clipTypeScreenshot,
+			form:     markForm("00:00:10.000", "00:00:1a.000"),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			test.form.Set("clipType", test.clipType)
+
+			_, err := parseFormResult(t, test.form)
+			require.Error(t, err, "a mark that is not a timecode is not a position")
+			require.ErrorIs(t, err, media.ErrInvalidTimecode)
+			assert.Contains(t, err.Error(), "timecode",
+				"the reason names what the field wanted")
+		})
+	}
+}
+
+// TestParseClipRequestAcceptsAnAbsentMark covers the other side of the boundary.
+//
+// The media parser reports an empty field as zero without an error, and zero is
+// where a clip starting at the beginning of a source belongs.
+func TestParseClipRequestAcceptsAnAbsentMark(t *testing.T) {
+	t.Parallel()
+
+	req := parseForm(t, markForm("", ""))
+
+	assert.Zero(t, req.StartTime)
+	assert.Zero(t, req.Duration)
+}
+
+// TestParseClipRequestRejectsAMalformedStartAndEndSeparately pins which field the
+// rejection names, since the message is what the user reads in the form.
+func TestParseClipRequestRejectsAMalformedStartAndEndSeparately(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		form  url.Values
+		which string
+	}{
+		{
+			name:  "the start is named when the start is malformed",
+			form:  markForm("nonsense", "00:00:25.000"),
+			which: "the start",
+		},
+		{
+			name:  "the end is named when the end is malformed",
+			form:  markForm("00:00:10.000", "nonsense"),
+			which: "the end",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := parseFormResult(t, test.form)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), test.which)
+		})
+	}
 }
 
 // TestValidateDurationDescribesTheRange is the diagnostic guard.
@@ -515,6 +667,76 @@ func TestUpdateRejectsAnOutOfRangeSelectionForAnAPIClient(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.InDelta(t, 30, stored.StartTime, 0.0005, "the stored start is untouched")
+	assert.InDelta(t, 20, stored.Duration, 0.0005, "the stored length is untouched")
+}
+
+// TestUpdateKeepsAMalformedMarkOutOfTheRow covers the rejection where the row
+// would otherwise change.
+//
+// Update applies the edits to a copy of the job and saves it, so a rejected
+// request has to leave the stored marks alone rather than merely avoid queueing
+// anything. The stub keeps the probe out of it: the mark is refused while the form
+// is parsed, so no source length is consulted.
+func TestUpdateKeepsAMalformedMarkOutOfTheRow(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/clips.db")
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testClipJob("malformed-mark", queue.JobTypeClip)
+
+	job.StartTime = 30
+	job.Duration = 20
+	job.InputPath = testMediaPath
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	// The probe is stubbed because a white-box test may not reach for ffprobe.
+	handler := &ClipHandler{
+		db:          db,
+		cfg:         &config.Config{MaxClipDurSec: 600},
+		clipQueue:   queue.NewQueue(1, nil),
+		clipStorage: &storage.Storage{},
+		mediaDurationFn: func(_ context.Context, _ string) (float64, bool) {
+			return 2 * 60 * 60, true
+		},
+	}
+
+	app := fiber.New()
+	app.Post("/api/clips/:id/update", handler.Update)
+
+	form := url.Values{
+		FormMediaID:   {job.MediaID},
+		FormStartTime: {"10:"},
+		FormEndTime:   {"00:00:50.000"},
+		"clipType":    {clipTypeClip},
+		"quality":     {defaultQuality},
+	}
+
+	post := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips/"+job.ID+"/update",
+		strings.NewReader(form.Encode()),
+	)
+	post.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationForm)
+
+	resp, err := app.Test(post)
+	require.NoError(t, err)
+
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	// A form post is redirected back with the reason in the query, the same way
+	// an out of range selection is reported.
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get(fiber.HeaderLocation), "error=")
+
+	stored, err := db.GetClip(t.Context(), job.ID)
+	require.NoError(t, err)
+
+	assert.InDelta(t, 30, stored.StartTime, 0.0005,
+		"a mark that failed to parse must not be stored as zero")
 	assert.InDelta(t, 20, stored.Duration, 0.0005, "the stored length is untouched")
 }
 
