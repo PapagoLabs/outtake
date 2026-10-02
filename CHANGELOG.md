@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module golang.org/x/tools to v0.51.0 by @renovate[bot] in [#292](https://github.com/PapagoLabs/outtake/pull/292)
+- Update module github.com/pierrec/lz4/v4 to v4.1.33 by @renovate[bot] in [#291](https://github.com/PapagoLabs/outtake/pull/291)
 - Update module github.com/pierrec/lz4/v4 to v4.1.32 by @renovate[bot] in [#289](https://github.com/PapagoLabs/outtake/pull/289)
 - Update github.com/google/pprof digest to 77d3b59 by @renovate[bot] in [#285](https://github.com/PapagoLabs/outtake/pull/285)
 - Update github.com/google/pprof digest to 60bf690 by @renovate[bot] in [#281](https://github.com/PapagoLabs/outtake/pull/281)
