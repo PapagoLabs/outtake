@@ -96,7 +96,7 @@ func parseFormResult(t *testing.T, form url.Values) (api.ClipRequest, error) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = resp.Body.Close() })
 
-	//nolint:wrapcheck // The parser's own error carries the field and value, and a test reads both from it.
+	//nolint:wrapcheck // The parser's own error carries the field and value a test reads back.
 	return gotReq, gotErr
 }
 
@@ -177,7 +177,9 @@ func TestParseClipRequestRejectsAnInvertedRange(t *testing.T) {
 //
 // The cases are the shapes a hand-typed field takes, including one the browser
 // reads as valid: its parser treats a bare "10:" as ten minutes, so nothing on
-// the client stops it.
+// the client stops it. A spaces-only field is here for the same reason. A blank
+// field and a spaces-only one are both empty to the timecode parser, and only one
+// of them is a mark the user meant to make.
 //
 // A negative mark is not one of them. It parses as a position before the start,
 // which checkRange rejects.
@@ -220,6 +222,16 @@ func TestParseClipRequestRejectsAMalformedMark(t *testing.T) {
 			form:     markForm("start", "00:00:25.000"),
 		},
 		{
+			name:     "a start of spaces only",
+			clipType: clipTypeClip,
+			form:     markForm("   ", "00:00:25.000"),
+		},
+		{
+			name:     "an end of spaces only",
+			clipType: clipTypeClip,
+			form:     markForm("00:00:10.000", "\t"),
+		},
+		{
 			name:     "a malformed mark on a screenshot",
 			clipType: clipTypeScreenshot,
 			form:     markForm("00:00:10.000", "00:00:1a.000"),
@@ -243,8 +255,8 @@ func TestParseClipRequestRejectsAMalformedMark(t *testing.T) {
 
 // TestParseClipRequestAcceptsAnAbsentMark covers the other side of the boundary.
 //
-// The media parser reports an empty field as zero without an error, and zero is
-// where a clip starting at the beginning of a source belongs.
+// The media parser reports an empty field as zero without an error. Zero is where
+// a clip starting at the beginning of a source belongs.
 func TestParseClipRequestAcceptsAnAbsentMark(t *testing.T) {
 	t.Parallel()
 
@@ -252,6 +264,17 @@ func TestParseClipRequestAcceptsAnAbsentMark(t *testing.T) {
 
 	assert.Zero(t, req.StartTime)
 	assert.Zero(t, req.Duration)
+}
+
+// TestParseClipRequestAcceptsAPaddedMark covers the trimming a valid mark relies
+// on, which refusing a spaces-only field must leave intact.
+func TestParseClipRequestAcceptsAPaddedMark(t *testing.T) {
+	t.Parallel()
+
+	req := parseForm(t, markForm(" 00:00:10.000 ", "\t00:00:25.000\t"))
+
+	assert.InDelta(t, 15, req.Duration, 0.001)
+	assert.InDelta(t, 10, req.StartTime, 0.001)
 }
 
 // TestParseClipRequestRejectsAMalformedStartAndEndSeparately pins which field the

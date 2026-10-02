@@ -1256,13 +1256,13 @@ func parseClipRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 
 	start, err := formDuration(ctx, "startTime", "start")
 	if err != nil {
-		//nolint:wrapcheck // The message names the field and the value, and is shown to the user as-is.
+		//nolint:wrapcheck // The error message names the field and the value the user has to correct.
 		return api.ClipRequest{}, err
 	}
 
 	end, err := formDuration(ctx, "endTime", "end")
 	if err != nil {
-		//nolint:wrapcheck // The message names the field and the value, and is shown to the user as-is.
+		//nolint:wrapcheck // The error message names the field and the value the user has to correct.
 		return api.ClipRequest{}, err
 	}
 
@@ -1364,11 +1364,10 @@ func formInt(ctx fiber.Ctx, name string) int {
 
 // formDuration parses a timecode form field as a duration.
 //
-// An absent or empty field is zero, which media.Parse reports without an error.
-// Zero is a position the user can legitimately mean, so an empty field is not a
-// malformed mark. A field that is present and cannot be read is one, and is
-// reported as an error naming the field and the value so the form can say which
-// of the two marks to correct.
+// An empty field is zero. Zero is where a clip starting at the beginning of a
+// source belongs, so leaving a mark blank is a choice rather than a mistake.
+// A field holding anything other than a timecode is reported as an error naming
+// the field and the value, so the form can say which of the two marks to correct.
 //
 // The value is kept as a duration rather than seconds so a range spanning two
 // marks is measured by subtracting whole nanoseconds. Timecodes are millisecond
@@ -1383,13 +1382,18 @@ func formInt(ctx fiber.Ctx, name string) int {
 //   - label: How the field is named to the user.
 //
 // Returns:
-//   - duration: The parsed duration, zero when the field is absent or empty.
+//   - duration: The parsed duration, zero when the field is empty.
 //   - err: Non-nil when the field holds something that is not a timecode.
 func formDuration(ctx fiber.Ctx, name, label string) (time.Duration, error) {
 	value := ctx.FormValue(name)
 
+	// media.Parse trims before it parses, so a spaces-only field would reach it
+	// looking absent. Whether a mark was left blank or filled with spaces is a
+	// distinction only this check can make.
+	spacesOnly := value != "" && strings.TrimSpace(value) == ""
+
 	tc, err := media.Parse(value)
-	if err != nil {
+	if err != nil || spacesOnly {
 		return 0, fmt.Errorf(
 			"%w: the %s must be a timecode such as 00:01:23.456, not %q",
 			media.ErrInvalidTimecode, label, value,
