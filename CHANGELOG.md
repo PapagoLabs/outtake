@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/pierrec/lz4/v4 to v4.1.32 by @renovate[bot] in [#289](https://github.com/PapagoLabs/outtake/pull/289)
 - Update github.com/google/pprof digest to 77d3b59 by @renovate[bot] in [#285](https://github.com/PapagoLabs/outtake/pull/285)
 - Update github.com/google/pprof digest to 60bf690 by @renovate[bot] in [#281](https://github.com/PapagoLabs/outtake/pull/281)
 - Update module github.com/tinylib/msgp to v1.6.5 by @renovate[bot] in [#270](https://github.com/PapagoLabs/outtake/pull/270)
