@@ -6,22 +6,61 @@ package logging
 
 import (
 	"os"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
+	"github.com/PapagoLabs/outtake/internal/settings/config"
+)
+
+const (
+	// defaultLevel is used when no level is configured.
+	defaultLevel = "info"
+
+	// developmentEnv selects the console writer.
+	developmentEnv = "development"
 )
 
 // Logger is the global logger instance.
 var Logger zerolog.Logger
 
-// Init initializes the logger.
+// initMu serializes writes to the logger globals.
+var initMu sync.Mutex
+
+// Init initializes the logger from the process environment.
 func Init() {
+	initLogger(os.Getenv("LOG_LEVEL"), os.Getenv("ENV"))
+}
+
+// InitFromConfig initializes the logger from the loaded configuration.
+//
+// Parameters:
+//   - cfg: The loaded configuration supplying LogLevel and Env.
+func InitFromConfig(cfg *config.Config) {
+	if cfg == nil {
+		Init()
+
+		return
+	}
+
+	initLogger(cfg.LogLevel, cfg.Env)
+}
+
+// initLogger builds the global logger and installs it as zerolog's default.
+//
+// Parameters:
+//   - logLevel: Configured level name. An empty or unrecognized value logs at info.
+//   - env: Configured environment. developmentEnv selects a console writer.
+func initLogger(logLevel, env string) {
+	initMu.Lock()
+	defer initMu.Unlock()
+
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	logLevel := os.Getenv("LOG_LEVEL")
 	if logLevel == "" {
-		logLevel = "info"
+		logLevel = defaultLevel
 	}
 
 	level, err := zerolog.ParseLevel(logLevel)
@@ -29,7 +68,7 @@ func Init() {
 		level = zerolog.InfoLevel
 	}
 
-	if os.Getenv("ENV") == "development" {
+	if env == developmentEnv {
 		Logger = zerolog.New(zerolog.ConsoleWriter{
 			Out:                   os.Stderr,
 			NoColor:               false,

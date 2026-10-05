@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/PapagoLabs/outtake/internal/web"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 )
 
 func TestFieldRendersHiddenInput(t *testing.T) {
@@ -18,7 +18,7 @@ func TestFieldRendersHiddenInput(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := Field().Render(web.ContextWithCSRFToken(t.Context(), "tok"), &buf)
+	err := Field().Render(identity.ContextWithCSRFToken(t.Context(), "tok"), &buf)
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), `name="_csrf"`)
 	assert.Contains(t, buf.String(), `value="tok"`)

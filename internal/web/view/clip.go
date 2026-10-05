@@ -3,46 +3,41 @@
 
 package view
 
+import (
+	"time"
+
+	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/catalog"
+	"github.com/PapagoLabs/outtake/internal/clip/profile"
+)
+
 // ClipItem is one clip card on the clips list and media item pages.
 type ClipItem struct {
 	ID            string
 	Name          string
 	MediaID       string
 	MediaTitle    string
-	ClipType      string
-	Status        string
+	ClipType      clip.Type
+	Status        clip.Status
 	Progress      int
 	CreatedAt     string
-	StartTime     float64
-	Duration      float64
+	StartTime     time.Duration
+	Duration      time.Duration
 	Quality       string
 	ProfileName   string
-	Profiles      []ClipProfileOption
+	Profiles      []profile.ProfileOption
 	FileExists    bool
 	AudioIndex    int
 	AudioTracks   []AudioTrackOption
 	CropBlackBars bool
 	WebSafeColor  bool
-	// PreserveHDR is the keep-HDR-as-is toggle.
-	PreserveHDR bool
-	// SourceHDR reports whether the source carries an HDR transfer, which is
-	// what decides whether the keep-HDR control is shown at all.
-	SourceHDR bool
-	// MediaDuration is the source length in seconds, zero when the page did not
-	// probe it. The form clamps the end mark against it when it is known, and
-	// the server rejects an out-of-range selection either way.
-	MediaDuration float64
+	PreserveHDR   bool
+	SourceHDR     bool
+	MediaDuration time.Duration
 	Width         int
 	FPS           int
-	MaxDur        int
+	MaxDur        time.Duration
 	Error         string
-}
-
-// ClipProfileOption is a named encode profile in a quality select.
-type ClipProfileOption struct {
-	ID        string
-	Name      string
-	IsDefault bool
 }
 
 // AudioTrackOption is a probed audio stream in an audio select.
@@ -51,33 +46,73 @@ type AudioTrackOption struct {
 	Label string
 }
 
+// clipTimeLayout is how a clip timestamp is rendered.
+const clipTimeLayout = "Jan 2, 2006 3:04 PM"
+
 const (
-	// ClipStatusPending is a queued clip that has not started encoding.
-	ClipStatusPending = "pending"
-	// ClipStatusProcessing is a clip that is currently encoding.
-	ClipStatusProcessing = "processing"
-	// ClipStatusCompleted is a clip that finished encoding.
-	ClipStatusCompleted = "completed"
-	// ClipStatusFailed is a clip that failed to encode.
-	ClipStatusFailed = "failed"
-	// ClipStatusCancelled is a clip stopped by the user.
-	// The persisted job status literal is "canceled".
-	ClipStatusCancelled = "canceled"
+	// ClipSortCreatedDesc lists newest created clips first.
+	ClipSortCreatedDesc = catalog.SortCreatedDesc
+	// ClipSortCreatedAsc lists oldest created clips first.
+	ClipSortCreatedAsc = catalog.SortCreatedAsc
+	// ClipSortUpdatedDesc lists recently modified clips first.
+	ClipSortUpdatedDesc = catalog.SortUpdatedDesc
+	// ClipSortUpdatedAsc lists oldest modified clips first.
+	ClipSortUpdatedAsc = catalog.SortUpdatedAsc
+	// ClipSortNameAsc lists clips by display name A-Z.
+	ClipSortNameAsc = catalog.SortNameAsc
+	// ClipSortNameDesc lists clips by display name Z-A.
+	ClipSortNameDesc = catalog.SortNameDesc
 )
 
 const (
-	// DefaultGIFWidth is the New export GIF width when a clip has none stored.
-	defaultGIFWidth = 480
-	// DefaultGIFFPS is the New export GIF frame rate when a clip has none stored.
-	defaultGIFFPS = 10
+	// DefaultGIFWidth is the GIF export width used when a clip carries none.
+	DefaultGIFWidth = 480
+	// DefaultGIFFPS is the GIF export frame rate used when a clip carries none.
+	DefaultGIFFPS = 10
 )
+
+// GIFWidthOrDefault returns the GIF export width to show.
+//
+// Parameters:
+//   - width: Carried GIF width, where zero means the field was never set.
+//
+// Returns:
+//   - value: width when it was carried, otherwise DefaultGIFWidth.
+func GIFWidthOrDefault(width int) int {
+	if width > 0 {
+		return width
+	}
+
+	return DefaultGIFWidth
+}
+
+// GIFFPSOrDefault returns the GIF export frame rate to show.
+//
+// Parameters:
+//   - fps: Carried GIF frame rate, where zero means the field was never set.
+//
+// Returns:
+//   - value: fps when it was carried, otherwise DefaultGIFFPS.
+func GIFFPSOrDefault(fps int) int {
+	if fps > 0 {
+		return fps
+	}
+
+	return DefaultGIFFPS
+}
 
 // ClipTypeLabel is the user-facing name for a clip type.
-func ClipTypeLabel(clipType string) string {
+//
+// Parameters:
+//   - clipType: Clip type recorded for the clip.
+//
+// Returns:
+//   - label: The display name, or Clip for a type that is neither kind.
+func ClipTypeLabel(clipType clip.Type) string {
 	switch clipType {
-	case "gif":
+	case clip.TypeGIF:
 		return "GIF"
-	case "screenshot":
+	case clip.TypeScreenshot:
 		return "Screenshot"
 	default:
 		return "Clip"
@@ -89,7 +124,7 @@ func ClipTypeLabel(clipType string) string {
 // Returns:
 //   - playable: True when status is completed and the file exists.
 func (item *ClipItem) CanPlay() bool {
-	return item.Status == ClipStatusCompleted && item.FileExists
+	return item.Status == clip.StatusCompleted && item.FileExists
 }
 
 // DisplayName returns the clip name, or the media title when the name is empty.
@@ -107,8 +142,8 @@ func (item *ClipItem) DisplayName() string {
 // EndTime is the clip end as start plus duration.
 //
 // Returns:
-//   - end: StartTime + Duration in seconds.
-func (item *ClipItem) EndTime() float64 {
+//   - end: StartTime + Duration.
+func (item *ClipItem) EndTime() time.Duration {
 	return item.StartTime + item.Duration
 }
 
@@ -117,11 +152,7 @@ func (item *ClipItem) EndTime() float64 {
 // Returns:
 //   - fps: Stored fps, or 10 when FPS is 0.
 func (item *ClipItem) GIFFPS() int {
-	if item.FPS > 0 {
-		return item.FPS
-	}
-
-	return defaultGIFFPS
+	return GIFFPSOrDefault(item.FPS)
 }
 
 // GIFWidth is the GIF export width, or the New export default when unset.
@@ -129,11 +160,7 @@ func (item *ClipItem) GIFFPS() int {
 // Returns:
 //   - width: Stored width, or 480 when Width is 0.
 func (item *ClipItem) GIFWidth() int {
-	if item.Width > 0 {
-		return item.Width
-	}
-
-	return defaultGIFWidth
+	return GIFWidthOrDefault(item.Width)
 }
 
 // IsActive reports whether the clip is still queued or encoding.
@@ -141,5 +168,20 @@ func (item *ClipItem) GIFWidth() int {
 // Returns:
 //   - active: True when status is pending or processing.
 func (item *ClipItem) IsActive() bool {
-	return item.Status == ClipStatusPending || item.Status == ClipStatusProcessing
+	return item.Status == clip.StatusPending || item.Status == clip.StatusProcessing
+}
+
+// FormatClipCreated renders a clip timestamp for display, or blank when unset.
+//
+// Parameters:
+//   - created: Clip creation time.
+//
+// Returns:
+//   - stamp: Formatted UTC timestamp, or an empty string for a zero time.
+func FormatClipCreated(created time.Time) string {
+	if created.IsZero() {
+		return ""
+	}
+
+	return created.UTC().Format(clipTimeLayout)
 }

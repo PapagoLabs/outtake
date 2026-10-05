@@ -44,7 +44,7 @@ var (
 	// BuildTime is the timestamp of the build.
 	BuildTime = ""
 
-	// VersionOnce ensures version is initialized only once.
+	// versionOnce guards that the version is initialized only once.
 	versionOnce sync.Once
 )
 
@@ -56,12 +56,17 @@ func initVersion() {
 	}
 }
 
+// ensureVersion initializes the version package variables exactly once.
+func ensureVersion() {
+	versionOnce.Do(initVersion)
+}
+
 // String returns a human-readable version string.
 //
 // Returns:
 //   - string: The version string, optionally including the commit SHA.
 func String() string {
-	versionOnce.Do(initVersion)
+	ensureVersion()
 
 	if CommitSHA != "" {
 		return fmt.Sprintf("%s (%s)", Version, CommitSHA)
@@ -109,6 +114,8 @@ func ConvertToLocal(utcStr string) string {
 // Returns:
 //   - VersionInfo: Structured version data for display or serialization.
 func GetInfo() VersionInfo {
+	ensureVersion()
+
 	commitSHA := ""
 	if CommitSHA != "" {
 		commitSHA = CommitSHA

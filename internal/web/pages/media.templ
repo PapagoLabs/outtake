@@ -11,6 +11,13 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+// mediaNavActive returns the sidebar key to mark active for a media page.
+//
+// Parameters:
+//   - libraryID: Selected library id, empty on the library chooser.
+//
+// Returns:
+//   - active: Sidebar key, empty when a child library is in view.
 func mediaNavActive(libraryID string) string {
 	if libraryID == "" {
 		return "media"
@@ -19,6 +26,10 @@ func mediaNavActive(libraryID string) string {
 	return ""
 }
 
+// Media renders the media library browse page.
+//
+// Parameters:
+//   - props: Media library page state.
 templ Media(props view.MediaProps) {
 	@layout.Layout(layout.Props{Title: "Media Library", Active: mediaNavActive(props.LibraryID), Library: props.LibraryID}) {
 		<div class="flex min-h-0 flex-1 flex-col gap-6">

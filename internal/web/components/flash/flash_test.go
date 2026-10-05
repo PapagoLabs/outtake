@@ -30,7 +30,7 @@ func TestPartialTargetsFlash(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, `<hx-partial hx-target="#flash">`)
+	assert.Contains(t, body, `<template hx type="partial" hx-target="#flash">`)
 	assert.Contains(t, body, "clip is not running")
 	assert.Contains(t, body, "js-flash")
 }

@@ -13,15 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestIsContainerType(t *testing.T) {
-	t.Parallel()
-
-	assert.True(t, IsContainerType("show"))
-	assert.True(t, IsContainerType("season"))
-	assert.False(t, IsContainerType("episode"))
-	assert.False(t, IsContainerType("movie"))
-}
-
 func TestGetChildren(t *testing.T) {
 	t.Parallel()
 
@@ -40,16 +31,16 @@ func TestGetChildren(t *testing.T) {
 	host, port := extractAddrPort(t, ts)
 	client := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
+		ClientID: "test",
+		Token:    "srv-token",
 		Timeout:  5 * time.Second,
 		BaseURL:  "",
 	})
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}

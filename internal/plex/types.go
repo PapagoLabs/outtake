@@ -89,6 +89,12 @@ func EmptyServer() Server {
 }
 
 // IsContainerType reports whether the metadata type has children to browse.
+//
+// Parameters:
+//   - mediaType: Plex metadata type.
+//
+// Returns:
+//   - ok: True for show, season, artist, and album.
 func IsContainerType(mediaType string) bool {
 	switch mediaType {
 	case TypeShow, TypeSeason, TypeArtist, TypeAlbum:

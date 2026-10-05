@@ -5,20 +5,28 @@
 package layout
 
 import (
-	"github.com/PapagoLabs/outtake/internal/web"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
+	"github.com/PapagoLabs/outtake/internal/web/components/checkbox"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/separator"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
 
+// Props carries the page title and sidebar state for one document.
 type Props struct {
 	Title   string
 	Active  string
 	Library string
 }
 
+// Layout renders the authenticated document shell around a page.
+//
+// Parameters:
+//   - props: Page title and sidebar state.
 templ Layout(props Props) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark h-dvh overflow-hidden" data-palette="plex" data-palettes={ theme.IDList() }>
@@ -31,10 +39,12 @@ templ Layout(props Props) {
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
 			<script src={ utils.ScriptURL("/assets/js/app.js") } defer></script>
+			@label.Script()
+			@checkbox.Script()
 		</head>
 		<body
 			class="h-dvh overflow-hidden bg-background text-foreground"
-			if headers := web.CSRFHeaderJSON(ctx); headers != "" {
+			if headers := identity.CSRFHeaderJSON(ctx); headers != "" {
 				hx-headers:inherited={ headers }
 			}
 		>
@@ -156,13 +166,20 @@ templ Layout(props Props) {
 						</div>
 					</div>
 					@separator.Separator()
-					<a
-						href="/api/auth/logout"
+					<form
+						method="POST"
+						action="/api/auth/logout"
 						hx-boost="false"
-						class="shrink-0 px-3 py-2 rounded-md text-sm font-medium text-sidebar-foreground hover:bg-destructive hover:text-white transition-colors"
+						class="shrink-0"
 					>
-						Logout
-					</a>
+						@csrf.Field()
+						<button
+							type="submit"
+							class="w-full cursor-pointer rounded-md px-3 py-2 text-left text-sm font-medium text-sidebar-foreground transition-colors hover:bg-destructive hover:text-white"
+						>
+							Logout
+						</button>
+					</form>
 				</aside>
 				<main
 					id="main-content"

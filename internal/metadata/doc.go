@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 // Package metadata provides application version and build information.
-// It uses Go build information (debug.ReadBuildInfo) to populate version
-// at runtime, and can be extended with build-time flags for commit SHA
-// and build timestamp.
+// It uses Go build information [debug.ReadBuildInfo] to populate the version at
+// runtime, and every field can be overridden at build time instead.
 //
 // # Usage
 //

@@ -7,10 +7,20 @@ package quality
 import (
 	"strconv"
 
+	"github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-func qualityOptionSelected(profile view.ClipProfileOption, selected string) bool {
+// qualityOptionSelected reports whether a profile option is the current choice.
+//
+// Parameters:
+//   - profile: Profile option being rendered.
+//   - selected: Chosen profile id, empty when the form was never submitted.
+//
+// Returns:
+//   - ok: True when the option is the current choice.
+func qualityOptionSelected(profile profile.ProfileOption, selected string) bool {
 	if selected == "" {
 		return profile.IsDefault
 	}
@@ -18,11 +28,17 @@ func qualityOptionSelected(profile view.ClipProfileOption, selected string) bool
 	return profile.ID == selected
 }
 
+// AudioSelect renders the audio track select, or a hidden input when there are no tracks.
+//
+// Parameters:
+//   - id: Select id.
+//   - tracks: Audio tracks to choose from.
+//   - selected: Index of the chosen track.
 templ AudioSelect(id string, tracks []view.AudioTrackOption, selected int) {
 	if len(tracks) == 0 {
 		<input type="hidden" name="audioIndex" value={ strconv.Itoa(selected) }/>
 	} else {
-		<select id={ id } name="audioIndex" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30">
+		<select id={ id } name="audioIndex" class={ utils.ControlClass }>
 			for _, track := range tracks {
 				if track.Index == selected {
 					<option value={ strconv.Itoa(track.Index) } selected>{ track.Label }</option>
@@ -34,8 +50,14 @@ templ AudioSelect(id string, tracks []view.AudioTrackOption, selected int) {
 	}
 }
 
-templ QualitySelect(id string, profiles []view.ClipProfileOption, selected string) {
-	<select id={ id } name="quality" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30">
+// QualitySelect renders the clip profile select.
+//
+// Parameters:
+//   - id: Select id.
+//   - profiles: Clip profiles to choose from.
+//   - selected: Chosen profile id, empty when the form was never submitted.
+templ QualitySelect(id string, profiles []profile.ProfileOption, selected string) {
+	<select id={ id } name="quality" class={ utils.ControlClass }>
 		for _, profile := range profiles {
 			if qualityOptionSelected(profile, selected) {
 				<option value={ profile.ID } selected>{ profile.Name }</option>

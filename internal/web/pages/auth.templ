@@ -1,0 +1,44 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/web/components/brand"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
+	"github.com/PapagoLabs/outtake/internal/web/theme"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
+)
+
+// AuthComplete renders the document a browser lands on once Plex has authorized
+// this client, which hands the opener back to the app and otherwise redirects.
+//
+// Parameters:
+//   - next: Page the browser is sent to once the login is complete.
+templ AuthComplete(next string) {
+	<!DOCTYPE html>
+	<html lang="en" class="dark" data-palette="plex" data-palettes={ theme.IDList() }>
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Signed in - Outtake</title>
+			@brand.IconHead()
+			<script src="/assets/js/theme.js"></script>
+			<link href="/assets/css/output.css" rel="stylesheet"/>
+			if headers := identity.CSRFHeaderJSON(ctx); headers != "" {
+				<meta name="csrf-token" content={ identity.CSRFToken(ctx) }/>
+			}
+		</head>
+		<body
+			class="min-h-screen bg-background text-foreground flex items-center justify-center"
+			data-auth-next={ next }
+		>
+			<div class="w-full max-w-md p-8">
+				@flash.Slot("")
+				<p>Signed in. You can close this window.</p>
+			</div>
+			<script src={ utils.ScriptURL("/assets/js/auth-complete.js") }></script>
+		</body>
+	</html>
+}

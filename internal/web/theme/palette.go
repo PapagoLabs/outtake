@@ -38,6 +38,9 @@ const (
 )
 
 // Palettes returns registered color themes, default first.
+//
+// Returns:
+//   - palettes: Every palette, with the default palette first.
 func Palettes() []Palette {
 	return []Palette{
 		Plex,
@@ -50,6 +53,9 @@ func Palettes() []Palette {
 }
 
 // IDList returns palette IDs as a comma-separated html data-palettes value.
+//
+// Returns:
+//   - list: Every palette ID joined by commas.
 func IDList() string {
 	palettes := Palettes()
 	ids := make([]string, 0, len(palettes))

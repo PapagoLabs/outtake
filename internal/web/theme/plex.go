@@ -4,10 +4,10 @@
 package theme
 
 const (
-	// PlexGold is the Plex accent.
+	// plexGold is the accent color.
 	plexGold = "oklch(0.754 0.155 77.297)"
 
-	// PlexInk is Plex body text on light surfaces.
+	// plexInk is body text on light surfaces.
 	plexInk = "oklch(0.222 0 0)"
 )
 

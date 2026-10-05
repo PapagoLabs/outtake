@@ -34,6 +34,9 @@ type Tokens struct {
 }
 
 // pairs returns CSS variable names and values in emit order.
+//
+// Returns:
+//   - pairs: Name and value pairs, in the order they are written.
 func (tokens *Tokens) pairs() [][2]string {
 	return [][2]string{
 		{"background", tokens.Background},

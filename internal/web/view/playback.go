@@ -3,9 +3,13 @@
 
 package view
 
+import (
+	"time"
+)
+
 // Playback is live Plex playback for a media item.
 type Playback struct {
 	Playing    bool
-	ViewOffset float64
+	ViewOffset time.Duration
 	Title      string
 }

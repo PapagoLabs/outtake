@@ -4,10 +4,11 @@
 // Package csrf renders hidden CSRF fields for HTML forms.
 package csrf
 
-import "github.com/PapagoLabs/outtake/internal/web"
+import "github.com/PapagoLabs/outtake/internal/plex/identity"
 
+// Field renders a hidden CSRF input when the request carries a token.
 templ Field() {
-	if token := web.CSRFToken(ctx); token != "" {
-		<input type="hidden" name={ web.CSRFFormField } value={ token }/>
+	if token := identity.CSRFToken(ctx); token != "" {
+		<input type="hidden" name={ identity.CSRFFormField } value={ token }/>
 	}
 }

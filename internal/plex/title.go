@@ -50,11 +50,24 @@ func EpisodeCode(season, episode int) string {
 }
 
 // SameConnection reports whether two servers share scheme, host, and port.
+//
+// Parameters:
+//   - left: First server connection.
+//   - right: Second server connection.
+//
+// Returns:
+//   - same: True when both connections reach the same origin.
 func SameConnection(left, right Server) bool {
 	return left.Scheme == right.Scheme && left.Address == right.Address && left.Port == right.Port
 }
 
 // episodeDisplayTitle joins show, episode code, and episode title.
+//
+// Parameters:
+//   - item: Media item whose parts are already populated.
+//
+// Returns:
+//   - title: The joined title, skipping the parts that are absent.
 func episodeDisplayTitle(item MediaItem) string {
 	var parts []string
 

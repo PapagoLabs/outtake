@@ -4,7 +4,7 @@
 package pages
 
 import (
-	"github.com/PapagoLabs/outtake/internal/web"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
@@ -13,13 +13,19 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
 
+// LoginProps carries the Plex authorization URL and the sign-in error.
 type LoginProps struct {
 	AuthURL string
 	Error   string
 }
 
+// Login renders the standalone sign-in document.
+//
+// Parameters:
+//   - props: Plex authorization URL and the sign-in error.
 templ Login(props LoginProps) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark" data-palette="plex" data-palettes={ theme.IDList() }>
@@ -31,15 +37,16 @@ templ Login(props LoginProps) {
 			<script src="/assets/js/theme.js"></script>
 			<link href="/assets/css/output.css" rel="stylesheet"/>
 			<script src="/assets/js/htmx.min.js"></script>
-			<script src="/assets/js/app.js" defer></script>
-			<script src="/assets/js/input.js" defer></script>
-			if token := web.CSRFToken(ctx); token != "" {
+			<script src={ utils.ScriptURL("/assets/js/app.js") } defer></script>
+			@input.Script()
+			@label.Script()
+			if token := identity.CSRFToken(ctx); token != "" {
 				<meta name="csrf-token" content={ token }/>
 			}
 		</head>
 		<body
 			class="min-h-screen bg-background text-foreground flex items-center justify-center"
-			if headers := web.CSRFHeaderJSON(ctx); headers != "" {
+			if headers := identity.CSRFHeaderJSON(ctx); headers != "" {
 				hx-headers:inherited={ headers }
 			}
 		>

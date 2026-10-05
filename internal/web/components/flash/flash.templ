@@ -4,6 +4,10 @@
 // Package flash renders dismissible error banners and HTMX error partials.
 package flash
 
+// Banner renders a dismissible error banner, or nothing for an empty message.
+//
+// Parameters:
+//   - message: Banner text.
 templ Banner(message string) {
 	if message != "" {
 		<div class="js-flash rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start justify-between gap-3">
@@ -13,14 +17,32 @@ templ Banner(message string) {
 	}
 }
 
+// Slot renders the banner target that HTMX swaps a message into.
+//
+// Parameters:
+//   - message: Banner text.
 templ Slot(message string) {
 	<div id="flash">
 		@Banner(message)
 	</div>
 }
 
+// Partial renders the banner for an HTMX error response targeting the slot.
+//
+// Parameters:
+//   - message: Banner text.
 templ Partial(message string) {
-	<hx-partial hx-target="#flash">
+	<template hx type="partial" hx-target="#flash">
 		@Banner(message)
-	</hx-partial>
+	</template>
+}
+
+// OutOfBand renders the banner as an out-of-band swap of the flash slot.
+//
+// Parameters:
+//   - message: Banner text.
+templ OutOfBand(message string) {
+	<div id="flash" hx-swap-oob="true">
+		@Banner(message)
+	</div>
 }

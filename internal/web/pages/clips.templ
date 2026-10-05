@@ -4,24 +4,37 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
-	"github.com/PapagoLabs/outtake/internal/web/components/clip"
+	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+// ClipsProps carries the clip list and its active filters.
 type ClipsProps struct {
 	Items  []view.ClipItem
-	Status string
-	Type   string
+	Status clip.Status
+	Type   clip.Type
 	Query  string
 	Sort   string
 }
 
+// clipsFiltered reports whether any filter narrows the clip list.
+//
+// Parameters:
+//   - props: Clip list state.
+//
+// Returns:
+//   - ok: True when a status, type, or query filter is set.
 func clipsFiltered(props ClipsProps) bool {
 	return props.Status != "" || props.Type != "" || props.Query != ""
 }
 
+// Clips renders the clip list page.
+//
+// Parameters:
+//   - props: Clip list state.
 templ Clips(props ClipsProps) {
 	@layout.Layout(layout.Props{Title: "Clips", Active: "clips"}) {
 		<div class="flex flex-col gap-6">
@@ -34,7 +47,7 @@ templ Clips(props ClipsProps) {
 					New from library
 				</a>
 			</div>
-			@clip.ListToolbar(clip.ListToolbarProps{
+			@clipcard.ListToolbar(clipcard.ListToolbarProps{
 				Action:  "/clips",
 				Target:  "clip-list",
 				PushURL: true,
@@ -53,6 +66,10 @@ templ Clips(props ClipsProps) {
 	}
 }
 
+// ClipsList renders the clip cards, or the empty and filtered-empty messages.
+//
+// Parameters:
+//   - props: Clip list state.
 templ ClipsList(props ClipsProps) {
 	if len(props.Items) == 0 {
 		@card.Card() {
@@ -71,6 +88,6 @@ templ ClipsList(props ClipsProps) {
 		}
 	}
 	for _, item := range props.Items {
-		@clip.ClipCard(item)
+		@clipcard.ClipCard(item)
 	}
 }

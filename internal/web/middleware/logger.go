@@ -11,7 +11,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
-// RequestLogger provides request logging middleware.
+// RequestLogger logs one line per request after the handler chain returns.
+//
+// Returns:
+//   - handler: Middleware that logs method, path, status, and duration.
 func RequestLogger() fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		start := time.Now()

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/PapagoLabs/outtake/internal/plex/decode/key"
 )
 
 // envelope is the documented PMS JSON root object.
@@ -97,17 +99,20 @@ type session struct {
 type flexString string
 
 const (
-	// DecimalBase is the numeric base used when parsing ratingKey integers.
+	// decimalBase is the numeric base used when parsing ratingKey integers.
 	decimalBase = 10
 
-	// IntBitSize is the bit size used when parsing ratingKey integers.
+	// intBitSize is the bit size used when parsing ratingKey integers.
 	intBitSize = 64
-
-	// MetadataKeyPrefix is the PMS metadata key prefix stripped by ID.
-	metadataKeyPrefix = "/library/metadata/"
 )
 
 // UnmarshalJSON implements [json.Unmarshaler].
+//
+// Parameters:
+//   - raw: Raw JSON token, either a string, a number, or null.
+//
+// Returns:
+//   - err: Non-nil when the token is neither a string nor a number.
 func (value *flexString) UnmarshalJSON(raw []byte) error {
 	if string(raw) == "null" {
 		*value = ""
@@ -179,7 +184,7 @@ func (meta *Metadata) File() string {
 // Returns:
 //   - ok: True when the item can map onto a MediaItem.
 func (meta *Metadata) HasMetadata() bool {
-	_, hasPrefix := strings.CutPrefix(meta.Key, metadataKeyPrefix)
+	_, hasPrefix := strings.CutPrefix(meta.Key, key.Prefix)
 
 	return meta.RatingKey != "" || hasPrefix
 }
@@ -193,15 +198,5 @@ func (meta *Metadata) ID() string {
 		return string(meta.RatingKey)
 	}
 
-	id, ok := strings.CutPrefix(meta.Key, metadataKeyPrefix)
-	if !ok {
-		return ""
-	}
-
-	id = strings.TrimSuffix(id, "/")
-	if slash := strings.Index(id, "/"); slash >= 0 {
-		id = id[:slash]
-	}
-
-	return id
+	return key.ID(meta.Key)
 }

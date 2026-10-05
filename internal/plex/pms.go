@@ -14,6 +14,12 @@ import (
 )
 
 // serverBaseURL returns the scheme://host:port origin for a PMS.
+//
+// Parameters:
+//   - server: Server whose address, port, and scheme form the origin.
+//
+// Returns:
+//   - baseURL: The origin, defaulting the scheme when it is unset.
 func serverBaseURL(server Server) string {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -24,6 +30,16 @@ func serverBaseURL(server Server) string {
 }
 
 // getPMS performs an authenticated GET against a Plex Media Server.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//   - path: Library API path appended to the server origin.
+//   - rawQuery: Encoded query string, or empty for none.
+//
+// Returns:
+//   - resp: The PMS response.
+//   - err: ErrServerReturnedError for a failure status, or a request error.
 func (client *Client) getPMS(
 	ctx context.Context,
 	server Server,
@@ -41,7 +57,7 @@ func (client *Client) getPMS(
 		token = client.Token
 	}
 
-	cfg := newRequestConfig(ctx, jsonHeaders(token), nil)
+	cfg := fiberClient.Config{Ctx: ctx, Header: jsonHeaders(token)}
 
 	resp, err := client.httpClient.Get(reqURL, cfg)
 	if err != nil {
@@ -56,6 +72,12 @@ func (client *Client) getPMS(
 }
 
 // ValidThumbPath reports whether path is a Plex library thumbnail path.
+//
+// Parameters:
+//   - path: Candidate thumbnail path.
+//
+// Returns:
+//   - ok: True when the path is absolute and confined to a library asset route.
 func ValidThumbPath(path string) bool {
 	if path == "" || strings.Contains(path, "..") || !strings.HasPrefix(path, "/") {
 		return false
@@ -65,6 +87,16 @@ func ValidThumbPath(path string) bool {
 }
 
 // GetThumb fetches a thumbnail from the Plex Media Server.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS holding the asset.
+//   - path: Thumbnail path, as accepted by ValidThumbPath.
+//
+// Returns:
+//   - body: The thumbnail bytes.
+//   - contentType: The response content type, defaulting to image/jpeg.
+//   - err: ErrInvalidThumbPath for an unusable path, or a request error.
 func (client *Client) GetThumb(
 	ctx context.Context,
 	server Server,
@@ -81,7 +113,10 @@ func (client *Client) GetThumb(
 	}
 
 	reqURL := serverBaseURL(server) + path
-	cfg := newRequestConfig(ctx, map[string]string{headerPlexToken: token}, nil)
+	cfg := fiberClient.Config{
+		Ctx:    ctx,
+		Header: map[string]string{headerPlexToken: token},
+	}
 
 	resp, err := client.httpClient.Get(reqURL, cfg)
 	if err != nil {
@@ -101,6 +136,16 @@ func (client *Client) GetThumb(
 }
 
 // SearchOnServer searches media via GET /hubs/search.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//   - query: Free-text search query.
+//   - sectionID: Library section key, or empty to search the whole server.
+//
+// Returns:
+//   - items: Metadata from every hub the server returned.
+//   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) SearchOnServer(
 	ctx context.Context,
 	server Server,
@@ -130,6 +175,15 @@ func (client *Client) SearchOnServer(
 }
 
 // GetChildren lists one level of children for a show, season, artist, or album.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//   - mediaID: Rating key of the container.
+//
+// Returns:
+//   - items: The container's children.
+//   - err: Non-nil when both requests and the decode fail.
 func (client *Client) GetChildren(
 	ctx context.Context,
 	server Server,
@@ -160,6 +214,17 @@ func (client *Client) GetChildren(
 }
 
 // GetChildrenPage fetches one page of children for a container.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//   - mediaID: Rating key of the container.
+//   - start: Container offset.
+//   - size: Page size, or 0 for the PMS default.
+//
+// Returns:
+//   - page: Children and total size for the requested window.
+//   - err: Non-nil when both requests and the decode fail.
 func (client *Client) GetChildrenPage(
 	ctx context.Context,
 	server Server,
@@ -190,6 +255,16 @@ func (client *Client) GetChildrenPage(
 }
 
 // GetMediaItem fetches a single media item from a Plex Media Server.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//   - mediaID: Rating key of the item.
+//
+// Returns:
+//   - item: The mapped media item, keyed by mediaID.
+//   - err: ErrNoFilePathFound when the server returned no metadata, or a request
+//     error.
 func (client *Client) GetMediaItem(
 	ctx context.Context,
 	server Server,
@@ -218,6 +293,14 @@ func (client *Client) GetMediaItem(
 }
 
 // GetSessionsOnServer fetches active sessions from a Plex Media Server.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//
+// Returns:
+//   - sessions: The server's playback sessions.
+//   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([]Session, error) {
 	resp, err := client.getPMS(ctx, server, "/status/sessions", "")
 	if err != nil {

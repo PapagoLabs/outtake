@@ -38,16 +38,16 @@ func TestGetThumb(t *testing.T) {
 	host, port := extractAddrPort(t, ts)
 	client := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
+		ClientID: "test",
+		Token:    "srv-token",
 		Timeout:  5 * time.Second,
 		BaseURL:  "",
 	})
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}

@@ -7,7 +7,8 @@ package plextv
 import (
 	"encoding/xml"
 	"fmt"
-	"strings"
+
+	"github.com/PapagoLabs/outtake/internal/plex/decode/key"
 )
 
 // Media is a plex.tv XML media listing entry.
@@ -81,9 +82,6 @@ type sessionResponse struct {
 	Video   []Session `xml:"Video"`
 }
 
-// MetadataKeyPrefix is the PMS metadata key prefix stripped by ID.
-const metadataKeyPrefix = "/library/metadata/"
-
 // Devices unmarshals a plex.tv device-discovery envelope.
 //
 // Parameters:
@@ -151,17 +149,7 @@ func (entry Media) ID() string {
 		return entry.RatingKey
 	}
 
-	id, ok := strings.CutPrefix(entry.Key, metadataKeyPrefix)
-	if !ok {
-		return ""
-	}
-
-	id = strings.TrimSuffix(id, "/")
-	if slash := strings.Index(id, "/"); slash >= 0 {
-		id = id[:slash]
-	}
-
-	return id
+	return key.ID(entry.Key)
 }
 
 // Media converts a session entry into a media listing entry.

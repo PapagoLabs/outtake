@@ -6,39 +6,32 @@ package pages
 import (
 	"strconv"
 
+	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/web/components/badge"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/checkbox"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-type ClipProfileItem struct {
-	ID        string
-	Name      string
-	CRF       int
-	Preset    string
-	AudioKbps int
-	MaxWidth  int
-	IsDefault bool
-}
-
-type OutputWidthOption struct {
-	Width int
-	Label string
-}
-
+// ClipProfilesProps carries the stored profiles and the form choices.
 type ClipProfilesProps struct {
-	Profiles []ClipProfileItem
+	Profiles []view.ClipProfileItem
 	Presets  []string
-	Widths   []OutputWidthOption
+	Widths   []profile.OutputWidth
 	Error    string
 }
 
+// ClipProfiles renders the stored clip profiles and the new profile form.
+//
+// Parameters:
+//   - props: Stored profiles and form choices.
 templ ClipProfiles(props ClipProfilesProps) {
 	@layout.Layout(layout.Props{Title: "Clip Profiles", Active: "profiles"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
@@ -109,7 +102,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 						</div>
 						@profileFields("new-", "", 23, "medium", 192, 1920, props.Presets, props.Widths)
 						<label class="flex items-center gap-2 text-sm">
-							<input type="checkbox" name="isDefault" value="1" class="rounded border-input"/>
+							@checkbox.Checkbox(checkbox.Props{Name: "isDefault", Value: "1", Class: "rounded border-input"})
 							Set as default
 						</label>
 						@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Class: "self-start"}) {
@@ -122,7 +115,18 @@ templ ClipProfiles(props ClipProfilesProps) {
 	}
 }
 
-templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, presets []string, widths []OutputWidthOption) {
+// profileFields renders the shared name, CRF, preset, bitrate, and width fields.
+//
+// Parameters:
+//   - idPrefix: Id and name prefix that keeps two forms apart.
+//   - name: Current profile name.
+//   - crf: Current CRF value.
+//   - preset: Current encoder preset.
+//   - audioKbps: Current audio bitrate in kbps.
+//   - maxWidth: Current export resolution.
+//   - presets: Encoder presets to choose from.
+//   - widths: Export resolutions to choose from.
+templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, presets []string, widths []profile.OutputWidth) {
 	<div class="flex flex-col gap-2">
 		@label.Label(label.Props{For: idPrefix + "name"}) {
 			Name

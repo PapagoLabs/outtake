@@ -6,14 +6,20 @@ package pages
 import (
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
 
+// ErrorPageProps carries the status and copy of an error response.
 type ErrorPageProps struct {
 	Title   string
 	Message string
 	Status  int
 }
 
+// ErrorPage renders a standalone error document.
+//
+// Parameters:
+//   - props: Status and copy of the error.
 templ ErrorPage(props ErrorPageProps) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark" data-palette="plex" data-palettes={ theme.IDList() }>
@@ -24,7 +30,7 @@ templ ErrorPage(props ErrorPageProps) {
 			@brand.IconHead()
 			<script src="/assets/js/theme.js"></script>
 			<link href="/assets/css/output.css" rel="stylesheet"/>
-			<script src="/assets/js/app.js" defer></script>
+			<script src={ utils.ScriptURL("/assets/js/app.js") } defer></script>
 		</head>
 		<body class="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
 			<div class="w-full max-w-md text-center flex flex-col gap-4">

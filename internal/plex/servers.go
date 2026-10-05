@@ -4,18 +4,19 @@
 package plex
 
 import (
+	"net"
 	"net/url"
 	"strconv"
 )
 
 const (
-	// DefaultPlexPort is used when a PMS URL omits an explicit port.
+	// defaultPlexPort is used when a PMS URL omits an explicit port.
 	defaultPlexPort = 32400
 
-	// HttpsPort is the default HTTPS port.
+	// httpsPort is the default HTTPS port.
 	httpsPort = 443
 
-	// HttpPort is the default HTTP port.
+	// httpPort is the default HTTP port.
 	httpPort = 80
 )
 
@@ -91,8 +92,54 @@ func ServerFromURL(rawURL, token string) (Server, bool) {
 	}, true
 }
 
-// portFromURL reads an explicit port or the scheme default.
-// DefaultPortForScheme returns the implicit port for a URL scheme.
+// ServerFromParts builds a Server from the parts of a base URL.
+//
+// Parameters:
+//   - scheme: URL scheme, defaulting to http when blank.
+//   - address: Server host, which is required.
+//   - port: Server port, where blank or zero means the scheme's own default.
+//   - token: Plex access token.
+//
+// Returns:
+//   - server: Assembled server connection.
+//   - ok: False when the host or token is missing, or the port is not a number.
+func ServerFromParts(scheme, address, port, token string) (Server, bool) {
+	if address == "" || token == "" {
+		return EmptyServer(), false
+	}
+
+	if scheme == "" {
+		scheme = httpScheme
+	}
+
+	portNum := defaultPortForScheme(scheme)
+
+	if port != "" && port != "0" {
+		parsed, err := strconv.Atoi(port)
+		if err != nil {
+			return EmptyServer(), false
+		}
+
+		portNum = parsed
+	}
+
+	return Server{
+		Name:    net.JoinHostPort(address, strconv.Itoa(portNum)),
+		Address: address,
+		Port:    portNum,
+		Token:   token,
+		Scheme:  scheme,
+		Local:   true,
+	}, true
+}
+
+// defaultPortForScheme returns the implicit port for a URL scheme.
+//
+// Parameters:
+//   - scheme: URL scheme, or empty for an unrecognized one.
+//
+// Returns:
+//   - port: The scheme's implicit port, or defaultPlexPort for anything else.
 func defaultPortForScheme(scheme string) int {
 	switch scheme {
 	case defaultScheme:
@@ -105,6 +152,13 @@ func defaultPortForScheme(scheme string) int {
 }
 
 // portFromURL reads an explicit port or the scheme default.
+//
+// Parameters:
+//   - parsed: Parsed PMS URL.
+//
+// Returns:
+//   - port: The explicit port, or the scheme's implicit port.
+//   - ok: False when an explicit port is present but not a number.
 func portFromURL(parsed *url.URL) (int, bool) {
 	if parsed.Port() != "" {
 		portNum, err := strconv.Atoi(parsed.Port())

@@ -1,40 +1,43 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+// Package utils provides shared helpers for the Outtake web layer.
 package utils
 
 import (
 	"context"
 	"crypto/rand"
 	"io"
-	"io/fs"
-	"maps"
-	"net/http"
-	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/templui/templui/components"
 
 	twmerge "github.com/Oudwins/tailwind-merge-go"
 )
 
 // ControlClass is the shared class list for text inputs and native selects.
-//
-// It carries the aria-invalid styling, so marking a control invalid with
-// `aria-invalid="true"` is all it takes to show the field as out of bounds.
 const ControlClass = "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40"
 
 // TwMerge combines Tailwind classes and resolves conflicts.
-// Example: "bg-red-500 hover:bg-blue-500", "bg-green-500" → "hover:bg-blue-500 bg-green-500".
+//
+// Parameters:
+//   - classes: Class lists to combine. Later classes win a conflict.
+//
+// Returns:
+//   - merged: The combined classes with conflicts resolved.
 func TwMerge(classes ...string) string {
 	return twmerge.Merge(classes...)
 }
 
-// If returns value if condition is true, otherwise the zero value of T.
-// Example: true, "bg-red-500" → "bg-red-500".
+// If returns value when condition is true and the zero value of T otherwise.
+//
+// Parameters:
+//   - condition: Whether to return value.
+//   - value: The value to return when condition is true.
+//
+// Returns:
+//   - result: value when condition is true, otherwise the zero value of T.
 func If[T any](condition bool, value T) T {
 	var empty T
 
@@ -45,8 +48,15 @@ func If[T any](condition bool, value T) T {
 	return empty
 }
 
-// IfElse returns trueValue if condition is true, otherwise falseValue.
-// Example: true, "bg-red-500", "bg-gray-300" → "bg-red-500".
+// IfElse returns one of two values based on condition.
+//
+// Parameters:
+//   - condition: Whether to return trueValue.
+//   - trueValue: The value to return when condition is true.
+//   - falseValue: The value to return when condition is false.
+//
+// Returns:
+//   - result: trueValue when condition is true, otherwise falseValue.
 func IfElse[T any](condition bool, trueValue, falseValue T) T {
 	if condition {
 		return trueValue
@@ -55,55 +65,35 @@ func IfElse[T any](condition bool, trueValue, falseValue T) T {
 	return falseValue
 }
 
-// MergeAttributes combines multiple Attributes into one.
-// Example: MergeAttributes(attr1, attr2) → combined attributes.
-func MergeAttributes(attrs ...templ.Attributes) templ.Attributes {
-	merged := templ.Attributes{}
-
-	for _, attr := range attrs {
-		maps.Copy(merged, attr)
-	}
-
-	return merged
-}
-
 // RandomID generates a random ID string.
-// Example: RandomID() → "id-1a2b3c".
+//
+// Returns:
+//   - id: The generated identifier, prefixed with "id-".
 func RandomID() string {
 	return "id-" + rand.Text()
 }
 
 // ScriptVersion is a timestamp generated at app start for cache busting.
-// Used in component script tags to append ?v=<timestamp> to script URLs.
 var ScriptVersion = strconv.FormatInt(time.Now().Unix(), 10)
 
-// ScriptURL generates cache-busted script URLs.
-// Override this to use custom cache busting (CDN, content hashing, etc.)
-//
-// Example override in your app:
-//
-//	func init() {
-//	    utils.ScriptURL = func(path string) string {
-//	        return myAssetManifest.GetURL(path)
-//	    }
-//	}
+// ScriptURL appends the cache-busting query to a script path.
 var ScriptURL = func(path string) string {
 	return path + "?v=" + ScriptVersion
 }
 
 // componentScriptBasePath is the base public path for component JavaScript files.
-// In the import workflow this stays "/templui/js". The CLI rewrites it to the
-// user's local jsPublicPath, which for this app is the embedded asset directory
-// served by the /assets mount, so the rewrite must land on the same path the
-// mount uses or every component script 404s.
 var componentScriptBasePath = "/assets/js"
 
 // UseUnminifiedScripts switches component script loading to the unminified files.
-// Leave this false in normal use and set it to true during app startup for debugging.
 var UseUnminifiedScripts = false
 
 // ComponentScript renders a deferred script tag for a component JavaScript file.
-// Example: ComponentScript("datepicker") → <script defer src="/templui/js/datepicker.min.js?..."></script>.
+//
+// Parameters:
+//   - component: Component name whose script is loaded.
+//
+// Returns:
+//   - script: A component rendering the script tag.
 func ComponentScript(component string) templ.Component {
 	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
 		nonce := templ.GetNonce(ctx)
@@ -140,45 +130,4 @@ func ComponentScript(component string) templ.Component {
 
 		return nil
 	})
-}
-
-// SetupScriptRoutes serves embedded component JavaScript files for the import workflow.
-// Example: SetupScriptRoutes(mux, true) mounts /templui/js/*.js with no-store caching in development.
-func SetupScriptRoutes(mux *http.ServeMux, isDevelopment bool) {
-	if mux == nil || componentScriptBasePath != "/templui/js" {
-		return
-	}
-
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		urlPath := strings.TrimPrefix(r.URL.Path, "/templui/js/")
-		if urlPath == r.URL.Path || urlPath == "" || strings.Contains(urlPath, "..") {
-			http.NotFound(w, r)
-
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/javascript")
-
-		if isDevelopment {
-			w.Header().Set("Cache-Control", "no-store")
-		} else {
-			w.Header().Set("Cache-Control", "public, max-age=31536000")
-		}
-
-		fileName := path.Base(urlPath)
-		component := strings.TrimSuffix(fileName, ".min.js")
-
-		component = strings.TrimSuffix(component, ".js")
-
-		file, err := fs.ReadFile(components.TemplFiles, path.Join(component, fileName))
-		if err != nil {
-			http.NotFound(w, r)
-
-			return
-		}
-
-		_, _ = w.Write(file)
-	})
-
-	mux.Handle("GET /templui/js/", handler)
 }

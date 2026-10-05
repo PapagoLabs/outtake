@@ -7,28 +7,41 @@ package browse
 import (
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
-	"unicode"
 
-	"github.com/PapagoLabs/outtake/internal/media"
+	"github.com/PapagoLabs/outtake/internal/timecode"
+	"github.com/PapagoLabs/outtake/internal/web/components/aspectratio"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-func thumbAspect(mediaType string) string {
+// thumbAspect returns the poster aspect-ratio wrapper for a media card.
+//
+// Parameters:
+//   - mediaType: Plex media type of the card being rendered.
+//
+// Returns:
+//   - props: AspectRatio properties for the poster wrapper.
+func thumbAspect(mediaType string) aspectratio.Props {
 	switch mediaType {
 	case "episode", "track":
-		return "aspect-video"
+		return aspectratio.Props{Ratio: aspectratio.RatioVideo}
 	case "artist", "album":
-		return "aspect-square"
+		return aspectratio.Props{Ratio: aspectratio.RatioSquare}
 	default:
-		return "aspect-[2/3]"
+		return aspectratio.Props{Ratio: aspectratio.RatioAuto, Class: "aspect-[2/3]"}
 	}
 }
 
+// emptyMediaMessage returns the message shown when a browse returns nothing.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - message: Why the browse is empty.
 func emptyMediaMessage(props view.MediaProps) string {
 	if !props.HasServer {
 		return "No media found. Connect your Plex server and try again."
@@ -63,57 +76,45 @@ func showLetters(props view.MediaProps) bool {
 	return showSort(props) && len(props.Letters) > 0
 }
 
-// jumpNavLabel returns the accessible name for the jump rail.
-//
-// Parameters:
-//   - sort: Normalized Outtake sort key.
-//
-// Returns:
-//   - label: Jump to year, month, or letter.
-func jumpNavLabel(sort string) string {
-	switch sort {
-	case "year_desc", "year_asc":
-		return "Jump to year"
-	case "added_desc", "added_asc":
-		return "Jump to month"
-	default:
-		return "Jump to letter"
-	}
+// jumpRailKind is what a jump rail's marks hold.
+type jumpRailKind string
+
+// The kinds of mark a jump rail can hold.
+const (
+	jumpKindLetter jumpRailKind = "letter"
+	jumpKindYear   jumpRailKind = "year"
+	jumpKindMonth  jumpRailKind = "month"
+)
+
+// jumpRail is how one sort's jump rail reads: its accessible name, its width, and its marks.
+type jumpRail struct {
+	label string
+	width string
+	kind  jumpRailKind
 }
 
-// jumpNavWidth returns the Tailwind width class for the jump rail.
-//
-// Parameters:
-//   - sort: Normalized Outtake sort key.
-//
-// Returns:
-//   - class: Width class for letter, year, or month marks.
-func jumpNavWidth(sort string) string {
-	switch sort {
-	case "added_desc", "added_asc":
-		return "w-14"
-	case "year_desc", "year_asc":
-		return "w-10"
-	default:
-		return "w-8"
-	}
-}
+// One rail per jump-mark kind, widest for a month mark and narrowest for a letter mark.
+var (
+	letterRail = jumpRail{label: "Jump to letter", width: "w-8", kind: jumpKindLetter}
+	yearRail   = jumpRail{label: "Jump to year", width: "w-10", kind: jumpKindYear}
+	monthRail  = jumpRail{label: "Jump to month", width: "w-14", kind: jumpKindMonth}
+)
 
-// jumpKind returns the data-jump-kind value for the active sort.
+// jumpRailFor returns the jump rail for a sort.
 //
 // Parameters:
 //   - sort: Normalized Outtake sort key.
 //
 // Returns:
-//   - kind: year, month, or letter.
-func jumpKind(sort string) string {
+//   - rail: Year or month rail, falling back to letters for title sorts.
+func jumpRailFor(sort string) jumpRail {
 	switch sort {
-	case "year_desc", "year_asc":
-		return "year"
-	case "added_desc", "added_asc":
-		return "month"
+	case view.MediaSortYearAsc, view.MediaSortYearDesc:
+		return yearRail
+	case view.MediaSortAddedAsc, view.MediaSortAddedDesc:
+		return monthRail
 	default:
-		return "letter"
+		return letterRail
 	}
 }
 
@@ -124,50 +125,24 @@ func jumpKind(sort string) string {
 //   - sort: Normalized Outtake sort key.
 //
 // Returns:
-//   - key: Letter, year, month, or #.
+//   - key: Letter, year, month, or the other-key mark.
 func jumpKey(item view.MediaItem, sort string) string {
-	switch sort {
-	case "year_desc", "year_asc":
+	switch jumpRailFor(sort).kind {
+	case jumpKindYear:
 		if item.Year <= 0 {
-			return "#"
+			return view.JumpOtherKey
 		}
 
 		return strconv.Itoa(item.Year)
-	case "added_desc", "added_asc":
+	case jumpKindMonth:
 		if item.AddedAt <= 0 {
-			return "#"
+			return view.JumpOtherKey
 		}
 
 		return time.Unix(item.AddedAt, 0).Local().Format("01/2006")
 	default:
-		return titleJumpKey(item.TitleSort, item.Title)
+		return view.TitleJumpKey(item.TitleSort, item.Title)
 	}
-}
-
-// titleJumpKey returns the first-letter jump key for a title.
-//
-// Parameters:
-//   - titleSort: PMS titleSort value, preferred when set.
-//   - title: Display title used when titleSort is empty.
-//
-// Returns:
-//   - key: A through Z, or # for anything else.
-func titleJumpKey(titleSort, title string) string {
-	s := strings.TrimSpace(titleSort)
-	if s == "" {
-		s = strings.TrimSpace(title)
-	}
-
-	if s == "" {
-		return "#"
-	}
-
-	r := unicode.ToUpper([]rune(s)[0])
-	if r >= 'A' && r <= 'Z' {
-		return string(r)
-	}
-
-	return "#"
 }
 
 // hasPrev reports whether a previous poster page can be prepended.
@@ -181,28 +156,26 @@ func hasPrev(props view.MediaProps) bool {
 	return props.Query == "" && props.Start > 0
 }
 
+// showChooser reports whether the page should offer the library chooser.
+//
+// Parameters:
+//   - props: Media library page state.
+//
+// Returns:
+//   - ok: True when no library is selected and there is nothing to show.
 func showChooser(props view.MediaProps) bool {
 	return props.LibraryID == "" && len(props.Libraries) > 0 && len(props.Items) == 0 && props.Query == ""
 }
 
-func hasMore(props view.MediaProps) bool {
-	return props.Query == "" && props.PageSize > 0 && props.Start+len(props.Items) < props.Total
-}
-
-// sortSelected reports whether a sort option should be marked selected.
+// hasMore reports whether a following poster page exists.
 //
 // Parameters:
-//   - current: Active sort key, or empty for the default.
-//   - value: Option value being rendered.
+//   - props: Media library page state.
 //
 // Returns:
-//   - ok: True when value matches current, or title A-Z when current is empty.
-func sortSelected(current, value string) bool {
-	if current == "" {
-		return value == "title_asc"
-	}
-
-	return current == value
+//   - ok: True when the items shown do not reach the total.
+func hasMore(props view.MediaProps) bool {
+	return props.Query == "" && props.PageSize > 0 && props.Start+len(props.Items) < props.Total
 }
 
 // browseValues builds shared query parameters for media browse URLs.
@@ -315,6 +288,13 @@ func letterURL(props view.MediaProps, letter string) string {
 	return encodeMediaURL(values)
 }
 
+// libraryURL builds the media listing link for one library.
+//
+// Parameters:
+//   - id: The Plex library id.
+//
+// Returns:
+//   - href: The /media link for that library.
 func libraryURL(id string) templ.SafeURL {
 	values := url.Values{}
 	values.Set("library", id)
@@ -363,11 +343,15 @@ templ mediaCard(item view.MediaItem, sort string) {
 			<div class="flex flex-col gap-2">
 				<a href={ itemURL(item) } class="block rounded-md focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
 					if item.ThumbPath != "" {
-						<img src={ item.ThumbPath } alt={ item.Title } class={ "w-full rounded-md object-cover bg-muted transition-opacity hover:opacity-90 " + thumbAspect(item.Type) }/>
+						@aspectratio.AspectRatio(thumbAspect(item.Type)) {
+							<img src={ item.ThumbPath } alt={ item.Title } class="size-full rounded-md object-cover bg-muted transition-opacity hover:opacity-90"/>
+						}
 					} else {
-						<div class={ "w-full rounded-md bg-muted flex items-center justify-center transition-opacity hover:opacity-90 " + thumbAspect(item.Type) }>
-							<span class="text-muted-foreground text-sm">No thumbnail</span>
-						</div>
+						@aspectratio.AspectRatio(thumbAspect(item.Type)) {
+							<div class="flex size-full items-center justify-center rounded-md bg-muted transition-opacity hover:opacity-90">
+								<span class="text-muted-foreground text-sm">No thumbnail</span>
+							</div>
+						}
 					}
 				</a>
 				<h3 class="font-medium text-sm line-clamp-1">
@@ -389,7 +373,7 @@ templ mediaCard(item view.MediaItem, sort string) {
 					}
 					if item.Duration > 0 && item.Type != "show" && item.Type != "season" && item.Type != "artist" {
 						<span>&middot;</span>
-						<span>{ media.FromSeconds(item.Duration).Short() }</span>
+						<span>{ timecode.FromDuration(item.Duration).Short() }</span>
 					}
 				</div>
 			</div>
@@ -420,6 +404,10 @@ templ libraryCard(lib view.LibraryItem) {
 	</a>
 }
 
+// mediaCrumbs renders the breadcrumb trail for the current location.
+//
+// Parameters:
+//   - crumbs: Breadcrumb trail, last entry being the current location.
 templ mediaCrumbs(crumbs []view.Crumb) {
 	if len(crumbs) > 0 {
 		<nav class="col-span-full flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -458,12 +446,12 @@ templ mediaSortToolbar(props view.MediaProps) {
 				hx-include="closest form"
 				class={ utils.ControlClass }
 			>
-				<option value="title_asc" selected?={ sortSelected(props.Sort, "title_asc") }>Title A-Z</option>
-				<option value="title_desc" selected?={ sortSelected(props.Sort, "title_desc") }>Title Z-A</option>
-				<option value="year_desc" selected?={ sortSelected(props.Sort, "year_desc") }>Year newest</option>
-				<option value="year_asc" selected?={ sortSelected(props.Sort, "year_asc") }>Year oldest</option>
-				<option value="added_desc" selected?={ sortSelected(props.Sort, "added_desc") }>Date added newest</option>
-				<option value="added_asc" selected?={ sortSelected(props.Sort, "added_asc") }>Date added oldest</option>
+				<option value={ view.MediaSortTitleAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortTitleAsc, view.MediaSortTitleAsc) }>Title A-Z</option>
+				<option value={ view.MediaSortTitleDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortTitleDesc, view.MediaSortTitleAsc) }>Title Z-A</option>
+				<option value={ view.MediaSortYearDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortYearDesc, view.MediaSortTitleAsc) }>Year newest</option>
+				<option value={ view.MediaSortYearAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortYearAsc, view.MediaSortTitleAsc) }>Year oldest</option>
+				<option value={ view.MediaSortAddedDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortAddedDesc, view.MediaSortTitleAsc) }>Date added newest</option>
+				<option value={ view.MediaSortAddedAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortAddedAsc, view.MediaSortTitleAsc) }>Date added oldest</option>
 			</select>
 		</div>
 	</form>
@@ -576,7 +564,7 @@ templ MediaBrowse(props view.MediaProps) {
 				@MediaResults(props)
 			</div>
 			if showLetters(props) {
-				<nav class={ "hidden h-full min-h-0 shrink-0 flex-col overflow-y-auto overscroll-contain md:flex " + jumpNavWidth(props.Sort) } aria-label={ jumpNavLabel(props.Sort) } data-jump-nav data-jump-kind={ jumpKind(props.Sort) }>
+				<nav class={ "hidden h-full min-h-0 shrink-0 flex-col overflow-y-auto overscroll-contain md:flex " + jumpRailFor(props.Sort).width } aria-label={ jumpRailFor(props.Sort).label } data-jump-nav data-jump-kind={ string(jumpRailFor(props.Sort).kind) }>
 					@letterLinks(props)
 				</nav>
 			}
@@ -584,6 +572,10 @@ templ MediaBrowse(props view.MediaProps) {
 	</div>
 }
 
+// MediaResults renders the chooser, the empty message, and one page of results.
+//
+// Parameters:
+//   - props: Media library page state.
 templ MediaResults(props view.MediaProps) {
 	if showChooser(props) {
 		<div class="col-span-full flex flex-col gap-3">

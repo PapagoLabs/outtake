@@ -4,13 +4,13 @@
 package theme
 
 const (
-	// NordPolar is Nord polar night.
+	// nordPolar is the polar night base color.
 	nordPolar = "oklch(0.324 0.023 264.182)"
 
-	// NordFrost is Nord frost accent on light surfaces.
+	// nordFrost is the frost accent on light surfaces.
 	nordFrost = "oklch(0.594 0.077 254.028)"
 
-	// NordAurora is Nord frost accent on dark surfaces.
+	// nordAurora is the frost accent on dark surfaces.
 	nordAurora = "oklch(0.775 0.062 217.469)"
 )
 
