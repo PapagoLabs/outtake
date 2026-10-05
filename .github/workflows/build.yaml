@@ -71,7 +71,7 @@ jobs:
           cache: false
 
       - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@09d6b02946f54492f3d3dcb9729f5b792f220b40 #v0.3.1020
+        run: go install github.com/a-h/templ/cmd/templ@07dfb6e0c7c47f56c6e8ed6601ecd65b18e210dc #v0.3.1070
 
       - name: Install goimports
         run: go install golang.org/x/tools/cmd/goimports@latest
