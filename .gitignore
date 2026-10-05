@@ -22,9 +22,6 @@ coverage/
 *.test
 *.prof
 
-# Generated
-**/*_templ.go
-
 # CSS
 share/css/dist/
 node_modules/
