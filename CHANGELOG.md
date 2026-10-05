@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Chores
+
+- Update github.com/google/pprof digest to 639476b by @renovate[bot] in [#313](https://github.com/PapagoLabs/outtake/pull/313)
+
+## [0.3.1] - 2026-10-05
+
 ### Added
 
 - Add an in-memory preview render registry by @nicholas-fedor in [#238](https://github.com/PapagoLabs/outtake/pull/238)
@@ -267,7 +273,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Compare Releases
 
-- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.2.1...HEAD)
+- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.3.1...HEAD)
+- [0.3.1](https://github.com/PapagoLabs/outtake/compare/v0.2.1...v0.3.1)
 - [0.2.1](https://github.com/PapagoLabs/outtake/compare/v0.2.0...v0.2.1)
 - [0.2.0](https://github.com/PapagoLabs/outtake/compare/v0.1.1...v0.2.0)
 - [0.1.1](https://github.com/PapagoLabs/outtake/compare/v0.1.0...v0.1.1)
