@@ -15,7 +15,7 @@ require (
 	github.com/klauspost/compress v1.20.1 // indirect
 	github.com/klauspost/pgzip v1.2.7 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
-	github.com/minio/minlz v1.2.1 // indirect
+	github.com/minio/minlz v1.2.2 // indirect
 	github.com/nwaples/rardecode/v2 v2.4.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/sorairolake/lzip-go v0.3.8 // indirect
