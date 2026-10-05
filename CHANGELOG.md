@@ -8,12 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Chores
-
-- Update module github.com/jackc/puddle/v2 to v2.2.3 by @renovate[bot] in [#309](https://github.com/PapagoLabs/outtake/pull/309)
-
-## [0.3.0] - 2026-10-05
-
 ### Added
 
 - Add an in-memory preview render registry by @nicholas-fedor in [#238](https://github.com/PapagoLabs/outtake/pull/238)
@@ -35,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update templ installation to v0.3.1070 by @nicholas-fedor in [#311](https://github.com/PapagoLabs/outtake/pull/311)
+- Update module github.com/jackc/puddle/v2 to v2.2.3 by @renovate[bot] in [#309](https://github.com/PapagoLabs/outtake/pull/309)
 - Track generated templ files by @nicholas-fedor in [#307](https://github.com/PapagoLabs/outtake/pull/307)
 - Update module github.com/minio/minlz to v1.2.2 by @renovate[bot] in [#304](https://github.com/PapagoLabs/outtake/pull/304)
 - Update module github.com/valyala/fasthttp to v1.75.0 by @renovate[bot] in [#301](https://github.com/PapagoLabs/outtake/pull/301)
@@ -271,8 +267,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Compare Releases
 
-- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.3.0...HEAD)
-- [0.3.0](https://github.com/PapagoLabs/outtake/compare/v0.2.1...v0.3.0)
+- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.2.1...HEAD)
 - [0.2.1](https://github.com/PapagoLabs/outtake/compare/v0.2.0...v0.2.1)
 - [0.2.0](https://github.com/PapagoLabs/outtake/compare/v0.1.1...v0.2.0)
 - [0.1.1](https://github.com/PapagoLabs/outtake/compare/v0.1.0...v0.1.1)
