@@ -4,5 +4,9 @@
 // Package middleware provides HTTP middleware for the outtake API.
 package middleware
 
+import (
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
+)
+
 // SessionKeyToken is the session key used to store the Plex authentication token.
-const SessionKeyToken = "plex_token"
+const SessionKeyToken = identity.SessionKeyToken

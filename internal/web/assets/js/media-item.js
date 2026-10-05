@@ -159,7 +159,7 @@
 		// layout sets on the body. Polling continues either way: the render ends
 		// as canceled and the next poll reports it, so the status line settles on
 		// the outcome rather than freezing at the last percentage.
-		cancelEl.addEventListener('htmx:responseError', function () {
+		cancelEl.addEventListener('htmx:response:error', function () {
 			statusEl.classList.remove('hidden');
 			statusEl.textContent = 'Could not cancel the preview.';
 		});
@@ -181,7 +181,7 @@
 		});
 
 		setEndEl.addEventListener('click', function () {
-			if (!endEl || !videoEl.currentTime) { return; }
+			if (!endEl || !Number.isFinite(videoEl.currentTime)) { return; }
 			endEl.value = formatTimecode(proxyStart + videoEl.currentTime);
 			endEl.dispatchEvent(new Event('input'));
 		});

@@ -1091,7 +1091,7 @@ linters:
       period: true
       # Check that each sentence starts with a capital letter.
       # Default: false
-      capital: true
+      capital: false
 
     godox:
       # Report any comments starting with keywords, this is useful for TODO or FIXME comments that
@@ -3411,7 +3411,7 @@ linters:
         overrides:
           - # The package path (uses `/` only as a separator).
             # Required
-            pkg: internal/media
+            pkg: internal/ffmpeg/probe
             rules:
               json: snake
           - # The package path (uses `/` only as a separator).
@@ -3757,16 +3757,27 @@ linters:
       # while retaining the defaults or any items in 'ignore-sigs'.
       # Default: []
       extra-ignore-sigs:
-        - .writeJSON(
-        - .writeError(
-        - .redirectTo(
-        - .sendText(
-        - .sendStatusCode(
-        - .renderHTML(
-        - .wrapAuth(
-        - .sendAuthComplete(
+        # respond is the adapter's own transport. Its helpers already wrap
+        # whatever Fiber returned with the reason it failed, so a handler
+        # returning one directly has nothing left to add.
+        - .WriteJSON(
+        - .WriteError(
+        - .WriteHTMXFlash(
+        - .WriteNotFound(
+        - .RedirectTo(
+        - .SendText(
+        - .SendStatusCode(
+        - .SendRangedFile(
+        - .RenderHTML(
+        - .FormErrorLocation(
+        - .PageError(
+        # The thumb proxy answers with the bytes it already fetched, so a failure
+        # to cache is not a failure of the request.
         - .sendCachedThumb(
         - .sendThumbBytes(
+        # The auth routes answer with the redirect the session already decided on.
+        - .wrapAuth(
+        - .sendAuthComplete(
 
       # An array of strings that specify substrings of signatures to ignore.
       # If this set, it will override the default set of ignored signatures.
@@ -3948,6 +3959,7 @@ linters:
           - gocritic
           - gocyclo
           - godoclint
+          - goconst
           - gosec
           - gosmopolitan
           - lll

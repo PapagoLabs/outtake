@@ -6,11 +6,11 @@ package main
 import (
 	"os"
 
-	"github.com/PapagoLabs/outtake/internal/cli/cmd"
+	"github.com/PapagoLabs/outtake/internal/cmd"
 	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
-// main is the entry point for the application.
+// main runs the command tree and reports a failure through the exit code.
 func main() {
 	logging.Init()
 

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/PapagoLabs/outtake/internal/web"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 )
 
 func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
@@ -20,7 +20,7 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	var buf strings.Builder
 
 	err := Layout(Props{Title: "Dashboard", Active: "dashboard", Library: "7"}).
-		Render(web.ContextWithCSRFToken(t.Context(), "csrf-test"), &buf)
+		Render(identity.ContextWithCSRFToken(t.Context(), "csrf-test"), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
@@ -43,9 +43,9 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	assert.Contains(t, body, `data-library="7"`)
 	assert.Contains(t, body, `data-nav="media"`)
 	assert.Contains(t, body, `data-nav="clips"`)
-	assert.Regexp(t, `href="/api/auth/logout"[^>]*hx-boost="false"`, body)
 	assert.Regexp(t, `id="nav-libraries"[^>]*hx-target="this"`, body)
 	assert.NotRegexp(t, `id="nav-libraries"[^>]*hx-select`, body)
+	assertLogoutForm(t, body)
 
 	for _, marker := range []string{
 		`flex items-center gap-2.5`,
@@ -72,4 +72,17 @@ func assertAnchorSelectsMain(t *testing.T, body, marker string) {
 	}
 
 	require.Failf(t, "missing nav link", "no anchor contains %q", marker)
+}
+
+func assertLogoutForm(t *testing.T, body string) {
+	t.Helper()
+
+	tag := regexp.MustCompile(`<form[^>]*action="/api/auth/logout"[^>]*>`).FindString(body)
+	require.NotEmpty(t, tag, "missing logout form")
+
+	assert.Contains(t, tag, `method="POST"`)
+	assert.Contains(t, tag, `hx-boost="false"`)
+	assert.Contains(t, body, `<input type="hidden" name="_csrf" value="csrf-test">`)
+	assert.Regexp(t, `<button[^>]*type="submit"[^>]*>Logout</button>`, body)
+	assert.NotContains(t, body, `href="/api/auth/logout"`)
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/theme"
 )
 
+// Appearance renders the theme palette chooser.
 templ Appearance() {
 	@layout.Layout(layout.Props{Title: "Appearance", Active: "appearance"}) {
 		<div class="flex flex-col gap-6 max-w-xl">

@@ -8,17 +8,17 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/web"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 )
 
 // BindCSRFToken copies the Fiber CSRF token onto the request context for templates.
 //
 // Returns:
-//   - Middleware that stores the token and continues the chain.
+//   - handler: Middleware that stores the token and continues the chain.
 func BindCSRFToken() fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		token := csrf.TokenFromContext(ctx)
-		ctx.SetContext(web.ContextWithCSRFToken(ctx.Context(), token))
+		ctx.SetContext(identity.ContextWithCSRFToken(ctx.Context(), token))
 
 		return ctx.Next()
 	}

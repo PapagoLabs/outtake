@@ -5,11 +5,27 @@ package theme
 
 import (
 	"os"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func emptySchemeFields(scheme Scheme) []string {
+	value := reflect.ValueOf(scheme)
+	fields := value.Type()
+
+	empty := make([]string, 0, value.NumField())
+
+	for i := range value.NumField() {
+		if value.Field(i).String() == "" {
+			empty = append(empty, fields.Field(i).Name)
+		}
+	}
+
+	return empty
+}
 
 func TestPalettesIsRegistry(t *testing.T) {
 	t.Parallel()
@@ -37,8 +53,8 @@ func TestPalettesHaveUniqueIDsAndSwatches(t *testing.T) {
 		assert.NotEmpty(t, palette.Name)
 		assert.NotEmpty(t, palette.Accent)
 		assert.NotEmpty(t, palette.Surface)
-		assert.True(t, palette.Light.complete(), palette.ID+" light")
-		assert.True(t, palette.Dark.complete(), palette.ID+" dark")
+		assert.Empty(t, emptySchemeFields(palette.Light), palette.ID+" light")
+		assert.Empty(t, emptySchemeFields(palette.Dark), palette.ID+" dark")
 	}
 }
 

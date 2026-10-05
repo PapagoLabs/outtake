@@ -5,14 +5,35 @@
 package nav
 
 import (
+	"net/url"
+
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+// libraryURL builds the media listing link for one library.
+//
+// Parameters:
+//   - id: The Plex library id.
+//
+// Returns:
+//   - href: The /media link for that library.
+func libraryURL(id string) templ.SafeURL {
+	values := url.Values{}
+	values.Set("library", id)
+
+	return templ.SafeURL("/media?" + values.Encode())
+}
+
+// NavLibraries renders a sidebar link for each library.
+//
+// Parameters:
+//   - libs: Libraries to link.
+//   - selected: Id of the library in use, empty when none is selected.
 templ NavLibraries(libs []view.LibraryItem, selected string) {
 	for _, lib := range libs {
 		<a
-			href={ templ.SafeURL("/media?library=" + lib.ID) }
+			href={ libraryURL(lib.ID) }
 			data-nav-library={ lib.ID }
 			hx-target="#main-content"
 			hx-select="#main-content"

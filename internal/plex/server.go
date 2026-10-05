@@ -13,31 +13,36 @@ import (
 	"strconv"
 	"time"
 
+	fiberClient "github.com/gofiber/fiber/v3/client"
+
 	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex/decode/plextv"
 	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
 )
 
 const (
-	// ServerAPIBase is the PMS library API prefix.
+	// serverAPIBase is the PMS library API prefix.
 	serverAPIBase = "/library"
 
-	// HeaderPlexToken is the Plex token header name.
+	// headerPlexToken is the Plex token header name.
 	headerPlexToken = "X-Plex-Token"
 
-	// HeaderAccept is the HTTP Accept header name.
+	// headerAccept is the HTTP Accept header name.
 	headerAccept = "Accept"
 
-	// AcceptJSON is the JSON Accept value.
+	// acceptJSON is the JSON Accept value.
 	acceptJSON = "application/json"
 
-	// ScaleMsToS converts Plex millisecond timestamps to seconds.
+	// acceptXML is the Accept value for plex.tv endpoints this client decodes as XML.
+	acceptXML = "application/xml"
+
+	// scaleMsToS converts Plex millisecond timestamps to seconds.
 	scaleMsToS = 1000.0
 
-	// PingTimeoutSec is the PMS ping timeout in seconds.
-	pingTimeoutSec = 5
+	// pingTimeout is the PMS ping timeout.
+	pingTimeout = 5 * time.Second
 
-	// HttpScheme is the HTTP URL scheme.
+	// httpScheme is the HTTP URL scheme.
 	httpScheme = "http"
 )
 
@@ -55,6 +60,14 @@ var plexTypeNames = map[string]string{
 }
 
 // formatHost returns host:port, omitting the port if it's the default for the scheme.
+//
+// Parameters:
+//   - address: Host name or IP address.
+//   - scheme: URL scheme the host is reached over.
+//   - port: Port to join, unless it is the scheme default.
+//
+// Returns:
+//   - hostPort: The host, with a port appended only when it is non-default.
 func formatHost(address, scheme string, port int) string {
 	if (scheme == defaultScheme && port == httpsPort) ||
 		(scheme == httpScheme && port == httpPort) {
@@ -66,6 +79,14 @@ func formatHost(address, scheme string, port int) string {
 }
 
 // GetLibraries fetches libraries from the Plex server.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//
+// Returns:
+//   - libraries: The server's library sections.
+//   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Library, error) {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -75,7 +96,7 @@ func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Librar
 	hostPort := formatHost(server.Address, scheme, server.Port)
 	reqURL := fmt.Sprintf("%s://%s%s/sections/all", scheme, hostPort, serverAPIBase)
 
-	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+	cfg := fiberClient.Config{Ctx: ctx, Header: jsonHeaders(server.Token)}
 
 	resp, err := client.httpClient.Get(reqURL, cfg)
 	if err != nil {
@@ -106,6 +127,15 @@ func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Librar
 }
 
 // GetMedia fetches media items from a library.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//   - libraryID: Section key.
+//
+// Returns:
+//   - items: Every item the library returned.
+//   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) GetMedia(
 	ctx context.Context,
 	server Server,
@@ -202,8 +232,6 @@ func (client *Client) GetYears(
 
 // GetSectionIndex fetches directory buckets for a library facet.
 //
-// Facet must be firstCharacter or year.
-//
 // Parameters:
 //   - ctx: Request context.
 //   - server: PMS to query.
@@ -280,6 +308,15 @@ func directoryIndex(section pms.Section) LetterIndex {
 }
 
 // GetMediaPath fetches the file path for a media item.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS holding the item.
+//   - mediaID: Rating key of the item.
+//
+// Returns:
+//   - path: The first on-disk part path among the item's metadata rows.
+//   - err: ErrNoFilePathFound when no row carries a file, or a request error.
 func (client *Client) GetMediaPath(
 	ctx context.Context,
 	server Server,
@@ -294,7 +331,7 @@ func (client *Client) GetMediaPath(
 	hostPort := formatHost(server.Address, scheme, server.Port)
 	reqURL := fmt.Sprintf("%s://%s/library/metadata/%s", scheme, hostPort, mediaID)
 
-	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+	cfg := fiberClient.Config{Ctx: ctx, Header: jsonHeaders(server.Token)}
 
 	resp, err := client.httpClient.Get(reqURL, cfg)
 	if err != nil {
@@ -316,8 +353,15 @@ func (client *Client) GetMediaPath(
 }
 
 // DiscoverServers discovers Plex servers.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//
+// Returns:
+//   - servers: One entry per connection the account exposes.
+//   - err: Non-nil when the plex.tv request or decode fails.
 func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
-	resp, err := client.doRequest(ctx, "/api/resources", "includeHttps=1")
+	resp, err := client.requestPlex(ctx, "/api/resources", "includeHttps=1", acceptXML)
 	if err != nil {
 		return nil, fmt.Errorf("discover servers: %w", err)
 	}
@@ -342,6 +386,13 @@ func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 }
 
 // Ping pings the server to check connectivity.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to ping.
+//
+// Returns:
+//   - err: ErrServerReturnedError for a non-200 status, or a request error.
 func (client *Client) Ping(ctx context.Context, server Server) error {
 	scheme := server.Scheme
 	if scheme == "" {
@@ -351,9 +402,12 @@ func (client *Client) Ping(ctx context.Context, server Server) error {
 	hostPort := formatHost(server.Address, scheme, server.Port)
 	reqURL := fmt.Sprintf("%s://%s/identity", scheme, hostPort)
 
-	cfg := newRequestConfig(ctx, map[string]string{headerPlexToken: server.Token}, nil)
+	cfg := fiberClient.Config{
+		Ctx:    ctx,
+		Header: map[string]string{headerPlexToken: server.Token},
+	}
 
-	cfg.Timeout = pingTimeoutSec * time.Second
+	cfg.Timeout = pingTimeout
 
 	resp, err := client.httpClient.Get(reqURL, cfg)
 	if err != nil {
@@ -368,6 +422,14 @@ func (client *Client) Ping(ctx context.Context, server Server) error {
 }
 
 // GetServerIdentity fetches the server identity.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - server: PMS to query.
+//
+// Returns:
+//   - identity: The PMS machine identifier and version.
+//   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) GetServerIdentity(
 	ctx context.Context,
 	server Server,
@@ -381,7 +443,7 @@ func (client *Client) GetServerIdentity(
 	hostPort := formatHost(server.Address, scheme, server.Port)
 	reqURL := fmt.Sprintf("%s://%s/identity", scheme, hostPort)
 
-	cfg := newRequestConfig(ctx, jsonHeaders(server.Token), nil)
+	cfg := fiberClient.Config{Ctx: ctx, Header: jsonHeaders(server.Token)}
 
 	resp, err := client.httpClient.Get(reqURL, cfg)
 	if err != nil {
@@ -400,11 +462,20 @@ func (client *Client) GetServerIdentity(
 }
 
 // SearchMedia searches for media across all accessible servers using the Plex.tv API.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - query: Free-text search query.
+//
+// Returns:
+//   - items: The plex.tv search hits.
+//   - err: Non-nil when the plex.tv request or decode fails.
 func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaItem, error) {
-	resp, err := client.doRequest(
+	resp, err := client.requestPlex(
 		ctx,
 		"/search",
 		"query="+url.QueryEscape(query),
+		acceptXML,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("search media: %w", err)
@@ -429,8 +500,15 @@ func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaIte
 }
 
 // GetSessions fetches active sessions using the Plex.tv API.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//
+// Returns:
+//   - sessions: The plex.tv playback sessions.
+//   - err: Non-nil when the plex.tv request or decode fails.
 func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
-	resp, err := client.doRequest(ctx, "/status/sessions", "")
+	resp, err := client.requestPlex(ctx, "/status/sessions", "", acceptXML)
 	if err != nil {
 		return nil, fmt.Errorf("get sessions: %w", err)
 	}
@@ -460,6 +538,12 @@ func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
 }
 
 // MapPlexType maps Plex type strings to standardized types.
+//
+// Parameters:
+//   - plexType: The Plex metadata type.
+//
+// Returns:
+//   - mediaType: The outtake type, or "unknown" for an unmapped value.
 func MapPlexType(plexType string) string {
 	mapped, ok := plexTypeNames[plexType]
 	if !ok {
@@ -470,6 +554,12 @@ func MapPlexType(plexType string) string {
 }
 
 // serversFromDevices flattens discovered devices into server connections.
+//
+// Parameters:
+//   - devices: Devices returned by /api/resources.
+//
+// Returns:
+//   - servers: One entry per device connection.
 func serversFromDevices(devices []plextv.Device) []Server {
 	servers := make([]Server, 0, len(devices))
 
@@ -485,6 +575,15 @@ func serversFromDevices(devices []plextv.Device) []Server {
 }
 
 // serverFromConnection maps a Plex Connection element onto a Server.
+//
+// Parameters:
+//   - name: Device name reported alongside the connection.
+//   - token: Device access token.
+//   - conn: The connection element.
+//
+// Returns:
+//   - server: The parsed connection, or a connection built from its fields when
+//     the URI is absent or unparseable.
 func serverFromConnection(name, token string, conn plextv.Connection) Server {
 	if conn.URI != "" {
 		parsed, ok := ServerFromURL(conn.URI, token)
@@ -517,6 +616,12 @@ func serverFromConnection(name, token string, conn plextv.Connection) Server {
 }
 
 // jsonHeaders returns PMS JSON request headers as documented by the OpenAPI spec.
+//
+// Parameters:
+//   - token: Plex access token sent with the request.
+//
+// Returns:
+//   - headers: The request headers.
 func jsonHeaders(token string) map[string]string {
 	return map[string]string{
 		headerPlexToken: token,
@@ -525,6 +630,12 @@ func jsonHeaders(token string) map[string]string {
 }
 
 // sectionThumb prefers a section thumb, then the composite image.
+//
+// Parameters:
+//   - section: PMS Directory row for the library section.
+//
+// Returns:
+//   - thumbPath: The section thumb, or the composite image when there is none.
 func sectionThumb(section pms.Section) string {
 	if section.Thumb != "" {
 		return section.Thumb
@@ -573,6 +684,14 @@ func mediaListQuery(start, size int, sort string) string {
 }
 
 // mediaPage maps a PMS container onto a page of media items.
+//
+// Parameters:
+//   - container: Decoded PMS container.
+//   - start: Container offset the window was requested at.
+//   - size: Page size that was requested.
+//
+// Returns:
+//   - page: Items with the total size to display.
 func mediaPage(container pms.Container, start, size int) MediaPage {
 	if start < 0 {
 		start = 0
@@ -597,6 +716,13 @@ func mediaPage(container pms.Container, start, size int) MediaPage {
 }
 
 // mediaItemFromEntry converts a Plex media listing entry.
+//
+// Parameters:
+//   - entry: plex.tv media listing entry.
+//   - libraryTitle: Owning library title, or empty.
+//
+// Returns:
+//   - item: The mapped media item.
 func mediaItemFromEntry(entry plextv.Media, libraryTitle string) MediaItem {
 	return MediaItem{
 		ID:           entry.ID(),

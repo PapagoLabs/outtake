@@ -10,31 +10,22 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/extractors"
-	"github.com/gofiber/fiber/v3/middleware/csrf"
-	"github.com/gofiber/fiber/v3/middleware/helmet"
-	"github.com/gofiber/fiber/v3/middleware/recover"
-	"github.com/gofiber/fiber/v3/middleware/session"
-	"github.com/gofiber/fiber/v3/middleware/static"
 	"github.com/rs/zerolog/log"
 
-	"github.com/PapagoLabs/outtake/internal/binding"
-	"github.com/PapagoLabs/outtake/internal/config"
-	"github.com/PapagoLabs/outtake/internal/database"
-	"github.com/PapagoLabs/outtake/internal/media"
-	"github.com/PapagoLabs/outtake/internal/plex"
-	"github.com/PapagoLabs/outtake/internal/queue"
-	"github.com/PapagoLabs/outtake/internal/storage"
+	"github.com/PapagoLabs/outtake/internal/clip/preview"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg"
+	"github.com/PapagoLabs/outtake/internal/logging"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/plex/library"
+	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web"
-	"github.com/PapagoLabs/outtake/internal/web/handlers"
-	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
 // App holds the application state and dependencies.
@@ -43,45 +34,32 @@ type App struct {
 	router *fiber.App
 	queue  *queue.Queue
 	db     *database.DB
-	bind   *binding.Binding
-	// ctx is canceled by a shutdown signal and is the parent of every job's
-	// context. It is built here rather than in Run so the queue can be given it
-	// before any worker exists. This is a lifetime rather than a request scope:
-	// it is never attached to a single request, and it lasts as long as the
-	// process does.
+	bind   *identity.Binding
 	//nolint:containedctx // a service holding its own lifetime context, not a request one.
 	ctx  context.Context
 	stop context.CancelFunc
 }
 
 const (
-	// ShutdownTimeout is the maximum time to wait for graceful shutdown.
+	// shutdownTimeout is how long a graceful shutdown waits.
 	shutdownTimeout = 10 * time.Second
-
-	// ContentSecurityPolicy is the helmet CSP for vendored HTMX and same-origin media.
-	contentSecurityPolicy = "default-src 'self'; script-src 'self'; " +
-		"style-src 'self' 'unsafe-inline'; img-src 'self'; media-src 'self'; " +
-		"object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-
-	// SessionIdleMinutes is the session idle timeout.
-	sessionIdleMinutes = 30
-
-	// SessionAbsoluteHours is the session absolute timeout.
-	sessionAbsoluteHours = 24
-
-	// RouteClips is the clips collection path.
-	routeClips = "/clips"
 )
 
-// errUnknownJobType is returned when a job has an unrecognized type.
-var errUnknownJobType = errors.New("unknown job type")
-
 // New creates a new App with all dependencies initialized.
+//
+// Parameters:
+//   - cfg: The loaded configuration every dependency is built from.
+//
+// Returns:
+//   - app: The wired application.
+//   - error: Non-nil when a dependency fails to initialize.
 func New(cfg *config.Config) (*App, error) {
-	// The signal registration is released on every path that does not produce an
-	// App, since nothing else holds the cancel func yet. Close only takes over
-	// once construction has succeeded.
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	logging.InitFromConfig(cfg)
+
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		syscall.SIGINT, syscall.SIGTERM,
+	)
 
 	db, err := database.NewFromConfig(cfg)
 	if err != nil {
@@ -90,7 +68,7 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("init database: %w", err)
 	}
 
-	store, err := storage.NewFromConfig(cfg)
+	store, err := initStorage(cfg)
 	if err != nil {
 		stop()
 
@@ -99,282 +77,86 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("init storage: %w", err)
 	}
 
-	ffmpeg := media.NewExecFFmpeg(cfg.FFmpegPath, cfg.FFprobePath)
-	plexProduct := "outtake"
-	plexClientID := cfg.PlexClientID
-	if plexClientID == "" {
-		plexClientID = handlers.GenerateClientID()
-	}
+	runner := ffmpeg.NewExecFFmpeg(cfg.FFmpegPath, cfg.FFprobePath)
 
-	bind := binding.New(plexProduct, plexClientID, time.Duration(cfg.SessionPollSec)*time.Second)
-	restoreBinding(cfg, db, bind)
+	plexAuth, bind := plexIdentity(cfg, db)
 
-	jobQueue := startQueue(ctx, cfg, db, ffmpeg, store)
+	jobQueue := startQueue(ctx, cfg, db, runner, store.blob)
 
-	router := newRouter(cfg, db, jobQueue, store, bind, plexProduct, plexClientID)
+	previews, sources := renderServices(cfg, store, bind, runner)
 
 	return &App{
-		ctx:    ctx,
-		stop:   stop,
-		cfg:    cfg,
-		router: router,
-		queue:  jobQueue,
-		db:     db,
-		bind:   bind,
+		ctx:  ctx,
+		stop: stop,
+		cfg:  cfg,
+		router: web.New(web.Deps{
+			Cfg:      cfg,
+			DB:       db,
+			Queue:    jobQueue,
+			Blob:     store.blob,
+			Paths:    store.paths,
+			Auth:     plexAuth,
+			Previews: previews,
+			Sources:  sources,
+		}),
+		queue: jobQueue,
+		db:    db,
+		bind:  bind,
 	}, nil
 }
 
-// newRouter constructs the Fiber application and registers routes.
-func newRouter(
-	cfg *config.Config,
-	db *database.DB,
-	jobQueue *queue.Queue,
-	store storage.Blob,
-	bind *binding.Binding,
-	plexProduct, plexClientID string,
-) *fiber.App {
-	// Register page and API routes.
-	clipHandler := handlers.NewClipHandler(
-		jobQueue,
-		store,
-		db,
-		cfg,
-		bind,
-		plexProduct,
-		plexClientID,
+// plexIdentity derives this installation's Plex identity, restores the server it
+// is bound to, and builds the authentication service the handlers share.
+//
+// Parameters:
+//   - cfg: Application configuration carrying the client id and Plex credentials.
+//   - db: Database the last selected server is restored from.
+//
+// Returns:
+//   - auth: Plex authentication service for this installation.
+//   - bind: The server selection that service resolves media against.
+func plexIdentity(cfg *config.Config, db *database.DB) (*identity.Auth, *identity.Binding) {
+	product := "outtake"
+
+	clientID := cfg.PlexClientID
+	if clientID == "" {
+		clientID = identity.GenerateClientID()
+	}
+
+	bind := identity.NewBinding(
+		product,
+		clientID,
+		cfg.SessionPoll,
 	)
-	mediaHandler := handlers.NewMediaHandler(plexProduct, plexClientID, bind)
-	authHandler := handlers.NewAuthHandler(plexProduct, plexClientID, cfg.PublicURL(), db, bind)
-	htmlHandler := handlers.NewHTMLHandler(jobQueue, db, bind, cfg, plexProduct, plexClientID)
-	thumbHandler := handlers.NewThumbHandler(store, bind, plexProduct, plexClientID)
+	restoreBinding(cfg, db, bind)
 
-	app := fiber.New(fiber.Config{
-		ErrorHandler: handlers.PageError,
-	})
-	app.Use(recover.New())
-	app.Use(middleware.RequestLogger())
-	app.Use(helmet.New(helmetConfig()))
-	app.Use(session.New(sessionConfig()))
-	app.Use(csrf.New(csrfConfig(cfg)))
-	app.Use(middleware.BindCSRFToken())
-	app.Use(middleware.RestoreToken(db))
-	app.Use("/assets", static.New("assets", staticConfig()))
-
-	guard := middleware.AuthGuard(cfg.Env)
-	mountPages(app, guard, htmlHandler, thumbHandler)
-	mountAPI(app, guard, clipHandler, mediaHandler, authHandler)
-
-	return app
+	return identity.New(product, clientID, cfg.PublicURL(), db, bind), bind
 }
 
-// sessionConfig returns the Fiber session middleware configuration.
-func sessionConfig() session.Config {
-	return session.Config{
-		Storage:           nil,
-		Store:             nil,
-		Next:              nil,
-		ErrorHandler:      nil,
-		KeyGenerator:      nil,
-		CookieDomain:      "",
-		CookiePath:        "",
-		CookieSameSite:    "Lax",
-		Extractor:         extractors.FromCookie("session_id"),
-		IdleTimeout:       sessionIdleMinutes * time.Minute,
-		AbsoluteTimeout:   sessionAbsoluteHours * time.Hour,
-		CookieSecure:      false,
-		CookieHTTPOnly:    true,
-		CookieSessionOnly: false,
-	}
-}
-
-// helmetConfig returns security headers including a same-origin CSP.
-//
-// Returns:
-//   - Helmet middleware config.
-func helmetConfig() helmet.Config {
-	return helmet.Config{
-		Next:                      nil,
-		XSSProtection:             "0",
-		ContentTypeNosniff:        "nosniff",
-		XFrameOptions:             "DENY",
-		ContentSecurityPolicy:     contentSecurityPolicy,
-		ReferrerPolicy:            "no-referrer",
-		PermissionPolicy:          "",
-		CrossOriginEmbedderPolicy: "require-corp",
-		CrossOriginOpenerPolicy:   "same-origin",
-		CrossOriginResourcePolicy: "same-origin",
-		OriginAgentCluster:        "?1",
-		XDNSPrefetchControl:       "off",
-		XDownloadOptions:          "noopen",
-		XPermittedCrossDomain:     "none",
-		HSTSMaxAge:                0,
-		HSTSExcludeSubdomains:     false,
-		CSPReportOnly:             false,
-		HSTSPreloadEnabled:        false,
-	}
-}
-
-// csrfConfig returns CSRF middleware that accepts header or form tokens.
+// renderServices builds the services that turn a request into a render.
 //
 // Parameters:
-//   - cfg: App config. PublicURL controls CookieSecure and TrustedOrigins.
+//   - cfg: Application configuration.
+//   - store: Storage the previews are written through.
+//   - bind: Plex server selection the sources resolve against.
+//   - ffmpeg: Runner used for detection and preview renders.
 //
 // Returns:
-//   - config: CSRF middleware config.
-func csrfConfig(cfg *config.Config) csrf.Config {
-	return csrf.Config{
-		Storage:        nil,
-		Next:           nil,
-		Session:        nil,
-		KeyGenerator:   csrf.ConfigDefault.KeyGenerator,
-		ErrorHandler:   csrfError,
-		CookieName:     "csrf_",
-		CookieDomain:   "",
-		CookiePath:     "",
-		CookieSameSite: "Lax",
-		TrustedOrigins: csrfTrustedOrigins(cfg),
-		Extractor: extractors.Chain(
-			extractors.FromHeader(csrf.HeaderName),
-			extractors.FromForm(web.CSRFFormField),
-		),
-		IdleTimeout:           sessionIdleMinutes * time.Minute,
-		DisableValueRedaction: false,
-		CookieSecure:          cookieSecure(cfg),
-		CookieHTTPOnly:        true,
-		CookieSessionOnly:     false,
-		SingleUseToken:        false,
-	}
-}
+//   - previews: Preview service the preview routes submit to.
+//   - sources: Resolver for the media a page describes.
+func renderServices(
+	cfg *config.Config,
+	store blobStore,
+	bind *identity.Binding,
+	runner *ffmpeg.ExecFFmpeg,
+) (*preview.Service, *library.MediaSource) {
+	previews := preview.New(cfg.MaxConcurrentPreviews, store.blob, store.paths, runner)
 
-// csrfTrustedOrigins returns Fiber CSRF TrustedOrigins from PublicBaseURL.
-//
-// Fiber compares Origin to c.Scheme()+c.Host(). Behind TLS-terminating proxies
-// the app scheme is http while the browser Origin is https, so the public URL
-// must be listed explicitly. Fiber rejects TrustedOrigins that include a path.
-//
-// Parameters:
-//   - cfg: App config. PublicBaseURL is the reverse-proxy origin when set.
-//
-// Returns:
-//   - origins: Scheme and host from PublicURL, or nil when PublicBaseURL is unset.
-func csrfTrustedOrigins(cfg *config.Config) []string {
-	if cfg.PublicBaseURL == "" {
-		return nil
-	}
-
-	parsed, err := url.Parse(cfg.PublicURL())
-	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return nil
-	}
-
-	return []string{parsed.Scheme + "://" + parsed.Host}
-}
-
-// cookieSecure reports whether cookies should set the Secure attribute.
-//
-// Parameters:
-//   - cfg: App config. PublicURL is https for remote HTTPS deployments.
-//
-// Returns:
-//   - True when PublicURL uses https; false for local HTTP.
-func cookieSecure(cfg *config.Config) bool {
-	return strings.HasPrefix(strings.ToLower(cfg.PublicURL()), "https://")
-}
-
-// csrfError turns a CSRF failure into a Fiber error for PageError.
-//
-// Parameters:
-//   - _ctx: Request context. Unused.
-//   - _err: CSRF middleware error. Unused.
-//
-// Returns:
-//   - Forbidden Fiber error.
-func csrfError(_ fiber.Ctx, _ error) error {
-	return fiber.NewError(fiber.StatusForbidden, "invalid csrf token")
-}
-
-// staticConfig returns the static asset middleware configuration.
-func staticConfig() static.Config {
-	return static.Config{
-		FS:              web.Assets,
-		Next:            nil,
-		ModifyResponse:  nil,
-		NotFoundHandler: nil,
-		IndexNames:      []string{"index.html"},
-		CacheDuration:   0,
-		MaxAge:          0,
-		Compress:        false,
-		ByteRange:       false,
-		Browse:          false,
-		Download:        false,
-	}
-}
-
-// mountPages registers HTML routes.
-func mountPages(
-	app *fiber.App,
-	guard fiber.Handler,
-	htmlHandler *handlers.HTMLHandler,
-	thumbHandler *handlers.ThumbHandler,
-) {
-	// Mount HTML page routes.
-	app.Get("/login", htmlHandler.Login)
-	app.Get("/", guard, htmlHandler.Dashboard)
-	app.Get("/dashboard/sessions", guard, htmlHandler.DashboardSessions)
-	app.Get("/media", guard, htmlHandler.Media)
-	app.Get("/media/item/:id/playback", guard, htmlHandler.Playback)
-	app.Get("/media/item/:id/clips", guard, htmlHandler.MediaItemClips)
-	app.Get("/media/item/:id", guard, htmlHandler.MediaItem)
-	app.Get("/previews/:id", guard, htmlHandler.PreviewFile)
-	app.Get("/nav/libraries", guard, htmlHandler.NavLibraries)
-	app.Get("/thumbs", guard, thumbHandler.Get)
-	app.Get("/clips/new", guard, htmlHandler.NewClip)
-	app.Get("/clips/:id/file", guard, htmlHandler.ClipFile)
-	app.Get("/clips/:id/row", guard, htmlHandler.ClipRow)
-	app.Get(routeClips, guard, htmlHandler.Clips)
-	app.Get("/servers", guard, htmlHandler.Servers)
-	app.Post("/servers", guard, htmlHandler.SelectServer)
-	app.Get("/settings/appearance", guard, htmlHandler.Appearance)
-	app.Get("/settings/profiles", guard, htmlHandler.ClipProfiles)
-	app.Post("/settings/profiles", guard, htmlHandler.CreateClipProfile)
-	app.Post("/settings/profiles/:id/default", guard, htmlHandler.SetDefaultClipProfile)
-	app.Post("/settings/profiles/:id/delete", guard, htmlHandler.DeleteClipProfile)
-	app.Post("/settings/profiles/:id", guard, htmlHandler.UpdateClipProfile)
-}
-
-// mountAPI registers JSON API routes.
-func mountAPI(
-	app *fiber.App,
-	guard fiber.Handler,
-	clipHandler *handlers.ClipHandler,
-	mediaHandler *handlers.MediaHandler,
-	authHandler *handlers.AuthHandler,
-) {
-	// Mount JSON API routes.
-	api := app.Group("/api")
-	api.Post(routeClips, guard, clipHandler.Create)
-	api.Post("/clips/preview", guard, clipHandler.Preview)
-	api.Get("/clips/preview/:id", guard, clipHandler.PreviewStatus)
-	api.Delete("/clips/preview/:id", guard, clipHandler.CancelPreview)
-	api.Post("/clips/:id/update", guard, clipHandler.Update)
-	api.Post("/clips/:id/cancel", guard, clipHandler.Cancel)
-	api.Get(routeClips, guard, clipHandler.List)
-	api.Get("/clips/:id/status", guard, clipHandler.GetStatus)
-	api.Get("/clips/:id/download", guard, clipHandler.Download)
-	api.Delete("/clips/:id", guard, clipHandler.Delete)
-	api.Get("/media/search", guard, mediaHandler.Search)
-	api.Get("/sessions", guard, mediaHandler.GetSessions)
-	api.Post("/auth/login", authHandler.Login)
-	api.Get("/auth/callback", authHandler.Callback)
-	api.Get("/auth/status", authHandler.Status)
-	api.Get("/auth/logout", authHandler.Logout)
-	api.Get("/healthz", handlers.NewHealthHandler().Health)
+	return previews, library.NewMediaSource(cfg, bind, runner)
 }
 
 // Close cleans up application resources.
 func (app *App) Close() {
-	// Releases the signal handler, and cancels anything still following the
-	// application's context before the queue is torn down explicitly.
 	app.stop()
 
 	app.queue.Stop()
@@ -387,6 +169,9 @@ func (app *App) Close() {
 }
 
 // Run starts the application server and blocks until shutdown.
+//
+// Returns:
+//   - error: Non-nil when the listener fails for a reason other than shutdown.
 func (app *App) Run() error {
 	ctx := app.ctx
 
@@ -415,6 +200,13 @@ func (app *App) Run() error {
 }
 
 // Test processes an HTTP request through the Fiber app and returns the response.
+//
+// Parameters:
+//   - req: The request to process.
+//
+// Returns:
+//   - resp: The response the router produced.
+//   - error: Non-nil when the router cannot process the request.
 func (app *App) Test(req *http.Request) (*http.Response, error) {
 	resp, err := app.router.Test(req)
 	if err != nil {
@@ -422,305 +214,4 @@ func (app *App) Test(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, nil
-}
-
-// persistProgress returns the callback that records a render's progress.
-//
-// A canceled or deleted job has no row left to update, and both are guarded
-// separately because they are different signals. Cancellation comes from the
-// job's own context, since the save deliberately ignores it so a tick can still
-// land on a queue that is shutting down. Deletion comes from the queue's
-// tombstone, checked under the same read lock the write happens under, so a
-// delete cannot land between the check and the save — which is what would let a
-// render still winding down put the row back on its next tick.
-//
-// Parameters:
-//   - ctx: The job's context, canceled when the job is canceled or deleted.
-//   - job: The job being rendered.
-//   - db: Database handle.
-//   - jobQueue: The queue that owns the job.
-//
-// Returns:
-//   - report: Callback for media.WithProgress.
-func persistProgress(
-	ctx context.Context,
-	job *queue.Job,
-	db *database.DB,
-	jobQueue *queue.Queue,
-) func(int) {
-	return func(percent int) {
-		saveProgress(ctx, job, db, jobQueue, percent)
-	}
-}
-
-// saveProgress records how far a render has got, if the job still wants it.
-//
-// The value is written through the queue so the update is made under its lock,
-// on the job it is holding, rather than on a pointer the worker may be settling
-// at the same time. The copy that comes back is what gets persisted, so the save
-// carries the value the queue accepted.
-//
-// Parameters:
-//   - ctx: The job's context, canceled when the job is canceled or deleted.
-//   - job: The job being rendered.
-//   - db: Database handle.
-//   - jobQueue: The queue that owns the job.
-//   - percent: Progress so far.
-func saveProgress(
-	ctx context.Context,
-	job *queue.Job,
-	db *database.DB,
-	jobQueue *queue.Queue,
-	percent int,
-) {
-	if ctx.Err() != nil {
-		return
-	}
-
-	updated := jobQueue.SetProgress(job.ID, percent)
-	if updated == nil {
-		return
-	}
-
-	jobQueue.IfLive(job.ID, func() {
-		saveErr := db.SaveClip(context.WithoutCancel(ctx), updated)
-		if saveErr != nil {
-			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip progress")
-		}
-	})
-}
-
-// startQueue creates the worker queue and restores persisted jobs.
-func startQueue(
-	ctx context.Context,
-	cfg *config.Config,
-	db *database.DB,
-	ffmpeg media.FFmpeg,
-	store storage.Blob,
-) *queue.Queue {
-	// Declared ahead of the handler so the closure can reach it. A job cannot run
-	// until Start below, by which point the assignment has happened.
-	var jobQueue *queue.Queue
-
-	jobQueue = queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *queue.Job) error {
-		progressCtx := media.WithProgress(ctx, persistProgress(ctx, job, db, jobQueue))
-
-		return processJob(progressCtx, job, ffmpeg, db, store)
-	})
-
-	// Deliberately not the queue's context. A status write has to land even while
-	// the queue is shutting down, which is exactly when that context is canceled.
-	jobQueue.SetStatusFunc(func(job *queue.Job) {
-		saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
-		if saveErr != nil {
-			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip status")
-		}
-	})
-	jobQueue.Start(ctx)
-	restoreJobs(ctx, db, jobQueue)
-
-	return jobQueue
-}
-
-// restoreBinding loads the selected Plex server from config or the database.
-func restoreBinding(cfg *config.Config, db *database.DB, bind *binding.Binding) {
-	if server, ok := plex.ServerFromURL(cfg.PlexServerURL, cfg.PlexToken); ok {
-		bind.Set(server)
-
-		return
-	}
-
-	server, ok, err := db.SelectedServer(context.Background())
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to load selected server")
-
-		return
-	}
-
-	if ok {
-		bind.Set(server)
-	}
-}
-
-// restoreJobs reloads persisted clips into the in-memory queue.
-func restoreJobs(ctx context.Context, db *database.DB, jobQueue *queue.Queue) {
-	jobs, err := db.ListClips(ctx)
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to restore clips")
-
-		return
-	}
-
-	for _, job := range jobs {
-		switch job.Status {
-		case queue.JobStatusPending, queue.JobStatusProcessing:
-			job.Status = queue.JobStatusPending
-			job.Error = ""
-
-			// A refusal here would mean the same id is already queued, which the
-			// rows cannot produce. It is logged rather than returned because there
-			// is nothing to report to: nothing is waiting on this loop.
-			err := jobQueue.Submit(job)
-			if err != nil {
-				log.Error().Err(err).Str("job_id", job.ID).Msg("failed to restore job")
-			}
-		default:
-			jobQueue.Restore(job)
-		}
-	}
-}
-
-// extractJob runs the FFmpeg extract for a clip, GIF, or screenshot job.
-func extractJob(
-	ctx context.Context,
-	job *queue.Job,
-	ffmpeg media.FFmpeg,
-	db *database.DB,
-) error {
-	switch job.Type {
-	case queue.JobTypeClip:
-		err := ffmpeg.ExtractClip(
-			ctx,
-			job.InputPath,
-			job.OutputPath,
-			job.StartTime,
-			job.Duration,
-			clipEncodePreset(ctx, db, job),
-			job.AudioIndex,
-			detectJobCrop(ctx, ffmpeg, job),
-		)
-		if err != nil {
-			return fmt.Errorf("extract clip: %w", err)
-		}
-	case queue.JobTypeGIF:
-		err := ffmpeg.ExtractGIF(
-			ctx,
-			job.InputPath,
-			job.OutputPath,
-			job.StartTime,
-			job.Duration,
-			job.Width,
-			job.FPS,
-			detectJobCrop(ctx, ffmpeg, job),
-		)
-		if err != nil {
-			return fmt.Errorf("extract gif: %w", err)
-		}
-	case queue.JobTypeScreenshot:
-		err := ffmpeg.ExtractScreenshot(
-			ctx,
-			job.InputPath,
-			job.OutputPath,
-			job.StartTime,
-			detectJobCrop(ctx, ffmpeg, job),
-		)
-		if err != nil {
-			return fmt.Errorf("extract screenshot: %w", err)
-		}
-	default:
-		return fmt.Errorf("%w: %s", errUnknownJobType, job.Type)
-	}
-
-	return nil
-}
-
-// processJob routes a job to the appropriate FFmpeg operation.
-func processJob(
-	ctx context.Context,
-	job *queue.Job,
-	ffmpeg media.FFmpeg,
-	db *database.DB,
-	store storage.Blob,
-) error {
-	err := extractJob(ctx, job, ffmpeg, db)
-	if err != nil {
-		return fmt.Errorf("extract: %w", err)
-	}
-
-	if job.OutputPath == "" {
-		return nil
-	}
-
-	err = store.Put(ctx, job.OutputPath)
-	if err != nil {
-		return fmt.Errorf("store output: %w", err)
-	}
-
-	return nil
-}
-
-// detectJobCrop runs cropdetect when the job requested black-bar trimming.
-func detectJobCrop(ctx context.Context, ffmpeg media.FFmpeg, job *queue.Job) media.CropRect {
-	if !job.CropBlackBars {
-		return media.CropRect{}
-	}
-
-	crop, err := ffmpeg.DetectCrop(ctx, job.InputPath, job.StartTime, job.Duration)
-	if err != nil {
-		return media.CropRect{}
-	}
-
-	return crop
-}
-
-// clipEncodePreset resolves quality settings and the per-clip web-safe color flag.
-//
-// Parameters:
-//   - ctx: Database context.
-//   - db: Clip profile store; may be nil.
-//   - job: Clip job whose Quality and WebSafeColor are applied.
-//
-// Returns:
-//   - preset: Encode settings with the color decisions applied.
-func clipEncodePreset(
-	ctx context.Context,
-	db *database.DB,
-	job *queue.Job,
-) media.QualityPreset {
-	preset := clipPreset(ctx, db, job.Quality)
-
-	preset.WebSafeColor = job.WebSafeColor
-	// The clip decides; the server setting only seeds the form's default state.
-	preset.PreserveHDR = job.PreserveHDR
-
-	return preset
-}
-
-// clipPreset resolves a stored quality id onto ffmpeg settings.
-func clipPreset(ctx context.Context, db *database.DB, quality string) media.QualityPreset {
-	if quality == "" {
-		return defaultClipPreset(ctx, db)
-	}
-
-	return media.ResolvePreset(quality, func(id string) (media.QualityPreset, bool) {
-		return lookupClipPreset(ctx, db, id)
-	})
-}
-
-// defaultClipPreset loads the stored default profile, or the built-in medium preset.
-func defaultClipPreset(ctx context.Context, db *database.DB) media.QualityPreset {
-	if db == nil {
-		return media.QualityPresets[media.ClipQualityMedium]
-	}
-
-	profile, err := db.DefaultClipProfile(ctx)
-	if err != nil {
-		return media.QualityPresets[media.ClipQualityMedium]
-	}
-
-	return media.NormalizePreset(profile.QualityPreset())
-}
-
-// lookupClipPreset loads one stored profile by id.
-func lookupClipPreset(ctx context.Context, db *database.DB, id string) (media.QualityPreset, bool) {
-	if db == nil {
-		return media.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
-	}
-
-	profile, err := db.GetClipProfile(ctx, id)
-	if err != nil {
-		return media.QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}, false
-	}
-
-	return profile.QualityPreset(), true
 }

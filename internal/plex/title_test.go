@@ -9,11 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	testMovie = "Movie"
-	testShow  = "Show"
-)
-
 func TestDisplayTitle(t *testing.T) {
 	t.Parallel()
 
@@ -24,13 +19,13 @@ func TestDisplayTitle(t *testing.T) {
 	}{
 		{
 			name: "movie with year",
-			give: MediaItem{Title: testMovie, Type: "movie", Year: 1995},
-			want: testMovie + " (1995)",
+			give: MediaItem{Title: "Movie", Type: "movie", Year: 1995},
+			want: "Movie (1995)",
 		},
 		{
 			name: "movie without year",
-			give: MediaItem{Title: testMovie, Type: "movie"},
-			want: testMovie,
+			give: MediaItem{Title: "Movie", Type: "movie"},
+			want: "Movie",
 		},
 		{
 			name: "episode with show and codes",
@@ -39,9 +34,9 @@ func TestDisplayTitle(t *testing.T) {
 				Type:             TypeEpisode,
 				Index:            3,
 				ParentIndex:      2,
-				GrandparentTitle: testShow,
+				GrandparentTitle: "Show",
 			},
-			want: testShow + " · S02E03 · Episode 3",
+			want: "Show · S02E03 · Episode 3",
 		},
 		{
 			name: "episode title only",

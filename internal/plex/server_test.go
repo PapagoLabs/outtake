@@ -17,15 +17,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
 )
 
-const (
-	// TestSrvToken is the test server token.
-	testSrvToken = "srv-token"
-	// TestServerClient is the test server client ID.
-	testServerClient = "test"
-	// TestServerName is the test server name.
-	testServerName = "Test"
-)
-
 func extractAddrPort(t *testing.T, server *httptest.Server) (string, int) {
 	t.Helper()
 
@@ -45,16 +36,16 @@ func testPMSClient(t *testing.T, ts *httptest.Server) (*Client, Server) {
 	host, port := extractAddrPort(t, ts)
 	client := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
+		ClientID: "test",
+		Token:    "srv-token",
 		Timeout:  5 * time.Second,
 		BaseURL:  "",
 	})
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -87,17 +78,17 @@ func TestGetLibraries(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  5 * time.Second,
 			BaseURL:  "",
 		},
 	)
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -128,17 +119,17 @@ func TestGetMedia(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  5 * time.Second,
 			BaseURL:  "",
 		},
 	)
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -292,8 +283,8 @@ func TestGetSectionIndexRejectsUnknown(t *testing.T) {
 
 	c := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
-		Token:    testSrvToken,
+		ClientID: "test",
+		Token:    "srv-token",
 		Timeout:  5 * time.Second,
 		BaseURL:  "",
 	})
@@ -329,17 +320,17 @@ func TestGetMediaPath(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  5 * time.Second,
 			BaseURL:  "",
 		},
 	)
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -369,8 +360,8 @@ func TestGetSessions(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  5 * time.Second,
 			BaseURL:  "",
 		},
@@ -390,6 +381,9 @@ func TestDiscoverServers(t *testing.T) {
 	t.Parallel()
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, acceptXML, r.Header.Get("Accept"),
+			"plex.tv returns JSON for Accept: application/json, and this decoder reads XML")
+
 		w.Header().Set("Content-Type", "application/xml")
 		w.WriteHeader(http.StatusOK)
 
@@ -405,7 +399,7 @@ func TestDiscoverServers(t *testing.T) {
 
 	c := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
+		ClientID: "test",
 		Token:    "",
 		Timeout:  0,
 		BaseURL:  "",
@@ -436,17 +430,17 @@ func TestPing(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  5 * time.Second,
 			BaseURL:  "",
 		},
 	)
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -461,17 +455,17 @@ func TestPing_Unreachable(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  5 * time.Second,
 			BaseURL:  "",
 		},
 	)
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: "127.0.0.1",
 		Port:    1,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -497,17 +491,17 @@ func TestGetSessionsOnServer(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  0,
 			BaseURL:  "",
 		},
 	)
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -541,17 +535,17 @@ func TestSearchOnServer(t *testing.T) {
 	c := NewClient(
 		ClientConfig{
 			Product:  productName,
-			ClientID: testServerClient,
-			Token:    testSrvToken,
+			ClientID: "test",
+			Token:    "srv-token",
 			Timeout:  0,
 			BaseURL:  "",
 		},
 	)
 	server := Server{
-		Name:    testServerName,
+		Name:    "Test",
 		Address: host,
 		Port:    port,
-		Token:   testSrvToken,
+		Token:   "srv-token",
 		Scheme:  httpScheme,
 		Local:   false,
 	}
@@ -560,4 +554,103 @@ func TestSearchOnServer(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	assert.Equal(t, "Alpha Movie", items[0].Title)
+}
+
+// testPlexTVClient builds a client whose plex.tv origin is the loopback server.
+//
+// Parameters:
+//   - t: The test context.
+//   - ts: The loopback server standing in for plex.tv.
+//
+// Returns:
+//   - client: A client bound to ts instead of plex.tv.
+func testPlexTVClient(t *testing.T, ts *httptest.Server) *Client {
+	t.Helper()
+
+	client := NewClient(ClientConfig{
+		Product:  productName,
+		ClientID: "test",
+		Token:    "srv-token",
+		Timeout:  5 * time.Second,
+		BaseURL:  "",
+	})
+
+	client.baseURL.Scheme = httpScheme
+	client.baseURL.Host = ts.Listener.Addr().String()
+
+	return client
+}
+
+func TestSearchMedia(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/search", r.URL.Path)
+		assert.Equal(t, "alpha beta", r.URL.Query().Get("query"))
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusOK)
+
+		_, _ = w.Write([]byte(`<MediaContainer size="2">
+			<Video ratingKey="900" key="/library/metadata/900" title="Alpha Movie"
+				duration="60000" thumb="/library/metadata/900/thumb/1" type="movie"/>
+			<Directory key="/library/sections/1" title="Movies" type="show"/>
+		</MediaContainer>`))
+	}))
+	defer ts.Close()
+
+	items, err := testPlexTVClient(t, ts).SearchMedia(t.Context(), "alpha beta")
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, "900", items[0].ID)
+	assert.Equal(t, "Alpha Movie", items[0].Title)
+	assert.Equal(t, "movie", items[0].Type)
+	assert.InEpsilon(t, 60.0, items[0].Duration, 0.01)
+	assert.Equal(t, "/library/metadata/900/thumb/1", items[0].ThumbPath)
+	assert.Empty(t, items[0].LibraryTitle)
+}
+
+func TestSearchMedia_Errors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		body       string
+		wantErr    error
+		wantErrHas string
+	}{
+		{name: "empty body", wantErr: errEmptyBody},
+		{
+			name:       "malformed xml",
+			body:       `<MediaContainer><Video></MediaContainer>`,
+			wantErrHas: "decode search",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusOK)
+
+				if test.body != "" {
+					_, _ = w.Write([]byte(test.body))
+				}
+			}))
+			defer ts.Close()
+
+			items, err := testPlexTVClient(t, ts).SearchMedia(t.Context(), "alpha")
+			require.Error(t, err)
+
+			if test.wantErr != nil {
+				require.ErrorIs(t, err, test.wantErr)
+			}
+
+			if test.wantErrHas != "" {
+				require.ErrorContains(t, err, test.wantErrHas)
+			}
+
+			assert.Empty(t, items)
+		})
+	}
 }

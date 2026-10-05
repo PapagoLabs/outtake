@@ -34,13 +34,66 @@ type SessionResponse struct {
 
 // ErrorResponse represents an error response.
 type ErrorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
+	Error   ErrorCode `json:"error"`
+	Message string    `json:"message"`
 }
 
-// AuthStatusResponse represents the authentication status response.
-type AuthStatusResponse struct {
-	Authenticated bool   `json:"authenticated"`
-	UserID        int    `json:"userId,omitempty"`
-	Username      string `json:"username,omitempty"`
-}
+// ErrorCode is the machine-readable code an ErrorResponse carries.
+type ErrorCode string
+
+// The codes an ErrorResponse may carry.
+const (
+	// InvalidRequest reports a request that could not be read or bound.
+	InvalidRequest ErrorCode = "invalid_request"
+
+	// NotFound reports a resource nothing is registered under.
+	NotFound ErrorCode = "not_found"
+
+	// PersistFailed reports something that could not be saved.
+	PersistFailed ErrorCode = "persist_failed"
+
+	// JobActive reports a clip already queued or rendering.
+	JobActive ErrorCode = "job_active"
+
+	// MediaPathUnresolved reports a source that could not be resolved.
+	MediaPathUnresolved ErrorCode = "media_path"
+
+	// InvalidQuality reports a profile id that names no profile.
+	InvalidQuality ErrorCode = "invalid_quality"
+
+	// InvalidClipType reports a clip type the job cannot become.
+	InvalidClipType ErrorCode = "invalid_clip_type"
+
+	// NotCancellable reports a clip that is not queued or rendering.
+	NotCancellable ErrorCode = "not_cancellable"
+
+	// DeleteFailed reports a clip that could not be removed.
+	DeleteFailed ErrorCode = "delete_failed"
+
+	// NotReady reports a clip that has not finished rendering.
+	NotReady ErrorCode = "not_ready"
+
+	// FileMissing reports a finished clip whose output is gone.
+	FileMissing ErrorCode = "file_missing"
+
+	// PreviewBusy reports a preview refused because every slot is taken.
+	PreviewBusy ErrorCode = "preview_busy"
+
+	// PreviewNotRunning reports a preview that was not rendering.
+	PreviewNotRunning ErrorCode = "preview_not_running"
+
+	// MissingQuery reports a Plex search carried no query.
+	MissingQuery ErrorCode = "missing_query"
+
+	// SearchFailed reports a Plex search that could not be completed.
+	SearchFailed ErrorCode = "search_failed"
+
+	// HTTPError reports a request that failed outside a handler's own codes.
+	HTTPError ErrorCode = "http_error"
+
+	// PINFailed reports a Plex PIN that could not be created.
+	PINFailed ErrorCode = "pin_failed"
+
+	// LogoutFailed reports credentials that could not be cleared.
+	LogoutFailed ErrorCode = "logout_failed"
+)

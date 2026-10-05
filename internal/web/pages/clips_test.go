@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -20,8 +21,8 @@ func TestClipsToolbar(t *testing.T) {
 
 	err := Clips(ClipsProps{
 		Items:  nil,
-		Status: view.ClipStatusPending,
-		Type:   exportTypeGIF,
+		Status: clip.StatusPending,
+		Type:   clip.TypeGIF,
 		Query:  "intro",
 		Sort:   "name_asc",
 	}).Render(t.Context(), &buf)
@@ -46,7 +47,7 @@ func TestClipsListOmitsLayout(t *testing.T) {
 	err := ClipsList(ClipsProps{
 		Items:  nil,
 		Status: "",
-		Type:   exportTypeClip,
+		Type:   clip.TypeClip,
 		Query:  "",
 		Sort:   "created_desc",
 	}).Render(t.Context(), &buf)
@@ -56,4 +57,69 @@ func TestClipsListOmitsLayout(t *testing.T) {
 	assert.Contains(t, body, "No clips match these filters.")
 	assert.NotContains(t, body, "Outtake")
 	assert.NotContains(t, body, `id="clip-list-type"`)
+}
+
+func TestClipsEmptyStateWithoutFilters(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := Clips(ClipsProps{
+		Items:  nil,
+		Status: "",
+		Type:   "",
+		Query:  "",
+		Sort:   "created_desc",
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, "No clips yet. Browse your media library and create your first clip.")
+	assert.Contains(t, body, ">Browse Media</a>")
+	assert.NotContains(t, body, "No clips match these filters.")
+	assert.NotContains(t, body, "Showing ",
+		"no status is active, so no filter banner is shown")
+}
+
+func TestClipsAnnouncesTheActiveStatus(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := Clips(ClipsProps{
+		Items:  nil,
+		Status: clip.StatusPending,
+		Type:   "",
+		Query:  "",
+		Sort:   "created_desc",
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, "Showing pending clips.")
+	assert.Contains(t, body, ">Show all</a>")
+	assert.Contains(t, body, "New from library")
+}
+
+func TestClipsListRendersEveryClip(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := ClipsList(ClipsProps{
+		Items: []view.ClipItem{
+			{ID: "clip-one", Name: "Opening"},
+			{ID: "clip-two", Name: "Closing"},
+		},
+		Sort: "created_desc",
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, `id="clip-clip-one"`)
+	assert.Contains(t, body, `id="clip-clip-two"`)
+	assert.Contains(t, body, "Opening")
+	assert.Contains(t, body, "Closing")
+	assert.NotContains(t, body, "No clips yet.")
+	assert.NotContains(t, body, "No clips match these filters.")
 }

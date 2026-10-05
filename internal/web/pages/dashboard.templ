@@ -6,29 +6,25 @@ package pages
 import (
 	"strconv"
 
-	"github.com/PapagoLabs/outtake/internal/media"
+	"github.com/PapagoLabs/outtake/internal/timecode"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-type SessionItem struct {
-	ID         string
-	MediaID    string
-	Parts      []view.Crumb
-	Year       int
-	ViewOffset float64
-	Duration   float64
-}
-
+// DashboardProps carries the clip counts and live sessions.
 type DashboardProps struct {
 	TotalClips   int
 	PendingClips int
 	Completed    int
 	Failed       int
-	Sessions     []SessionItem
+	Sessions     []view.SessionItem
 }
 
+// Dashboard renders the activity overview page.
+//
+// Parameters:
+//   - props: Clip counts and live sessions.
 templ Dashboard(props DashboardProps) {
 	@layout.Layout(layout.Props{Title: "Dashboard", Active: "dashboard"}) {
 		<div class="flex flex-col gap-6">
@@ -91,7 +87,11 @@ templ Dashboard(props DashboardProps) {
 	}
 }
 
-templ LiveSessions(sessions []SessionItem) {
+// LiveSessions renders the polling panel of live Plex playback sessions.
+//
+// Parameters:
+//   - sessions: Sessions playing right now.
+templ LiveSessions(sessions []view.SessionItem) {
 	<div id="live-sessions" class="flex flex-col gap-3" hx-get="/dashboard/sessions" hx-trigger="every 10s" hx-swap="outerHTML">
 		<h3 class="text-lg font-semibold">Live Sessions</h3>
 		if len(sessions) == 0 {
@@ -118,12 +118,12 @@ templ LiveSessions(sessions []SessionItem) {
 								}
 							</p>
 							<p class="text-sm text-muted-foreground">
-								{ media.FromSeconds(sess.ViewOffset).Short() } / { media.FromSeconds(sess.Duration).Short() }
+								{ timecode.FromDuration(sess.ViewOffset).Short() } / { timecode.FromDuration(sess.Duration).Short() }
 							</p>
 						</div>
 						if sess.MediaID != "" {
 							<a
-								href={ templ.SafeURL("/media/item/" + sess.MediaID + "?start=" + media.FormatSeconds(sess.ViewOffset)) }
+								href={ templ.SafeURL(sess.ResumeURL()) }
 								class="inline-flex shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
 							>
 								Clip now

@@ -4,12 +4,10 @@
 package session
 
 import (
-	"context"
-	"errors"
-	"slices"
+	"net/http"
+	"net/http/httptest"
 	"sync"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -18,100 +16,113 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// stubFetcher is a handwritten Fetcher for tests.
-type stubFetcher struct {
+type sessionServer struct {
+	server *httptest.Server
+	body   string
+
 	mu       sync.Mutex
-	sessions []plex.Session
-	err      error
+	requests int
+	failing  bool
 }
 
-const (
-	testServerName = "Test"
-	testServerAddr = "127.0.0.1"
-	testToken      = "test-token"
-	testScheme     = "https"
-	testSessionID  = "sess-1"
-	testTitle      = "Movie"
-)
+func newSessionServer(t *testing.T) *sessionServer {
+	t.Helper()
 
-var errUnavailable = errors.New("unavailable")
+	const testSessionsJSON = `{"MediaContainer":{"size":1,"Metadata":[
+	{"ratingKey":"1","title":"Movie","type":"movie","duration":120000,"viewOffset":10000,
+	 "Session":{"id":"sess-1"}}
+]}}`
 
-// GetSessionsOnServer implements [Fetcher].
-func (stub *stubFetcher) GetSessionsOnServer(
-	_ context.Context,
-	_ plex.Server,
-) ([]plex.Session, error) {
-	stub.mu.Lock()
-	defer stub.mu.Unlock()
-
-	if stub.err != nil {
-		return nil, stub.err
-	}
-
-	return slices.Clone(stub.sessions), nil
-}
-
-// setError sets the error returned by the next fetch.
-func (stub *stubFetcher) setError(err error) {
-	stub.mu.Lock()
-	defer stub.mu.Unlock()
-
-	stub.err = err
-}
-
-// newStub returns a Fetcher stub that yields the given sessions.
-func newStub(sessions []plex.Session) *stubFetcher {
-	return &stubFetcher{
+	fake := &sessionServer{
+		server:   nil,
+		body:     testSessionsJSON,
 		mu:       sync.Mutex{},
-		sessions: sessions,
-		err:      nil,
+		requests: 0,
+		failing:  false,
 	}
+
+	fake.server = httptest.NewServer(http.HandlerFunc(fake.serve))
+	t.Cleanup(fake.server.Close)
+
+	return fake
 }
 
-// testServer returns a complete Plex server used by tests.
-func testServer() plex.Server {
-	return plex.Server{
-		Name:    testServerName,
-		Address: testServerAddr,
-		Port:    32400,
-		Token:   testToken,
-		Scheme:  testScheme,
-		Local:   false,
-	}
+func (fake *sessionServer) count() int {
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+
+	return fake.requests
 }
 
-// testSession returns a complete playback session used by tests.
-func testSession() plex.Session {
-	return plex.Session{
-		ID: testSessionID,
-		MediaItem: plex.MediaItem{
-			ID:           "1",
-			Title:        testTitle,
-			Type:         "movie",
-			Duration:     120,
-			ThumbPath:    "",
-			LibraryTitle: "",
-		},
-		Title:      testTitle,
-		Duration:   120,
-		ViewOffset: 10,
+func (fake *sessionServer) fail() {
+	fake.mu.Lock()
+
+	fake.failing = true
+
+	fake.mu.Unlock()
+}
+
+func (fake *sessionServer) pms(t *testing.T) plex.Server {
+	t.Helper()
+
+	parsed, ok := plex.ServerFromURL(fake.server.URL, "test-token")
+	require.True(t, ok, "the test server URL must parse into a Plex server")
+
+	return parsed
+}
+
+func (fake *sessionServer) serve(writer http.ResponseWriter, _ *http.Request) {
+	fake.mu.Lock()
+
+	fake.requests++
+
+	failing := fake.failing
+	body := fake.body
+
+	fake.mu.Unlock()
+
+	if failing {
+		writer.WriteHeader(http.StatusInternalServerError)
+
+		return
 	}
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	_, _ = writer.Write([]byte(body))
+}
+
+func newTestMonitor(t *testing.T, fake *sessionServer) (*Monitor, plex.Server) {
+	t.Helper()
+
+	server := fake.pms(t)
+
+	monitor := NewMonitor(
+		plex.NewClient(plex.ClientConfig{
+			BaseURL: fake.server.URL,
+			Timeout: 5 * time.Second,
+		}),
+		server,
+		10*time.Millisecond,
+	)
+	t.Cleanup(monitor.Stop)
+
+	return monitor, server
 }
 
 func TestNewMonitor(t *testing.T) {
 	t.Parallel()
 
-	server := testServer()
-	m := NewMonitor(newStub(nil), server, 10*time.Second)
+	m, server := newTestMonitor(t, newSessionServer(t))
 
-	assert.Equal(t, 10*time.Second, m.interval)
+	assert.Equal(t, 10*time.Millisecond, m.interval)
 	assert.Equal(t, server, m.server)
 }
 
 func TestMonitor_GetSessions_Empty(t *testing.T) {
 	t.Parallel()
 
-	m := NewMonitor(newStub(nil), testServer(), 10*time.Second)
+	m, _ := newTestMonitor(t, newSessionServer(t))
 
 	assert.Empty(t, m.GetSessions())
 }
@@ -119,49 +130,51 @@ func TestMonitor_GetSessions_Empty(t *testing.T) {
 func TestMonitor_Stop(t *testing.T) {
 	t.Parallel()
 
-	synctest.Test(t, func(t *testing.T) {
-		m := NewMonitor(newStub(nil), testServer(), time.Second)
+	m, _ := newTestMonitor(t, newSessionServer(t))
 
-		m.Start()
-		m.Stop()
-	})
+	m.Start()
+	m.Stop()
 }
 
 func TestMonitor_RefreshWritesSessions(t *testing.T) {
 	t.Parallel()
 
-	synctest.Test(t, func(t *testing.T) {
-		want := testSession()
-		m := NewMonitor(newStub([]plex.Session{want}), testServer(), time.Second)
+	m, _ := newTestMonitor(t, newSessionServer(t))
 
-		m.Start()
-		t.Cleanup(m.Stop)
+	m.Start()
 
-		synctest.Wait()
+	require.Eventually(t, func() bool {
+		return len(m.GetSessions()) == 1
+	}, 5*time.Second, time.Millisecond, "the first refresh must publish the playing session")
 
-		assert.Equal(t, []plex.Session{want}, m.GetSessions())
-	})
+	sessions := m.GetSessions()
+	assert.Equal(t, "sess-1", sessions[0].ID)
+	assert.Equal(t, "Movie", sessions[0].Title)
+	assert.InEpsilon(t, 120.0, sessions[0].Duration, 0.01)
+	assert.InEpsilon(t, 10.0, sessions[0].ViewOffset, 0.01)
 }
 
 func TestMonitor_RefreshErrorLeavesCacheUnchanged(t *testing.T) {
 	t.Parallel()
 
-	synctest.Test(t, func(t *testing.T) {
-		want := testSession()
-		stub := newStub([]plex.Session{want})
-		m := NewMonitor(stub, testServer(), time.Second)
+	fake := newSessionServer(t)
 
-		m.Start()
-		t.Cleanup(m.Stop)
+	m, _ := newTestMonitor(t, fake)
 
-		synctest.Wait()
-		require.Equal(t, []plex.Session{want}, m.GetSessions())
+	m.Start()
 
-		stub.setError(errUnavailable)
+	require.Eventually(t, func() bool {
+		return len(m.GetSessions()) == 1
+	}, 5*time.Second, time.Millisecond, "the first refresh must publish the playing session")
 
-		time.Sleep(time.Second)
-		synctest.Wait()
+	cached := m.GetSessions()
 
-		assert.Equal(t, []plex.Session{want}, m.GetSessions())
-	})
+	fake.fail()
+
+	require.Eventually(t, func() bool {
+		return fake.count() >= 2
+	}, 5*time.Second, time.Millisecond, "a later refresh must reach the failing server")
+
+	assert.Equal(t, cached, m.GetSessions(),
+		"a refresh that failed must leave the cache exactly as it was")
 }

@@ -6,29 +6,89 @@ package pages
 import (
 	"strconv"
 
+	"github.com/PapagoLabs/outtake/internal/web/components/badge"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-type ServerItem struct {
-	Name    string
-	Address string
-	Port    int
-	Scheme  string
-	Token   string
-	Local    bool
-	Selected bool
-}
-
+// ServersProps carries the discovered servers and the selection error.
 type ServersProps struct {
-	Servers []ServerItem
+	Servers []view.ServerItem
 	Error   string
 }
 
+// serverSelectedClass is the treatment the server already in use carries.
+const serverSelectedClass = "bg-muted ring-2 ring-sidebar-primary"
+
+// serverRow renders one discovered server as the form that selects it.
+//
+// Parameters:
+//   - server: Discovered server.
+templ serverRow(server view.ServerItem) {
+	@card.Card(card.Props{Class: utils.IfElse(server.Selected, serverSelectedClass, "")}) {
+		@card.Content() {
+			<form action="/servers" method="POST" class="flex items-center justify-between gap-4">
+				@csrf.Field()
+				<input type="hidden" name="name" value={ server.Name }/>
+				<input type="hidden" name="address" value={ server.Address }/>
+				<input type="hidden" name="port" value={ strconv.Itoa(server.Port) }/>
+				<input type="hidden" name="scheme" value={ server.Scheme }/>
+				<input type="hidden" name="token" value={ server.Token }/>
+				<div>
+					<p
+						class={ utils.TwMerge(
+							"font-medium",
+							utils.If(server.Selected, "flex flex-wrap items-center gap-2"),
+						) }
+					>
+						{ server.Name }
+						if server.Selected {
+							@badge.Badge(badge.Props{
+								Variant:    badge.VariantDefault,
+								Class:      "uppercase",
+								Attributes: templ.Attributes{"aria-current": "true"},
+							}) {
+								In use
+							}
+						}
+					</p>
+					<p class="text-sm text-muted-foreground break-all">
+						{ server.Scheme }://{ server.Address }:{ strconv.Itoa(server.Port) }
+						if server.Local {
+							<span>(local)</span>
+						} else {
+							<span>(remote)</span>
+						}
+					</p>
+				</div>
+				if server.Selected {
+					@button.Button(button.Props{
+						Type:     button.TypeSubmit,
+						Size:     button.SizeSm,
+						Variant:  button.VariantOutline,
+						Disabled: true,
+					}) {
+						Already in use
+					}
+				} else {
+					@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
+						Use this server
+					}
+				}
+			</form>
+		}
+	}
+}
+
+// Servers renders the server chooser and the custom URL form.
+//
+// Parameters:
+//   - props: Discovered servers and the selection error.
 templ Servers(props ServersProps) {
 	@layout.Layout(layout.Props{Title: "Plex Servers", Active: "servers"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
@@ -45,37 +105,7 @@ templ Servers(props ServersProps) {
 				}
 			}
 			for _, server := range props.Servers {
-				@card.Card() {
-					@card.Content() {
-						<form action="/servers" method="POST" class="flex items-center justify-between gap-4">
-							@csrf.Field()
-							<input type="hidden" name="name" value={ server.Name }/>
-							<input type="hidden" name="address" value={ server.Address }/>
-							<input type="hidden" name="port" value={ strconv.Itoa(server.Port) }/>
-							<input type="hidden" name="scheme" value={ server.Scheme }/>
-							<input type="hidden" name="token" value={ server.Token }/>
-							<div>
-								<p class="font-medium">
-									{ server.Name }
-									if server.Selected {
-										<span class="ml-2 text-xs font-normal text-muted-foreground">Current</span>
-									}
-								</p>
-								<p class="text-sm text-muted-foreground break-all">
-									{ server.Scheme }://{ server.Address }:{ strconv.Itoa(server.Port) }
-									if server.Local {
-										<span>(local)</span>
-									} else {
-										<span>(remote)</span>
-									}
-								</p>
-							</div>
-							@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
-								Use this server
-							}
-						</form>
-					}
-				}
+				@serverRow(server)
 			}
 			@card.Card() {
 				@card.Content() {

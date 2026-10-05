@@ -78,9 +78,9 @@ func TestMediaBrowseLibraryRoot(t *testing.T) {
 		LibraryID: "1",
 		Sort:      "title_asc",
 		Letters: []view.LetterIndex{
-			{Title: "#", Size: 3, Start: 0},
-			{Title: "A", Size: 40, Start: 3},
-			{Title: "M", Size: 8, Start: 43},
+			{Title: "#", Size: 3},
+			{Title: "A", Size: 40},
+			{Title: "M", Size: 8},
 		},
 		Letter:    "M",
 		Start:     43,
@@ -134,7 +134,7 @@ func TestMediaBrowseShowsYearsForYearSort(t *testing.T) {
 		LibraryID: "1",
 		Sort:      "year_desc",
 		Letters: []view.LetterIndex{
-			{Title: "1995", Size: 40, Start: 0},
+			{Title: "1995", Size: 40},
 		},
 		Start:     0,
 		Total:     200,
@@ -166,7 +166,7 @@ func TestMediaBrowseOmitsLettersOnSearch(t *testing.T) {
 		Query:     "movie",
 		Sort:      "title_asc",
 		Letters: []view.LetterIndex{
-			{Title: "M", Size: 8, Start: 43},
+			{Title: "M", Size: 8},
 		},
 		Total:     1,
 		PageSize:  48,

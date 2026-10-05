@@ -101,7 +101,7 @@ func TestDecodeResponse_Error(t *testing.T) {
 
 	c := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
+		ClientID: "test",
 		Token:    "",
 		Timeout:  0,
 		BaseURL:  "",
@@ -133,7 +133,7 @@ func TestGeneratePIN(t *testing.T) {
 
 	c := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
+		ClientID: "test",
 		Token:    "",
 		Timeout:  5 * time.Second,
 		BaseURL:  "",
@@ -167,7 +167,7 @@ func TestPollPIN(t *testing.T) {
 
 	c := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
+		ClientID: "test",
 		Token:    "",
 		Timeout:  0,
 		BaseURL:  "",
@@ -194,7 +194,7 @@ func TestValidateToken(t *testing.T) {
 
 	c := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
+		ClientID: "test",
 		Token:    "valid",
 		Timeout:  0,
 		BaseURL:  "",
@@ -219,7 +219,7 @@ func TestValidateToken_Invalid(t *testing.T) {
 
 	c := NewClient(ClientConfig{
 		Product:  productName,
-		ClientID: testServerClient,
+		ClientID: "test",
 		Token:    "invalid",
 		Timeout:  0,
 		BaseURL:  "",

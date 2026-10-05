@@ -12,23 +12,28 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
-	"github.com/PapagoLabs/outtake/internal/database"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 )
 
 const (
-	// E2eEnv is the environment name that skips authentication.
+	// e2eEnv is the environment name that skips authentication.
 	e2eEnv = "e2e"
 )
 
-// AuthGuard provides authentication middleware that checks if the user has
-// a valid Plex token in their session before allowing access to protected routes.
+// AuthGuard rejects a request that has no Plex token in its session.
+//
+// Parameters:
+//   - env: Configured environment. The e2e environment skips the check.
+//
+// Returns:
+//   - handler: Middleware that redirects or answers anonymous requests.
 func AuthGuard(env string) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if env == e2eEnv {
 			return ctx.Next()
 		}
 
-		if tokenFromSession(session.FromContext(ctx)) == "" {
+		if identity.Token(session.FromContext(ctx)) == "" {
 			return unauthenticated(ctx)
 		}
 
@@ -37,37 +42,32 @@ func AuthGuard(env string) fiber.Handler {
 }
 
 // RestoreToken loads a persisted Plex token into the session when missing.
-func RestoreToken(db *database.DB) fiber.Handler {
+//
+// Parameters:
+//   - store: Persisted token store.
+//
+// Returns:
+//   - handler: Middleware that seeds the session and continues the chain.
+func RestoreToken(store identity.TokenStore) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		sess := session.FromContext(ctx)
-		if sess == nil || tokenFromSession(sess) != "" {
+		if sess == nil || identity.Token(sess) != "" {
 			return ctx.Next()
 		}
 
-		stored, err := db.LatestToken(ctx.Context())
-		if err == nil && stored != "" {
-			sess.Set(SessionKeyToken, stored)
-		}
+		identity.SetToken(sess, identity.Restore(ctx.Context(), store))
 
 		return ctx.Next()
 	}
 }
 
-// tokenFromSession reads the Plex token from the Fiber session.
-func tokenFromSession(sess *session.Middleware) string {
-	if sess == nil {
-		return ""
-	}
-
-	token, ok := sess.Get(SessionKeyToken).(string)
-	if !ok {
-		return ""
-	}
-
-	return token
-}
-
 // unauthenticated rejects an anonymous request.
+//
+// Parameters:
+//   - ctx: Request context for the anonymous request.
+//
+// Returns:
+//   - err: The write or redirect failure, or nil once the response is sent.
 func unauthenticated(ctx fiber.Ctx) error {
 	if strings.HasPrefix(ctx.Path(), "/api/") {
 		err := ctx.Status(fiber.StatusUnauthorized).JSON(api.ErrorResponse{

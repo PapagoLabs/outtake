@@ -7,12 +7,25 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
+
+func inputTagFor(t *testing.T, body, name string) string {
+	t.Helper()
+
+	pattern := `<input[^>]*name="` + regexp.QuoteMeta(name) + `"[^>]*>`
+	tag := regexp.MustCompile(pattern).FindString(body)
+	require.NotEmpty(t, tag, "no <input> carrying name=%q in the rendered page", name)
+
+	return tag
+}
 
 func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	t.Parallel()
@@ -21,13 +34,13 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:          "42",
-		Title:       testMovie,
+		Title:       "Movie",
 		Type:        "",
 		Duration:    0,
-		MaxDur:      600,
+		MaxDur:      600 * time.Second,
 		Clips:       nil,
 		ClipStatus:  "",
-		ClipType:    exportTypeGIF,
+		ClipType:    clip.TypeGIF,
 		ClipQuery:   "intro",
 		ClipSort:    "name_asc",
 		Profiles:    nil,
@@ -50,7 +63,10 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Contains(t, body, `name="cropBlackBars"`)
 	assert.Contains(t, body, `name="webSafeColor"`)
 	assert.Contains(t, body, "Web-safe color")
-	assert.Contains(t, body, `name="webSafeColor" value="1" checked`)
+
+	webSafe := inputTagFor(t, body, "webSafeColor")
+	assert.Contains(t, webSafe, `value="1"`)
+	assert.Contains(t, webSafe, "checked")
 	assert.Less(t, strings.Index(body, `id="clipType"`), strings.Index(body, `id="name"`))
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")
@@ -68,10 +84,10 @@ func TestMediaItemPagePreservesStatusFilter(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:          "42",
-		Title:       testMovie,
+		Title:       "Movie",
 		Type:        "",
 		Duration:    0,
-		MaxDur:      600,
+		MaxDur:      600 * time.Second,
 		Clips:       nil,
 		ClipStatus:  "pending",
 		ClipType:    "",
@@ -93,13 +109,10 @@ func TestMediaItemPagePreservesStatusFilter(t *testing.T) {
 	assert.NotContains(t, body, "No clips yet.")
 }
 
-// TestMediaItemPageRendersCarriedExportForm covers the rendered half of the
-// preview round trip. The handlers tests prove the state survives the
-// redirect; this proves the form comes back showing it.
 func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
 	t.Parallel()
 
-	profiles := []view.ClipProfileOption{
+	profiles := []profile.ProfileOption{
 		{ID: "profile-low", Name: "Low", IsDefault: true},
 		{ID: "profile-high", Name: "High"},
 	}
@@ -112,14 +125,14 @@ func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:          "42",
-		Title:       testMovie,
-		MaxDur:      600,
+		Title:       "Movie",
+		MaxDur:      600 * time.Second,
 		Profiles:    profiles,
 		AudioTracks: tracks,
-		StartTime:   10.345,
-		EndTime:     18.007,
+		StartTime:   10345 * time.Millisecond,
+		EndTime:     18007 * time.Millisecond,
 		Export: view.ExportForm{
-			Type:          exportTypeGIF,
+			Type:          clip.TypeGIF,
 			Name:          "A named clip",
 			Quality:       "profile-high",
 			AudioIndex:    2,
@@ -137,17 +150,19 @@ func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
 	assert.Contains(t, body, `name="name" placeholder="Optional name" value="A named clip"`)
 	assert.Contains(t, body, `<option value="profile-high" selected>`)
 	assert.Contains(t, body, `<option value="2" selected>`)
-	assert.Contains(t, body, `name="cropBlackBars" value="1" checked`)
-	assert.Contains(t, body, `name="webSafeColor" value="1" checked`)
+
+	cropBars := inputTagFor(t, body, "cropBlackBars")
+	assert.Contains(t, cropBars, `value="1"`)
+	assert.Contains(t, cropBars, "checked")
+
+	webSafe := inputTagFor(t, body, "webSafeColor")
+	assert.Contains(t, webSafe, `value="1"`)
+	assert.Contains(t, webSafe, "checked")
+
 	assert.Contains(t, body, `name="width" type="number" min="120" max="1920" value="1280"`)
 	assert.Contains(t, body, `name="fps" type="number" min="5" max="30" value="24"`)
 }
 
-// TestMediaItemPageFallsBackToFormDefaults covers a first visit, where nothing
-// was carried and the form should show its own defaults rather than blanks.
-// TestMediaItemPageFallsBackToFormDefaults covers a first visit, where nothing
-// was carried and the form should show its own defaults. The clip name arrives
-// already resolved to the media title, because the handler owns that fallback.
 func TestMediaItemPageFallsBackToFormDefaults(t *testing.T) {
 	t.Parallel()
 
@@ -155,26 +170,22 @@ func TestMediaItemPageFallsBackToFormDefaults(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:     "42",
-		Title:  testMovie,
-		MaxDur: 600,
-		Export: view.ExportForm{Name: testMovie},
+		Title:  "Movie",
+		MaxDur: 600 * time.Second,
+		Export: view.ExportForm{Name: "Movie"},
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
 
 	assert.Contains(t, body, `<option value="clip" selected>`)
-	assert.Contains(t, body, `name="name" placeholder="Optional name" value="`+testMovie+`"`)
+	assert.Contains(t, body, `name="name" placeholder="Optional name" value="Movie"`)
 	assert.Contains(t, body, `name="width" type="number" min="120" max="1920" value="480"`)
 	assert.Contains(t, body, `name="fps" type="number" min="5" max="30" value="10"`)
 	assert.NotContains(t, body, `name="cropBlackBars" value="1" checked`)
 	assert.NotContains(t, body, `name="webSafeColor" value="1" checked`)
 }
 
-// TestMediaItemPageRendersClearedName covers a name the user deliberately
-// emptied. The form must show it empty rather than falling back to the media
-// title, so the next submit stays clear. An input with no value attribute
-// submits an empty field, so the attribute is expected to be absent.
 func TestMediaItemPageRendersClearedName(t *testing.T) {
 	t.Parallel()
 
@@ -182,8 +193,8 @@ func TestMediaItemPageRendersClearedName(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:     "42",
-		Title:  testMovie,
-		MaxDur: 600,
+		Title:  "Movie",
+		MaxDur: 600 * time.Second,
 		Export: view.ExportForm{Name: ""},
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
@@ -192,15 +203,9 @@ func TestMediaItemPageRendersClearedName(t *testing.T) {
 
 	assert.Contains(t, body, `name="name" placeholder="Optional name" class=`)
 	assert.NotContains(t, body, `name="name" placeholder="Optional name" value=`)
-	assert.Contains(t, body, `name="mediaTitle" value="`+testMovie+`"`)
+	assert.Contains(t, body, `name="mediaTitle" value="Movie"`)
 }
 
-// TestMediaItemPageRendersPreviewIndicator covers the elements the preview
-// progress script drives, and that they come from the shared components rather
-// than hand-rolled markup.
-//
-// The script looks each of these up by id, so a missing one silently disables
-// that part of the indicator rather than failing loudly.
 func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 	t.Parallel()
 
@@ -208,8 +213,8 @@ func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:        "42",
-		Title:     testMovie,
-		MaxDur:    600,
+		Title:     "Movie",
+		MaxDur:    600 * time.Second,
 		PreviewID: "abc123",
 		Export:    view.ExportForm{},
 	}).Render(t.Context(), &buf)
@@ -228,48 +233,28 @@ func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 		assert.Contains(t, body, `id="`+id+`"`, "the preview script needs #"+id)
 	}
 
-	// The progress component's own script drives the bar from aria-valuenow, so
-	// both the hook and the attribute it watches must be present.
 	assert.Contains(t, body, "data-tui-progress-indicator")
 	assert.Contains(t, body, `role="progressbar"`)
 	assert.Contains(t, body, `aria-valuenow="0"`)
 
-	// The component script must be requested, at the path the app actually
-	// serves. The base path is what makes the other component scripts reachable
-	// at all, so a regression here is silent until a component needs one.
 	assert.Contains(t, body, `src="/assets/js/progress.min.js`)
 
-	// The player must not point at a file that has not been published yet.
 	assert.NotContains(t, body, `src="/previews/`)
 
-	// The cancel control comes from the button component, which is what makes it
-	// legible once the script disables it while a render is underway. A bare
-	// button would keep the enabled styling in that state, so the check is
-	// scoped to the cancel button's own tag rather than the page.
 	cancelTag := regexp.MustCompile(`<button[^>]*id="preview-cancel"[^>]*>`).FindString(body)
 	require.NotEmpty(t, cancelTag, "the cancel control should be a button")
 	assert.Contains(t, cancelTag, "disabled:pointer-events-none")
 
-	// Cancel must be an htmx request, not a bare fetch. The layout puts the CSRF
-	// token on hx-headers:inherited, so only htmx carries it; a fetch would be
-	// rejected and the cancel would silently do nothing.
 	assert.Contains(t, cancelTag, `hx-delete="/api/clips/preview/abc123"`)
 	assert.Contains(t, cancelTag, `hx-swap="none"`, "the JSON reply must not replace the button")
 
-	// Both start hidden, so nothing is shown before a render is underway. The
-	// script reveals the cancel control when a render starts, and the set-end
-	// control once the player can be seeked.
 	assert.Regexp(t, `id="preview-progress"[^>]*class="[^"]*hidden`, body)
 	assert.Contains(t, cancelTag, "hidden")
 	assert.Regexp(t, `id="preview-set-end"[^>]*class="[^"]*hidden`, body)
 
-	// The proxy carries where it starts, so a position in it can be mapped back
-	// to a source time.
 	assert.Contains(t, body, `data-preview-start="`)
 }
 
-// TestMediaItemPageOmitsPreviewIndicatorWithoutAPreview covers the page without
-// a preview in flight, which should render no indicator at all.
 func TestMediaItemPageOmitsPreviewIndicatorWithoutAPreview(t *testing.T) {
 	t.Parallel()
 
@@ -277,8 +262,8 @@ func TestMediaItemPageOmitsPreviewIndicatorWithoutAPreview(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:     "42",
-		Title:  testMovie,
-		MaxDur: 600,
+		Title:  "Movie",
+		MaxDur: 600 * time.Second,
 		Export: view.ExportForm{},
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
@@ -287,12 +272,9 @@ func TestMediaItemPageOmitsPreviewIndicatorWithoutAPreview(t *testing.T) {
 
 	assert.NotContains(t, body, `id="preview-progress"`)
 	assert.NotContains(t, body, `id="preview-video"`)
-	// The submit button stays, since it is how a preview is started.
 	assert.Contains(t, body, `id="preview-button"`)
 }
 
-// TestItemClipListOmitsLayout keeps the clip list free of the full page chrome
-// so it can be swapped into a page that already has it.
 func TestItemClipListOmitsLayout(t *testing.T) {
 	t.Parallel()
 
@@ -307,11 +289,95 @@ func TestItemClipListOmitsLayout(t *testing.T) {
 	assert.NotContains(t, body, `id="clip-list-type"`)
 }
 
-// TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources covers the control
-// that decides whether an HDR source is passed through.
-//
-// Showing it on an SDR source would offer a control that cannot do anything, so
-// the probe result decides whether the option is there at all.
+func TestMediaItemPageFallsBackToTheLibraryLink(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := MediaItemPage(MediaItemPageProps{
+		ID: "42", Title: "Movie", MaxDur: 600 * time.Second,
+	}).
+		Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(
+		t,
+		body,
+		`<a href="/media" class="text-sm text-muted-foreground `+`hover:text-foreground">Media Libraries</a>`,
+	)
+	assert.NotContains(t, body, "<nav")
+}
+
+func TestMediaItemPageRendersTheBreadcrumbTrail(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := MediaItemPage(MediaItemPageProps{
+		ID:     "42",
+		Title:  "Movie",
+		MaxDur: 600 * time.Second,
+		Crumbs: []view.Crumb{
+			{Title: "Movies", URL: "/media?library=1"},
+			{Title: "Action"},
+			{Title: "Movie"},
+		},
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, `<a href="/media?library=1" class="hover:text-foreground">Movies</a>`)
+	assert.Equal(t, 2, strings.Count(body, `<span>/</span>`),
+		"each crumb after the first is separated")
+	assert.Contains(t, body, `<span class="text-foreground">Action</span>`,
+		"a crumb with no link is the current page rather than a link")
+	assert.Contains(t, body, `<span class="text-foreground">Movie</span>`)
+	assert.NotContains(
+		t,
+		body,
+		`<a href="/media" class="text-sm text-muted-foreground `+`hover:text-foreground">Media Libraries</a>`,
+		"the breadcrumb trail replaces the bare library link",
+	)
+}
+
+func TestItemClipListRendersEveryClip(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := ItemClipList([]view.ClipItem{
+		{ID: "clip-one", Name: "Opening"},
+		{ID: "clip-two", Name: "Closing"},
+	}, false).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, `id="clip-clip-one"`)
+	assert.Contains(t, body, `id="clip-clip-two"`)
+	assert.Contains(t, body, "Opening")
+	assert.Contains(t, body, "Closing")
+	assert.NotContains(t, body, "No clips match these filters.")
+}
+
+func TestMediaItemPageShowsTheSaveError(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := MediaItemPage(MediaItemPageProps{
+		ID:     "42",
+		Title:  "Movie",
+		MaxDur: 600 * time.Second,
+		Error:  "That clip name is already taken.",
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, "That clip name is already taken.")
+	assert.Contains(t, body, "js-flash")
+}
+
 func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
 	t.Parallel()
 
@@ -332,11 +398,11 @@ func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
 
 			err := MediaItemPage(MediaItemPageProps{
 				ID:        "42",
-				Title:     testMovie,
-				Type:      TestMovieType,
+				Title:     "Movie",
+				Type:      "movie",
 				Quality:   test.quality,
 				SourceHDR: test.sourceHDR,
-				MaxDur:    600,
+				MaxDur:    600 * time.Second,
 			}).Render(t.Context(), &buf)
 			require.NoError(t, err)
 
@@ -349,10 +415,6 @@ func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
 	}
 }
 
-// TestMediaItemPageShowsAShortDuration covers the header's duration format.
-//
-// The header is a metadata line, not a timecode field, so it reads as "2hr2min5s"
-// rather than spending six characters on "02:02:05".
 func TestMediaItemPageShowsAShortDuration(t *testing.T) {
 	t.Parallel()
 
@@ -360,10 +422,10 @@ func TestMediaItemPageShowsAShortDuration(t *testing.T) {
 
 	err := MediaItemPage(MediaItemPageProps{
 		ID:       "42",
-		Title:    testMovie,
-		Type:     TestMovieType,
-		Duration: 7325,
-		MaxDur:   600,
+		Title:    "Movie",
+		Type:     "movie",
+		Duration: 7325 * time.Second,
+		MaxDur:   600 * time.Second,
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 

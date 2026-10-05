@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+
+	fiberClient "github.com/gofiber/fiber/v3/client"
 )
 
 // PinResponse represents a PIN response from Plex.
@@ -27,16 +29,29 @@ type UserResponse struct {
 const plexAuthAppBase = "https://app.plex.tv/auth#?"
 
 // GeneratePIN generates a new PIN for authentication.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//
+// Returns:
+//   - pin: The Plex authentication PIN.
+//   - err: Non-nil when the PIN could not be created.
 func (client *Client) GeneratePIN(ctx context.Context) (*PinResponse, error) {
-	cfg := newRequestConfig(ctx, map[string]string{
-		"Accept":                   acceptJSON,
-		"Content-Type":             "application/x-www-form-urlencoded",
-		"X-Plex-Product":           client.Product,
-		"X-Plex-Client-Identifier": client.ClientID,
-	}, "strong=true")
+	cfg := fiberClient.Config{
+		Ctx: ctx,
+		Header: map[string]string{
+			"Accept":                   acceptJSON,
+			"Content-Type":             "application/x-www-form-urlencoded",
+			"X-Plex-Product":           client.Product,
+			"X-Plex-Client-Identifier": client.ClientID,
+		},
+		Body: "strong=true",
+	}
 
 	resp, err := client.httpClient.Post(
-		client.baseURL.ResolveReference(newURL("", "", "/api/v2/pins", "strong=true")).String(),
+		client.baseURL.ResolveReference(
+			&url.URL{Path: "/api/v2/pins", RawQuery: "strong=true"},
+		).String(),
 		cfg,
 	)
 	if err != nil {
@@ -54,6 +69,15 @@ func (client *Client) GeneratePIN(ctx context.Context) (*PinResponse, error) {
 }
 
 // PollPIN polls for PIN authentication.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - pinID: Plex PIN identifier.
+//   - pinCode: Plex PIN code shown to the user.
+//
+// Returns:
+//   - token: The Plex access token, once the PIN has been claimed.
+//   - err: ErrPINNotYetClaimed while the PIN is unclaimed, or a request error.
 func (client *Client) PollPIN(ctx context.Context, pinID int, pinCode string) (string, error) {
 	resp, err := client.doRequest(
 		ctx,
@@ -81,6 +105,14 @@ func (client *Client) PollPIN(ctx context.Context, pinID int, pinCode string) (s
 }
 
 // ValidateToken validates the current authentication token.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//
+// Returns:
+//   - valid: True when Plex accepted the token.
+//   - user: The authenticated Plex user.
+//   - err: ErrUnauthorized when Plex rejected the token, or a request error.
 func (client *Client) ValidateToken(ctx context.Context) (bool, *UserResponse, error) {
 	resp, err := client.doRequest(ctx, "/api/v2/user", "")
 	if err != nil {
@@ -103,9 +135,13 @@ func (client *Client) ValidateToken(ctx context.Context) (bool, *UserResponse, e
 
 // GetAuthURL builds the Plex Auth App URL.
 //
-// Plex requires parameters in the URL fragment after a literal "#?", not a
-// query string. [url.URL.String] encodes that "?" and re-encodes already-escaped
-// values, so this concatenates the encoded parameters onto the documented prefix.
+// Parameters:
+//   - pinCode: Plex PIN code shown to the user.
+//   - clientID: Plex client identifier.
+//   - forwardURL: Where Plex returns the user after authorization.
+//
+// Returns:
+//   - url: The Plex Auth App URL.
 func (client *Client) GetAuthURL(pinCode, clientID, forwardURL string) string {
 	query := url.Values{}
 	query.Set("clientID", clientID)

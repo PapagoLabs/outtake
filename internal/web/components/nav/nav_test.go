@@ -35,3 +35,27 @@ func TestNavLibrariesHighlightsSelected(t *testing.T) {
 	assert.Contains(t, body, `hx-select="#main-content"`)
 	assert.Contains(t, body, `hx-swap="outerHTML scroll:top scrollTarget:#main-content"`)
 }
+
+func TestLibraryURLEscapesID(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "/media?library=1", string(libraryURL("1")))
+	assert.Equal(t, "/media?library=1%26parent%3D9", string(libraryURL("1&parent=9")))
+}
+
+func TestNavLibrariesEscapesLibraryID(t *testing.T) {
+	t.Parallel()
+
+	libs := []view.LibraryItem{
+		{ID: "1&parent=9", Title: "Injected", Type: "show"},
+	}
+
+	var buf strings.Builder
+
+	err := NavLibraries(libs, "").Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, `href="/media?library=1%26parent%3D9"`)
+	assert.NotContains(t, body, `href="/media?library=1&parent=9"`)
+}

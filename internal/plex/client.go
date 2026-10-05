@@ -15,20 +15,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
-// HTTPClient defines the interface for HTTP operations.
-type HTTPClient interface {
-	Get(requestURL string, cfg ...fiberClient.Config) (*fiberClient.Response, error)
-	Post(requestURL string, cfg ...fiberClient.Config) (*fiberClient.Response, error)
-}
-
-// FiberClient wraps the Fiber v3 client to implement HTTPClient.
-type FiberClient struct {
-	client *fiberClient.Client
-}
-
 // Client represents a Plex API client.
 type Client struct {
-	httpClient HTTPClient
+	httpClient *fiberClient.Client
 	Token      string
 	Product    string
 	ClientID   string
@@ -45,54 +34,29 @@ type ClientConfig struct {
 }
 
 const (
-	// ProductName is the default X-Plex-Product value.
+	// productName is the default X-Plex-Product value.
 	productName = "outtake"
 
-	// DefaultTimeout is the HTTP client timeout when none is configured.
+	// defaultTimeout is the HTTP client timeout when none is configured.
 	defaultTimeout = 30 * time.Second
 
-	// ErrorStatusThreshold is the first HTTP status treated as an error.
+	// errorStatusThreshold is the first HTTP status treated as an error.
 	errorStatusThreshold = 400
 
-	// DefaultScheme is the plex.tv URL scheme.
+	// defaultScheme is the plex.tv URL scheme.
 	defaultScheme = "https"
 
-	// DefaultHost is the plex.tv API host.
+	// defaultHost is the plex.tv API host.
 	defaultHost = "plex.tv"
 )
 
-// Ensure FiberClient implements HTTPClient.
-var _ HTTPClient = (*FiberClient)(nil)
-
-// Get sends a GET request.
-func (client *FiberClient) Get(
-	requestURL string,
-	cfg ...fiberClient.Config,
-) (*fiberClient.Response, error) {
-	// Forward the GET to the Fiber client.
-	resp, err := client.client.Get(requestURL, cfg...)
-	if err != nil {
-		return nil, fmt.Errorf("fiber get: %w", err)
-	}
-
-	return resp, nil
-}
-
-// Post sends a POST request.
-func (client *FiberClient) Post(
-	requestURL string,
-	cfg ...fiberClient.Config,
-) (*fiberClient.Response, error) {
-	// Forward the POST to the Fiber client.
-	resp, err := client.client.Post(requestURL, cfg...)
-	if err != nil {
-		return nil, fmt.Errorf("fiber post: %w", err)
-	}
-
-	return resp, nil
-}
-
 // NewClient creates a new Plex client with the default Fiber HTTP client.
+//
+// Parameters:
+//   - cfg: Product, client identifier, token, timeout, and optional base URL.
+//
+// Returns:
+//   - client: A client that defaults the timeout and product name.
 func NewClient(cfg ClientConfig) *Client {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = defaultTimeout
@@ -105,19 +69,16 @@ func NewClient(cfg ClientConfig) *Client {
 	fiberHTTP := fiberClient.New()
 	fiberHTTP.SetTimeout(cfg.Timeout)
 
-	return newPlexClient(cfg, &FiberClient{client: fiberHTTP})
-}
-
-// NewClientWithHTTPClient creates a new Plex client with a custom HTTP client.
-func NewClientWithHTTPClient(cfg ClientConfig, httpClient HTTPClient) *Client {
-	if cfg.Product == "" {
-		cfg.Product = productName
-	}
-
-	return newPlexClient(cfg, httpClient)
+	return newPlexClient(cfg, fiberHTTP)
 }
 
 // SetBaseURL sets the base URL for server-specific requests.
+//
+// Parameters:
+//   - rawURL: New request origin.
+//
+// Returns:
+//   - err: Non-nil when rawURL is not a valid URL.
 func (client *Client) SetBaseURL(rawURL string) error {
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
@@ -130,12 +91,30 @@ func (client *Client) SetBaseURL(rawURL string) error {
 }
 
 // SetToken sets the authentication token.
+//
+// Parameters:
+//   - token: Plex access token.
 func (client *Client) SetToken(token string) {
 	client.Token = token
 }
 
+// defaultBaseURL returns the plex.tv API origin.
+//
+// Returns:
+//   - url: The plex.tv scheme and host.
+func defaultBaseURL() *url.URL {
+	return &url.URL{Scheme: defaultScheme, Host: defaultHost}
+}
+
 // newPlexClient constructs a client and applies an optional custom base URL.
-func newPlexClient(cfg ClientConfig, httpClient HTTPClient) *Client {
+//
+// Parameters:
+//   - cfg: Product, client identifier, token, timeout, and optional base URL.
+//   - httpClient: The HTTP client every request is issued through.
+//
+// Returns:
+//   - client: A client bound to httpClient.
+func newPlexClient(cfg ClientConfig, httpClient *fiberClient.Client) *Client {
 	plexClient := &Client{
 		httpClient: httpClient,
 		Token:      cfg.Token,
@@ -159,6 +138,13 @@ func newPlexClient(cfg ClientConfig, httpClient HTTPClient) *Client {
 }
 
 // decodeResponse unmarshals a JSON Plex response.
+//
+// Parameters:
+//   - resp: Plex response to decode.
+//   - target: Destination for the decoded body; nil skips decoding.
+//
+// Returns:
+//   - err: Non-nil for a failure status, an empty body, or invalid JSON.
 func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 	if resp.StatusCode() >= errorStatusThreshold {
 		return fmt.Errorf("%w %d: %s", ErrPlexError, resp.StatusCode(), string(resp.Body()))
@@ -182,14 +168,43 @@ func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 }
 
 // doRequest sends a GET request to the Plex API.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - path: API path appended to the client base URL.
+//   - rawQuery: Encoded query string, or empty for none.
+//
+// Returns:
+//   - resp: The Plex response, with its status unexamined.
+//   - err: Non-nil when the request could not be executed.
 func (client *Client) doRequest(
 	ctx context.Context,
 	path, rawQuery string,
 ) (*fiberClient.Response, error) {
+	return client.requestPlex(ctx, path, rawQuery, acceptJSON)
+}
+
+// requestPlex sends a GET request to the Plex API with the Accept value the
+// caller will decode.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//   - path: API path appended to the client base URL.
+//   - rawQuery: Encoded query string, or empty for none.
+//   - accept: Accept header. plex.tv returns JSON for application/json, which
+//     cannot be decoded by the XML parsers.
+//
+// Returns:
+//   - resp: The Plex response, with its status unexamined.
+//   - err: Non-nil when the request could not be executed.
+func (client *Client) requestPlex(
+	ctx context.Context,
+	path, rawQuery, accept string,
+) (*fiberClient.Response, error) {
 	// Send the request against the plex.tv base URL.
-	reqURL := client.baseURL.ResolveReference(newURL("", "", path, rawQuery))
+	reqURL := client.baseURL.ResolveReference(&url.URL{Path: path, RawQuery: rawQuery})
 	headers := map[string]string{
-		"Accept":                   acceptJSON,
+		"Accept":                   accept,
 		"X-Plex-Product":           client.Product,
 		"X-Plex-Client-Identifier": client.ClientID,
 	}
@@ -198,7 +213,7 @@ func (client *Client) doRequest(
 		headers["X-Plex-Token"] = client.Token
 	}
 
-	cfg := newRequestConfig(ctx, headers, nil)
+	cfg := fiberClient.Config{Ctx: ctx, Header: headers}
 
 	logging.Logger.Debug().
 		Str("method", "GET").

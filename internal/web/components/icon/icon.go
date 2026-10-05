@@ -12,8 +12,7 @@ import (
 	"github.com/a-h/templ"
 )
 
-// iconContents caches the fully generated SVG strings for icons that have been used,
-// keyed by a composite key of name and props to handle different stylings.
+// iconContents caches the generated SVG strings for icons that have been used.
 var (
 	iconContents = make(map[string]string)
 	iconMutex    sync.RWMutex

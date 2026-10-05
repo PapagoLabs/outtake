@@ -5,17 +5,21 @@
 package playback
 
 import (
-	"github.com/PapagoLabs/outtake/internal/media"
+	"github.com/PapagoLabs/outtake/internal/timecode"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+// PlaybackPanel renders the live Plex position and its mark controls.
+//
+// Parameters:
+//   - props: Current Plex playback state.
 templ PlaybackPanel(props view.Playback) {
 	<div>
 		if props.Playing {
-			<p class="text-sm">Plex is at <span class="font-medium">{ media.FromSeconds(props.ViewOffset).String() }</span>.</p>
+			<p class="text-sm">Plex is at <span class="font-medium">{ timecode.FromDuration(props.ViewOffset).String() }</span>.</p>
 			<div class="flex flex-wrap gap-2 mt-3">
-				<button type="button" class="js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ media.FormatSeconds(props.ViewOffset) }>Set start from Plex</button>
-				<button type="button" class="js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ media.FormatSeconds(props.ViewOffset) }>Set end from Plex</button>
+				<button type="button" class="js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ timecode.FromDuration(props.ViewOffset).FormatSeconds() }>Set start from Plex</button>
+				<button type="button" class="js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ timecode.FromDuration(props.ViewOffset).FormatSeconds() }>Set end from Plex</button>
 			</div>
 		} else {
 			<p class="text-sm text-muted-foreground">Play this item in Plex, then mark start and end from the live playback position.</p>

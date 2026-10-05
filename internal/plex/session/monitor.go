@@ -13,23 +13,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// Fetcher loads live playback sessions from a Plex Media Server.
-type Fetcher interface {
-	// GetSessionsOnServer returns the sessions currently playing on server.
-	//
-	// Parameters:
-	//   - ctx: Cancellation and deadline for the fetch.
-	//   - server: The Plex Media Server to query.
-	//
-	// Returns:
-	//   - sessions: The active playback sessions.
-	//   - err: Non-nil when the server cannot be queried.
-	GetSessionsOnServer(ctx context.Context, server plex.Server) ([]plex.Session, error)
-}
-
 // Monitor polls a Plex Media Server for live playback sessions.
 type Monitor struct {
-	client   Fetcher
+	client   *plex.Client
 	server   plex.Server
 	interval time.Duration
 
@@ -42,21 +28,16 @@ type Monitor struct {
 	cancel context.CancelFunc
 }
 
-// *plex.Client satisfies Fetcher.
-var _ Fetcher = (*plex.Client)(nil)
-
 // NewMonitor creates a session monitor that polls client at interval.
 //
-// The returned monitor is not started. Call [Monitor.Start] to begin polling.
-//
 // Parameters:
-//   - client: Session fetcher, typically a [*plex.Client].
+//   - client: Plex client used to query the server.
 //   - server: Plex Media Server to poll.
 //   - interval: Time between session refreshes.
 //
 // Returns:
 //   - monitor: A monitor that has not been started.
-func NewMonitor(client Fetcher, server plex.Server, interval time.Duration) *Monitor {
+func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration) *Monitor {
 	return &Monitor{
 		client:   client,
 		server:   server,
@@ -126,8 +107,6 @@ func (mon *Monitor) poll(ctx context.Context) {
 }
 
 // refresh fetches sessions and replaces the cache on success.
-//
-// A fetch error leaves the cache unchanged.
 //
 // Parameters:
 //   - ctx: Parent context for the session fetch timeout.

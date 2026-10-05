@@ -4,13 +4,13 @@
 package theme
 
 const (
-	// CatppuccinMauve is Catppuccin mauve on light surfaces.
+	// catppuccinMauve is the mauve accent on light surfaces.
 	catppuccinMauve = "oklch(0.555 0.25 297.016)"
 
-	// CatppuccinMocha is Catppuccin mocha mantle.
+	// catppuccinMocha is the mocha base color.
 	catppuccinMocha = "oklch(0.216 0.025 284.065)"
 
-	// CatppuccinBloom is Catppuccin mauve on dark surfaces.
+	// catppuccinBloom is the mauve accent on dark surfaces.
 	catppuccinBloom = "oklch(0.787 0.119 304.769)"
 )
 

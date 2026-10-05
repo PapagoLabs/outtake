@@ -24,15 +24,24 @@ type Checker struct {
 // defaultHealthTimeout is the timeout for the health check HTTP request.
 const defaultHealthTimeout = 5 * time.Second
 
-// errHealthStatus is returned when the health check receives a non-200 status.
+// errHealthStatus is returned when a health check receives a non-200 status.
 var errHealthStatus = errors.New("health check failed: unexpected status")
 
 // NewChecker creates a new health Checker.
+//
+// Returns:
+//   - chkr: A checker using the default health check timeout.
 func NewChecker() *Checker {
 	return &Checker{timeout: defaultHealthTimeout}
 }
 
 // Check performs a health check against the given address.
+//
+// Parameters:
+//   - addr: The listen address to probe.
+//
+// Returns:
+//   - error: Non-nil when the request fails or the status is not 200.
 func (chkr *Checker) Check(addr string) error {
 	resp, err := chkr.doHealthCheck(addr)
 	if err != nil {
@@ -54,6 +63,12 @@ func (chkr *Checker) Check(addr string) error {
 }
 
 // checkHealthResponse validates the health check response.
+//
+// Parameters:
+//   - resp: The response to validate. Its body is consumed and closed.
+//
+// Returns:
+//   - error: Non-nil when the body cannot be read or the status is not 200.
 func checkHealthResponse(resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -80,6 +95,13 @@ func checkHealthResponse(resp *http.Response) error {
 }
 
 // doHealthCheck sends a GET request to the health endpoint.
+//
+// Parameters:
+//   - addr: The listen address to probe.
+//
+// Returns:
+//   - resp: The response from the health endpoint.
+//   - error: Non-nil when the request cannot be built or sent.
 func (chkr *Checker) doHealthCheck(addr string) (*http.Response, error) {
 	reqURL, err := url.Parse("http://" + addr + "/api/healthz")
 	if err != nil {

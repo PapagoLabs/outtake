@@ -6,41 +6,63 @@ package clip
 
 import (
 	"strconv"
+	"time"
 
-	"github.com/PapagoLabs/outtake/internal/media"
+	domainclip "github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/timecode"
 	"github.com/PapagoLabs/outtake/internal/web/components/badge"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/checkbox"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-func statusBadgeVariant(status string) badge.Variant {
+// statusBadgeVariant returns the badge variant for a clip status.
+//
+// Parameters:
+//   - status: Clip status.
+//
+// Returns:
+//   - variant: Badge variant for that status.
+func statusBadgeVariant(status domainclip.Status) badge.Variant {
 	switch status {
-	case view.ClipStatusCompleted:
+	case domainclip.StatusCompleted:
 		return badge.VariantDefault
-	case view.ClipStatusPending, view.ClipStatusProcessing:
+	case domainclip.StatusPending, domainclip.StatusProcessing:
 		return badge.VariantSecondary
-	case view.ClipStatusFailed:
+	case domainclip.StatusFailed:
 		return badge.VariantDestructive
-	case view.ClipStatusCancelled:
+	case domainclip.StatusCancelled:
 		return badge.VariantOutline
 	default:
 		return badge.VariantOutline
 	}
 }
 
+// clipFileURL builds the file URL for one clip.
+//
+// Parameters:
+//   - id: Clip id.
+//
+// Returns:
+//   - url: The /clips file URL.
 func clipFileURL(id string) templ.SafeURL {
 	return templ.SafeURL("/clips/" + id + "/file")
 }
 
+// clipPlayback renders the collapsible preview for a clip that can play.
+//
+// Parameters:
+//   - item: Clip being rendered.
 templ clipPlayback(item view.ClipItem) {
 	if item.CanPlay() {
 		<details class="rounded-md border">
 			<summary class="cursor-pointer select-none px-3 py-1.5 text-sm font-medium">Preview</summary>
 			<div class="border-t p-2">
-				if item.ClipType == "gif" || item.ClipType == "screenshot" {
+				if item.ClipType == domainclip.TypeGIF || item.ClipType == domainclip.TypeScreenshot {
 					<img src={ clipFileURL(item.ID) } alt={ item.DisplayName() } loading="lazy" class="w-full max-h-64 rounded-md object-contain bg-black"/>
 				} else {
 					<video controls preload="none" class="w-full max-h-64 rounded-md bg-black" src={ clipFileURL(item.ID) }></video>
@@ -50,21 +72,22 @@ templ clipPlayback(item view.ClipItem) {
 	}
 }
 
+// clipFileBadge renders the badge for a clip whose output file is gone.
+//
+// Parameters:
+//   - item: Clip being rendered.
 templ clipFileBadge(item view.ClipItem) {
-	if !item.IsActive() && !item.FileExists && item.Status != view.ClipStatusCancelled {
+	if !item.IsActive() && !item.FileExists && item.Status != domainclip.StatusCancelled {
 		@badge.Badge(badge.Props{Variant: badge.VariantOutline}) {
 			Missing file
 		}
 	}
 }
 
-// ClipStatus renders the parts of a clip card that change while it encodes.
+// ClipStatus renders the status region a clip card polls while it encodes.
 //
-// The poll swaps only this region, so the edit form beside it is never
-// replaced and a half-typed change survives. Everything that legitimately
-// changes as a clip progresses belongs here: the status and file badges, the
-// error, the progress bar, the preview player that appears on completion,
-// and the action buttons, which swap from Cancel to the completed actions.
+// Parameters:
+//   - item: Clip being rendered.
 templ ClipStatus(item view.ClipItem) {
 	<div
 		id={ "clip-" + item.ID + "-status" }
@@ -98,9 +121,9 @@ templ ClipStatus(item view.ClipItem) {
 						<span>&middot;</span>
 						<span>{ item.ProfileName }</span>
 					}
-					if item.ClipType != "screenshot" && item.Duration > 0 {
+					if item.ClipType != domainclip.TypeScreenshot && item.Duration > 0 {
 						<span>&middot;</span>
-						<span>{ media.FromSeconds(item.Duration).Short() }</span>
+						<span>{ timecode.FromDuration(item.Duration).Short() }</span>
 					}
 					if item.CreatedAt != "" {
 						<span>&middot;</span>
@@ -159,11 +182,15 @@ templ ClipStatus(item view.ClipItem) {
 	</div>
 }
 
+// ClipCard renders one clip card and its metadata edit form.
+//
+// Parameters:
+//   - item: Clip being rendered.
 templ ClipCard(item view.ClipItem) {
 	<div id={ "clip-" + item.ID }>
 		@card.Card() {
 			@card.Content() {
-				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.Itoa(item.MaxDur) } data-media-dur={ media.FormatSeconds(item.MediaDuration) }>
+				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" hx-post={ templ.SafeURL("/api/clips/" + item.ID + "/update") } hx-target={ "#clip-" + item.ID } hx-swap="outerHTML" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.FormatInt(int64(item.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(item.MediaDuration).FormatSeconds() }>
 					@csrf.Field()
 					<input type="hidden" name="mediaId" value={ item.MediaID }/>
 					@ClipStatus(item)
@@ -172,26 +199,26 @@ templ ClipCard(item view.ClipItem) {
 							@label.Label(label.Props{For: "type-" + item.ID}) {
 								Type
 							}
-							<select id={ "type-" + item.ID } name="clipType" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30">
-								<option value="clip" selected?={ item.ClipType == "clip" }>Video clip</option>
-								<option value="gif" selected?={ item.ClipType == "gif" }>GIF</option>
-								<option value="screenshot" selected?={ item.ClipType == "screenshot" }>Screenshot</option>
+							<select id={ "type-" + item.ID } name="clipType" class={ utils.ControlClass }>
+								<option value={ string(domainclip.TypeClip) } selected?={ item.ClipType == domainclip.TypeClip }>Video clip</option>
+								<option value={ string(domainclip.TypeGIF) } selected?={ item.ClipType == domainclip.TypeGIF }>GIF</option>
+								<option value={ string(domainclip.TypeScreenshot) } selected?={ item.ClipType == domainclip.TypeScreenshot }>Screenshot</option>
 							</select>
 						</div>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "name-" + item.ID}) {
 								Name
 							}
-							<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+							<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class={ utils.ControlClass }/>
 						</div>
 						<div class="flex flex-col gap-2">
-						<div class="grid">
-							<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="clip,gif">
-								@label.Label(label.Props{For: "start-" + item.ID}) {
-									Start
-								}
-								<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
-							</div>
+							<div class="grid">
+								<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="clip,gif">
+									@label.Label(label.Props{For: "start-" + item.ID}) {
+										Start
+									}
+									<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
+								</div>
 								<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="screenshot">
 									@label.Label(label.Props{For: "start-" + item.ID}) {
 										Time
@@ -199,7 +226,7 @@ templ ClipCard(item view.ClipItem) {
 									<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
 								</div>
 							</div>
-							<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" value={ media.FromSeconds(item.StartTime).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+							<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" value={ timecode.FromDuration(item.StartTime).String() } class={ utils.ControlClass }/>
 						</div>
 						<div class="flex flex-col gap-2" data-export-for="clip,gif">
 							<div class="flex items-baseline gap-2">
@@ -208,9 +235,9 @@ templ ClipCard(item view.ClipItem) {
 								}
 								<span data-end-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
 							</div>
-							<input id={ "end-" + item.ID } name="endTime" type="text" inputmode="decimal" value={ media.FromSeconds(item.EndTime()).String() } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+							<input id={ "end-" + item.ID } name="endTime" type="text" inputmode="decimal" value={ timecode.FromDuration(item.EndTime()).String() } class={ utils.ControlClass }/>
 						</div>
-						<input type="hidden" id={ "dur-" + item.ID } name="duration" value={ media.FromSeconds(item.Duration).String() }/>
+						<input type="hidden" id={ "dur-" + item.ID } name="duration" value={ timecode.FromDuration(item.Duration).String() }/>
 						<div class="flex min-w-40 flex-col gap-2" data-export-for="clip">
 							@label.Label(label.Props{For: "quality-" + item.ID}) {
 								Profile
@@ -229,16 +256,18 @@ templ ClipCard(item view.ClipItem) {
 							@label.Label(label.Props{For: "width-" + item.ID}) {
 								GIF width (px)
 							}
-							<input id={ "width-" + item.ID } name="width" type="number" min="120" max="1920" value={ strconv.Itoa(item.GIFWidth()) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+							// These bounds mirror the server-side GIF width limits, which change for their own reasons.
+							<input id={ "width-" + item.ID } name="width" type="number" min="120" max="1920" value={ strconv.Itoa(item.GIFWidth()) } class={ utils.ControlClass }/>
 						</div>
 						<div class="flex flex-col gap-2" data-export-for="gif">
 							@label.Label(label.Props{For: "fps-" + item.ID}) {
 								GIF frames per second
 							}
-							<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm dark:bg-input/30"/>
+							// These bounds mirror the server-side GIF frame rate limits.
+							<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class={ utils.ControlClass }/>
 						</div>
 					</div>
-					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ media.FromSeconds(item.Duration).Short() }</span> (max { media.FromSeconds(float64(item.MaxDur)).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
+					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ timecode.FromDuration(item.Duration).Short() }</span> (max { timecode.FromDuration(item.MaxDur).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
 					@ColorFields(item.CropBlackBars, item.WebSafeColor, item.PreserveHDR, item.SourceHDR)
 				</form>
 			}
@@ -246,6 +275,13 @@ templ ClipCard(item view.ClipItem) {
 	</div>
 }
 
+// ColorFields renders the export checkboxes that apply to every clip type.
+//
+// Parameters:
+//   - cropBlackBars: Trim black bars is checked.
+//   - webSafeColor: Tone-map to web-safe color is checked.
+//   - preserveHDR: Keep the source HDR transfer is checked.
+//   - sourceHDR: The source carries an HDR transfer.
 templ ColorFields(cropBlackBars, webSafeColor, preserveHDR, sourceHDR bool) {
 	<div class="flex flex-wrap items-center gap-4">
 		@CropBlackBarsField(cropBlackBars)
@@ -256,35 +292,35 @@ templ ColorFields(cropBlackBars, webSafeColor, preserveHDR, sourceHDR bool) {
 	</div>
 }
 
+// CropBlackBarsField renders the trim-black-bars checkbox.
+//
+// Parameters:
+//   - checked: The checkbox is checked.
 templ CropBlackBarsField(checked bool) {
 	<label class="flex items-center gap-2 text-sm">
-		if checked {
-			<input type="checkbox" name="cropBlackBars" value="1" checked class="rounded border-input"/>
-		} else {
-			<input type="checkbox" name="cropBlackBars" value="1" class="rounded border-input"/>
-		}
+		@checkbox.Checkbox(checkbox.Props{Name: "cropBlackBars", Value: "1", Checked: checked, Class: "rounded border-input"})
 		Trim black bars
 	</label>
 }
 
+// PreserveHDRField renders the keep-HDR checkbox.
+//
+// Parameters:
+//   - checked: The checkbox is checked.
 templ PreserveHDRField(checked bool) {
 	<label class="flex items-center gap-2 text-sm" data-export-for="clip">
-		if checked {
-			<input type="checkbox" name="preserveHdr" value="1" checked class="rounded border-input"/>
-		} else {
-			<input type="checkbox" name="preserveHdr" value="1" class="rounded border-input"/>
-		}
+		@checkbox.Checkbox(checkbox.Props{Name: "preserveHdr", Value: "1", Checked: checked, Class: "rounded border-input"})
 		HDR
 	</label>
 }
 
+// WebSafeColorField renders the web-safe color checkbox.
+//
+// Parameters:
+//   - checked: The checkbox is checked.
 templ WebSafeColorField(checked bool) {
 	<label class="flex items-center gap-2 text-sm" data-export-for="clip">
-		if checked {
-			<input type="checkbox" name="webSafeColor" value="1" checked class="rounded border-input"/>
-		} else {
-			<input type="checkbox" name="webSafeColor" value="1" class="rounded border-input"/>
-		}
+		@checkbox.Checkbox(checkbox.Props{Name: "webSafeColor", Value: "1", Checked: checked, Class: "rounded border-input"})
 		Web-safe color
 	</label>
 }

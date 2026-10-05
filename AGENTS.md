@@ -1,6 +1,6 @@
 # Outtake
 
-Plex clip manager. Go 1.27, Fiber v3, templ, HTMX, Cobra. App code lives under `internal/` (no `pkg/`). Composition root: `internal/app`. CLI: `internal/cli`. Entrypoint: `main.go`.
+Plex clip manager. Go 1.27, Fiber v3, templ, HTMX, Cobra. App code lives under `internal/` (no `pkg/`). Composition root: `internal/app`. CLI: `internal/cmd`. Entrypoint: `main.go`.
 
 ## Commands
 
@@ -18,7 +18,7 @@ task compose-dev    # docker compose up --build
 task mock           # mockery --config=build/mockery/mockery.yaml
 ```
 
-Validate with `task lint-ci` then `task vet`, not `go build`. Single package: `go test ./internal/media -run TestFoo` after `task templ`.
+Validate with `task lint-ci` then `task vet`, not `go build`. Single package: `go test ./internal/ffmpeg -run TestFoo` after `task templ`.
 
 Server CLI is `outtake server start` (or `go run . server start`), not `serve`. Default listen `:8080`. Do not add a templ `:8080`→`:8090` proxy or a `docker-compose.dev.yml` overlay; one `docker-compose.yml` plus `.env`.
 
@@ -30,18 +30,32 @@ Do not add templ/goimports hooks to GoReleaser. CI and `task goreleaser*` alread
 
 CSS: `task tailwind` reads `internal/web/assets/css/input.css`.
 
+## Test tiers
+
+Three tiers. Keep a test in the lowest tier that can prove the thing.
+
+- **Unit (white-box)** — `package foo`, `<file>_test.go`, beside the code. testify. Most tests live here.
+- **Integration (black-box)** — `package foo_test`, `internal/<domain>/<package>_integration_test.go`. No build tag, so it runs in `go test ./...`. Exercises a package's exported surface against its real collaborators. It must not contact an external service: use `httptest`, `t.TempDir()`, the in-process SQLite in `internal/store/database`, or a mockery mock. `httptest` beats a mock at a process boundary you do not own; a mock beats one you do.
+- **E2E** — `//go:build e2e` under `testing/e2e`, one subdirectory per app area, with the shared harness in `testing/e2e/helpers`. Not in `go test ./...`. Needs ffmpeg plus Plex credentials from `testing/e2e/.env` (see `.env.example`). A shell export beats the file. Specs skip cleanly when their prerequisite is absent, so a credential-less run is green, not red.
+
+`internal/web/handlers` and `internal/web/middleware` accept narrow consumer-owned interfaces rather than concrete `*identity.Auth`, so tests drive them with `task mock` output instead of a live Plex.
+
+## CI coverage gate
+
+`.github/workflows/test.yaml` measures coverage one package at a time and aggregates; a single merged `-coverprofile` across `./...` cannot be summed. The gate reads only the **hand-written** bucket and excludes `**/mocks/**` and `*_templ.go`, which are scaffolding. Raise the floor as coverage improves; never lower it. It also runs the suite under `-race`.
+
 ## Nested module and e2e
 
 `scripts/download-ffmpeg` is its own module (`outtake-scripts`). Test it with `go test -v` in that directory. Security CI scans it separately.
 
-E2E is `//go:build e2e` under `testing/e2e` and is **not** in `go test ./...`. Needs ffmpeg plus `testing/e2e/.env` (from `.env.example`). `task test-e2e`. White-box tests sit beside the code in the same package. There is no `testing/integration` tree.
+There is no `testing/integration` tree. `task test-e2e` runs the e2e suite.
 
-## Layout
+## Release
 
 - Dockerfiles: `build/docker/Dockerfile` (GoReleaser image context) and `Dockerfile.dev` (source build used by compose).
 - GoReleaser: `build/goreleaser/stable.yaml` (git tag `vX.Y.Z`) and `nightly.yaml`. Docker `hooks.pre` runs `scripts/download-ffmpeg` into the image context. Ship ffmpeg/ffprobe binaries, not the downloader script.
 - Images: `papagolabs/outtake` and `ghcr.io/papagolabs/outtake`.
-- Schema is greenfield/squashed: `internal/database/migrations/001_initial.sql` and `postgres/001_initial.sql`.
+- Migrations are `001_initial.sql`, `002_web_safe_color.sql`, and `003_preserve_hdr.sql`. SQLite reads `internal/store/database/migrations/`. Postgres reads `internal/store/database/migrations/postgres/`. The names match. Each connection records the files it has applied.
 - IDs: Go stdlib `uuid`, not `github.com/google/uuid`.
 - `References/` is local-only (gitignored).
 
@@ -51,7 +65,32 @@ Workflows call templ, goimports, and goreleaser directly, not Taskfile. Go lint 
 
 ## Domain
 
-- Timecode is `internal/media/timecode` (FromSeconds / Parse / String) over Clock/FFmpegClock. Parse through milliseconds. Library duration is HH:MM:SS; clip editing is HH:MM:SS.mmm.
-- Black-bar trim uses `cropdetect=limit=24/255`. A bare `24` is 24/65535 on FFmpeg 9 10-bit HDR and misses letterboxing.
-- Optional web-safe color (off by default) tone-maps HDR on CPU with `zscale`+`tonemap=hable`, using luma measured from the clip—not disc MaxCLL. Leave it off when the user will grade the file themselves. Do not use libplacebo (Vulkan/GPU).
-- Export max resolution is a clip-profile setting (720p, 1080p, 1440p, 4K). Defaults: Low 720p, Medium 1080p, High 4K. Preview stays 720p.
+- Timecode is `internal/timecode` over Clock/FFmpegClock: constructors `FromSeconds` / `FromDuration` / `Parse`, and renderers `Duration` / `Short` / `String` / `FormatSeconds`. Parse through milliseconds. Library duration is HH:MM:SS; clip editing is HH:MM:SS.mmm. It is a top-level leaf: presentation and ffmpeg both depend on it, so nothing imports `internal/ffmpeg` just to format a duration.
+- Render a `time.Duration` through `timecode.FromDuration(d).FormatSeconds()`, never `timecode.FormatSeconds(d.Seconds())`. The free `FormatSeconds(float64)` exists for wire seconds off a JSON body; going through it with a `time.Duration` unwraps and re-wraps the primitive for nothing.
+- FFmpeg invocation is `internal/ffmpeg` with `probe/`, `crop/`, `progress/`, and `tonemap/` subpackages. There is no published ffmpeg interface; callers take `*ffmpeg.ExecFFmpeg`. Name that parameter `runner` in a file that imports the package, so the import is not shadowed.
+- ffmpeg children run with working directory `/`. Pass them absolute media paths.
+- Black-bar trim uses `cropdetect=limit=24/255` after `format=yuv420p`. A bare `24` is 24/65535 on FFmpeg 9 10-bit HDR and misses letterboxing.
+- Web-safe color is off by default and is the only switch that tone-maps HDR. Off keeps the source transfer (10-bit PQ/HLG, no tonemap), including when PreserveHDR is also off. On tone-maps on CPU with `zscale`+`tonemap=hable`. When both flags are set, web-safe wins. Sample luma with `format=yuv420p` before `signalstats`, so the peak math sees 8-bit limited codes, and use that measured luma. Leave libplacebo (Vulkan/GPU) out. A preview preset keeps the caller's PreserveHDR flag.
+- Export max resolution is a clip-profile setting (720p, 1080p, 1440p, 4K). Defaults: Low 720p, Medium 1080p, High 4K. Preview stays 720p. GIF scale widths are even, because the chain ends in `yuv420p`.
+- `clip.Clip` is the editable record. `clip.Job` embeds it and owns `InputPath`, `OutputPath`, `Status`, `Progress`, and `Error`.
+- plex.tv calls decoded as XML (`/api/resources`, `/search`, `/status/sessions`) send `Accept: application/xml`. JSON calls stay on `doRequest`.
+- `RemapMediaPath` treats the Plex root as a directory boundary, so `/data/media` does not claim `/data/media-other`. A mapping that would leave `LocalMediaRoot` is empty.
+- `max-clip-dur` and `session-poll-sec` are second counts. An environment value arrives as a string and still means seconds.
+- Persisted clips reload on a goroutine after the queue starts, so opening the listen port does not wait on the backlog.
+- Vendored HTMX is v4. Partials are `<template hx type="partial" hx-target="...">`. A non-JSON error sets `HX-Reswap: none`, because every status other than 204 and 304 still swaps. The failure event is `htmx:response:error`.
+
+## Layout
+
+`internal/` is grouped by seam:
+
+- `clip/` is the clip record and the render job. `clip/profile`, `clip/catalog`, `clip/preview`, and `clip/queue` sit under it.
+- `timecode/` is the shared duration type.
+- `ffmpeg/` runs ffmpeg and ffprobe, with `probe/`, `crop/`, `progress/`, and `tonemap/`.
+- `plex/` is the Plex client, with `decode/`, `session/`, `library/`, and `identity/`.
+- `api/` aliases `clip.Request` and `clip.Response`. Error codes and the other response payloads stay in `api`.
+- `web/` is templ and htmx: `view/`, `pages/`, `components/`, `routes/`, `respond/`, `theme/`, `exportform/`, and `handlers/` (`library`, `clip`, `preview`, `server`, `auth`, `profile`, `home`, `health`). Handler packages match those directory names. Alias domain imports `clipdom`, `clippreview`, and `clipprofile`. `router.go` imports the handlers as `clips`, `previews`, and `profiles`. E2E packages under `testing/e2e/{clips,profiles,previews}` stay plural.
+- `store/database` and `store/blob` are the database and the filesystem/S3 adapters.
+- `settings/config` and `settings/flags` are process configuration and CLI flags.
+- `app/` wires the concrete runner, client, database, and blob store. `cmd/` only binds flags and starts `app`. `logging/` and `metadata/` stay at the root.
+
+No package under `clip/`, `ffmpeg/`, `plex/`, or `store/` may import `internal/web`. `web` and `cmd` are the edges: handlers decode, call one domain function, then encode. `app` is the only place that knows which backend is wired, and it passes that wiring to `web.New`.
