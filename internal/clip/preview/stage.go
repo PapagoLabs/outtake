@@ -88,20 +88,20 @@ func Render(
 	}
 
 	err = store.Put(ctx, output)
-	if err != nil {
-		// The rename published the file locally, so it is now a cache hit for
-		// every later request even though it never reached the bucket. That
-		// preview would vanish on restart or from another instance, so the
-		// upload failure is undone rather than left behind to look valid.
-		discardErr := DiscardPublished(store, output)
-		if discardErr != nil {
-			return fmt.Errorf("upload preview: %w%w", err, discardErr)
-		}
-
-		return fmt.Errorf("upload preview: %w", err)
+	if err == nil {
+		return nil
 	}
 
-	return nil
+	// The rename published the file locally, so it is now a cache hit for
+	// every later request even though it never reached the bucket. That
+	// preview would vanish on restart or from another instance, so the
+	// upload failure is undone rather than left behind to look valid.
+	discardErr := DiscardPublished(store, output)
+	if discardErr != nil {
+		return fmt.Errorf("upload preview: %w%w", err, discardErr)
+	}
+
+	return fmt.Errorf("upload preview: %w", err)
 }
 
 // DiscardPublished removes a published preview that failed to upload.

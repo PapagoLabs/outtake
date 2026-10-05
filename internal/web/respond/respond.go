@@ -129,6 +129,7 @@ func WriteNotFound(ctx fiber.Ctx) error {
 //   - Wrapped render error.
 func WriteHTMXFlash(ctx fiber.Ctx, status int, message string) error {
 	ctx.Status(status)
+
 	// A browser control such as the delete button swaps on any status other
 	// than 204 or 304, so a failure would remove the card. A JSON caller that
 	// also set HX-Request is driving the swap itself through the partial.

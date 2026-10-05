@@ -54,6 +54,10 @@ const (
 	previewAudioKbps = 96
 	// overwriteFlag is the movflags value that relocates the MP4 index to the front.
 	overwriteFlag = "+faststart"
+	// encodeClipErrFmt is the message clip encode failures are wrapped with.
+	encodeClipErrFmt = "encode clip: %w"
+	// encodePreviewErrFmt is the message preview encode failures are wrapped with.
+	encodePreviewErrFmt = "encode preview: %w"
 )
 
 // ExtractClip encodes a clip segment with x264.
@@ -81,12 +85,12 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	// Build and run the clip ffmpeg command.
 	cleanInput, err := mediaPath(input)
 	if err != nil {
-		return fmt.Errorf("encode clip: %w", err)
+		return fmt.Errorf(encodeClipErrFmt, err)
 	}
 
 	cleanOutput, err := mediaPath(output)
 	if err != nil {
-		return fmt.Errorf("encode clip: %w", err)
+		return fmt.Errorf(encodeClipErrFmt, err)
 	}
 
 	req := clipEncodeRequest(
@@ -103,7 +107,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 
 	err = execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
 	if err != nil {
-		return fmt.Errorf("encode clip: %w", err)
+		return fmt.Errorf(encodeClipErrFmt, err)
 	}
 
 	return nil
@@ -224,12 +228,12 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 ) error {
 	cleanInput, err := mediaPath(input)
 	if err != nil {
-		return fmt.Errorf("encode preview: %w", err)
+		return fmt.Errorf(encodePreviewErrFmt, err)
 	}
 
 	cleanOutput, err := mediaPath(output)
 	if err != nil {
-		return fmt.Errorf("encode preview: %w", err)
+		return fmt.Errorf(encodePreviewErrFmt, err)
 	}
 
 	duration = PreviewDuration(duration)
@@ -248,7 +252,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 
 	runErr := execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
 	if runErr != nil {
-		return fmt.Errorf("encode preview: %w", runErr)
+		return fmt.Errorf(encodePreviewErrFmt, runErr)
 	}
 
 	return nil

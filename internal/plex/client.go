@@ -181,7 +181,12 @@ func (client *Client) doRequest(
 	ctx context.Context,
 	path, rawQuery string,
 ) (*fiberClient.Response, error) {
-	return client.requestPlex(ctx, path, rawQuery, acceptJSON)
+	resp, err := client.requestPlex(ctx, path, rawQuery, acceptJSON)
+	if err != nil {
+		return nil, fmt.Errorf("plex request: %w", err)
+	}
+
+	return resp, nil
 }
 
 // requestPlex sends a GET request to the Plex API with the Accept value the

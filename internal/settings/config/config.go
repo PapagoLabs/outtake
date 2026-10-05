@@ -112,6 +112,8 @@ const (
 	defaultStorageBackend = "filesystem"
 	// defaultS3Region is the default S3 region.
 	defaultS3Region = "us-east-1"
+	// secondsBitSize is the bit size used when parsing a second count.
+	secondsBitSize = 64
 )
 
 // ConfigPath returns the configuration file path.
@@ -280,7 +282,7 @@ func secondsToDurationHook(from, to reflect.Type, data any) (any, error) {
 // durationSeconds reads a config value that is documented as a count of seconds.
 //
 // Environment values arrive as strings. Leaving those for mapstructure to coerce
-// into a time.Duration counts them as nanoseconds.
+// into a [time.Duration] counts them as nanoseconds.
 //
 // Parameters:
 //   - from: Source value type.
@@ -301,7 +303,7 @@ func durationSeconds(from reflect.Type, data any) (float64, bool) {
 			return 0, false
 		}
 
-		seconds, err := strconv.ParseFloat(strings.TrimSpace(text), 64)
+		seconds, err := strconv.ParseFloat(strings.TrimSpace(text), secondsBitSize)
 		if err != nil {
 			return 0, false
 		}
@@ -406,6 +408,7 @@ func (cfg *Config) RemapMediaPath(plexPath string) string {
 	}
 
 	rel = strings.TrimPrefix(rel, string(filepath.Separator))
+
 	local := filepath.Clean(cfg.LocalMediaRoot)
 	if rel == "" {
 		return local

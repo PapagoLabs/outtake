@@ -55,6 +55,7 @@ func TestExtractScreenshotResolvesRelativePaths(t *testing.T) {
 
 	input := filepath.Join(relDir, "in.mkv")
 	output := filepath.Join(relDir, "out.jpg")
+
 	require.NoError(t, os.WriteFile(input, []byte("source"), 0o600))
 
 	logPath := filepath.Join(dir, "argv")

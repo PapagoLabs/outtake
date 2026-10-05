@@ -198,7 +198,7 @@ func TestDeleteRemovesTheOutputAfterTheRow(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, deleteClip(t, handler, id))
 
 	_, statErr := os.Stat(output)
-	assert.ErrorIs(t, statErr, os.ErrNotExist)
+	require.ErrorIs(t, statErr, os.ErrNotExist)
 
 	found, err := handler.db.GetClip(t.Context(), id)
 	require.ErrorIs(t, err, database.ErrClipNotFound)
@@ -242,6 +242,7 @@ func TestDeleteRestoresTheClipWhenTheOutputCannotBeRemoved(t *testing.T) {
 
 func storedDeleteJob(id, output string, status clipdom.Status) *clipdom.Job {
 	job := testClipJob(id, clipdom.TypeClip)
+
 	job.Status = status
 	job.OutputPath = output
 	job.CreatedAt = time.Now().UTC().Truncate(time.Second)

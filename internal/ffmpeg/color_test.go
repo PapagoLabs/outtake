@@ -327,8 +327,11 @@ func TestSignalstatsSkipsCachingWhenFileChangesDuringProbe(t *testing.T) {
 func TestSignalstatsFilterSamplesEightBitLuma(t *testing.T) {
 	t.Parallel()
 
-	assert.True(t, strings.HasPrefix(signalstatsFilter, "format=yuv420p,"),
-		"signalstats on a 10-bit source reports YMAX in 10-bit codes, and the peak math reads 8-bit")
+	assert.True(
+		t,
+		strings.HasPrefix(signalstatsFilter, "format=yuv420p,"),
+		"signalstats on a 10-bit source reports YMAX in 10-bit codes, and the peak math reads 8-bit",
+	)
 	assert.Contains(t, signalstatsFilter, "signalstats")
 }
 

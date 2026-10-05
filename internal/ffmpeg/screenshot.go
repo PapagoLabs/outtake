@@ -12,8 +12,12 @@ import (
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
 
-// qualityFlag is the FFmpeg quality flag.
-const qualityFlag = "-q:v"
+const (
+	// qualityFlag is the FFmpeg quality flag.
+	qualityFlag = "-q:v"
+	// encodeScreenshotErrFmt is the message screenshot encode failures are wrapped with.
+	encodeScreenshotErrFmt = "encode screenshot: %w"
+)
 
 // screenshotEncodeArgs builds the ffmpeg argv for a still frame.
 //
@@ -66,12 +70,12 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 	// Build and run the screenshot ffmpeg command.
 	cleanInput, err := mediaPath(input)
 	if err != nil {
-		return fmt.Errorf("encode screenshot: %w", err)
+		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
 	cleanOutput, err := mediaPath(output)
 	if err != nil {
-		return fmt.Errorf("encode screenshot: %w", err)
+		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
 	err = execFFmpeg.run(
@@ -80,7 +84,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 		screenshotEncodeArgs(execFFmpeg.ffmpegPath, cleanInput, cleanOutput, timestamp, rect)...,
 	)
 	if err != nil {
-		return fmt.Errorf("encode screenshot: %w", err)
+		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
 	return nil

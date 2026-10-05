@@ -25,6 +25,8 @@ const (
 	filterComplexFlag = "-filter_complex"
 	// gifScaleHeight scales GIF height to an even value.
 	gifScaleHeight = "-2"
+	// encodeGIFErrFmt is the message GIF encode failures are wrapped with.
+	encodeGIFErrFmt = "encode gif: %w"
 )
 
 // gifScaleFilter is the shared fps+scale chain for GIF palette and encode.
@@ -192,12 +194,12 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	// Build and run the two-pass GIF ffmpeg command.
 	cleanInput, err := mediaPath(input)
 	if err != nil {
-		return fmt.Errorf("encode gif: %w", err)
+		return fmt.Errorf(encodeGIFErrFmt, err)
 	}
 
 	cleanOutput, err := mediaPath(output)
 	if err != nil {
-		return fmt.Errorf("encode gif: %w", err)
+		return fmt.Errorf(encodeGIFErrFmt, err)
 	}
 
 	if width <= 0 {
@@ -240,7 +242,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 
 	err = execFFmpeg.run(ctx, duration, gifArgs...)
 	if err != nil {
-		return fmt.Errorf("encode gif: %w", err)
+		return fmt.Errorf(encodeGIFErrFmt, err)
 	}
 
 	return nil
