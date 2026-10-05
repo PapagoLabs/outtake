@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/minio/minlz to v1.2.2 by @renovate[bot] in [#304](https://github.com/PapagoLabs/outtake/pull/304)
 - Update module github.com/valyala/fasthttp to v1.75.0 by @renovate[bot] in [#301](https://github.com/PapagoLabs/outtake/pull/301)
 - Lock file maintenance by @renovate[bot] in [#299](https://github.com/PapagoLabs/outtake/pull/299)
 - Update module github.com/a-h/templ to v0.3.1070 by @renovate[bot] in [#298](https://github.com/PapagoLabs/outtake/pull/298)
