@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Copy request strings and bound server timeouts by @nicholas-fedor in [#322](https://github.com/PapagoLabs/outtake/pull/322)
 - Restrict outtake to a single plex owner by @nicholas-fedor in [#320](https://github.com/PapagoLabs/outtake/pull/320)
 
 ## [0.3.1] - 2026-10-05
