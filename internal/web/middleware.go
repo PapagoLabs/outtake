@@ -34,12 +34,13 @@ const sessionAbsoluteTimeout = 24 * time.Hour
 //
 // Parameters:
 //   - cfg: App config. PublicURL controls CookieSecure, matching the CSRF cookie.
+//   - storage: Where sessions persist, or nil to keep them in memory.
 //
 // Returns:
 //   - config: Session middleware configuration.
-func sessionConfig(cfg *config.Config) session.Config {
+func sessionConfig(cfg *config.Config, storage fiber.Storage) session.Config {
 	return session.Config{
-		Storage:           nil,
+		Storage:           storage,
 		Store:             nil,
 		Next:              nil,
 		ErrorHandler:      nil,
@@ -85,16 +86,19 @@ func helmetConfig() helmet.Config {
 
 // csrfConfig returns CSRF middleware that accepts header or form tokens.
 //
+// Tokens live in the session, so they persist and expire with it.
+//
 // Parameters:
 //   - cfg: App config. PublicURL controls CookieSecure and TrustedOrigins.
+//   - sessions: Session store the tokens are kept in.
 //
 // Returns:
 //   - config: CSRF middleware config.
-func csrfConfig(cfg *config.Config) csrf.Config {
+func csrfConfig(cfg *config.Config, sessions *session.Store) csrf.Config {
 	return csrf.Config{
 		Storage:        nil,
 		Next:           nil,
-		Session:        nil,
+		Session:        sessions,
 		KeyGenerator:   csrf.ConfigDefault.KeyGenerator,
 		ErrorHandler:   csrfError,
 		CookieName:     "csrf_",

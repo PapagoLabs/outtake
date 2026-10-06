@@ -55,6 +55,8 @@ type Deps struct {
 	Previews *preview.Service
 	// Sources resolves the media the pages describe.
 	Sources *plexlib.MediaSource
+	// Sessions persists web sessions. Nil keeps them in memory.
+	Sessions fiber.Storage
 }
 
 // routerHandlers holds every handler the route table mounts.
@@ -99,7 +101,9 @@ func New(deps Deps) *fiber.App {
 	built := newRouterHandlers(deps)
 
 	app := fiber.New(appConfig())
-	useMiddleware(app, deps.Cfg)
+	useEdgeMiddleware(app, deps.Cfg)
+	mountSessionless(app, built)
+	useSessionMiddleware(app, deps.Cfg, deps.Sessions)
 
 	guard := middleware.AuthGuard(deps.Cfg.Env, deps.DB)
 	mountPages(app, guard, built)
@@ -186,20 +190,43 @@ func newRouterHandlers(deps Deps) routerHandlers {
 	}
 }
 
-// useMiddleware installs the request pipeline every route shares.
+// useEdgeMiddleware installs the middleware every request passes, including
+// the ones that never touch a session.
 //
 // Parameters:
 //   - app: The application to install onto.
-//   - cfg: Configuration supplying the host, CSRF, and session settings.
-func useMiddleware(app *fiber.App, cfg *config.Config) {
+//   - cfg: Configuration supplying the allowed hosts.
+func useEdgeMiddleware(app *fiber.App, cfg *config.Config) {
 	app.Use(recover.New())
 	app.Use(middleware.RequestLogger())
 	app.Use(helmet.New(helmetConfig()))
 	app.Use(middleware.HostGuard(hostAllowlist(cfg), routeAPI+routeHealth))
-	app.Use(session.New(sessionConfig(cfg)))
-	app.Use(csrf.New(csrfConfig(cfg)))
-	app.Use(middleware.BindCSRFToken())
+}
+
+// mountSessionless registers the routes that answer before the session
+// middleware runs, so assets and health probes never create a session.
+//
+// Parameters:
+//   - app: The Fiber application to register on.
+//   - built: Every handler the route table mounts.
+func mountSessionless(app *fiber.App, built routerHandlers) {
 	app.Use("/assets", static.New("assets", staticConfig()))
+	app.Get(routeAPI+routeHealth, built.health.Health)
+}
+
+// useSessionMiddleware installs the session and the CSRF protection bound to
+// it.
+//
+// Parameters:
+//   - app: The application to install onto.
+//   - cfg: Configuration supplying the cookie settings.
+//   - storage: Where sessions persist, or nil to keep them in memory.
+func useSessionMiddleware(app *fiber.App, cfg *config.Config, storage fiber.Storage) {
+	sessions, store := session.NewWithStore(sessionConfig(cfg, storage))
+
+	app.Use(sessions)
+	app.Use(csrf.New(csrfConfig(cfg, store)))
+	app.Use(middleware.BindCSRFToken())
 }
 
 // mountPages registers HTML routes.
@@ -253,7 +280,6 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	previewHandler := built.preview
 	mediaHandler := built.media
 	authHandler := built.auth
-	healthHandler := built.health
 
 	api := app.Group(routeAPI)
 	api.Post(routeClips, guard, clipHandler.Create)
@@ -272,5 +298,4 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	api.Get("/auth/callback", authHandler.Callback)
 	api.Get("/auth/status", authHandler.Status)
 	api.Post("/auth/logout", authHandler.Logout)
-	api.Get(routeHealth, healthHandler.Health)
 }

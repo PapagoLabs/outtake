@@ -372,6 +372,52 @@ func TestNewLogsOutAnExpiredSessionToo(t *testing.T) {
 	assert.Equal(t, "/login", got.location)
 }
 
+func TestNewKeepsTheSessionAcrossARestart(t *testing.T) {
+	t.Parallel()
+
+	before := newBrowser(t)
+	before.authenticate(t)
+
+	// A second router over the same database stands in for the restarted
+	// process. Only the cookies carry over.
+	after := &browser{
+		app:       New(testRouterDeps(t, before.db)),
+		db:        before.db,
+		cookies:   before.cookies,
+		csrfToken: before.csrfToken,
+		host:      routerHost,
+	}
+
+	assert.Equal(t, fiber.StatusOK, after.request(t, http.MethodGet, "/").status,
+		"the signed-in session survives the restart")
+
+	got := after.submit(t, "/api/auth/logout", nil)
+	assert.Equal(t, fiber.StatusSeeOther, got.status,
+		"the CSRF token survives the restart")
+	assert.Equal(t, "/login", got.location)
+}
+
+func TestNewServesAssetsAndHealthWithoutASession(t *testing.T) {
+	t.Parallel()
+
+	client := newBrowser(t)
+
+	for _, target := range []string{"/assets/css/output.css", "/api/healthz"} {
+		got := client.request(t, http.MethodGet, target)
+
+		assert.Equal(t, fiber.StatusOK, got.status, target)
+		assert.Empty(t, got.cookies, "%s sets no cookie", target)
+	}
+
+	var stored int
+
+	err := client.db.Conn().
+		QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sessions`).
+		Scan(&stored)
+	require.NoError(t, err)
+	assert.Zero(t, stored, "no session was written")
+}
+
 func TestNewRefusesAForeignHost(t *testing.T) {
 	t.Parallel()
 
@@ -781,9 +827,10 @@ func testRouterDeps(t *testing.T, db *database.DB) Deps {
 	}
 
 	return Deps{
-		Cfg:   cfg,
-		DB:    db,
-		Queue: queue.NewQueue(1, nil),
+		Cfg:      cfg,
+		DB:       db,
+		Queue:    queue.NewQueue(1, nil),
+		Sessions: database.NewSessionStore(db),
 		Auth: identity.New(
 			"outtake", "test-client", "http://localhost", db, nil,
 			identity.WithPlexURL(routerPlexTV(t).URL),
