@@ -235,7 +235,7 @@ func TestSignalstatsCachesPeak(t *testing.T) {
 	t.Parallel()
 
 	path, identity := newPassSource(t)
-	execFFmpeg := NewExecFFmpeg(writePassStub(t, signalstatsLog), "unused")
+	execFFmpeg := NewExecFFmpeg(passStub(t, signalstatsLog), "unused")
 
 	first, ok := execFFmpeg.signalstatsYMax(t.Context(), path, 10*time.Second, 30*time.Second)
 	require.True(t, ok, "the stubbed signalstats output must parse")
@@ -262,7 +262,7 @@ func TestSignalstatsDoesNotCacheFailedRun(t *testing.T) {
 	t.Parallel()
 
 	path, identity := newPassSource(t)
-	execFFmpeg := NewExecFFmpeg(stubScript(t, failingStubScript(signalstatsLog)), "unused")
+	execFFmpeg := NewExecFFmpeg(failingPassStub(t, signalstatsLog), "unused")
 
 	peak, ok := execFFmpeg.signalstatsYMax(t.Context(), path, 10*time.Second, 30*time.Second)
 	require.True(t, ok, "the stubbed luma is still parsed and returned")
@@ -280,7 +280,7 @@ func TestSignalstatsDoesNotCacheFailure(t *testing.T) {
 
 	path, identity := newPassSource(t)
 	execFFmpeg := NewExecFFmpeg(
-		writePassStub(t, "no signalstats output here"),
+		passStub(t, "no signalstats output here"),
 		"unused",
 	)
 
@@ -311,7 +311,7 @@ func TestSignalstatsSkipsCachingWhenFileChangesDuringProbe(t *testing.T) {
 	require.NoError(t, os.WriteFile(replacement, []byte("replaced-content"), 0o600))
 	require.NoError(t, os.Chtimes(replacement, before.ModTime(), before.ModTime()))
 
-	execFFmpeg := NewExecFFmpeg(writeSwappingPassStub(t, signalstatsLog), "unused")
+	execFFmpeg := NewExecFFmpeg(swappingPassStub(t, signalstatsLog), "unused")
 
 	peak, ok := execFFmpeg.signalstatsYMax(t.Context(), target, 10*time.Second, 30*time.Second)
 	require.True(t, ok, "the stub answers regardless of what the file contains")

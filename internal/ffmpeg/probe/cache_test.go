@@ -58,10 +58,10 @@ func writeProbeStub(t *testing.T, swap bool) string {
 }`
 
 	if swap {
-		return stubScript(t, probeSwapStubScript(probeJSON))
+		return probeSwapStub(t, probeJSON)
 	}
 
-	return stubScript(t, probeStubScript(probeJSON))
+	return probeStub(t, probeJSON)
 }
 
 func TestProbeReturnsCachedResult(t *testing.T) {

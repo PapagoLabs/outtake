@@ -4,63 +4,42 @@
 package app
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
 
-// appStubDir is the process wide directory holding the stub binaries.
-var appStubDir = sync.OnceValue(func() string {
-	dir, err := os.MkdirTemp("", "outtake-app-stub")
-	if err != nil {
-		return ""
-	}
+// stubInvocationSeparator ends each run's argv in a fake's log.
+const stubInvocationSeparator = "---- stub invocation ----"
 
-	return dir
-})
+func TestMain(m *testing.M) {
+	ffmpegtest.Dispatch()
 
-// stubFFmpeg writes an executable stub that appends the argv of every
-// invocation to logPath and then runs body.
+	os.Exit(m.Run())
+}
+
+// stubFFmpeg returns an ffmpeg fake that appends the argv of every run to
+// logPath and then behaves as stub describes.
 //
 // Parameters:
-//   - t: The test that needs the stub.
-//   - logPath: File the stub appends each invocation's argv to.
-//   - body: Shell run after the argv has been recorded.
+//   - t: The test that needs the fake.
+//   - logPath: File the fake appends each run's argv to.
+//   - stub: What the fake does after recording its argv.
 //
 // Returns:
-//   - path: The stub binary.
-func stubFFmpeg(t *testing.T, logPath, body string) string {
+//   - path: The fake ffmpeg.
+func stubFFmpeg(t *testing.T, logPath string, stub ffmpegtest.Stub) string {
 	t.Helper()
 
-	_, statErr := os.Stat("/bin/sh")
-	if statErr != nil {
-		t.Skip("a POSIX shell is required for the ffmpeg stub")
-	}
+	stub.ArgvFile = logPath
+	stub.ArgvSeparator = stubInvocationSeparator
 
-	dir := appStubDir()
-	if dir == "" {
-		t.Skip("unable to create a directory for the ffmpeg stub")
-	}
-
-	script := "#!/bin/sh\n" +
-		"for arg in \"$@\"; do printf '%s\\n' \"$arg\" >> " + shellQuote(logPath) + "; done\n" +
-		"printf '%s\\n' " + shellQuote("---- stub invocation ----") + " >> " + shellQuote(logPath) + "\n" +
-		body
-
-	path := stubBinaryPath(dir, script)
-
-	_, pathErr := os.Stat(path)
-	if os.IsNotExist(pathErr) {
-		require.NoError(t, os.WriteFile(path, []byte(script), 0o700))
-	}
-
-	return path
+	return ffmpegtest.Install(t, stub)
 }
 
 // missingBinary returns a path that holds no executable.
@@ -72,20 +51,6 @@ func stubFFmpeg(t *testing.T, logPath, body string) string {
 //   - path: A path inside dir that no process can run.
 func missingBinary(dir string) string {
 	return filepath.Join(dir, "no-such-ffmpeg")
-}
-
-// stubBinaryPath names the stub file a script is cached under.
-//
-// Parameters:
-//   - dir: Directory the stub is written to.
-//   - script: The stub's shell source.
-//
-// Returns:
-//   - path: The content addressed stub path.
-func stubBinaryPath(dir, script string) string {
-	sum := sha256.Sum256([]byte(script))
-
-	return filepath.Join(dir, "stub-"+hex.EncodeToString(sum[:8]))
 }
 
 // stubInputFile creates a source file so a probe can identify it on disk.
@@ -127,7 +92,7 @@ func stubInvocations(t *testing.T, path string) [][]string {
 
 	var invocations [][]string
 
-	for block := range strings.SplitSeq(string(raw), "---- stub invocation ----\n") {
+	for block := range strings.SplitSeq(string(raw), stubInvocationSeparator+"\n") {
 		argv := strings.Fields(block)
 		if len(argv) > 0 {
 			invocations = append(invocations, argv)
@@ -168,15 +133,4 @@ func stubOutputArg(argv []string) string {
 	}
 
 	return argv[len(argv)-1]
-}
-
-// shellQuote renders value as a single POSIX shell word.
-//
-// Parameters:
-//   - value: The word to quote.
-//
-// Returns:
-//   - quoted: The word as a single-quoted shell token.
-func shellQuote(value string) string {
-	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }

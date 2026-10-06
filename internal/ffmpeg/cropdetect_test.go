@@ -27,7 +27,7 @@ var cropdetectedRect = crop.CropRect{Width: 3840, Height: 1608, X: 0, Y: 216}
 func cropExec(t *testing.T) *ExecFFmpeg {
 	t.Helper()
 
-	return NewExecFFmpeg(writePassStub(t, cropdetectLog), "unused")
+	return NewExecFFmpeg(passStub(t, cropdetectLog), "unused")
 }
 
 // blindExec is an executor that cannot run anything, so a cache miss surfaces
@@ -136,7 +136,7 @@ func TestDetectCropSkipsCachingWhenFileChangesDuringProbe(t *testing.T) {
 	require.NoError(t, os.WriteFile(replacement, []byte("replaced-content"), 0o600))
 	require.NoError(t, os.Chtimes(replacement, before.ModTime(), before.ModTime()))
 
-	execFFmpeg := NewExecFFmpeg(writeSwappingPassStub(t, cropdetectLog), "unused")
+	execFFmpeg := NewExecFFmpeg(swappingPassStub(t, cropdetectLog), "unused")
 
 	rect, err := execFFmpeg.DetectCrop(t.Context(), target, 10*time.Second, 30*time.Second)
 	require.NoError(t, err, "the stub answers regardless of what the file contains")
