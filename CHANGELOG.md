@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Confine the thumbnail proxy and share plex connections by @nicholas-fedor in [#333](https://github.com/PapagoLabs/outtake/pull/333)
 - Copy request strings and bound server timeouts by @nicholas-fedor in [#322](https://github.com/PapagoLabs/outtake/pull/322)
 - Restrict outtake to a single plex owner by @nicholas-fedor in [#320](https://github.com/PapagoLabs/outtake/pull/320)
 
