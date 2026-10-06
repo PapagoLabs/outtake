@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Copy request strings and bound server timeouts by @nicholas-fedor in [#322](https://github.com/PapagoLabs/outtake/pull/322)
 - Restrict outtake to a single plex owner by @nicholas-fedor in [#320](https://github.com/PapagoLabs/outtake/pull/320)
 
+### Tests
+
+- Fake ffmpeg with the test binary instead of shell scripts by @nicholas-fedor in [#327](https://github.com/PapagoLabs/outtake/pull/327)
+
 ## [0.3.1] - 2026-10-05
 
 ### Added
