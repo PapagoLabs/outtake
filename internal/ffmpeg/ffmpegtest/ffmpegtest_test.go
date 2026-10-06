@@ -158,6 +158,22 @@ func TestInstalledStubReportsAFailedSwap(t *testing.T) {
 	assert.Contains(t, got.stderr, "ffmpegtest: swap")
 }
 
+func TestInstalledStubFailsWhenItsSpecCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	if os.Geteuid() == 0 {
+		t.Skip("root reads files whatever their permissions")
+	}
+
+	path := Install(t, Stub{ExitCode: 7})
+	require.NoError(t, os.Chmod(path+specSuffix, 0))
+
+	got := runStub(t, path)
+
+	assert.Equal(t, failureExit, got.code, "the fake fails instead of running the tests")
+	assert.Contains(t, got.stderr, "ffmpegtest: read stub")
+}
+
 func TestInstalledStubsRunWhileOthersAreInstalled(t *testing.T) {
 	t.Parallel()
 

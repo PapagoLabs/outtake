@@ -12,7 +12,9 @@ package ffmpegtest
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,12 +115,17 @@ func Install(tb testing.TB, stub Stub) string {
 }
 
 // Dispatch acts out a fake when the test binary started as one, and exits.
-// Otherwise it returns at once. Call it first in TestMain.
+// It returns only when no stub sits beside the binary. Call it first in
+// TestMain.
 func Dispatch() {
 	//nolint:gosec // The spec sits beside the symlink the test binary was started through.
 	spec, err := os.ReadFile(os.Args[0] + specSuffix)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		return
+	}
+
+	if err != nil {
+		fail(fmt.Errorf("read stub: %w", err))
 	}
 
 	var stub Stub
