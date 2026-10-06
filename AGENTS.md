@@ -81,6 +81,7 @@ Workflows call templ, goimports, and goreleaser directly, not Taskfile. Go lint 
 - `middleware.HostGuard` answers 421 to a Host that is not an IP literal, localhost, a dotless or private-suffix name, the public base URL's host, or listed in `allowed-hosts`. Tests that drive the router through httptest (Host `example.com`) set `AllowedHosts: "example.com"`.
 - The e2e environment skips the auth guard, so `app.New` refuses it on a non-loopback listen address.
 - Logging is configured once in `cmd/server` (and the e2e harness), not in `app.New`. Tests build many apps in parallel, and rewriting zerolog's globals while another app logs is a data race.
+- The Fiber app runs with `Immutable: true`, so strings read off a request (`Params`, `FormValue`, `Query`) are copies a handler may keep. It also sets a read and an idle timeout, and no write timeout, because downloads and ranged video stream for as long as they need.
 - Vendored HTMX is v4. Partials are `<template hx type="partial" hx-target="...">`. A non-JSON error sets `HX-Reswap: none`, because every status other than 204 and 304 still swaps. The failure event is `htmx:response:error`.
 
 ## Layout
