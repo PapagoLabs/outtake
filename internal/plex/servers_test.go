@@ -330,3 +330,163 @@ func TestPortFromURL(t *testing.T) {
 		})
 	}
 }
+
+func TestPreferUniqueServersKeepsServersThatShareAName(t *testing.T) {
+	t.Parallel()
+
+	servers := []Server{
+		{
+			Name:      "Plex",
+			Address:   "1.2.3.4",
+			Port:      443,
+			Scheme:    defaultScheme,
+			MachineID: "machine-1",
+		},
+		{
+			Name:      "Plex",
+			Address:   "192.168.1.5",
+			Port:      32400,
+			Scheme:    httpScheme,
+			Local:     true,
+			MachineID: "machine-1",
+		},
+		{
+			Name:      "Plex",
+			Address:   "5.6.7.8",
+			Port:      443,
+			Scheme:    defaultScheme,
+			MachineID: "machine-2",
+		},
+	}
+
+	got := PreferUniqueServers(servers)
+
+	require.Len(t, got, 2)
+	assert.Equal(t, "192.168.1.5", got[0].Address, "the local connection represents machine-1")
+	assert.Equal(t, "machine-2", got[1].MachineID)
+}
+
+func TestConnectionsOfListsOneServersConnections(t *testing.T) {
+	t.Parallel()
+
+	servers := []Server{
+		{Name: "Plex", Address: "1.2.3.4", MachineID: "machine-1"},
+		{Name: "Plex", Address: "5.6.7.8", MachineID: "machine-2"},
+		{Name: "Plex", Address: "192.168.1.5", MachineID: "machine-1"},
+	}
+
+	got := ConnectionsOf(servers, servers[2])
+
+	require.Len(t, got, 2)
+	assert.Equal(t, "1.2.3.4", got[0].Address)
+	assert.Equal(t, "192.168.1.5", got[1].Address)
+}
+
+func TestSelectionKeyNamesTheServerAndConnection(t *testing.T) {
+	t.Parallel()
+
+	server := Server{
+		Name:      "Attic",
+		Address:   "fd00::9",
+		Port:      32400,
+		Scheme:    httpScheme,
+		MachineID: "machine-1",
+	}
+
+	assert.Equal(t, "machine-1 http://[fd00::9]:32400", SelectionKey(server))
+
+	server.MachineID = ""
+	assert.Equal(
+		t,
+		"Attic http://[fd00::9]:32400",
+		SelectionKey(server),
+		"a server without an id is keyed by name",
+	)
+
+	server.Token = "srv-token"
+	assert.NotContains(t, SelectionKey(server), "srv-token")
+}
+
+func TestParseServerURL(t *testing.T) {
+	t.Parallel()
+
+	got, ok := ParseServerURL("https://plex.example.com")
+
+	require.True(t, ok)
+	assert.Equal(t, "plex.example.com", got.Address)
+	assert.Equal(t, 443, got.Port)
+	assert.Equal(t, defaultScheme, got.Scheme)
+	assert.Empty(t, got.Token)
+
+	got, ok = ParseServerURL("http://192.168.1.5:32400")
+
+	require.True(t, ok)
+	assert.Equal(t, 32400, got.Port)
+	assert.Equal(t, httpScheme, got.Scheme)
+
+	for _, rawURL := range []string{"", "plex.example.com", "ftp://plex.example.com", "http://", "http://host:notaport", "%"} {
+		_, ok := ParseServerURL(rawURL)
+		assert.False(t, ok, rawURL)
+	}
+}
+
+func TestServersFromDevicesKeepsOnlyServers(t *testing.T) {
+	t.Parallel()
+
+	connection := []plextv.Connection{
+		{Address: "192.168.1.5", Port: 32400, Protocol: httpScheme, Local: 1},
+	}
+
+	devices := []plextv.Device{
+		{
+			Name:             "Phone",
+			Provides:         "player,controller",
+			ClientIdentifier: "phone-1",
+			Connection:       connection,
+		},
+		{
+			Name:             "Attic",
+			Provides:         "server",
+			ClientIdentifier: "machine-1",
+			AccessToken:      "own",
+			Connection:       connection,
+		},
+		{
+			Name:             "Friend",
+			Provides:         "client,server",
+			ClientIdentifier: "machine-2",
+			AccessToken:      "shared",
+			Connection: []plextv.Connection{
+				{Address: "5.6.7.8", Port: 443, Protocol: defaultScheme, Relay: 1},
+			},
+		},
+	}
+
+	got := serversFromDevices(devices)
+
+	require.Len(t, got, 2, "the player is dropped")
+	assert.Equal(t, "machine-1", got[0].MachineID)
+	assert.False(t, got[0].Relay)
+	assert.Equal(t, "machine-2", got[1].MachineID)
+	assert.Equal(t, "shared", got[1].Token)
+	assert.True(t, got[1].Relay)
+}
+
+func TestProvidesServer(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]bool{
+		"":                  true,
+		"server":            true,
+		"client,server":     true,
+		"client, server":    true,
+		" server ":          true,
+		"player,controller": false,
+		"servers":           false,
+		"client, player":    false,
+	}
+
+	for provides, want := range tests {
+		assert.Equal(t, want, providesServer(provides), provides)
+	}
+}

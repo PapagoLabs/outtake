@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	fiberClient "github.com/gofiber/fiber/v3/client"
@@ -369,7 +370,12 @@ func (client *Client) GetMediaPath(
 //   - servers: One entry per connection the account exposes.
 //   - err: Non-nil when the plex.tv request or decode fails.
 func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
-	resp, err := client.requestPlex(ctx, "/api/resources", "includeHttps=1", acceptXML)
+	resp, err := client.requestPlex(
+		ctx,
+		"/api/resources",
+		"includeHttps=1&includeRelay=1",
+		acceptXML,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("discover servers: %w", err)
 	}
@@ -572,14 +578,43 @@ func serversFromDevices(devices []plextv.Device) []Server {
 	servers := make([]Server, 0, len(devices))
 
 	for _, device := range devices {
-		token := device.AccessToken
+		if !providesServer(device.Provides) {
+			continue
+		}
 
 		for _, conn := range device.Connection {
-			servers = append(servers, serverFromConnection(device.Name, token, conn))
+			server := serverFromConnection(device.Name, device.AccessToken, conn)
+
+			server.MachineID = device.ClientIdentifier
+			server.Relay = conn.Relay == 1
+
+			servers = append(servers, server)
 		}
 	}
 
 	return servers
+}
+
+// providesServer reports whether a device role list includes a media server.
+// A device that reports no roles is kept, because nothing says it is not one.
+//
+// Parameters:
+//   - provides: Comma-separated roles, such as "server" or "client,player".
+//
+// Returns:
+//   - server: True when the device may be a Plex Media Server.
+func providesServer(provides string) bool {
+	if provides == "" {
+		return true
+	}
+
+	for role := range strings.SplitSeq(provides, ",") {
+		if strings.TrimSpace(role) == "server" {
+			return true
+		}
+	}
+
+	return false
 }
 
 // serverFromConnection maps a Plex Connection element onto a Server.
@@ -626,15 +661,17 @@ func serverFromConnection(name, token string, conn plextv.Connection) Server {
 // jsonHeaders returns PMS JSON request headers as documented by the OpenAPI spec.
 //
 // Parameters:
-//   - token: Plex access token sent with the request.
+//   - token: Plex access token sent with the request, or empty to send none.
 //
 // Returns:
 //   - headers: The request headers.
 func jsonHeaders(token string) map[string]string {
-	return map[string]string{
-		headerPlexToken: token,
-		headerAccept:    acceptJSON,
+	headers := map[string]string{headerAccept: acceptJSON}
+	if token != "" {
+		headers[headerPlexToken] = token
 	}
+
+	return headers
 }
 
 // sectionThumb prefers a section thumb, then the composite image.

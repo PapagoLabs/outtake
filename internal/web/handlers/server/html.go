@@ -18,6 +18,13 @@ type PlexAuth interface {
 	// Client returns a Plex client for the selected server.
 	Client() (*plex.Client, plex.Server, bool)
 
+	// ChooseCustomURL resolves a server URL the owner typed, verifying it is
+	// one of the account's servers before its token is used.
+	ChooseCustomURL(ctx context.Context, accessToken, rawURL string) (plex.Server, error)
+
+	// ChooseServer resolves a discovered connection by its selection key.
+	ChooseServer(ctx context.Context, accessToken, key string) (plex.Server, error)
+
 	// Discover lists the Plex servers an access token can reach.
 	Discover(ctx context.Context, accessToken string) ([]plex.Server, error)
 

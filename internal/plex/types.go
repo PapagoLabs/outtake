@@ -3,7 +3,7 @@
 
 package plex
 
-// Server represents a Plex server.
+// Server represents one connection to a Plex server.
 type Server struct {
 	Name    string `json:"name"`
 	Address string `json:"address"`
@@ -11,6 +11,11 @@ type Server struct {
 	Token   string `json:"token"`
 	Scheme  string `json:"scheme"`
 	Local   bool   `json:"local"`
+	// MachineID is the server's Plex client identifier, shared by all of its
+	// connections. Empty for a server that was not discovered.
+	MachineID string `json:"machineId"`
+	// Relay is true for a connection through the Plex relay.
+	Relay bool `json:"relay"`
 }
 
 // Library represents a Plex library.

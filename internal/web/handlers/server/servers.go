@@ -4,6 +4,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -79,62 +80,79 @@ func (handler *Handler) Servers(ctx fiber.Ctx) error {
 	})
 }
 
-// bindSelectedURL binds the Plex server the servers page posted.
+// bindSelectedURL binds the Plex server the servers page posted. The page posts
+// a selection key or a typed URL, never a token, and the token comes from Plex.
 //
 // Parameters:
-//   - ctx: Request carrying the form values and the Plex token.
+//   - ctx: Request carrying the form values and the session token.
 //
 // Returns:
-//   - err: Non-nil when the chosen server cannot be bound.
+//   - err: Non-nil when the redirect cannot be written.
 func (handler *Handler) bindSelectedURL(ctx fiber.Ctx) error {
-	token := ctx.FormValue("token")
-	if token == "" {
-		token = identity.Token(session.FromContext(ctx))
-	}
+	server, err := handler.chosenServer(ctx, identity.Token(session.FromContext(ctx)))
+	if err != nil {
+		log.Warn().Err(err).Msg("refused a server choice")
 
-	server, ok := handler.selectedServer(ctx, token)
-	if !ok {
 		return respond.RedirectTo(
 			ctx,
-			respond.PathWithError(routes.PathServers, "invalid server URL"),
+			respond.PathWithError(routes.PathServers, choiceRefusal(err)),
 		)
 	}
 
-	if name := ctx.FormValue("name"); name != "" {
-		server.Name = name
-	}
-
-	err := handler.auth.Select(ctx.Context(), server)
+	err = handler.auth.Select(ctx.Context(), server)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to persist selected server")
-
-		return respond.RedirectTo(ctx, routes.PathRoot)
 	}
 
 	return respond.RedirectTo(ctx, routes.PathRoot)
 }
 
-// selectedServer reads the posted server, whether it arrived as one URL or as
-// the parts of one.
+// chosenServer resolves the posted server, whether it arrived as a typed URL or
+// as the selection key of a discovered connection.
 //
 // Parameters:
 //   - ctx: Request carrying the form values.
-//   - token: Plex access token the server is reached with.
+//   - token: Plex access token servers are discovered with.
 //
 // Returns:
-//   - server: The chosen server connection.
-//   - ok: False when the form names no server that can be built.
-func (*Handler) selectedServer(ctx fiber.Ctx, token string) (plex.Server, bool) {
+//   - server: The chosen connection, with its token.
+//   - err: Why the choice cannot be bound.
+func (handler *Handler) chosenServer(ctx fiber.Ctx, token string) (plex.Server, error) {
 	if rawURL := ctx.FormValue("customUrl"); rawURL != "" {
-		return plex.ServerFromURL(rawURL, token)
+		server, err := handler.auth.ChooseCustomURL(ctx.Context(), token, rawURL)
+		if err != nil {
+			return plex.EmptyServer(), fmt.Errorf("choose custom url: %w", err)
+		}
+
+		return server, nil
 	}
 
-	return plex.ServerFromParts(
-		ctx.FormValue("scheme"),
-		ctx.FormValue("address"),
-		ctx.FormValue("port"),
-		token,
-	)
+	server, err := handler.auth.ChooseServer(ctx.Context(), token, ctx.FormValue("server"))
+	if err != nil {
+		return plex.EmptyServer(), fmt.Errorf("choose server: %w", err)
+	}
+
+	return server, nil
+}
+
+// choiceRefusal explains a refused server choice.
+//
+// Parameters:
+//   - err: Why the choice was refused.
+//
+// Returns:
+//   - message: What the servers page shows.
+func choiceRefusal(err error) string {
+	switch {
+	case errors.Is(err, identity.ErrInvalidServerURL):
+		return "Enter an http or https URL for the Plex server."
+	case errors.Is(err, identity.ErrServerUnreachable):
+		return "Outtake cannot reach that server. Check the address and that Outtake can connect to it."
+	case errors.Is(err, identity.ErrServerNotFound):
+		return "That is not a Plex server on your account."
+	default:
+		return "Outtake could not use that server. Try again."
+	}
 }
 
 // discoverServers lists Plex servers for the session token.

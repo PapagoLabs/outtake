@@ -7,14 +7,16 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// ServerItem is one discovered Plex server.
+// ServerItem is one discovered Plex server connection. It carries no token:
+// the page posts Key, and the token is looked up again from Plex.
 type ServerItem struct {
+	Key      string
 	Name     string
 	Address  string
 	Port     int
 	Scheme   string
-	Token    string
 	Local    bool
+	Relay    bool
 	Selected bool
 }
 
@@ -31,12 +33,13 @@ func ServerItems(servers []plex.Server, current plex.Server) []ServerItem {
 
 	for _, server := range servers {
 		items = append(items, ServerItem{
+			Key:      plex.SelectionKey(server),
 			Name:     server.Name,
 			Address:  server.Address,
 			Port:     server.Port,
 			Scheme:   server.Scheme,
-			Token:    server.Token,
 			Local:    server.Local,
+			Relay:    server.Relay,
 			Selected: plex.SameConnection(server, current),
 		})
 	}

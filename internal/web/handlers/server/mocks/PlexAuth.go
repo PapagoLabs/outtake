@@ -51,6 +51,150 @@ func (_m *MockPlexAuth) EXPECT() *MockPlexAuth_Expecter {
 	return &MockPlexAuth_Expecter{mock: &_m.Mock}
 }
 
+// ChooseCustomURL provides a mock function for the type MockPlexAuth
+func (_mock *MockPlexAuth) ChooseCustomURL(ctx context.Context, accessToken string, rawURL string) (plex.Server, error) {
+	ret := _mock.Called(ctx, accessToken, rawURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ChooseCustomURL")
+	}
+
+	var r0 plex.Server
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (plex.Server, error)); ok {
+		return returnFunc(ctx, accessToken, rawURL)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) plex.Server); ok {
+		r0 = returnFunc(ctx, accessToken, rawURL)
+	} else {
+		r0 = ret.Get(0).(plex.Server)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, accessToken, rawURL)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPlexAuth_ChooseCustomURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ChooseCustomURL'
+type MockPlexAuth_ChooseCustomURL_Call struct {
+	*mock.Call
+}
+
+// ChooseCustomURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accessToken string
+//   - rawURL string
+func (_e *MockPlexAuth_Expecter) ChooseCustomURL(ctx any, accessToken any, rawURL any) *MockPlexAuth_ChooseCustomURL_Call {
+	return &MockPlexAuth_ChooseCustomURL_Call{Call: _e.mock.On("ChooseCustomURL", ctx, accessToken, rawURL)}
+}
+
+func (_c *MockPlexAuth_ChooseCustomURL_Call) Run(run func(ctx context.Context, accessToken string, rawURL string)) *MockPlexAuth_ChooseCustomURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPlexAuth_ChooseCustomURL_Call) Return(server plex.Server, err error) *MockPlexAuth_ChooseCustomURL_Call {
+	_c.Call.Return(server, err)
+	return _c
+}
+
+func (_c *MockPlexAuth_ChooseCustomURL_Call) RunAndReturn(run func(ctx context.Context, accessToken string, rawURL string) (plex.Server, error)) *MockPlexAuth_ChooseCustomURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ChooseServer provides a mock function for the type MockPlexAuth
+func (_mock *MockPlexAuth) ChooseServer(ctx context.Context, accessToken string, key string) (plex.Server, error) {
+	ret := _mock.Called(ctx, accessToken, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ChooseServer")
+	}
+
+	var r0 plex.Server
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (plex.Server, error)); ok {
+		return returnFunc(ctx, accessToken, key)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) plex.Server); ok {
+		r0 = returnFunc(ctx, accessToken, key)
+	} else {
+		r0 = ret.Get(0).(plex.Server)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, accessToken, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPlexAuth_ChooseServer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ChooseServer'
+type MockPlexAuth_ChooseServer_Call struct {
+	*mock.Call
+}
+
+// ChooseServer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - accessToken string
+//   - key string
+func (_e *MockPlexAuth_Expecter) ChooseServer(ctx any, accessToken any, key any) *MockPlexAuth_ChooseServer_Call {
+	return &MockPlexAuth_ChooseServer_Call{Call: _e.mock.On("ChooseServer", ctx, accessToken, key)}
+}
+
+func (_c *MockPlexAuth_ChooseServer_Call) Run(run func(ctx context.Context, accessToken string, key string)) *MockPlexAuth_ChooseServer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPlexAuth_ChooseServer_Call) Return(server plex.Server, err error) *MockPlexAuth_ChooseServer_Call {
+	_c.Call.Return(server, err)
+	return _c
+}
+
+func (_c *MockPlexAuth_ChooseServer_Call) RunAndReturn(run func(ctx context.Context, accessToken string, key string) (plex.Server, error)) *MockPlexAuth_ChooseServer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Client provides a mock function for the type MockPlexAuth
 func (_mock *MockPlexAuth) Client() (*plex.Client, plex.Server, bool) {
 	ret := _mock.Called()

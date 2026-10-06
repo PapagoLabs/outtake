@@ -17,6 +17,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/server/mocks"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -61,6 +62,18 @@ var errSelectFailed = errors.New("select server")
 // Parameters:
 //   - handler: The handler under test.
 //
+// boundServer is the connection a successful choice resolves to.
+var boundServer = plex.Server{
+	Name:      "Home Plex",
+	Address:   "10.0.0.9",
+	Port:      32400,
+	Token:     "device-token",
+	Scheme:    "http",
+	Local:     true,
+	MachineID: "machine-1",
+	Relay:     false,
+}
+
 // Returns:
 //   - app: The app the routes are mounted on.
 func serversApp(handler *Handler) *fiber.App {
@@ -196,24 +209,6 @@ func discoveredAuth(t *testing.T, err error) *mocks.MockPlexAuth {
 	return auth
 }
 
-// selectedAuth builds an authentication that accepts any server selection.
-//
-// Parameters:
-//   - t: The test the authentication belongs to.
-//   - err: Failure the selection reports, nil to accept.
-//
-// Returns:
-//   - auth: The authentication under test.
-func selectedAuth(t *testing.T, err error) *mocks.MockPlexAuth {
-	t.Helper()
-
-	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Select(mock.Anything, mock.Anything).Return(err).Maybe()
-	auth.EXPECT().Selected().Return(plex.EmptyServer(), false).Maybe()
-
-	return auth
-}
-
 func TestServersRendersTheDiscoveredAccount(t *testing.T) {
 	t.Parallel()
 
@@ -230,8 +225,10 @@ func TestServersRendersTheDiscoveredAccount(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, "Home Plex",
 		"a server the account offers has to be on the page")
-	assertBodyContains(t, answer.body, `name="token"`,
-		"the form carries the token Plex needs to reach the account")
+	assertBodyContains(t, answer.body, `name="server"`,
+		"the form posts the connection's selection key")
+	assertBodyOmits(t, answer.body, "page-token",
+		"the page never carries a Plex token")
 }
 
 func TestServersWarnsWhenTheAccountCannotBeListed(t *testing.T) {
@@ -324,126 +321,52 @@ func TestForgetServerReportsAServerItCouldNotForget(t *testing.T) {
 	assert.NotEmpty(t, flash, "the owner is told the server was not forgotten")
 }
 
-func TestSelectServerBindsACustomURL(t *testing.T) {
+func TestSelectServerBindsTheChosenConnection(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Select(mock.Anything, mock.MatchedBy(func(server plex.Server) bool {
-		return server.Address == "10.0.0.9" && server.Port == 32400 &&
-			server.Scheme == "http" && server.Token == "form-token"
-	})).Return(nil)
+	auth.EXPECT().ChooseServer(mock.Anything, mock.Anything, "machine-1 http://10.0.0.9:32400").
+		Return(boundServer, nil).Once()
+	auth.EXPECT().Select(mock.Anything, boundServer).Return(nil).Once()
 
-	handler := pageHandler(t, auth, silentSources(t))
-
-	form := url.Values{
-		"customUrl": {"http://10.0.0.9:32400"},
-		"token":     {"form-token"},
-	}.Encode()
-
-	answer := selectServer(t, handler, form)
+	answer := selectServer(t, pageHandler(t, auth, silentSources(t)),
+		url.Values{"server": {"machine-1 http://10.0.0.9:32400"}}.Encode())
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathRoot, answer.header.Get(fiber.HeaderLocation),
 		"a bound install goes straight to the dashboard")
 }
 
-func TestSelectServerAppliesTheNameTheUserTyped(t *testing.T) {
+func TestSelectServerBindsAVerifiedCustomURL(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Select(mock.Anything, mock.MatchedBy(func(server plex.Server) bool {
-		return server.Name == "Home Plex"
-	})).Return(nil)
+	auth.EXPECT().ChooseCustomURL(mock.Anything, mock.Anything, "https://plex.example.com").
+		Return(boundServer, nil).Once()
+	auth.EXPECT().Select(mock.Anything, boundServer).Return(nil).Once()
 
-	handler := pageHandler(t, auth, silentSources(t))
-
-	form := url.Values{
-		"customUrl": {"http://10.0.0.9:32400"},
-		"name":      {"Home Plex"},
-		"token":     {"form-token"},
-	}.Encode()
-
-	answer := selectServer(t, handler, form)
-
-	require.Equal(t, fiber.StatusSeeOther, answer.status)
-}
-
-func TestSelectServerBindsAServerPartsURL(t *testing.T) {
-	t.Parallel()
-
-	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Select(mock.Anything, mock.MatchedBy(func(server plex.Server) bool {
-		return server.Scheme == "https" && server.Address == "plex.example.com" &&
-			server.Port == 32400 && server.Token == "form-token"
-	})).Return(nil)
-
-	handler := pageHandler(t, auth, silentSources(t))
-
-	form := url.Values{
-		"scheme":  {"https"},
-		"address": {"plex.example.com"},
-		"port":    {"32400"},
-		"token":   {"form-token"},
-	}.Encode()
-
-	answer := selectServer(t, handler, form)
+	answer := selectServer(t, pageHandler(t, auth, silentSources(t)),
+		url.Values{"customUrl": {"https://plex.example.com"}}.Encode())
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathRoot, answer.header.Get(fiber.HeaderLocation))
 }
 
-func TestSelectServerRejectsAnAddressItCannotRead(t *testing.T) {
-	t.Parallel()
-
-	handler := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	form := url.Values{
-		"customUrl": {"not a url"},
-		"token":     {"form-token"},
-	}.Encode()
-
-	answer := selectServer(t, handler, form)
-
-	require.Equal(t, fiber.StatusSeeOther, answer.status)
-
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
-	assert.Equal(t, routes.PathServers, path, "a rejected address stays on the picker")
-	assert.Contains(t, flash, "invalid server URL")
-}
-
-func TestSelectServerDiscardsAnErrorPlexReturned(t *testing.T) {
-	t.Parallel()
-
-	handler := pageHandler(t, selectedAuth(t, errSelectFailed), silentSources(t))
-
-	form := url.Values{
-		"customUrl": {"http://10.0.0.9:32400"},
-		"token":     {"form-token"},
-	}.Encode()
-
-	answer := selectServer(t, handler, form)
-
-	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, routes.PathRoot, answer.header.Get(fiber.HeaderLocation),
-		"the picker is gone, so the browser lands on the dashboard and the "+
-			"warning log is all that is left of the failure")
-}
-
-func TestBindSelectedURLPrefersTheFormToken(t *testing.T) {
+func TestSelectServerDiscoversWithTheSessionTokenAndIgnoresAPostedOne(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Select(mock.Anything, mock.Anything).Return(nil)
+	auth.EXPECT().ChooseCustomURL(mock.Anything, "session-token", "https://plex.example.com").
+		Return(boundServer, nil).Once()
+	auth.EXPECT().Select(mock.Anything, boundServer).Return(nil).Once()
 
-	handler := pageHandler(t, auth, silentSources(t))
-
-	app := sessionAppWithRoutes(t, handler, serversRoutes)
-
+	app := sessionAppWithRoutes(t, pageHandler(t, auth, silentSources(t)), serversRoutes)
 	seeded := seedTokenFor(t, app, "session-token")
 
 	form := url.Values{
-		"token":     {"form-token"},
-		"customUrl": {"http://10.0.0.9:32400"},
+		"customUrl": {"https://plex.example.com"},
+		"token":     {"posted-token"},
+		"address":   {"attacker.example"},
 	}.Encode()
 
 	answer := serveWithCookies(t, app, seeded, "/bind", form)
@@ -452,144 +375,53 @@ func TestBindSelectedURLPrefersTheFormToken(t *testing.T) {
 	assert.Equal(t, routes.PathRoot, answer.header.Get(fiber.HeaderLocation))
 }
 
-func TestBindSelectedURLFallsBackToTheSessionToken(t *testing.T) {
+func TestSelectServerExplainsARefusedChoice(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		err  error
+		want string
+	}{
+		"not on the account": {err: identity.ErrServerNotFound, want: "not a Plex server on your account"},
+		"unreachable":        {err: identity.ErrServerUnreachable, want: "cannot reach that server"},
+		"not http":           {err: identity.ErrInvalidServerURL, want: "http or https URL"},
+		"anything else":      {err: errListFailed, want: "could not use that server"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			// Select has no expectation, so a refused choice that binds fails the test.
+			auth := mocks.NewMockPlexAuth(t)
+			auth.EXPECT().ChooseCustomURL(mock.Anything, mock.Anything, mock.Anything).
+				Return(plex.EmptyServer(), test.err).Once()
+
+			answer := selectServer(t, pageHandler(t, auth, silentSources(t)),
+				url.Values{"customUrl": {"https://plex.example.com"}}.Encode())
+
+			path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+			assert.Equal(t, routes.PathServers, path, "a refused choice stays on the picker")
+			assert.Contains(t, flash, test.want)
+		})
+	}
+}
+
+func TestSelectServerStillLandsOnTheDashboardWhenTheChoiceCannotBeSaved(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
 	auth.EXPECT().
-		Select(mock.Anything, mock.MatchedBy(func(server plex.Server) bool {
-			return server.Token == "session-token"
-		})).
-		Return(nil)
+		ChooseServer(mock.Anything, mock.Anything, mock.Anything).
+		Return(boundServer, nil).
+		Once()
+	auth.EXPECT().Select(mock.Anything, boundServer).Return(errSelectFailed).Once()
 
-	handler := pageHandler(t, auth, silentSources(t))
-
-	app := sessionAppWithRoutes(t, handler, serversRoutes)
-
-	seeded := seedTokenFor(t, app, "session-token")
-
-	form := url.Values{"customUrl": {"http://10.0.0.9:32400"}}.Encode()
-
-	answer := serveWithCookies(t, app, seeded, "/bind", form)
+	answer := selectServer(t, pageHandler(t, auth, silentSources(t)),
+		url.Values{"server": {"machine-1 http://10.0.0.9:32400"}}.Encode())
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-}
-
-func TestBindSelectedURLRejectsAFormWithNoServer(t *testing.T) {
-	t.Parallel()
-
-	handler := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	app := sessionAppWithRoutes(t, handler, serversRoutes)
-
-	seeded := seedTokenFor(t, app, "session-token")
-
-	answer := serveWithCookies(t, app, seeded, "/bind",
-		url.Values{"token": {"form-token"}}.Encode())
-
-	require.Equal(t, fiber.StatusSeeOther, answer.status)
-
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
-	assert.Equal(t, routes.PathServers, path)
-	assert.Contains(t, flash, "invalid server URL")
-}
-
-func TestSelectedServerSplitsTheCustomURL(t *testing.T) {
-	t.Parallel()
-
-	handler := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	server, ok := selectedServerOf(t, handler, url.Values{
-		"customUrl": {"https://plex.example.com:1234/base"},
-		"token":     {"form-token"},
-	})
-
-	require.True(t, ok)
-	assert.Equal(t, "plex.example.com", server.Address)
-	assert.Equal(t, 1234, server.Port)
-	assert.Equal(t, "https", server.Scheme)
-	assert.Equal(t, "form-token", server.Token)
-}
-
-func TestSelectedServerReadsTheServerParts(t *testing.T) {
-	t.Parallel()
-
-	handler := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	server, ok := selectedServerOf(t, handler, url.Values{
-		"scheme":  {"http"},
-		"address": {"10.0.0.5"},
-		"port":    {"32400"},
-		"token":   {"form-token"},
-	})
-
-	require.True(t, ok)
-	assert.Equal(t, "10.0.0.5", server.Address)
-	assert.Equal(t, 32400, server.Port)
-	assert.Equal(t, "http", server.Scheme)
-	assert.Equal(t, "form-token", server.Token)
-}
-
-func TestSelectedServerRejectsAnEmptyForm(t *testing.T) {
-	t.Parallel()
-
-	handler := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	server, ok := selectedServerOf(t, handler, url.Values{})
-
-	assert.False(t, ok)
-	assert.Equal(t, plex.Server{}, server)
-}
-
-func TestSelectedServerRejectsACustomURLWithoutAnAddress(t *testing.T) {
-	t.Parallel()
-
-	handler := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	server, ok := selectedServerOf(t, handler,
-		url.Values{"customUrl": {"http://"}})
-
-	assert.False(t, ok)
-	assert.Equal(t, plex.Server{}, server)
-}
-
-// selectedServerOf reads the server a form names, which needs a live request.
-//
-// Parameters:
-//   - t: The test the read belongs to.
-//   - handler: The handler under test.
-//   - form: Form values the picker posted.
-//
-// Returns:
-//   - server: The server the form names.
-//   - ok: Whether the form named one that can be built.
-func selectedServerOf(
-	t *testing.T,
-	handler *Handler,
-	form url.Values,
-) (plex.Server, bool) {
-	t.Helper()
-
-	var (
-		server plex.Server
-		ok     bool
-	)
-
-	app := fiber.New()
-	app.Get(routes.PathServers, func(ctx fiber.Ctx) error {
-		server, ok = handler.selectedServer(ctx, ctx.FormValue("token"))
-
-		return ctx.SendStatus(fiber.StatusOK)
-	})
-
-	resp, err := app.Test(requestWithCookies(
-		t, http.MethodGet, routes.PathServers, form.Encode(), []*http.Cookie{},
-	))
-	require.NoError(t, err)
-
-	defer closeBody(t, resp)
-
-	return server, ok
+	assert.Equal(t, routes.PathRoot, answer.header.Get(fiber.HeaderLocation),
+		"the binding is live, so the browser lands on the dashboard and the "+
+			"warning log is all that is left of the failure")
 }
 
 func TestDiscoverServersOffersNothingWithoutASessionToken(t *testing.T) {

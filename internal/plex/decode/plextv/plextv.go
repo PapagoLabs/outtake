@@ -40,11 +40,14 @@ type sessionInfo struct {
 
 // Device is a plex.tv XML device from /api/resources.
 type Device struct {
-	Name        string       `xml:"name,attr"`
-	Address     string       `xml:"address,attr"`
-	Port        int          `xml:"port,attr"`
-	AccessToken string       `xml:"accessToken,attr"`
-	Connection  []Connection `xml:"Connection"`
+	Name             string       `xml:"name,attr"`
+	ClientIdentifier string       `xml:"clientIdentifier,attr"`
+	Provides         string       `xml:"provides,attr"`
+	Owned            int          `xml:"owned,attr"`
+	Address          string       `xml:"address,attr"`
+	Port             int          `xml:"port,attr"`
+	AccessToken      string       `xml:"accessToken,attr"`
+	Connection       []Connection `xml:"Connection"`
 }
 
 // Connection is a plex.tv XML device connection.
@@ -54,6 +57,7 @@ type Connection struct {
 	Port     int    `xml:"port,attr"`
 	Protocol string `xml:"protocol,attr"`
 	Local    int    `xml:"local,attr"`
+	Relay    int    `xml:"relay,attr"`
 }
 
 // Directory is a plex.tv XML directory listing entry.
