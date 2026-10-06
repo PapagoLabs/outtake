@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update step-security/harden-runner action to v2.22.0 by @renovate[bot] in [#317](https://github.com/PapagoLabs/outtake/pull/317)
+- Update golang.org/x/exp digest to 7677206 by @renovate[bot] in [#314](https://github.com/PapagoLabs/outtake/pull/314)
 - Update github.com/google/pprof digest to 639476b by @renovate[bot] in [#313](https://github.com/PapagoLabs/outtake/pull/313)
 
 ## [0.3.1] - 2026-10-05
