@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 )
 
 func TestNewClient(t *testing.T) {
@@ -249,4 +250,30 @@ func TestGetAuthURL(t *testing.T) {
 	assert.Contains(t, authURL, "code=pin-code")
 	assert.Contains(t, authURL, "forwardUrl=http%3A%2F%2Flocalhost%3A8080%2Fcallback")
 	assert.Contains(t, authURL, "context%5Bdevice%5D%5Bproduct%5D=")
+}
+
+func TestNewHTTPRejectsABodyOverItsCap(t *testing.T) {
+	t.Parallel()
+
+	const maxBody = 16
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/at-cap", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", maxBody)))
+	})
+	mux.HandleFunc("/over-cap", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("x", maxBody+1)))
+	})
+
+	ts := httptest.NewServer(mux)
+	t.Cleanup(ts.Close)
+
+	client := newHTTP(5*time.Second, maxBody)
+
+	resp, err := client.Get(ts.URL + "/at-cap")
+	require.NoError(t, err, "a body at the cap is accepted")
+	assert.Len(t, resp.Body(), maxBody)
+
+	_, err = client.Get(ts.URL + "/over-cap")
+	require.ErrorIs(t, err, fasthttp.ErrBodyTooLarge, "a body over the cap is refused")
 }

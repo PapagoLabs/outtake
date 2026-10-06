@@ -200,6 +200,12 @@ func TestGetRejectsAPathThatIsNotALibraryAsset(t *testing.T) {
 		{name: "a traversal out of the library route", give: "/library/../../etc/passwd"},
 		{name: "an unrelated absolute route", give: "/status/sessions"},
 		{name: "a file scheme", give: "file:///etc/passwd"},
+		{name: "a media file", give: "/library/parts/1/1700000000/file.mkv"},
+		{name: "a library refresh", give: "/library/sections/1/refresh"},
+		{name: "the photo transcoder", give: "/photo/:/transcode?url=http://example.com/x.jpg"},
+		{name: "artwork with a query string", give: "/library/metadata/1/thumb/2?url=x"},
+		{name: "an escaped path", give: "/library/metadata/1%2F..%2Fparts/thumb/2"},
+		{name: "a theme song", give: "/library/metadata/1/theme/2"},
 	}
 
 	for _, test := range tests {
@@ -381,32 +387,6 @@ func TestGetReportsAMissingThumbnailOnTheServer(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusNotFound, got.status,
 		"an asset the server does not have is not found")
-}
-
-func TestGetFetchesAPhotoThumbnail(t *testing.T) {
-	t.Parallel()
-
-	ts := thumbServer(t, http.StatusOK, "image/jpeg", "thumb-bytes")
-	client, server := pmsFor(t, ts)
-
-	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/photo/./transcode?url=x"))
-	seedCacheFile(t, cached, "photo-bytes")
-
-	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(false)
-	store.EXPECT().WriteThumbnail(library.CacheID("/photo/./transcode?url=x"),
-		[]byte("thumb-bytes")).Return(nil)
-	store.EXPECT().Get(mock.Anything, cached).Return(nil)
-
-	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(client, server, true)
-
-	got := getThumb(t, New(store, paths, selected), thumbQuery("/photo/./transcode?url=x"))
-
-	assert.Equal(t, fiber.StatusOK, got.status,
-		"a photo asset is as valid a thumbnail source as a library one")
-	assert.Equal(t, "photo-bytes", got.body)
 }
 
 func TestGetReportsACachedFileThatVanished(t *testing.T) {

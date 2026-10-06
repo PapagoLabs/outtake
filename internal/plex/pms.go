@@ -8,10 +8,19 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	fiberClient "github.com/gofiber/fiber/v3/client"
 )
+
+// thumbPathPatterns are the artwork paths a Plex server hands out: art on a
+// metadata item, and the composites a section or collection is drawn with. A
+// trailing number is the artwork's version.
+var thumbPathPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`^/library/metadata/\d+/(thumb|art|banner|clearLogo)(/\d+)?$`),
+	regexp.MustCompile(`^/library/(sections|collections)/\d+/(composite|thumb|art)(/\d+)?$`),
+}
 
 // serverBaseURL returns the scheme://host:port origin for a PMS.
 //
@@ -71,19 +80,23 @@ func (client *Client) getPMS(
 	return resp, nil
 }
 
-// ValidThumbPath reports whether path is a Plex library thumbnail path.
+// ValidThumbPath reports whether path is a Plex artwork path. Anything else,
+// including a query string or an escaped character, is refused, so the
+// thumbnail proxy cannot reach any other Plex endpoint.
 //
 // Parameters:
 //   - path: Candidate thumbnail path.
 //
 // Returns:
-//   - ok: True when the path is absolute and confined to a library asset route.
+//   - ok: True when path names artwork.
 func ValidThumbPath(path string) bool {
-	if path == "" || strings.Contains(path, "..") || !strings.HasPrefix(path, "/") {
-		return false
+	for _, pattern := range thumbPathPatterns {
+		if pattern.MatchString(path) {
+			return true
+		}
 	}
 
-	return strings.HasPrefix(path, "/library/") || strings.HasPrefix(path, "/photo/")
+	return false
 }
 
 // GetThumb fetches a thumbnail from the Plex Media Server.
@@ -95,14 +108,15 @@ func ValidThumbPath(path string) bool {
 //
 // Returns:
 //   - body: The thumbnail bytes.
-//   - contentType: The response content type, defaulting to image/jpeg.
-//   - err: ErrInvalidThumbPath for an unusable path, or a request error.
+//   - contentType: The image content type.
+//   - err: ErrInvalidThumbPath for an unusable path, ErrNotImage for a response
+//     that is not an image, or a request error. A response larger than 10 MiB
+//     fails as a request error.
 func (client *Client) GetThumb(
 	ctx context.Context,
 	server Server,
 	path string,
 ) ([]byte, string, error) {
-	// Fetch a thumbnail from the PMS.
 	if !ValidThumbPath(path) {
 		return nil, "", ErrInvalidThumbPath
 	}
@@ -118,7 +132,7 @@ func (client *Client) GetThumb(
 		Header: map[string]string{headerPlexToken: token},
 	}
 
-	resp, err := client.httpClient.Get(reqURL, cfg)
+	resp, err := client.thumbClient.Get(reqURL, cfg)
 	if err != nil {
 		return nil, "", fmt.Errorf("get thumb: %w", err)
 	}
@@ -127,12 +141,20 @@ func (client *Client) GetThumb(
 		return nil, "", fmt.Errorf("%w %d", ErrServerReturnedError, resp.StatusCode())
 	}
 
+	body := resp.Body()
+
+	// A missing header reads as fasthttp's text/plain default, so a type that is
+	// not an image is checked against the bytes before the response is refused.
 	contentType := resp.Header("Content-Type")
-	if contentType == "" {
-		contentType = "image/jpeg"
+	if !strings.HasPrefix(contentType, "image/") {
+		contentType = http.DetectContentType(body)
 	}
 
-	return resp.Body(), contentType, nil
+	if !strings.HasPrefix(contentType, "image/") {
+		return nil, "", fmt.Errorf("%w: %s", ErrNotImage, contentType)
+	}
+
+	return body, contentType, nil
 }
 
 // SearchOnServer searches media via GET /hubs/search.
