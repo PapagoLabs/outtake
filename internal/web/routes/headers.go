@@ -22,6 +22,9 @@ const (
 	// HeaderHXRefresh tells HTMX to reload the page instead of swapping.
 	HeaderHXRefresh = "HX-Refresh"
 
+	// HeaderHXRedirect tells HTMX to navigate to another page.
+	HeaderHXRedirect = "HX-Redirect"
+
 	// HXTargetNone leaves the targeted element exactly as it was.
 	HXTargetNone = "none"
 )

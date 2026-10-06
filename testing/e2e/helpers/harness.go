@@ -25,6 +25,7 @@ import (
 	"github.com/onsi/gomega"
 
 	"github.com/PapagoLabs/outtake/internal/app"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
@@ -166,6 +167,8 @@ func (a *App) BeforeSuite() {
 	cfg := a.config()
 	a.BaseURL = "http://" + cfg.ListenAddr
 
+	logging.InitFromConfig(cfg)
+
 	application, err := app.New(cfg)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "build the e2e application")
 
@@ -227,7 +230,7 @@ func (a *App) config() *config.Config {
 		FFprobePath:           ResolveBinary(ffprobeBin),
 		LogLevel:              "error",
 		Env:                   Environment,
-		SessionPollSec:        sessionPollSeconds,
+		SessionPoll:           sessionPollSeconds * time.Second,
 		NumWorkers:            numWorkers,
 		MaxConcurrentPreviews: maxConcurrentPreviews,
 		MaxClipDur:            maxClipDuration,

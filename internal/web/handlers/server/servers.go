@@ -20,6 +20,30 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
+// ForgetServer drops the bound Plex server so the owner can pick another.
+//
+// Parameters:
+//   - ctx: Request context.
+//
+// Returns:
+//   - err: Redirect error, or nil on success.
+func (handler *Handler) ForgetServer(ctx fiber.Ctx) error {
+	err := handler.auth.ForgetServer(ctx.Context())
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to forget the selected server")
+
+		return respond.RedirectTo(
+			ctx,
+			respond.PathWithError(
+				routes.PathServers,
+				"Outtake could not forget the server. Try again.",
+			),
+		)
+	}
+
+	return respond.RedirectTo(ctx, routes.PathServers)
+}
+
 // SelectServer persists the chosen Plex server.
 //
 // Parameters:
@@ -44,12 +68,13 @@ func (handler *Handler) SelectServer(ctx fiber.Ctx) error {
 // Returns:
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Servers(ctx fiber.Ctx) error {
-	current, _ := handler.auth.Selected()
+	current, bound := handler.auth.Selected()
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Servers(pages.ServersProps{
 			Servers: view.ServerItems(handler.discoverServers(ctx), current),
 			Error:   ctx.Query(routes.QueryError),
+			Bound:   bound,
 		}).Render(ctx.Context(), writer)
 	})
 }

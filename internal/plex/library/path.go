@@ -22,9 +22,6 @@ type ServerSelection interface {
 	Client() (*plex.Client, plex.Server, bool)
 }
 
-// envE2E is the environment in which a media id is a local file path.
-const envE2E = "e2e"
-
 // ErrNoServer is returned when no Plex server is selected.
 var ErrNoServer = errors.New("no plex server selected")
 
@@ -73,7 +70,7 @@ func ResolveMediaPath(
 //   - path: The media id as a local path.
 //   - ok: True when the id names an existing non-directory file.
 func localMediaFile(env, mediaID string) (string, bool) {
-	if env != envE2E {
+	if env != config.EnvE2E {
 		return "", false
 	}
 

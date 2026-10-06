@@ -21,6 +21,9 @@ type PlexAuth interface {
 	// Discover lists the Plex servers an access token can reach.
 	Discover(ctx context.Context, accessToken string) ([]plex.Server, error)
 
+	// ForgetServer drops the bound Plex server and its persisted record.
+	ForgetServer(ctx context.Context) error
+
 	// Select binds the application to a Plex server.
 	Select(ctx context.Context, server plex.Server) error
 

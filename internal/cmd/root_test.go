@@ -78,6 +78,7 @@ func TestExecuteRegistersEverySubcommand(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout, "Manage the outtake server")
 	assert.Contains(t, stdout, "Check the health of the outtake server")
+	assert.Contains(t, stdout, "Manage the Plex account that owns outtake")
 	assert.Contains(t, stdout, "Print the application version")
 }
 

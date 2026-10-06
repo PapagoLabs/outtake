@@ -4,7 +4,6 @@
 package auth
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -22,17 +20,14 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
-// errStoreClosed reports a store that cannot be written to.
-var errStoreClosed = errors.New("database is closed")
-
 // testAuth builds the handler under test around a Plex authentication service.
 //
 // Parameters:
-//   - store: Token store the service persists through, which may be nil.
+//   - store: Owner and server persistence, which may be nil.
 //
 // Returns:
 //   - handler: The auth handler under test.
-func testAuth(store identity.TokenStore) *Handler {
+func testAuth(store identity.Store) *Handler {
 	return New(identity.New("outtake", "test-client", "http://localhost", store, nil))
 }
 
@@ -97,13 +92,11 @@ func TestAuthLogoutRejectsGet(t *testing.T) {
 	assert.Equal(t, fiber.StatusMethodNotAllowed, resp.StatusCode)
 }
 
-func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {
+func TestAuthLogoutLeavesTheOwnerAndTheServerAlone(t *testing.T) {
 	t.Parallel()
 
-	store := mocks.NewMockTokenStore(t)
-	store.EXPECT().
-		ClearAuth(mock.Anything).
-		Return(errStoreClosed)
+	// The store has no expectations, so logging out may not touch it.
+	store := mocks.NewMockStore(t)
 
 	handler := testAuth(store)
 	app := fiber.New()
@@ -115,7 +108,8 @@ func TestAuthLogoutFailsWhenClearAuthFails(t *testing.T) {
 
 	defer closeBody(t, resp)
 
-	assert.Equal(t, fiber.StatusInternalServerError, resp.StatusCode)
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
+	assert.Equal(t, routes.PathLogin, resp.Header.Get("Location"))
 }
 
 // closeBody closes a response body and fails the test when it cannot.

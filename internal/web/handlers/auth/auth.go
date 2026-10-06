@@ -4,6 +4,7 @@
 package auth
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -31,14 +32,21 @@ const (
 	// statusAuthed is shown after PIN authorization succeeds.
 	statusAuthed = "Authenticated! Redirecting..."
 
-	// persistTokenMsg is logged when storing the Plex token fails.
-	persistTokenMsg = "failed to persist token"
+	// statusRefused is shown when Plex authorized a PIN this installation refuses.
+	statusRefused = "Sign-in refused. Redirecting..."
 
 	// msgPlexTokenRequired is shown when the login form is posted empty.
 	msgPlexTokenRequired = "Plex token is required"
 
 	// msgInvalidPlexToken is shown when Plex refuses the token that was typed.
 	msgInvalidPlexToken = "Plex rejected that token. Check it and try again."
+
+	// msgNotOwner is shown when a Plex account other than the owner signs in.
+	msgNotOwner = "This Outtake belongs to a different Plex account. " +
+		"Sign in with the account that set it up."
+
+	// msgSignInFailed is shown when sign-in fails for a reason the user cannot fix.
+	msgSignInFailed = "Sign-in failed. Check the Outtake log for details."
 )
 
 // New creates a new auth handler.
@@ -79,7 +87,13 @@ func (handler *Handler) Callback(ctx fiber.Ctx) error {
 	}
 
 	identity.ClearStoredPIN(sess)
-	handler.finishAuth(ctx, sess, accessToken)
+
+	err = handler.finishAuth(ctx, sess, accessToken)
+	if err != nil {
+		log.Warn().Err(err).Msg("refused plex sign-in")
+
+		return sendAuthComplete(ctx, respond.PathWithError(routes.PathLogin, refusalMessage(err)))
+	}
 
 	return sendAuthComplete(ctx, handler.postAuthPath())
 }
@@ -121,28 +135,17 @@ func (handler *Handler) Login(ctx fiber.Ctx) error {
 	return respond.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"authUrl": pin.URL})
 }
 
-// Logout clears the session and persisted Plex credentials.
+// Logout ends this browser's session. The owner, the bound server, and every
+// other signed-in browser stay as they are.
 //
 // Parameters:
 //   - ctx: Request context.
 //
 // Returns:
 //   - err: Response or redirect error, or nil on success.
-func (handler *Handler) Logout(ctx fiber.Ctx) error {
+func (*Handler) Logout(ctx fiber.Ctx) error {
 	err := identity.Reset(session.FromContext(ctx))
 	if err != nil {
-		return respond.WriteError(
-			ctx,
-			fiber.StatusInternalServerError,
-			api.LogoutFailed,
-			err.Error(),
-		)
-	}
-
-	err = handler.auth.Logout(ctx.Context())
-	if err != nil {
-		log.Warn().Err(err).Msg("failed to clear stored plex credentials")
-
 		return respond.WriteError(
 			ctx,
 			fiber.StatusInternalServerError,
@@ -164,7 +167,7 @@ func (handler *Handler) Logout(ctx fiber.Ctx) error {
 func (handler *Handler) Status(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	if identity.Token(sess) != "" {
-		ctx.Set("HX-Redirect", routes.PathRoot)
+		ctx.Set(routes.HeaderHXRedirect, routes.PathRoot)
 
 		return respond.SendText(ctx, statusAuthed)
 	}
@@ -180,15 +183,26 @@ func (handler *Handler) Status(ctx fiber.Ctx) error {
 	}
 
 	identity.ClearStoredPIN(sess)
-	handler.finishAuth(ctx, sess, accessToken)
 
-	ctx.Set("HX-Redirect", handler.postAuthPath())
+	err = handler.finishAuth(ctx, sess, accessToken)
+	if err != nil {
+		log.Warn().Err(err).Msg("refused plex sign-in")
+
+		ctx.Set(
+			routes.HeaderHXRedirect,
+			respond.PathWithError(routes.PathLogin, refusalMessage(err)),
+		)
+
+		return respond.SendText(ctx, statusRefused)
+	}
+
+	ctx.Set(routes.HeaderHXRedirect, handler.postAuthPath())
 
 	return respond.SendText(ctx, statusAuthed)
 }
 
-// acceptEnteredToken authenticates a token the user typed, which only takes hold
-// when Plex accepts it.
+// acceptEnteredToken signs in with a token the user typed, which only takes
+// hold when Plex vouches for it and this installation accepts the account.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -197,47 +211,73 @@ func (handler *Handler) Status(ctx fiber.Ctx) error {
 // Returns:
 //   - err: Redirect error, or nil on success.
 func (handler *Handler) acceptEnteredToken(ctx fiber.Ctx, accessToken string) error {
-	userID, err := handler.auth.Login(ctx.Context(), accessToken)
+	err := handler.finishAuth(ctx, session.FromContext(ctx), accessToken)
 	if err != nil {
-		log.Warn().Err(err).Msg("rejected entered plex token")
+		log.Warn().Err(err).Msg("refused entered plex token")
 
 		return wrapAuth(
 			respond.RedirectTo(
 				ctx,
-				respond.PathWithError(routes.PathLogin, msgInvalidPlexToken),
+				respond.PathWithError(routes.PathLogin, refusalMessage(err)),
 			),
-			"reject token",
+			"refuse sign-in",
 		)
 	}
-
-	sess := session.FromContext(ctx)
-	identity.SetToken(sess, accessToken)
-	identity.SetUserID(sess, userID)
 
 	return wrapAuth(respond.RedirectTo(ctx, handler.postAuthPath()), "finish auth")
 }
 
-// finishAuth records the authenticated token on the session and completes the
-// login in the domain. A token that cannot be persisted still authenticates the
-// session, so the failure is logged rather than returned.
+// finishAuth signs a Plex token in and, once this installation accepts it,
+// carries the user on a fresh session. The session id changes, so an id
+// planted in the browser before sign-in never becomes an authenticated one.
 //
 // Parameters:
 //   - ctx: Request context.
-//   - sess: Fiber session carrying the login state.
-//   - accessToken: Plex access token to authenticate.
+//   - sess: Fiber session to carry the user, which may be nil.
+//   - accessToken: Plex access token to sign in with.
+//
+// Returns:
+//   - err: The wrapped sign-in or session failure. The session is left
+//     anonymous when it is non-nil.
 func (handler *Handler) finishAuth(
 	ctx fiber.Ctx,
 	sess *session.Middleware,
 	accessToken string,
-) {
-	identity.SetToken(sess, accessToken)
-
-	userID, err := handler.auth.Accept(ctx.Context(), accessToken)
+) error {
+	user, err := handler.auth.SignIn(ctx.Context(), accessToken)
 	if err != nil {
-		log.Error().Err(err).Msg(persistTokenMsg)
+		return fmt.Errorf("sign in: %w", err)
 	}
 
-	identity.SetUserID(sess, userID)
+	if sess != nil {
+		err = sess.Regenerate()
+		if err != nil {
+			return fmt.Errorf("regenerate session: %w", err)
+		}
+	}
+
+	identity.SetToken(sess, accessToken)
+	identity.SetUserID(sess, user.PlexID)
+
+	return nil
+}
+
+// refusalMessage explains a failed sign-in to the user.
+//
+// Parameters:
+//   - err: The sign-in failure.
+//
+// Returns:
+//   - message: What the login page shows.
+func refusalMessage(err error) string {
+	switch {
+	case errors.Is(err, identity.ErrNotAllowed):
+		return msgNotOwner
+	case errors.Is(err, identity.ErrInvalidToken):
+		return msgInvalidPlexToken
+	default:
+		return msgSignInFailed
+	}
 }
 
 // postAuthPath returns the next page after authentication.

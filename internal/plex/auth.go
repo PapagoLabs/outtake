@@ -21,8 +21,9 @@ type PinResponse struct {
 
 // UserResponse represents a user response from Plex.
 type UserResponse struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Title    string `json:"title"`
 }
 
 // plexAuthAppBase is the documented Plex Auth App prefix, including "#?".

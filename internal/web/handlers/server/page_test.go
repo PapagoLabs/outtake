@@ -174,7 +174,7 @@ func serve(
 ) pageAnswer {
 	t.Helper()
 
-	return serveMethod(t, app, http.MethodGet, target, htmx, "", "")
+	return serveMethod(t, app, http.MethodGet, target, htmx, "")
 }
 
 // serveMethod issues one request against a mounted app.
@@ -185,7 +185,6 @@ func serve(
 //   - method: HTTP method to issue.
 //   - target: Request target, including any query string.
 //   - htmx: Whether to mark the request as coming from HTMX.
-//   - hxTarget: HX-Target header value, empty to omit the header.
 //   - form: Form body, empty for none.
 //
 // Returns:
@@ -195,7 +194,6 @@ func serveMethod(
 	app *fiber.App,
 	method, target string,
 	htmx bool,
-	hxTarget string,
 	form string,
 ) pageAnswer {
 	t.Helper()
@@ -213,10 +211,6 @@ func serveMethod(
 
 	if htmx {
 		req.Header.Set(routes.HeaderHXRequest, "true")
-	}
-
-	if hxTarget != "" {
-		req.Header.Set(routes.HeaderHXTarget, hxTarget)
 	}
 
 	resp, err := app.Test(req)

@@ -381,19 +381,19 @@ func TestIntegration_SavingAProfileUpdatesItInPlace(t *testing.T) {
 	require.ErrorIs(t, err, database.ErrClipProfileNotFound)
 }
 
-func TestIntegration_LatestTokenReadsTheMostRecentlyStoredToken(t *testing.T) {
+func TestIntegration_LegacyTokenReadsTheMostRecentlyStoredToken(t *testing.T) {
 	t.Parallel()
 
 	db := clipDatabase(t)
 
-	token, err := db.LatestToken(t.Context())
+	token, err := db.LegacyToken(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, token, "an empty table is not an error")
 
-	require.NoError(t, db.SaveToken(t.Context(), "client-one", "token-one"))
-	require.NoError(t, db.SaveToken(t.Context(), "client-two", "token-two"))
+	insertLegacyToken(t, db, "client-one", "token-one")
+	insertLegacyToken(t, db, "client-two", "token-two")
 
-	token, err = db.LatestToken(t.Context())
+	token, err = db.LegacyToken(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "token-two", token, "the newest row wins, by timestamp or by insert order")
 }
@@ -438,13 +438,16 @@ func TestIntegration_SelectedServerIsASingleRow(t *testing.T) {
 	assert.Equal(t, 32401, replaced.Port)
 }
 
-func TestIntegration_ClearAuthDropsTokensAndTheSelectedServer(t *testing.T) {
+func TestIntegration_ResetOwnerReopensTheInstallationToTheNextAccount(t *testing.T) {
 	t.Parallel()
 
 	db := clipDatabase(t)
 
-	require.NoError(t, db.SaveToken(t.Context(), "client-one", "token-one"))
-	require.NoError(t, db.SaveToken(t.Context(), "client-two", "token-two"))
+	claimed, err := db.ClaimOwner(t.Context(), 42, "owner")
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	insertLegacyToken(t, db, "client-one", "token-one")
 	require.NoError(t, db.SaveSelectedServer(t.Context(), plex.Server{
 		Name:    "Test Server",
 		Address: "127.0.0.1",
@@ -453,19 +456,36 @@ func TestIntegration_ClearAuthDropsTokensAndTheSelectedServer(t *testing.T) {
 		Scheme:  "http",
 	}))
 
-	require.NoError(t, db.ClearAuth(t.Context()))
-
-	token, err := db.LatestToken(t.Context())
+	removed, err := db.ResetOwner(t.Context())
 	require.NoError(t, err)
-	assert.Empty(t, token)
+	assert.True(t, removed)
 
 	_, found, err := db.SelectedServer(t.Context())
 	require.NoError(t, err)
-	assert.False(t, found, "the selected server went with the tokens")
+	assert.False(t, found, "the selected server went with the owner")
 
-	require.NoError(t, db.SaveToken(t.Context(), "client-three", "token-three"))
-
-	token, err = db.LatestToken(t.Context())
+	token, err := db.LegacyToken(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, "token-three", token, "the table is usable again after clearing")
+	assert.Empty(t, token)
+
+	claimed, err = db.ClaimOwner(t.Context(), 7, "next")
+	require.NoError(t, err)
+	assert.True(t, claimed, "the next account claims the installation")
+}
+
+// insertLegacyToken inserts a row into plex_tokens.
+//
+// Parameters:
+//   - t: The test that owns the database.
+//   - db: Database to seed.
+//   - clientID: Client identifier the token was issued to.
+//   - token: Plex access token to store.
+func insertLegacyToken(t *testing.T, db *database.DB, clientID, token string) {
+	t.Helper()
+
+	_, err := db.Conn().ExecContext(t.Context(), `
+		INSERT INTO plex_tokens (client_id, access_token, created_at, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`, clientID, token)
+	require.NoError(t, err)
 }

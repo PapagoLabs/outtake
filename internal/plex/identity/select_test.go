@@ -21,7 +21,7 @@ var errStoreClosed = errors.New("database is closed")
 func TestSelectBindsAndPersists(t *testing.T) {
 	t.Parallel()
 
-	store := mocks.NewMockTokenStore(t)
+	store := mocks.NewMockStore(t)
 	store.EXPECT().
 		SaveSelectedServer(mock.Anything, plex.Server{Name: "Attic"}).
 		Return(nil).
@@ -40,7 +40,7 @@ func TestSelectBindsAndPersists(t *testing.T) {
 func TestSelectReportsAFailedWrite(t *testing.T) {
 	t.Parallel()
 
-	store := mocks.NewMockTokenStore(t)
+	store := mocks.NewMockStore(t)
 	store.EXPECT().
 		SaveSelectedServer(mock.Anything, mock.Anything).
 		Return(errStoreClosed)

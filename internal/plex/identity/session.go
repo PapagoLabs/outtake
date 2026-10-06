@@ -121,6 +121,17 @@ func Token(sess *session.Middleware) string {
 	return storedString(sess, SessionKeyToken)
 }
 
+// UserID returns the Plex user id stored on the session.
+//
+// Parameters:
+//   - sess: Fiber session, which may be nil.
+//
+// Returns:
+//   - userID: Plex user id, or zero when the session carries none.
+func UserID(sess *session.Middleware) int {
+	return storedInt(sess, SessionKeyUserID)
+}
+
 // storedInt reads an int value from the Fiber session.
 //
 // Parameters:

@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/PapagoLabs/outtake/internal/app"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/settings/flags"
 )
@@ -49,6 +50,8 @@ func runStart(listen *flags.Listen) error {
 	}
 
 	listen.Apply(cfg)
+
+	logging.InitFromConfig(cfg)
 
 	log.Info().
 		Str("listen_addr", cfg.ListenAddr).

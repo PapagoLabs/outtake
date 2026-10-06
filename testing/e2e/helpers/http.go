@@ -176,11 +176,11 @@ func (a *App) WaitForClipStatus(
 	for {
 		clip := DecodeClip(ReadBody(a.Do(ctx, http.MethodGet, path)))
 
-		if clip.Status == expected {
+		if string(clip.Status) == expected {
 			return
 		}
 
-		if clip.Status == statusFailed {
+		if string(clip.Status) == statusFailed {
 			ginkgo.Fail("clip job failed: " + clip.Error)
 
 			return

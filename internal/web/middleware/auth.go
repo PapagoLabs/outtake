@@ -4,6 +4,7 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -13,27 +14,41 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
-const (
-	// e2eEnv is the environment name that skips authentication.
-	e2eEnv = "e2e"
-)
+// UserLookup resolves the user a session signed in as.
+type UserLookup interface {
+	// UserRole returns the role of the user behind a Plex account, reporting
+	// whether the account belongs to a user.
+	UserRole(ctx context.Context, plexUserID int) (string, bool, error)
+}
 
-// AuthGuard rejects a request that has no Plex token in its session.
+// AuthGuard rejects a request whose session has not signed in as a user this
+// installation still recognizes.
+//
+// The user is looked up on every request, so removing it revokes every
+// session it holds at once.
 //
 // Parameters:
 //   - env: Configured environment. The e2e environment skips the check.
+//   - users: Store the signed-in user is resolved against. A nil store refuses
+//     every request.
 //
 // Returns:
 //   - handler: Middleware that redirects or answers anonymous requests.
-func AuthGuard(env string) fiber.Handler {
+func AuthGuard(env string, users UserLookup) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		if env == e2eEnv {
+		if env == config.EnvE2E {
 			return ctx.Next()
 		}
 
-		if identity.Token(session.FromContext(ctx)) == "" {
+		signedIn, err := signedInUser(ctx, users)
+		if err != nil {
+			return fmt.Errorf("auth guard: %w", err)
+		}
+
+		if !signedIn {
 			return unauthenticated(ctx)
 		}
 
@@ -41,24 +56,39 @@ func AuthGuard(env string) fiber.Handler {
 	}
 }
 
-// RestoreToken loads a persisted Plex token into the session when missing.
+// signedInUser reports whether a request's session signed in as a user this
+// installation still recognizes, resetting a session whose user is gone.
 //
 // Parameters:
-//   - store: Persisted token store.
+//   - ctx: Request context carrying the session.
+//   - users: Store the user is resolved against, which may be nil.
 //
 // Returns:
-//   - handler: Middleware that seeds the session and continues the chain.
-func RestoreToken(store identity.TokenStore) fiber.Handler {
-	return func(ctx fiber.Ctx) error {
-		sess := session.FromContext(ctx)
-		if sess == nil || identity.Token(sess) != "" {
-			return ctx.Next()
-		}
+//   - signedIn: True when the session belongs to a stored user.
+//   - err: Wrapped error when the user or the reset could not be handled.
+func signedInUser(ctx fiber.Ctx, users UserLookup) (bool, error) {
+	sess := session.FromContext(ctx)
 
-		identity.SetToken(sess, identity.Restore(ctx.Context(), store))
-
-		return ctx.Next()
+	plexUserID := identity.UserID(sess)
+	if users == nil || plexUserID == 0 || identity.Token(sess) == "" {
+		return false, nil
 	}
+
+	_, found, err := users.UserRole(ctx.Context(), plexUserID)
+	if err != nil {
+		return false, fmt.Errorf("resolve session user: %w", err)
+	}
+
+	if found {
+		return true, nil
+	}
+
+	err = identity.Reset(sess)
+	if err != nil {
+		return false, fmt.Errorf("reset revoked session: %w", err)
+	}
+
+	return false, nil
 }
 
 // unauthenticated rejects an anonymous request.

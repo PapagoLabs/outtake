@@ -79,6 +79,9 @@ func appConfig(t *testing.T) *config.Config {
 		MaxConcurrentPreviews: 1,
 		MaxClipDur:            600 * time.Second,
 		PlexClientID:          "integration-client",
+
+		// httptest requests name example.com as their host.
+		AllowedHosts: "example.com",
 	}
 }
 

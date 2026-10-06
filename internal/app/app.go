@@ -9,7 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"net/netip"
 	"os/signal"
 	"syscall"
 	"time"
@@ -20,7 +22,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
-	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
@@ -43,7 +44,17 @@ type App struct {
 const (
 	// shutdownTimeout is how long a graceful shutdown waits.
 	shutdownTimeout = 10 * time.Second
+
+	// clientIDSetting names the persisted Plex client identifier.
+	clientIDSetting = "plex_client_id"
 )
+
+// errE2EOffLoopback refuses the e2e environment on an address other hosts can
+// reach, because that environment skips sign-in.
+var errE2EOffLoopback = errors.New("the e2e environment must listen on a loopback address")
+
+// errClientIDUnavailable reports that no random Plex client id could be made.
+var errClientIDUnavailable = errors.New("generate plex client id")
 
 // New creates a new App with all dependencies initialized.
 //
@@ -54,7 +65,10 @@ const (
 //   - app: The wired application.
 //   - error: Non-nil when a dependency fails to initialize.
 func New(cfg *config.Config) (*App, error) {
-	logging.InitFromConfig(cfg)
+	err := checkEnvironment(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("check environment: %w", err)
+	}
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -79,7 +93,14 @@ func New(cfg *config.Config) (*App, error) {
 
 	runner := ffmpeg.NewExecFFmpeg(cfg.FFmpegPath, cfg.FFprobePath)
 
-	plexAuth, bind := plexIdentity(cfg, db)
+	plexAuth, bind, err := plexIdentity(cfg, db)
+	if err != nil {
+		stop()
+
+		_ = db.Close()
+
+		return nil, fmt.Errorf("init plex identity: %w", err)
+	}
 
 	jobQueue := startQueue(ctx, cfg, db, runner, store.blob)
 
@@ -110,17 +131,21 @@ func New(cfg *config.Config) (*App, error) {
 //
 // Parameters:
 //   - cfg: Application configuration carrying the client id and Plex credentials.
-//   - db: Database the last selected server is restored from.
+//   - db: Database the client id, the owner, and the last selected server live in.
 //
 // Returns:
 //   - auth: Plex authentication service for this installation.
 //   - bind: The server selection that service resolves media against.
-func plexIdentity(cfg *config.Config, db *database.DB) (*identity.Auth, *identity.Binding) {
+//   - err: Wrapped error when the client id cannot be read or persisted.
+func plexIdentity(
+	cfg *config.Config,
+	db *database.DB,
+) (*identity.Auth, *identity.Binding, error) {
 	product := "outtake"
 
-	clientID := cfg.PlexClientID
-	if clientID == "" {
-		clientID = identity.GenerateClientID()
+	clientID, err := resolveClientID(context.Background(), cfg, db)
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve client id: %w", err)
 	}
 
 	bind := identity.NewBinding(
@@ -130,7 +155,87 @@ func plexIdentity(cfg *config.Config, db *database.DB) (*identity.Auth, *identit
 	)
 	restoreBinding(cfg, db, bind)
 
-	return identity.New(product, clientID, cfg.PublicURL(), db, bind), bind
+	return identity.New(product, clientID, cfg.PublicURL(), db, bind), bind, nil
+}
+
+// resolveClientID returns the Plex client identifier this installation
+// presents. A configured id wins. Otherwise the first start generates one and
+// keeps it, so Plex sees the same device across restarts.
+//
+// Parameters:
+//   - ctx: Lifetime context for the read and the write.
+//   - cfg: Application configuration, which may name the id.
+//   - db: Database the generated id is kept in.
+//
+// Returns:
+//   - clientID: The identifier to present.
+//   - err: Wrapped error when the stored id cannot be read, a new one cannot be
+//     generated, or it cannot be persisted.
+func resolveClientID(ctx context.Context, cfg *config.Config, db *database.DB) (string, error) {
+	if cfg.PlexClientID != "" {
+		return cfg.PlexClientID, nil
+	}
+
+	stored, found, err := db.Setting(ctx, clientIDSetting)
+	if err != nil {
+		return "", fmt.Errorf("read client id: %w", err)
+	}
+
+	if found && stored != "" {
+		return stored, nil
+	}
+
+	generated := identity.GenerateClientID()
+	if generated == "" {
+		return "", errClientIDUnavailable
+	}
+
+	err = db.SaveSetting(ctx, clientIDSetting, generated)
+	if err != nil {
+		return "", fmt.Errorf("save client id: %w", err)
+	}
+
+	return generated, nil
+}
+
+// checkEnvironment refuses a configuration that would expose the e2e
+// environment's skipped sign-in beyond this host.
+//
+// Parameters:
+//   - cfg: Application configuration naming the environment and listen address.
+//
+// Returns:
+//   - err: Non-nil for the e2e environment on a non-loopback address.
+func checkEnvironment(cfg *config.Config) error {
+	if cfg.Env != config.EnvE2E || isLoopbackListen(cfg.ListenAddr) {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s", errE2EOffLoopback, cfg.ListenAddr)
+}
+
+// isLoopbackListen reports whether a listen address only accepts local
+// connections.
+//
+// Parameters:
+//   - addr: Listen address in host:port form.
+//
+// Returns:
+//   - loopback: True for localhost or a loopback IP. An empty host listens on
+//     every interface, so it is not loopback.
+func isLoopbackListen(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+
+	if host == "localhost" {
+		return true
+	}
+
+	ip, err := netip.ParseAddr(host)
+
+	return err == nil && ip.IsLoopback()
 }
 
 // renderServices builds the services that turn a request into a render.

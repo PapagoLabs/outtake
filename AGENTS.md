@@ -55,7 +55,7 @@ There is no `testing/integration` tree. `task test-e2e` runs the e2e suite.
 - Dockerfiles: `build/docker/Dockerfile` (GoReleaser image context) and `Dockerfile.dev` (source build used by compose).
 - GoReleaser: `build/goreleaser/stable.yaml` (git tag `vX.Y.Z`) and `nightly.yaml`. Docker `hooks.pre` runs `scripts/download-ffmpeg` into the image context. Ship ffmpeg/ffprobe binaries, not the downloader script.
 - Images: `papagolabs/outtake` and `ghcr.io/papagolabs/outtake`.
-- Migrations are `001_initial.sql`, `002_web_safe_color.sql`, and `003_preserve_hdr.sql`. SQLite reads `internal/store/database/migrations/`. Postgres reads `internal/store/database/migrations/postgres/`. The names match. Each connection records the files it has applied.
+- Migrations are `001_initial.sql`, `002_web_safe_color.sql`, `003_preserve_hdr.sql`, and `004_users.sql`. SQLite reads `internal/store/database/migrations/`. Postgres reads `internal/store/database/migrations/postgres/`. The names match. Each connection records the files it has applied.
 - IDs: Go stdlib `uuid`, not `github.com/google/uuid`.
 - `References/` is local-only (gitignored).
 
@@ -77,6 +77,10 @@ Workflows call templ, goimports, and goreleaser directly, not Taskfile. Go lint 
 - `RemapMediaPath` treats the Plex root as a directory boundary, so `/data/media` does not claim `/data/media-other`. A mapping that would leave `LocalMediaRoot` is empty.
 - `max-clip-dur` and `session-poll-sec` are second counts. An environment value arrives as a string and still means seconds.
 - Persisted clips reload on a goroutine after the queue starts, so opening the listen port does not wait on the backlog.
+- Auth is single-owner. The first Plex account to sign in claims the `users` row with role `owner`. When `plex_tokens` holds a token, only the account behind the newest one may claim. `identity.Auth.SignIn` refuses every other account and never stores or binds a refused or invalid token. Sessions only gain a token through sign-in. The session carries the token and `plex_user_id`, and `middleware.AuthGuard` resolves that id against `users` on every request, so deleting the row (`outtake owner reset`) revokes every session. Logout ends one session. **Forget server** clears the binding. Keep `users` and its roles forward-compatible with a later multi-user model.
+- `middleware.HostGuard` answers 421 to a Host that is not an IP literal, localhost, a dotless or private-suffix name, the public base URL's host, or listed in `allowed-hosts`. Tests that drive the router through httptest (Host `example.com`) set `AllowedHosts: "example.com"`.
+- The e2e environment skips the auth guard, so `app.New` refuses it on a non-loopback listen address.
+- Logging is configured once in `cmd/server` (and the e2e harness), not in `app.New`. Tests build many apps in parallel, and rewriting zerolog's globals while another app logs is a data race.
 - Vendored HTMX is v4. Partials are `<template hx type="partial" hx-target="...">`. A non-JSON error sets `HX-Reswap: none`, because every status other than 204 and 304 still swaps. The failure event is `htmx:response:error`.
 
 ## Layout
