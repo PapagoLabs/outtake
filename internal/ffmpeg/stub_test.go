@@ -4,97 +4,79 @@
 package ffmpeg
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
 
-var stubDir = sync.OnceValue(func() string {
-	dir, err := os.MkdirTemp("", "outtake-stub")
-	if err != nil {
-		return ""
-	}
-
-	return dir
-})
-
-func stubScript(t *testing.T, script string) string {
+// passStub returns an ffmpeg fake whose pass writes payload to stderr.
+//
+// Parameters:
+//   - t: The test the fake belongs to.
+//   - stderr: What the pass logs.
+//
+// Returns:
+//   - path: The fake ffmpeg.
+func passStub(t *testing.T, stderr string) string {
 	t.Helper()
 
-	_, statErr := os.Stat("/bin/sh")
-	if statErr != nil {
-		t.Skip("a POSIX shell is required for the ffmpeg stub")
-	}
-
-	dir := stubDir()
-	if dir == "" {
-		t.Skip("unable to create a directory for the ffmpeg stub")
-	}
-
-	path := stubPath(dir, script)
-
-	_, pathErr := os.Stat(path)
-	if os.IsNotExist(pathErr) {
-		require.NoError(t, os.WriteFile(path, []byte(script), 0o700))
-	}
-
-	return path
+	return ffmpegtest.Install(t, ffmpegtest.Stub{Stderr: terminated(stderr)})
 }
 
-func stubPath(dir, script string) string {
-	sum := sha256.Sum256([]byte(script))
+// failingPassStub returns an ffmpeg fake whose pass logs payload and fails.
+//
+// Parameters:
+//   - t: The test the fake belongs to.
+//   - stderr: What the pass logs.
+//
+// Returns:
+//   - path: The fake ffmpeg.
+func failingPassStub(t *testing.T, stderr string) string {
+	t.Helper()
 
-	return filepath.Join(dir, "stub-"+hex.EncodeToString(sum[:8]))
+	return ffmpegtest.Install(t, ffmpegtest.Stub{Stderr: terminated(stderr), ExitCode: 1})
 }
 
-func swapInputLookup(script string) string {
-	return script + "target=\n" +
-		"want=0\n" +
-		"for arg in \"$@\"; do\n" +
-		"  if [ \"$want\" = 1 ]; then target=$arg; break; fi\n" +
-		"  if [ \"$arg\" = \"-i\" ]; then want=1; fi\n" +
-		"done\n"
+// swappingPassStub returns an ffmpeg fake that swaps the source file while the
+// pass runs, so a cache keyed on the pre-pass identity must be rejected.
+//
+// Parameters:
+//   - t: The test the fake belongs to.
+//   - stderr: What the pass logs.
+//
+// Returns:
+//   - path: The fake ffmpeg.
+func swappingPassStub(t *testing.T, stderr string) string {
+	t.Helper()
+
+	return ffmpegtest.Install(
+		t,
+		ffmpegtest.Stub{Stderr: terminated(stderr), Swap: ffmpegtest.SwapInput},
+	)
 }
 
-func swapStubScript(payload string) string {
-	return swapInputLookup("#!/bin/sh\n") +
-		"mv \"${target%/*}/replacement.mkv\" \"$target\"\n" +
-		stderrHeredoc(payload)
+// probeStub returns an ffprobe fake that prints payload.
+//
+// Parameters:
+//   - t: The test the fake belongs to.
+//   - payload: The ffprobe JSON.
+//
+// Returns:
+//   - path: The fake ffprobe.
+func probeStub(t *testing.T, payload string) string {
+	t.Helper()
+
+	return ffmpegtest.Install(t, ffmpegtest.Stub{Stdout: terminated(payload)})
 }
 
-func plainStubScript(payload string) string {
-	return "#!/bin/sh\n" + stderrHeredoc(payload)
-}
-
-func failingStubScript(payload string) string {
-	return plainStubScript(payload) + "exit 1\n"
-}
-
-func probeStubScript(payload string) string {
-	return "#!/bin/sh\n" + stdoutHeredoc(payload)
-}
-
-func probeSwapStubScript(payload string) string {
-	return "#!/bin/sh\n" +
-		"for target; do :; done\n" +
-		"mv \"${target%/*}/replacement.mkv\" \"$target\"\n" +
-		stdoutHeredoc(payload)
-}
-
-func stdoutHeredoc(payload string) string {
-	return "cat <<'STUB_OUT'\n" + terminated(payload) + "STUB_OUT\n"
-}
-
-func stderrHeredoc(payload string) string {
-	return "cat >&2 <<'STUB_ERR'\n" + terminated(payload) + "STUB_ERR\n"
-}
-
+// terminated ends payload with a newline, as a tool's log line does.
+//
+// Parameters:
+//   - payload: Text to end.
+//
+// Returns:
+//   - text: payload with a trailing newline.
 func terminated(payload string) string {
 	if strings.HasSuffix(payload, "\n") {
 		return payload

@@ -4,70 +4,51 @@
 package probe
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
 
-var stubDir = sync.OnceValue(func() string {
-	dir, err := os.MkdirTemp("", "outtake-stub")
-	if err != nil {
-		return ""
-	}
-
-	return dir
-})
-
-func stubScript(t *testing.T, script string) string {
+// probeStub returns an ffprobe fake that prints payload.
+//
+// Parameters:
+//   - t: The test the fake belongs to.
+//   - payload: The ffprobe JSON.
+//
+// Returns:
+//   - path: The fake ffprobe.
+func probeStub(t *testing.T, payload string) string {
 	t.Helper()
 
-	_, statErr := os.Stat("/bin/sh")
-	if statErr != nil {
-		t.Skip("a POSIX shell is required for the ffprobe stub")
-	}
-
-	dir := stubDir()
-	if dir == "" {
-		t.Skip("unable to create a directory for the ffprobe stub")
-	}
-
-	path := stubPath(dir, script)
-
-	_, pathErr := os.Stat(path)
-	if os.IsNotExist(pathErr) {
-		require.NoError(t, os.WriteFile(path, []byte(script), 0o700))
-	}
-
-	return path
+	return ffmpegtest.Install(t, ffmpegtest.Stub{Stdout: terminated(payload)})
 }
 
-func stubPath(dir, script string) string {
-	sum := sha256.Sum256([]byte(script))
+// probeSwapStub returns an ffprobe fake that swaps the probed file before it
+// prints payload, so a cache keyed on the pre-probe identity must be rejected.
+//
+// Parameters:
+//   - t: The test the fake belongs to.
+//   - payload: The ffprobe JSON.
+//
+// Returns:
+//   - path: The fake ffprobe.
+func probeSwapStub(t *testing.T, payload string) string {
+	t.Helper()
 
-	return filepath.Join(dir, "stub-"+hex.EncodeToString(sum[:8]))
+	return ffmpegtest.Install(
+		t,
+		ffmpegtest.Stub{Stdout: terminated(payload), Swap: ffmpegtest.SwapLast},
+	)
 }
 
-func probeStubScript(payload string) string {
-	return "#!/bin/sh\n" + stdoutHeredoc(payload)
-}
-
-func probeSwapStubScript(payload string) string {
-	return "#!/bin/sh\n" +
-		"for target; do :; done\n" +
-		"mv \"${target%/*}/replacement.mkv\" \"$target\"\n" +
-		stdoutHeredoc(payload)
-}
-
-func stdoutHeredoc(payload string) string {
-	return "cat <<'STUB_OUT'\n" + terminated(payload) + "STUB_OUT\n"
-}
-
+// terminated ends payload with a newline, as a tool's output does.
+//
+// Parameters:
+//   - payload: Text to end.
+//
+// Returns:
+//   - text: payload with a trailing newline.
 func terminated(payload string) string {
 	if strings.HasSuffix(payload, "\n") {
 		return payload

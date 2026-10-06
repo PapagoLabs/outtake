@@ -28,6 +28,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/plex/library/mocks"
@@ -487,57 +488,25 @@ func seedPreviewID(t *testing.T, store *blob.Storage, id string) {
 	require.NoError(t, os.WriteFile(store.PreviewPath(id), []byte("preview"), 0o600))
 }
 
-// writePreviewStub writes an executable stub script into a directory.
-//
-// Parameters:
-//   - t: The test the stub belongs to.
-//   - dir: Directory the stub is written into.
-//   - name: File name of the stub.
-//   - script: Shell script the stub runs.
-//
-// Returns:
-//   - path: The path the stub was written to.
-func writePreviewStub(t *testing.T, dir, name, script string) string {
-	t.Helper()
-
-	path := filepath.Join(dir, name)
-	require.NoError(t, os.WriteFile(path, []byte(script), 0o700))
-
-	return path
-}
-
-// stubFFmpeg returns a runner whose ffmpeg and ffprobe are shell stubs.
+// stubFFmpeg returns a runner whose ffmpeg writes the file it was asked for
+// and whose ffprobe reports a plain high-definition source.
 //
 // Parameters:
 //   - t: The test the runner belongs to.
 //
 // Returns:
-//   - runner: An ffmpeg runner backed by stubs.
+//   - runner: An ffmpeg runner backed by fakes.
 func stubFFmpeg(t *testing.T) *ffmpeg.ExecFFmpeg {
 	t.Helper()
 
-	_, statErr := os.Stat("/bin/sh")
-	if statErr != nil {
-		t.Skip("a POSIX shell is required for the ffmpeg stub")
-	}
-
-	dir := t.TempDir()
-
-	// encodeStub is an ffmpeg stub that writes the file it was asked for.
-	const encodeStub = "#!/bin/sh\n" +
-		"for arg in \"$@\"; do last=$arg; done\n" +
-		"printf 'encoded' > \"$last\"\n"
-
-	// probeStub is an ffprobe stub reporting a plain high-definition source.
-	const probeStub = "#!/bin/sh\ncat <<'STUB_OUT'\n" +
-		`{"format":{"duration":"120.0","bit_rate":"8000","format_name":"matroska"},` +
+	const probeJSON = `{"format":{"duration":"120.0","bit_rate":"8000","format_name":"matroska"},` +
 		`"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":1920,` +
 		`"height":1080,"color_transfer":"bt709"},{"index":1,"codec_type":"audio",` +
-		`"codec_name":"aac","channels":2}]}` + "\nSTUB_OUT\n"
+		`"codec_name":"aac","channels":2}]}` + "\n"
 
 	return ffmpeg.NewExecFFmpeg(
-		writePreviewStub(t, dir, "ffmpeg", encodeStub),
-		writePreviewStub(t, dir, "ffprobe", probeStub),
+		ffmpegtest.Install(t, ffmpegtest.Stub{Output: "encoded"}),
+		ffmpegtest.Install(t, ffmpegtest.Stub{Stdout: probeJSON}),
 	)
 }
 

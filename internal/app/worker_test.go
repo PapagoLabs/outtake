@@ -20,6 +20,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
@@ -264,7 +265,7 @@ func TestStartQueueRunsARestoredRender(t *testing.T) {
 	cfg.NumWorkers = 1
 
 	jobQueue := startQueue(t.Context(), cfg, db,
-		ffmpeg.NewExecFFmpeg(stubFFmpeg(t, logPath, "exit 0\n"), missingBinary(dir)),
+		ffmpeg.NewExecFFmpeg(stubFFmpeg(t, logPath, ffmpegtest.Stub{}), missingBinary(dir)),
 		store,
 	)
 	t.Cleanup(jobQueue.Stop)

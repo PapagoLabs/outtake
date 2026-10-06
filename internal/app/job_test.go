@@ -17,6 +17,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 )
 
@@ -81,7 +82,10 @@ func TestExtractJobRendersAClip(t *testing.T) {
 	job.InputPath = stubInputFile(t, dir, "clip.mkv")
 	job.OutputPath = filepath.Join(dir, "clip.mp4")
 
-	execFFmpeg := ffmpeg.NewExecFFmpeg(stubFFmpeg(t, logPath, "exit 0\n"), missingBinary(dir))
+	execFFmpeg := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, logPath, ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
 
 	require.NoError(t, extractJob(t.Context(), job, execFFmpeg, nil))
 
@@ -94,12 +98,11 @@ func TestExtractJobRendersAClip(t *testing.T) {
 
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestExtractJobRendersAClipWithADetectedCrop(t *testing.T) {
-	// A stub body whose stderr carries a cropdetect result.
-	const cropdetectSucceeds = "cat >&2 <<'STUB_ERR'\n" +
-		"Stream #0:0: Video: hevc, yuv420p, 1920x1080\n" +
-		"[Parsed_cropdetect_0 @ 0x1] x1:0 x2:1919 y1:140 y2:939 w:1920 h:800 crop=1920:800:0:140\n" +
-		"STUB_ERR\n" +
-		"exit 0\n"
+	// A fake whose stderr carries a cropdetect result.
+	cropdetectSucceeds := ffmpegtest.Stub{
+		Stderr: "Stream #0:0: Video: hevc, yuv420p, 1920x1080\n" +
+			"[Parsed_cropdetect_0 @ 0x1] x1:0 x2:1919 y1:140 y2:939 w:1920 h:800 crop=1920:800:0:140\n",
+	}
 
 	dir := t.TempDir()
 	logPath := filepath.Join(dir, "argv.log")
@@ -144,7 +147,7 @@ func TestExtractJobReportsAClipEncodeFailure(t *testing.T) {
 	job.OutputPath = filepath.Join(dir, "clip.mp4")
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
-		stubFFmpeg(t, filepath.Join(dir, "argv.log"), "exit 1\n"),
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{ExitCode: 1}),
 		missingBinary(dir),
 	)
 
@@ -165,7 +168,10 @@ func TestExtractJobRendersAGIF(t *testing.T) {
 	job.Width = 480
 	job.FPS = 12
 
-	execFFmpeg := ffmpeg.NewExecFFmpeg(stubFFmpeg(t, logPath, "exit 0\n"), missingBinary(dir))
+	execFFmpeg := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, logPath, ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
 
 	require.NoError(t, extractJob(t.Context(), job, execFFmpeg, nil))
 
@@ -190,7 +196,7 @@ func TestExtractJobReportsAGIFPaletteFailure(t *testing.T) {
 	job.OutputPath = filepath.Join(dir, "clip.gif")
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
-		stubFFmpeg(t, filepath.Join(dir, "argv.log"), "exit 1\n"),
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{ExitCode: 1}),
 		missingBinary(dir),
 	)
 
@@ -210,7 +216,10 @@ func TestExtractJobRendersAScreenshot(t *testing.T) {
 	job.InputPath = stubInputFile(t, dir, "still.mkv")
 	job.OutputPath = filepath.Join(dir, "still.png")
 
-	execFFmpeg := ffmpeg.NewExecFFmpeg(stubFFmpeg(t, logPath, "exit 0\n"), missingBinary(dir))
+	execFFmpeg := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, logPath, ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
 
 	require.NoError(t, extractJob(t.Context(), job, execFFmpeg, nil))
 
@@ -231,7 +240,7 @@ func TestExtractJobReportsAScreenshotFailure(t *testing.T) {
 	job.OutputPath = filepath.Join(dir, "still.png")
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
-		stubFFmpeg(t, filepath.Join(dir, "argv.log"), "exit 1\n"),
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{ExitCode: 1}),
 		missingBinary(dir),
 	)
 
@@ -252,7 +261,7 @@ func TestProcessJobUploadsTheRenderedOutput(t *testing.T) {
 	store.EXPECT().Put(t.Context(), job.OutputPath).Return(nil).Once()
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
-		stubFFmpeg(t, filepath.Join(dir, "argv.log"), "exit 0\n"),
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
 		missingBinary(dir),
 	)
 
@@ -272,7 +281,7 @@ func TestProcessJobReportsAnUploadFailure(t *testing.T) {
 	store.EXPECT().Put(t.Context(), job.OutputPath).Return(errStoreFailed).Once()
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
-		stubFFmpeg(t, filepath.Join(dir, "argv.log"), "exit 0\n"),
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
 		missingBinary(dir),
 	)
 
@@ -292,7 +301,7 @@ func TestProcessJobSkipsTheUploadWithoutAnOutput(t *testing.T) {
 	store := storagemocks.NewMockBlob(t)
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
-		stubFFmpeg(t, filepath.Join(dir, "argv.log"), "exit 0\n"),
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
 		missingBinary(dir),
 	)
 
@@ -329,7 +338,10 @@ func TestDetectJobCropSkipsWhenTrimmingIsOff(t *testing.T) {
 	job.CropBlackBars = false
 
 	logPath := filepath.Join(dir, "argv.log")
-	execFFmpeg := ffmpeg.NewExecFFmpeg(stubFFmpeg(t, logPath, "exit 0\n"), missingBinary(dir))
+	execFFmpeg := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, logPath, ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
 
 	rect := detectJobCrop(t.Context(), execFFmpeg, job)
 
@@ -339,12 +351,11 @@ func TestDetectJobCropSkipsWhenTrimmingIsOff(t *testing.T) {
 
 //nolint:paralleltest // The detection pass reads the process-global logger New rewrites.
 func TestDetectJobCropReturnsTheDetectedRectangle(t *testing.T) {
-	// A stub body whose stderr carries a cropdetect result.
-	const cropdetectSucceeds = "cat >&2 <<'STUB_ERR'\n" +
-		"Stream #0:0: Video: hevc, yuv420p, 1920x1080\n" +
-		"[Parsed_cropdetect_0 @ 0x1] x1:0 x2:1919 y1:140 y2:939 w:1920 h:800 crop=1920:800:0:140\n" +
-		"STUB_ERR\n" +
-		"exit 0\n"
+	// A fake whose stderr carries a cropdetect result.
+	cropdetectSucceeds := ffmpegtest.Stub{
+		Stderr: "Stream #0:0: Video: hevc, yuv420p, 1920x1080\n" +
+			"[Parsed_cropdetect_0 @ 0x1] x1:0 x2:1919 y1:140 y2:939 w:1920 h:800 crop=1920:800:0:140\n",
+	}
 
 	dir := t.TempDir()
 
@@ -373,7 +384,7 @@ func TestDetectJobCropReportsADetectionFailureAsNoCrop(t *testing.T) {
 	job.CropBlackBars = true
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
-		stubFFmpeg(t, filepath.Join(dir, "argv.log"), "exit 1\n"),
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{ExitCode: 1}),
 		missingBinary(dir),
 	)
 

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
 
 func TestExecFFmpeg_ExtractScreenshot_MissingInput(t *testing.T) {
@@ -59,9 +60,7 @@ func TestExtractScreenshotResolvesRelativePaths(t *testing.T) {
 	require.NoError(t, os.WriteFile(input, []byte("source"), 0o600))
 
 	logPath := filepath.Join(dir, "argv")
-	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > '" +
-		strings.ReplaceAll(logPath, "'", `'\''`) + "'\n"
-	runner := NewExecFFmpeg(stubScript(t, script), "unused")
+	runner := NewExecFFmpeg(ffmpegtest.Install(t, ffmpegtest.Stub{ArgvFile: logPath}), "unused")
 
 	require.NoError(t, runner.ExtractScreenshot(
 		t.Context(),
