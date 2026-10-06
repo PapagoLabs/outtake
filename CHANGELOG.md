@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/smithy-go to v1.28.3 by @renovate[bot] in [#329](https://github.com/PapagoLabs/outtake/pull/329)
 - Update github.com/google/pprof digest to d99a617 by @renovate[bot] in [#324](https://github.com/PapagoLabs/outtake/pull/324)
 - Update module github.com/mattn/go-colorable to v0.1.16 by @renovate[bot] in [#318](https://github.com/PapagoLabs/outtake/pull/318)
 - Update step-security/harden-runner action to v2.22.0 by @renovate[bot] in [#317](https://github.com/PapagoLabs/outtake/pull/317)
