@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update golang.org/x/exp digest to 7677206 by @renovate[bot] in [#314](https://github.com/PapagoLabs/outtake/pull/314)
 - Update github.com/google/pprof digest to 639476b by @renovate[bot] in [#313](https://github.com/PapagoLabs/outtake/pull/313)
 
+### Fixed
+
+- Restrict outtake to a single plex owner by @nicholas-fedor in [#320](https://github.com/PapagoLabs/outtake/pull/320)
+
 ## [0.3.1] - 2026-10-05
 
 ### Added
