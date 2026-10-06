@@ -142,35 +142,7 @@ func TestSessionStoreIgnoresAnEmptyKeyOrValue(t *testing.T) {
 	assert.Nil(t, storedSession(t, store, "sid"))
 }
 
-func TestSessionStoreSkipsAnUnchangedWriteWithinTheInterval(t *testing.T) {
-	t.Parallel()
-
-	store, clock := sessionStore(t)
-
-	require.NoError(t, store.Set("sid", []byte("payload"), time.Hour))
-
-	_, err := store.db.conn.ExecContext(
-		t.Context(),
-		`UPDATE sessions SET data = 'marker' WHERE id = 'sid'`,
-	)
-	require.NoError(t, err)
-
-	clock.at = clock.at.Add(sessionWriteInterval - time.Second)
-
-	require.NoError(t, store.Set("sid", []byte("payload"), time.Hour))
-
-	assert.Equal(t, []byte("marker"), storedSession(t, store, "sid"),
-		"an unchanged session inside the interval is not written")
-
-	clock.at = clock.at.Add(time.Second)
-
-	require.NoError(t, store.Set("sid", []byte("payload"), time.Hour))
-
-	assert.Equal(t, []byte("payload"), storedSession(t, store, "sid"),
-		"an unchanged session is written again once the interval passes")
-}
-
-func TestSessionStoreWritesAChangedSessionAtOnce(t *testing.T) {
+func TestSessionStoreReplacesASession(t *testing.T) {
 	t.Parallel()
 
 	store, _ := sessionStore(t)
@@ -190,10 +162,6 @@ func TestSessionStoreDeletesASession(t *testing.T) {
 	require.NoError(t, store.Delete("sid"))
 
 	assert.Nil(t, storedSession(t, store, "sid"))
-
-	require.NoError(t, store.Set("sid", []byte("payload"), time.Hour))
-	assert.Equal(t, []byte("payload"), storedSession(t, store, "sid"),
-		"a deleted session is written again even with the same value")
 }
 
 func TestSessionStoreResetsEverySession(t *testing.T) {
@@ -228,7 +196,6 @@ func TestSessionStoreSweepsOnlyExpiredSessions(t *testing.T) {
 	assert.Nil(t, storedSession(t, store, "short"))
 	assert.NotNil(t, storedSession(t, store, "long"))
 	assert.NotNil(t, storedSession(t, store, "forever"))
-	assert.Empty(t, store.written, "write records older than the interval are dropped")
 }
 
 func TestSessionStoreReportsAClosedDatabase(t *testing.T) {

@@ -4,41 +4,19 @@
 package database
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 )
 
 // SessionStore keeps web sessions in the database. It satisfies the Fiber
 // storage interface.
-//
-// The record of recent writes lives in this process, so the store assumes one
-// running instance per database.
 type SessionStore struct {
 	db  *DB
 	now func() time.Time
-
-	mu      sync.Mutex
-	written map[string]sessionWrite
 }
-
-// sessionWrite is the last value written for a session and when.
-type sessionWrite struct {
-	// data is the stored value.
-	data []byte
-	// at is when it was written.
-	at time.Time
-}
-
-// sessionWriteInterval is how long an unchanged session goes without being
-// written again. A session is saved on every request, so without this every
-// page load would be a database write. It is far shorter than the session idle
-// timeout, so a skipped write never lets a live session expire.
-const sessionWriteInterval = time.Minute
 
 // NewSessionStore creates a session store backed by the database.
 //
@@ -49,10 +27,8 @@ const sessionWriteInterval = time.Minute
 //   - store: A ready-to-use session store.
 func NewSessionStore(db *DB) *SessionStore {
 	return &SessionStore{
-		db:      db,
-		now:     time.Now,
-		mu:      sync.Mutex{},
-		written: make(map[string]sessionWrite),
+		db:  db,
+		now: time.Now,
 	}
 }
 
@@ -85,8 +61,6 @@ func (store *SessionStore) Delete(key string) error {
 // Returns:
 //   - err: Non-nil when the delete fails.
 func (store *SessionStore) DeleteWithContext(ctx context.Context, key string) error {
-	store.forget(key)
-
 	_, err := store.db.conn.ExecContext(
 		ctx,
 		store.db.rewrite(`DELETE FROM sessions WHERE id = ?`),
@@ -168,10 +142,6 @@ func (store *SessionStore) Reset() error {
 // Returns:
 //   - err: Non-nil when the delete fails.
 func (store *SessionStore) ResetWithContext(ctx context.Context) error {
-	store.mu.Lock()
-	clear(store.written)
-	store.mu.Unlock()
-
 	_, err := store.db.conn.ExecContext(ctx, store.db.rewrite(`DELETE FROM sessions`))
 	if err != nil {
 		return fmt.Errorf("reset sessions: %w", err)
@@ -194,8 +164,7 @@ func (store *SessionStore) Set(key string, val []byte, exp time.Duration) error 
 	return store.SetWithContext(context.Background(), key, val, exp)
 }
 
-// SetWithContext stores a session. An unchanged session written within the
-// last minute is not written again.
+// SetWithContext stores a session.
 //
 // Parameters:
 //   - ctx: Request scope for the write.
@@ -211,16 +180,14 @@ func (store *SessionStore) SetWithContext(
 	val []byte,
 	exp time.Duration,
 ) error {
-	if key == "" || len(val) == 0 || store.unchanged(key, val) {
+	if key == "" || len(val) == 0 {
 		return nil
 	}
-
-	now := store.now()
 
 	var expiresAtSec int64
 
 	if exp > 0 {
-		expiresAtSec = now.Add(exp).Unix()
+		expiresAtSec = store.now().Add(exp).Unix()
 	}
 
 	_, err := store.db.conn.ExecContext(ctx, store.db.rewrite(`
@@ -234,12 +201,6 @@ func (store *SessionStore) SetWithContext(
 		return fmt.Errorf("set session: %w", err)
 	}
 
-	store.mu.Lock()
-
-	store.written[key] = sessionWrite{data: bytes.Clone(val), at: now}
-
-	store.mu.Unlock()
-
 	return nil
 }
 
@@ -252,21 +213,10 @@ func (store *SessionStore) SetWithContext(
 //   - removed: How many sessions were deleted.
 //   - err: Non-nil when the delete fails.
 func (store *SessionStore) Sweep(ctx context.Context) (int64, error) {
-	now := store.now()
-
-	store.mu.Lock()
-
-	for key, write := range store.written {
-		if now.Sub(write.at) >= sessionWriteInterval {
-			delete(store.written, key)
-		}
-	}
-	store.mu.Unlock()
-
 	result, err := store.db.conn.ExecContext(
 		ctx,
 		store.db.rewrite(`DELETE FROM sessions WHERE expires_at != 0 AND expires_at <= ?`),
-		now.Unix(),
+		store.now().Unix(),
 	)
 	if err != nil {
 		return 0, fmt.Errorf("sweep sessions: %w", err)
@@ -278,32 +228,4 @@ func (store *SessionStore) Sweep(ctx context.Context) (int64, error) {
 	}
 
 	return removed, nil
-}
-
-// forget drops the record of a session's last write.
-//
-// Parameters:
-//   - key: Session id.
-func (store *SessionStore) forget(key string) {
-	store.mu.Lock()
-	delete(store.written, key)
-	store.mu.Unlock()
-}
-
-// unchanged reports whether a session was written with the same value within
-// the write interval.
-//
-// Parameters:
-//   - key: Session id.
-//   - val: Encoded session about to be written.
-//
-// Returns:
-//   - skip: True when the write can be skipped.
-func (store *SessionStore) unchanged(key string, val []byte) bool {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-
-	write, ok := store.written[key]
-
-	return ok && bytes.Equal(write.data, val) && store.now().Sub(write.at) < sessionWriteInterval
 }

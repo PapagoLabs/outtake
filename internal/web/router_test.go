@@ -76,6 +76,10 @@ const (
 
 	// routerHost is the Host header every browser request carries.
 	routerHost = "localhost"
+
+	// browserTimeout bounds one browser request. The default second is too
+	// short on a loaded CI runner under the race detector.
+	browserTimeout = 30 * time.Second
 )
 
 // wantRoutes is the complete route table New must register, in registration
@@ -402,10 +406,14 @@ func TestNewServesAssetsAndHealthWithoutASession(t *testing.T) {
 
 	client := newBrowser(t)
 
-	for _, target := range []string{"/assets/css/output.css", "/api/healthz"} {
+	for target, status := range map[string]int{
+		"/assets/css/output.css":  fiber.StatusOK,
+		"/assets/css/missing.css": fiber.StatusNotFound,
+		"/api/healthz":            fiber.StatusOK,
+	} {
 		got := client.request(t, http.MethodGet, target)
 
-		assert.Equal(t, fiber.StatusOK, got.status, target)
+		assert.Equal(t, status, got.status, target)
 		assert.Empty(t, got.cookies, "%s sets no cookie", target)
 	}
 
@@ -630,7 +638,7 @@ func (b *browser) do(t *testing.T, method, target string, form url.Values) answe
 		req.AddCookie(cookie)
 	}
 
-	resp, err := b.app.Test(req)
+	resp, err := b.app.Test(req, browserTestConfig())
 	require.NoError(t, err)
 
 	got := readAnswer(t, resp)
@@ -717,7 +725,7 @@ func (b *browser) start(t *testing.T) {
 
 	req.Host = b.host
 
-	resp, err := b.app.Test(req)
+	resp, err := b.app.Test(req, browserTestConfig())
 	require.NoError(t, err)
 
 	b.keep(readAnswer(t, resp).cookies)
@@ -742,6 +750,14 @@ func (b *browser) submit(t *testing.T, target string, fields url.Values) answer 
 	form.Set("_csrf", b.csrfToken)
 
 	return b.do(t, http.MethodPost, target, form)
+}
+
+// browserTestConfig is how long the browser waits for one response.
+//
+// Returns:
+//   - config: The Fiber test configuration.
+func browserTestConfig() fiber.TestConfig {
+	return fiber.TestConfig{Timeout: browserTimeout, FailOnTimeout: true}
 }
 
 // readAnswer drains a response and closes it.

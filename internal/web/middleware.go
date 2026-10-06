@@ -4,6 +4,7 @@
 package web
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -190,7 +191,7 @@ func staticConfig() static.Config {
 		FS:              Assets,
 		Next:            nil,
 		ModifyResponse:  nil,
-		NotFoundHandler: nil,
+		NotFoundHandler: assetNotFound,
 		IndexNames:      []string{"index.html"},
 		CacheDuration:   0,
 		MaxAge:          0,
@@ -199,4 +200,21 @@ func staticConfig() static.Config {
 		Browse:          false,
 		Download:        false,
 	}
+}
+
+// assetNotFound answers a missing asset with 404, so the request stops before
+// the session middleware.
+//
+// Parameters:
+//   - ctx: Request context.
+//
+// Returns:
+//   - err: Write error, or nil once the response is sent.
+func assetNotFound(ctx fiber.Ctx) error {
+	err := ctx.SendStatus(fiber.StatusNotFound)
+	if err != nil {
+		return fmt.Errorf("send asset not found: %w", err)
+	}
+
+	return nil
 }

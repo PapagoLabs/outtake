@@ -399,7 +399,11 @@ func TestStaticConfigLeavesEveryOptionalBehaviourOff(t *testing.T) {
 
 	assert.Nil(t, cfg.Next)
 	assert.Nil(t, cfg.ModifyResponse)
-	assert.Nil(t, cfg.NotFoundHandler)
+	assert.NotNil(
+		t,
+		cfg.NotFoundHandler,
+		"a missing asset answers 404 before the session middleware",
+	)
 	assert.False(t, cfg.Compress)
 	assert.False(t, cfg.ByteRange)
 	assert.False(t, cfg.Browse)
