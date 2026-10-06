@@ -180,7 +180,7 @@ func (a *App) WaitForClipStatus(
 			return
 		}
 
-		if clip.Status == statusFailed {
+		if string(clip.Status) == statusFailed {
 			ginkgo.Fail("clip job failed: " + clip.Error)
 
 			return

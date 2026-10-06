@@ -847,7 +847,10 @@ func TestForgetServerReportsAFailedClear(t *testing.T) {
 	store := mocks.NewMockStore(t)
 	store.EXPECT().ClearSelectedServer(mock.Anything).Return(errStoreClosed).Once()
 
-	auth := New("outtake", "test-client", "http://localhost:8080", store, nil)
+	// The binding has no expectations, so clearing it fails the test.
+	bound := mocks.NewMockServerBinding(t)
+
+	auth := New("outtake", "test-client", "http://localhost:8080", store, bound)
 
 	err := auth.ForgetServer(t.Context())
 	require.ErrorIs(t, err, errStoreClosed)

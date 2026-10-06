@@ -226,8 +226,9 @@ func (auth *Auth) Discover(ctx context.Context, accessToken string) ([]plex.Serv
 	return servers, nil
 }
 
-// ForgetServer drops the selected Plex server and its persisted record, so the
-// owner can pick another.
+// ForgetServer drops the persisted Plex server record and then the live
+// selection, so the owner can pick another. When the record cannot be cleared,
+// the live selection is kept.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -235,17 +236,15 @@ func (auth *Auth) Discover(ctx context.Context, accessToken string) ([]plex.Serv
 // Returns:
 //   - err: Wrapped error when the persisted record could not be cleared.
 func (auth *Auth) ForgetServer(ctx context.Context) error {
+	if auth.store != nil {
+		err := auth.store.ClearSelectedServer(ctx)
+		if err != nil {
+			return fmt.Errorf("clear selected server: %w", err)
+		}
+	}
+
 	if auth.selected != nil {
 		auth.selected.Clear()
-	}
-
-	if auth.store == nil {
-		return nil
-	}
-
-	err := auth.store.ClearSelectedServer(ctx)
-	if err != nil {
-		return fmt.Errorf("clear selected server: %w", err)
 	}
 
 	return nil
