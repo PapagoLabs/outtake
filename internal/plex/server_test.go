@@ -302,6 +302,37 @@ func TestMediaPageNormalizesNegativeStart(t *testing.T) {
 	assert.Equal(t, 48, page.Size)
 }
 
+func TestGetMediaPathRefusesAnIDThatIsNotARatingKey(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		assert.Fail(t, "no request may reach the server", r.URL.String())
+	}))
+	t.Cleanup(ts.Close)
+
+	host, port := extractAddrPort(t, ts)
+	client := NewClient(
+		ClientConfig{
+			Product:  productName,
+			ClientID: "test",
+			Token:    "srv-token",
+			Timeout:  5 * time.Second,
+		},
+	)
+	server := Server{
+		Name:    "Test",
+		Address: host,
+		Port:    port,
+		Token:   "srv-token",
+		Scheme:  httpScheme,
+	}
+
+	for _, id := range []string{"", "invalid-id", "1/../../sections/1/refresh", "1?includeChildren=1", "-1", "1 2"} {
+		_, err := client.GetMediaPath(t.Context(), server, id)
+		require.ErrorIs(t, err, ErrInvalidMediaID, id)
+	}
+}
+
 func TestGetMediaPath(t *testing.T) {
 	t.Parallel()
 

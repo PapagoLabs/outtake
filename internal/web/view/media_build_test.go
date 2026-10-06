@@ -19,8 +19,8 @@ func TestThumbSrcRewritesAPlexPath(t *testing.T) {
 
 	assert.Equal(
 		t,
-		"/thumbs?path=%2Flibrary%2Fmedia%2F1%2Ffile.jpg",
-		ThumbSrc("/library/media/1/file.jpg"),
+		"/thumbs?path=%2Flibrary%2Fmetadata%2F1%2Fthumb%2F2",
+		ThumbSrc("/library/metadata/1/thumb/2"),
 	)
 }
 
@@ -35,7 +35,8 @@ func TestThumbSrcRefusesAPathItCannotProxy(t *testing.T) {
 		{name: "a clip thumbnail is served from storage directly", give: "/clip/thumb/123"},
 		{name: "a path outside a Plex root", give: "/etc/passwd"},
 		{name: "a path that climbs out", give: "/library/../etc/passwd"},
-		{name: "a relative path", give: "library/media/1/file.jpg"},
+		{name: "a relative path", give: "library/metadata/1/thumb/2"},
+		{name: "a media file", give: "/library/media/1/file.jpg"},
 	}
 
 	for _, test := range tests {
@@ -54,7 +55,7 @@ func TestLibraryItems(t *testing.T) {
 		ID:        "2",
 		Title:     "TV Shows",
 		Type:      "show",
-		ThumbPath: "/library/media/1/file.jpg",
+		ThumbPath: "/library/metadata/1/thumb/2",
 	}})
 
 	require.Len(t, items, 1)
@@ -62,7 +63,7 @@ func TestLibraryItems(t *testing.T) {
 		ID:        "2",
 		Title:     "TV Shows",
 		Type:      "show",
-		ThumbPath: "/thumbs?path=%2Flibrary%2Fmedia%2F1%2Ffile.jpg",
+		ThumbPath: "/thumbs?path=%2Flibrary%2Fmetadata%2F1%2Fthumb%2F2",
 	}, items[0])
 }
 

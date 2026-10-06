@@ -8,7 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sync"
 	"time"
+
+	"github.com/valyala/fasthttp"
 
 	fiberClient "github.com/gofiber/fiber/v3/client"
 
@@ -17,11 +20,12 @@ import (
 
 // Client represents a Plex API client.
 type Client struct {
-	httpClient *fiberClient.Client
-	Token      string
-	Product    string
-	ClientID   string
-	baseURL    *url.URL
+	httpClient  *fiberClient.Client
+	thumbClient *fiberClient.Client
+	Token       string
+	Product     string
+	ClientID    string
+	baseURL     *url.URL
 }
 
 // ClientConfig represents configuration for the Plex client.
@@ -48,6 +52,27 @@ const (
 
 	// defaultHost is the plex.tv API host.
 	defaultHost = "plex.tv"
+
+	// maxResponseBytes caps a Plex API response body.
+	maxResponseBytes = 64 << 20
+
+	// maxThumbBytes caps a thumbnail response body.
+	maxThumbBytes = 10 << 20
+)
+
+var (
+	// sharedHTTP is the connection pool every client with the default timeout
+	// issues API requests through, so connections and TLS sessions are reused
+	// across clients.
+	sharedHTTP = sync.OnceValue(func() *fiberClient.Client {
+		return newHTTP(defaultTimeout, maxResponseBytes)
+	})
+
+	// sharedThumbHTTP is the pool thumbnails are fetched through, capped below
+	// the API limit.
+	sharedThumbHTTP = sync.OnceValue(func() *fiberClient.Client {
+		return newHTTP(defaultTimeout, maxThumbBytes)
+	})
 )
 
 // NewClient creates a new Plex client with the default Fiber HTTP client.
@@ -66,10 +91,30 @@ func NewClient(cfg ClientConfig) *Client {
 		cfg.Product = productName
 	}
 
-	fiberHTTP := fiberClient.New()
-	fiberHTTP.SetTimeout(cfg.Timeout)
+	if cfg.Timeout == defaultTimeout {
+		return newPlexClient(cfg, sharedHTTP(), sharedThumbHTTP())
+	}
 
-	return newPlexClient(cfg, fiberHTTP)
+	return newPlexClient(
+		cfg,
+		newHTTP(cfg.Timeout, maxResponseBytes),
+		newHTTP(cfg.Timeout, maxThumbBytes),
+	)
+}
+
+// newHTTP builds a Fiber HTTP client whose responses are capped in size.
+//
+// Parameters:
+//   - timeout: Per-request timeout.
+//   - maxBody: Largest response body accepted, in bytes.
+//
+// Returns:
+//   - client: The HTTP client.
+func newHTTP(timeout time.Duration, maxBody int) *fiberClient.Client {
+	client := fiberClient.NewWithClient(&fasthttp.Client{MaxResponseBodySize: maxBody})
+	client.SetTimeout(timeout)
+
+	return client
 }
 
 // SetBaseURL sets the base URL for server-specific requests.
@@ -110,17 +155,19 @@ func defaultBaseURL() *url.URL {
 //
 // Parameters:
 //   - cfg: Product, client identifier, token, timeout, and optional base URL.
-//   - httpClient: The HTTP client every request is issued through.
+//   - httpClient: The HTTP client API requests are issued through.
+//   - thumbClient: The HTTP client thumbnails are fetched through.
 //
 // Returns:
-//   - client: A client bound to httpClient.
-func newPlexClient(cfg ClientConfig, httpClient *fiberClient.Client) *Client {
+//   - client: A client bound to the HTTP clients.
+func newPlexClient(cfg ClientConfig, httpClient, thumbClient *fiberClient.Client) *Client {
 	plexClient := &Client{
-		httpClient: httpClient,
-		Token:      cfg.Token,
-		Product:    cfg.Product,
-		ClientID:   cfg.ClientID,
-		baseURL:    defaultBaseURL(),
+		httpClient:  httpClient,
+		thumbClient: thumbClient,
+		Token:       cfg.Token,
+		Product:     cfg.Product,
+		ClientID:    cfg.ClientID,
+		baseURL:     defaultBaseURL(),
 	}
 
 	if cfg.BaseURL == "" {

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -45,6 +46,9 @@ const (
 	// httpScheme is the HTTP URL scheme.
 	httpScheme = "http"
 )
+
+// ratingKeyPattern matches a Plex rating key, the numeric id of a media item.
+var ratingKeyPattern = regexp.MustCompile(`^\d{1,12}$`)
 
 // plexTypeNames maps Plex metadata types onto outtake type names.
 var plexTypeNames = map[string]string{
@@ -316,20 +320,24 @@ func directoryIndex(section pms.Section) LetterIndex {
 //
 // Returns:
 //   - path: The first on-disk part path among the item's metadata rows.
-//   - err: ErrNoFilePathFound when no row carries a file, or a request error.
+//   - err: ErrInvalidMediaID for an id that is not a rating key,
+//     ErrNoFilePathFound when no row carries a file, or a request error.
 func (client *Client) GetMediaPath(
 	ctx context.Context,
 	server Server,
 	mediaID string,
 ) (string, error) {
-	// Resolve the filesystem path for a media item.
+	if !ratingKeyPattern.MatchString(mediaID) {
+		return "", fmt.Errorf("%w: %q", ErrInvalidMediaID, mediaID)
+	}
+
 	scheme := server.Scheme
 	if scheme == "" {
 		scheme = defaultScheme
 	}
 
 	hostPort := formatHost(server.Address, scheme, server.Port)
-	reqURL := fmt.Sprintf("%s://%s/library/metadata/%s", scheme, hostPort, mediaID)
+	reqURL := fmt.Sprintf("%s://%s/library/metadata/%s", scheme, hostPort, url.PathEscape(mediaID))
 
 	cfg := fiberClient.Config{Ctx: ctx, Header: jsonHeaders(server.Token)}
 
