@@ -55,7 +55,7 @@ There is no `testing/integration` tree. `task test-e2e` runs the e2e suite.
 - Dockerfiles: `build/docker/Dockerfile` (GoReleaser image context) and `Dockerfile.dev` (source build used by compose).
 - GoReleaser: `build/goreleaser/stable.yaml` (git tag `vX.Y.Z`) and `nightly.yaml`. Docker `hooks.pre` runs `scripts/download-ffmpeg` into the image context. Ship ffmpeg/ffprobe binaries, not the downloader script.
 - Images: `papagolabs/outtake` and `ghcr.io/papagolabs/outtake`.
-- Migrations are `001_initial.sql`, `002_web_safe_color.sql`, `003_preserve_hdr.sql`, and `004_users.sql`. SQLite reads `internal/store/database/migrations/`. Postgres reads `internal/store/database/migrations/postgres/`. The names match. Each connection records the files it has applied.
+- Migrations are `001_initial.sql`, `002_web_safe_color.sql`, `003_preserve_hdr.sql`, `004_users.sql`, and `005_sessions.sql`. SQLite reads `internal/store/database/migrations/`. Postgres reads `internal/store/database/migrations/postgres/`. The names match. Each connection records the files it has applied.
 - IDs: Go stdlib `uuid`, not `github.com/google/uuid`.
 - `References/` is local-only (gitignored).
 
@@ -81,6 +81,7 @@ Workflows call templ, goimports, and goreleaser directly, not Taskfile. Go lint 
 - `middleware.HostGuard` answers 421 to a Host that is not an IP literal, localhost, a dotless or private-suffix name, the public base URL's host, or listed in `allowed-hosts`. Tests that drive the router through httptest (Host `example.com`) set `AllowedHosts: "example.com"`.
 - The e2e environment skips the auth guard, so `app.New` refuses it on a non-loopback listen address.
 - Logging is configured once in `cmd/server` (and the e2e harness), not in `app.New`. Tests build many apps in parallel, and rewriting zerolog's globals while another app logs is a data race.
+- Sessions persist in the `sessions` table through `database.SessionStore`, and CSRF tokens live in the session, so both survive a restart. `app` sweeps expired sessions. `/assets` (including a missing asset, which answers 404) and `/api/healthz` are mounted before the session middleware, so they never create a session.
 - The Fiber app runs with `Immutable: true`, so strings read off a request (`Params`, `FormValue`, `Query`) are copies a handler may keep. It also sets a read and an idle timeout, and no write timeout, because downloads and ranged video stream for as long as they need.
 - Vendored HTMX is v4. Partials are `<template hx type="partial" hx-target="...">`. A non-JSON error sets `HX-Reswap: none`, because every status other than 204 and 304 still swaps. The failure event is `htmx:response:error`.
 

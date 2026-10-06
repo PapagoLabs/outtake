@@ -119,6 +119,7 @@ func New(cfg *config.Config) (*App, error) {
 			Auth:     plexAuth,
 			Previews: previews,
 			Sources:  sources,
+			Sessions: startSessionStore(ctx, db),
 		}),
 		queue: jobQueue,
 		db:    db,

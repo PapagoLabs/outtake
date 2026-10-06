@@ -21,6 +21,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
 // csrfSource names where a request carries its CSRF token.
@@ -30,22 +31,22 @@ func TestCSRFCookieSecureFollowsPublicURL(t *testing.T) {
 	t.Parallel()
 
 	httpCfg := &config.Config{ListenAddr: "127.0.0.1:8080"}
-	assert.False(t, csrfConfig(httpCfg).CookieSecure)
+	assert.False(t, csrfConfig(httpCfg, nil).CookieSecure)
 
 	httpsCfg := &config.Config{PublicBaseURL: "https://clips.example"}
-	assert.True(t, csrfConfig(httpsCfg).CookieSecure)
+	assert.True(t, csrfConfig(httpsCfg, nil).CookieSecure)
 }
 
 func TestCSRFTrustedOriginsFollowsPublicBaseURL(t *testing.T) {
 	t.Parallel()
 
-	local := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})
+	local := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"}, nil)
 	assert.Empty(t, local.TrustedOrigins)
 
-	behindTLS := csrfConfig(&config.Config{PublicBaseURL: "https://clips.example/"})
+	behindTLS := csrfConfig(&config.Config{PublicBaseURL: "https://clips.example/"}, nil)
 	assert.Equal(t, []string{"https://clips.example"}, behindTLS.TrustedOrigins)
 
-	withPath := csrfConfig(&config.Config{PublicBaseURL: "https://clips.example/outtake"})
+	withPath := csrfConfig(&config.Config{PublicBaseURL: "https://clips.example/outtake"}, nil)
 	assert.Equal(t, []string{"https://clips.example"}, withPath.TrustedOrigins)
 }
 
@@ -96,7 +97,7 @@ func TestCookieSecureIsFalseWithoutAListenAddress(t *testing.T) {
 func TestSessionConfigSetsTheIdleAndAbsoluteTimeouts(t *testing.T) {
 	t.Parallel()
 
-	cfg := sessionConfig(&config.Config{ListenAddr: ":8080"})
+	cfg := sessionConfig(&config.Config{ListenAddr: ":8080"}, nil)
 
 	assert.Equal(t, 30*time.Minute, cfg.IdleTimeout)
 	assert.Equal(t, 24*time.Hour, cfg.AbsoluteTimeout)
@@ -111,17 +112,17 @@ func TestSessionConfigSetsTheIdleAndAbsoluteTimeouts(t *testing.T) {
 func TestSessionCookieSecureFollowsPublicURL(t *testing.T) {
 	t.Parallel()
 
-	local := sessionConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})
+	local := sessionConfig(&config.Config{ListenAddr: "127.0.0.1:8080"}, nil)
 	assert.False(t, local.CookieSecure)
 
-	published := sessionConfig(&config.Config{PublicBaseURL: "https://clips.example"})
+	published := sessionConfig(&config.Config{PublicBaseURL: "https://clips.example"}, nil)
 	assert.True(t, published.CookieSecure)
 }
 
 func TestSessionConfigLeavesEveryOptionalHookUnset(t *testing.T) {
 	t.Parallel()
 
-	cfg := sessionConfig(&config.Config{})
+	cfg := sessionConfig(&config.Config{}, nil)
 
 	assert.Nil(t, cfg.Storage)
 	assert.Nil(t, cfg.Store)
@@ -134,7 +135,7 @@ func TestSessionMiddlewareNamesTheCookieSessionID(t *testing.T) {
 	t.Parallel()
 
 	app := fiber.New()
-	app.Use(session.New(sessionConfig(&config.Config{})))
+	app.Use(session.New(sessionConfig(&config.Config{}, nil)))
 	app.Get("/session/probe", func(ctx fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -239,7 +240,7 @@ func TestCSRFMiddlewareAnswersAMissingTokenThroughTheErrorHandler(t *testing.T) 
 	t.Parallel()
 
 	app := fiber.New()
-	app.Use(csrf.New(csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})))
+	app.Use(csrf.New(csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"}, nil)))
 	app.Get("/csrf/probe", func(ctx fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -262,7 +263,7 @@ func TestCSRFMiddlewareLetsAGetRequestThrough(t *testing.T) {
 	t.Parallel()
 
 	app := fiber.New()
-	app.Use(csrf.New(csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})))
+	app.Use(csrf.New(csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"}, nil)))
 	app.Get("/csrf/probe", func(ctx fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -280,7 +281,7 @@ func TestCSRFMiddlewareLetsAGetRequestThrough(t *testing.T) {
 func TestCSRFConfigWiresTheHeaderAndFormExtractors(t *testing.T) {
 	t.Parallel()
 
-	cfg := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})
+	cfg := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"}, nil)
 
 	assert.Equal(t, "csrf_", cfg.CookieName)
 	assert.Equal(t, "Lax", cfg.CookieSameSite)
@@ -299,7 +300,7 @@ func TestCSRFConfigWiresTheHeaderAndFormExtractors(t *testing.T) {
 func TestCSRFConfigLeavesEveryOptionalHookUnset(t *testing.T) {
 	t.Parallel()
 
-	cfg := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})
+	cfg := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"}, nil)
 
 	assert.Nil(t, cfg.Storage)
 	assert.Nil(t, cfg.Next)
@@ -309,7 +310,7 @@ func TestCSRFConfigLeavesEveryOptionalHookUnset(t *testing.T) {
 func TestCSRFConfigExtractsTheHeaderBeforeTheFormField(t *testing.T) {
 	t.Parallel()
 
-	cfg := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"})
+	cfg := csrfConfig(&config.Config{ListenAddr: "127.0.0.1:8080"}, nil)
 
 	assert.Equal(t, csrf.HeaderName, cfg.Extractor.Key)
 	assert.Len(t, cfg.Extractor.Chain, 2)
@@ -398,7 +399,11 @@ func TestStaticConfigLeavesEveryOptionalBehaviourOff(t *testing.T) {
 
 	assert.Nil(t, cfg.Next)
 	assert.Nil(t, cfg.ModifyResponse)
-	assert.Nil(t, cfg.NotFoundHandler)
+	assert.NotNil(
+		t,
+		cfg.NotFoundHandler,
+		"a missing asset answers 404 before the session middleware",
+	)
 	assert.False(t, cfg.Compress)
 	assert.False(t, cfg.ByteRange)
 	assert.False(t, cfg.Browse)
@@ -436,4 +441,21 @@ func helmetHeaders(t *testing.T, cfg helmet.Config) http.Header {
 	require.NoError(t, probed.Body.Close())
 
 	return probed.Header
+}
+
+func TestSessionAndCSRFConfigsUseTheGivenStores(t *testing.T) {
+	t.Parallel()
+
+	storage := database.NewSessionStore(testRouterDatabase(t))
+	cfg := &config.Config{ListenAddr: "127.0.0.1:8080"}
+
+	sessions := session.NewStore(sessionConfig(cfg, storage))
+
+	assert.Same(
+		t,
+		storage,
+		sessionConfig(cfg, storage).Storage,
+		"sessions persist in the given storage",
+	)
+	assert.Same(t, sessions, csrfConfig(cfg, sessions).Session, "CSRF tokens live in the session")
 }

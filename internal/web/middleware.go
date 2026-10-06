@@ -4,6 +4,7 @@
 package web
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
@@ -34,12 +35,13 @@ const sessionAbsoluteTimeout = 24 * time.Hour
 //
 // Parameters:
 //   - cfg: App config. PublicURL controls CookieSecure, matching the CSRF cookie.
+//   - storage: Where sessions persist, or nil to keep them in memory.
 //
 // Returns:
 //   - config: Session middleware configuration.
-func sessionConfig(cfg *config.Config) session.Config {
+func sessionConfig(cfg *config.Config, storage fiber.Storage) session.Config {
 	return session.Config{
-		Storage:           nil,
+		Storage:           storage,
 		Store:             nil,
 		Next:              nil,
 		ErrorHandler:      nil,
@@ -85,16 +87,19 @@ func helmetConfig() helmet.Config {
 
 // csrfConfig returns CSRF middleware that accepts header or form tokens.
 //
+// Tokens live in the session, so they persist and expire with it.
+//
 // Parameters:
 //   - cfg: App config. PublicURL controls CookieSecure and TrustedOrigins.
+//   - sessions: Session store the tokens are kept in.
 //
 // Returns:
 //   - config: CSRF middleware config.
-func csrfConfig(cfg *config.Config) csrf.Config {
+func csrfConfig(cfg *config.Config, sessions *session.Store) csrf.Config {
 	return csrf.Config{
 		Storage:        nil,
 		Next:           nil,
-		Session:        nil,
+		Session:        sessions,
 		KeyGenerator:   csrf.ConfigDefault.KeyGenerator,
 		ErrorHandler:   csrfError,
 		CookieName:     "csrf_",
@@ -186,7 +191,7 @@ func staticConfig() static.Config {
 		FS:              Assets,
 		Next:            nil,
 		ModifyResponse:  nil,
-		NotFoundHandler: nil,
+		NotFoundHandler: assetNotFound,
 		IndexNames:      []string{"index.html"},
 		CacheDuration:   0,
 		MaxAge:          0,
@@ -195,4 +200,21 @@ func staticConfig() static.Config {
 		Browse:          false,
 		Download:        false,
 	}
+}
+
+// assetNotFound answers a missing asset with 404, so the request stops before
+// the session middleware.
+//
+// Parameters:
+//   - ctx: Request context.
+//
+// Returns:
+//   - err: Write error, or nil once the response is sent.
+func assetNotFound(ctx fiber.Ctx) error {
+	err := ctx.SendStatus(fiber.StatusNotFound)
+	if err != nil {
+		return fmt.Errorf("send asset not found: %w", err)
+	}
+
+	return nil
 }

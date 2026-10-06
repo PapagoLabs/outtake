@@ -76,6 +76,10 @@ const (
 
 	// routerHost is the Host header every browser request carries.
 	routerHost = "localhost"
+
+	// browserTimeout bounds one browser request. The default second is too
+	// short on a loaded CI runner under the race detector.
+	browserTimeout = 30 * time.Second
 )
 
 // wantRoutes is the complete route table New must register, in registration
@@ -372,6 +376,56 @@ func TestNewLogsOutAnExpiredSessionToo(t *testing.T) {
 	assert.Equal(t, "/login", got.location)
 }
 
+func TestNewKeepsTheSessionAcrossARestart(t *testing.T) {
+	t.Parallel()
+
+	before := newBrowser(t)
+	before.authenticate(t)
+
+	// A second router over the same database stands in for the restarted
+	// process. Only the cookies carry over.
+	after := &browser{
+		app:       New(testRouterDeps(t, before.db)),
+		db:        before.db,
+		cookies:   before.cookies,
+		csrfToken: before.csrfToken,
+		host:      routerHost,
+	}
+
+	assert.Equal(t, fiber.StatusOK, after.request(t, http.MethodGet, "/").status,
+		"the signed-in session survives the restart")
+
+	got := after.submit(t, "/api/auth/logout", nil)
+	assert.Equal(t, fiber.StatusSeeOther, got.status,
+		"the CSRF token survives the restart")
+	assert.Equal(t, "/login", got.location)
+}
+
+func TestNewServesAssetsAndHealthWithoutASession(t *testing.T) {
+	t.Parallel()
+
+	client := newBrowser(t)
+
+	for target, status := range map[string]int{
+		"/assets/css/output.css":  fiber.StatusOK,
+		"/assets/css/missing.css": fiber.StatusNotFound,
+		"/api/healthz":            fiber.StatusOK,
+	} {
+		got := client.request(t, http.MethodGet, target)
+
+		assert.Equal(t, status, got.status, target)
+		assert.Empty(t, got.cookies, "%s sets no cookie", target)
+	}
+
+	var stored int
+
+	err := client.db.Conn().
+		QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sessions`).
+		Scan(&stored)
+	require.NoError(t, err)
+	assert.Zero(t, stored, "no session was written")
+}
+
 func TestNewRefusesAForeignHost(t *testing.T) {
 	t.Parallel()
 
@@ -584,7 +638,7 @@ func (b *browser) do(t *testing.T, method, target string, form url.Values) answe
 		req.AddCookie(cookie)
 	}
 
-	resp, err := b.app.Test(req)
+	resp, err := b.app.Test(req, browserTestConfig())
 	require.NoError(t, err)
 
 	got := readAnswer(t, resp)
@@ -671,7 +725,7 @@ func (b *browser) start(t *testing.T) {
 
 	req.Host = b.host
 
-	resp, err := b.app.Test(req)
+	resp, err := b.app.Test(req, browserTestConfig())
 	require.NoError(t, err)
 
 	b.keep(readAnswer(t, resp).cookies)
@@ -696,6 +750,14 @@ func (b *browser) submit(t *testing.T, target string, fields url.Values) answer 
 	form.Set("_csrf", b.csrfToken)
 
 	return b.do(t, http.MethodPost, target, form)
+}
+
+// browserTestConfig is how long the browser waits for one response.
+//
+// Returns:
+//   - config: The Fiber test configuration.
+func browserTestConfig() fiber.TestConfig {
+	return fiber.TestConfig{Timeout: browserTimeout, FailOnTimeout: true}
 }
 
 // readAnswer drains a response and closes it.
@@ -781,9 +843,10 @@ func testRouterDeps(t *testing.T, db *database.DB) Deps {
 	}
 
 	return Deps{
-		Cfg:   cfg,
-		DB:    db,
-		Queue: queue.NewQueue(1, nil),
+		Cfg:      cfg,
+		DB:       db,
+		Queue:    queue.NewQueue(1, nil),
+		Sessions: database.NewSessionStore(db),
 		Auth: identity.New(
 			"outtake", "test-client", "http://localhost", db, nil,
 			identity.WithPlexURL(routerPlexTV(t).URL),
