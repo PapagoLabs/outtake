@@ -4,6 +4,8 @@
 package web
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/csrf"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
@@ -72,6 +74,13 @@ type routerHandlers struct {
 // routeClips is the clips collection path.
 const routeClips = "/clips"
 
+// readTimeout bounds how long a client may take to send a request.
+const readTimeout = 30 * time.Second
+
+// idleTimeout bounds how long an idle keep-alive connection stays open, so
+// shutdown does not wait on it.
+const idleTimeout = 120 * time.Second
+
 // routeAPI is the prefix every JSON route sits under.
 const routeAPI = "/api"
 
@@ -89,9 +98,7 @@ const routeHealth = "/healthz"
 func New(deps Deps) *fiber.App {
 	built := newRouterHandlers(deps)
 
-	app := fiber.New(fiber.Config{
-		ErrorHandler: respond.PageError,
-	})
+	app := fiber.New(appConfig())
 	useMiddleware(app, deps.Cfg)
 
 	guard := middleware.AuthGuard(deps.Cfg.Env, deps.DB)
@@ -99,6 +106,25 @@ func New(deps Deps) *fiber.App {
 	mountAPI(app, guard, built)
 
 	return app
+}
+
+// appConfig returns the Fiber application configuration.
+//
+// Immutable copies every value read off a request, so a string kept past the
+// handler, such as a queue tombstone or the bound server, never changes when
+// a later request reuses the buffer behind it. There is no write timeout,
+// because downloads and ranged video responses stream for as long as they
+// need.
+//
+// Returns:
+//   - config: The Fiber application configuration.
+func appConfig() fiber.Config {
+	return fiber.Config{
+		ErrorHandler: respond.PageError,
+		Immutable:    true,
+		ReadTimeout:  readTimeout,
+		IdleTimeout:  idleTimeout,
+	}
 }
 
 // newRouterHandlers builds every handler the route table mounts.
