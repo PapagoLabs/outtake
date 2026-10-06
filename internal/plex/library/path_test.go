@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
 func TestLocalMediaFileUnderE2E(t *testing.T) {
@@ -18,7 +20,7 @@ func TestLocalMediaFileUnderE2E(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "clip.mkv")
 	require.NoError(t, os.WriteFile(file, []byte("data"), 0o600))
 
-	got, ok := localMediaFile(envE2E, file)
+	got, ok := localMediaFile(config.EnvE2E, file)
 
 	assert.True(t, ok)
 	assert.Equal(t, file, got)
@@ -41,11 +43,11 @@ func TestLocalMediaFileRejectsMissingAndDirectories(t *testing.T) {
 
 	dir := t.TempDir()
 
-	got, ok := localMediaFile(envE2E, filepath.Join(dir, "absent.mkv"))
+	got, ok := localMediaFile(config.EnvE2E, filepath.Join(dir, "absent.mkv"))
 	assert.False(t, ok)
 	assert.Empty(t, got)
 
-	got, ok = localMediaFile(envE2E, dir)
+	got, ok = localMediaFile(config.EnvE2E, dir)
 	assert.False(t, ok)
 	assert.Empty(t, got)
 }

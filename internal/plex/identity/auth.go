@@ -15,19 +15,35 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// TokenStore persists and clears the Plex credentials of this installation.
-type TokenStore interface {
-	// SaveToken records the access token issued for a client identifier.
-	SaveToken(ctx context.Context, clientID, accessToken string) error
-
-	// ClearAuth removes every persisted Plex credential.
-	ClearAuth(ctx context.Context) error
-
-	// LatestToken returns the most recently persisted access token.
-	LatestToken(ctx context.Context) (string, error)
-
-	// SaveSelectedServer records the Plex server chosen by the user.
+// Store persists who this installation belongs to and the Plex server it is
+// bound to.
+type Store interface {
+	// SaveSelectedServer records the Plex server chosen by the owner.
 	SaveSelectedServer(ctx context.Context, server plex.Server) error
+
+	// ClearSelectedServer forgets the persisted server selection.
+	ClearSelectedServer(ctx context.Context) error
+
+	// UserRole returns the role of the user behind a Plex account, reporting
+	// whether the account belongs to a user.
+	UserRole(ctx context.Context, plexUserID int) (string, bool, error)
+
+	// HasOwner reports whether a Plex account has claimed this installation.
+	HasOwner(ctx context.Context) (bool, error)
+
+	// ClaimOwner records a Plex account as the owner unless one is stored
+	// already, reporting whether this call stored it.
+	ClaimOwner(ctx context.Context, plexUserID int, username string) (bool, error)
+
+	// TouchLogin records a sign-in.
+	TouchLogin(ctx context.Context, plexUserID int, username string) error
+
+	// LegacyToken returns the newest stored Plex token, or empty when none is
+	// stored.
+	LegacyToken(ctx context.Context) (string, error)
+
+	// ClearLegacyTokens deletes every stored Plex token.
+	ClearLegacyTokens(ctx context.Context) error
 }
 
 // ServerBinding holds the process-wide Plex server selection and the live
@@ -61,18 +77,19 @@ type PendingPIN struct {
 	URL string
 }
 
-// Auth coordinates the Plex PIN login lifecycle.
+// Auth coordinates the Plex PIN login lifecycle and decides which Plex accounts
+// may use this installation.
 type Auth struct {
 	product  string
 	clientID string
 	baseURL  string
-	store    TokenStore
+	plexURL  string
+	store    Store
 	selected ServerBinding
-
-	// newClient builds the Plex client behind every Plex call. A nil value
-	// means plex.NewClient.
-	newClient func(plex.ClientConfig) *plex.Client
 }
+
+// Option adjusts an authentication service while New builds it.
+type Option func(*Auth)
 
 // ClientIDLength is the random client identifier size in bytes.
 const ClientIDLength = 16
@@ -80,8 +97,13 @@ const ClientIDLength = 16
 // forwardPath is the route Plex redirects to once the user authorizes a PIN.
 const forwardPath = "/api/auth/callback"
 
-// ErrInvalidToken reports a Plex token the server does not accept.
-var ErrInvalidToken = errors.New("plex token was rejected")
+var (
+	// ErrInvalidToken reports a Plex token the server does not accept.
+	ErrInvalidToken = errors.New("plex token was rejected")
+
+	// ErrNotAllowed reports a Plex account this installation does not belong to.
+	ErrNotAllowed = errors.New("plex account may not use this installation")
+)
 
 // New creates the Plex authentication service.
 //
@@ -89,46 +111,46 @@ var ErrInvalidToken = errors.New("plex token was rejected")
 //   - product: Plex product name sent with API requests.
 //   - clientID: Plex client identifier.
 //   - baseURL: Public base URL of this server, used to build the Plex forward URL.
-//   - store: Token persistence, which may be nil to disable persistence.
+//   - store: Persistence for the owner and the selected server. A nil store
+//     refuses every sign-in.
 //   - selected: Plex server binding, which may be nil to disable server selection.
+//   - opts: Adjustments applied after the defaults.
 //
 // Returns:
 //   - auth: A ready-to-use Plex authentication service.
 func New(
 	product, clientID, baseURL string,
-	store TokenStore,
+	store Store,
 	selected ServerBinding,
+	opts ...Option,
 ) *Auth {
-	return &Auth{
+	auth := &Auth{
 		product:  product,
 		clientID: clientID,
 		baseURL:  baseURL,
+		plexURL:  "",
 		store:    store,
 		selected: selected,
 	}
-}
 
-// Accept takes a Plex access token as authenticated.
-//
-// Parameters:
-//   - ctx: Request context.
-//   - accessToken: Plex access token to accept.
-//
-// Returns:
-//   - userID: Plex user id, or zero when the token did not validate.
-//   - err: Wrapped error when the token could not be persisted.
-func (auth *Auth) Accept(ctx context.Context, accessToken string) (int, error) {
-	userID := auth.validate(ctx, accessToken)
-
-	err := auth.saveToken(ctx, accessToken)
-
-	auth.bindServer(ctx, accessToken)
-
-	if err != nil {
-		return userID, fmt.Errorf("accept token: %w", err)
+	for _, opt := range opts {
+		opt(auth)
 	}
 
-	return userID, nil
+	return auth
+}
+
+// WithPlexURL sends every Plex request to origin instead of plex.tv.
+//
+// Parameters:
+//   - origin: Scheme and host Plex requests are aimed at.
+//
+// Returns:
+//   - opt: The option New applies.
+func WithPlexURL(origin string) Option {
+	return func(auth *Auth) {
+		auth.plexURL = origin
+	}
 }
 
 // BeginPIN creates a Plex PIN and returns it with the Plex Auth App URL the
@@ -204,42 +226,15 @@ func (auth *Auth) Discover(ctx context.Context, accessToken string) ([]plex.Serv
 	return servers, nil
 }
 
-// Login validates a manually entered Plex access token and records it, so that a
-// token the server rejects never reaches the session or the store.
-//
-// Parameters:
-//   - ctx: Request context.
-//   - accessToken: Plex access token the user entered.
-//
-// Returns:
-//   - userID: Plex user id behind the token.
-//   - err: ErrInvalidToken when Plex rejects the token, otherwise the wrapped
-//     failure to persist it.
-func (auth *Auth) Login(ctx context.Context, accessToken string) (int, error) {
-	userID := auth.validate(ctx, accessToken)
-	if userID == 0 {
-		return 0, ErrInvalidToken
-	}
-
-	err := auth.saveToken(ctx, accessToken)
-
-	auth.bindServer(ctx, accessToken)
-
-	if err != nil {
-		return userID, fmt.Errorf("login: %w", err)
-	}
-
-	return userID, nil
-}
-
-// Logout clears the selected Plex server and the persisted Plex credentials.
+// ForgetServer drops the selected Plex server and its persisted record, so the
+// owner can pick another.
 //
 // Parameters:
 //   - ctx: Request context.
 //
 // Returns:
-//   - err: Wrapped error when the persisted credentials could not be cleared.
-func (auth *Auth) Logout(ctx context.Context) error {
+//   - err: Wrapped error when the persisted record could not be cleared.
+func (auth *Auth) ForgetServer(ctx context.Context) error {
 	if auth.selected != nil {
 		auth.selected.Clear()
 	}
@@ -248,9 +243,9 @@ func (auth *Auth) Logout(ctx context.Context) error {
 		return nil
 	}
 
-	err := auth.store.ClearAuth(ctx)
+	err := auth.store.ClearSelectedServer(ctx)
 	if err != nil {
-		return fmt.Errorf("clear auth: %w", err)
+		return fmt.Errorf("clear selected server: %w", err)
 	}
 
 	return nil
@@ -325,6 +320,75 @@ func (auth *Auth) Sessions() []plex.Session {
 	return auth.selected.Sessions()
 }
 
+// SignIn authenticates a Plex access token as a user of this installation.
+//
+// The first Plex account to sign in claims the installation as its owner. When
+// a Plex token is stored, only the account behind that token may claim it.
+// Every other account is refused. A token that is invalid or
+// refused is never used to bind a server.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - accessToken: Plex access token to sign in with.
+//
+// Returns:
+//   - user: The user the token signs in as.
+//   - err: ErrInvalidToken when Plex rejects the token, ErrNotAllowed when the
+//     account may not use this installation, otherwise the wrapped store failure.
+func (auth *Auth) SignIn(ctx context.Context, accessToken string) (User, error) {
+	candidate, ok := auth.validate(ctx, accessToken)
+	if !ok {
+		return User{}, ErrInvalidToken
+	}
+
+	user, err := auth.authorize(ctx, candidate)
+	if err != nil {
+		return User{}, fmt.Errorf("authorize: %w", err)
+	}
+
+	auth.bindServer(ctx, accessToken)
+
+	return user, nil
+}
+
+// authorize decides whether a validated Plex account may use this installation.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - candidate: The account Plex vouched for.
+//
+// Returns:
+//   - user: The stored user the account signs in as.
+//   - err: ErrNotAllowed for a refused account, otherwise the wrapped store failure.
+func (auth *Auth) authorize(ctx context.Context, candidate User) (User, error) {
+	if auth.store == nil {
+		return User{}, ErrNotAllowed
+	}
+
+	role, found, err := auth.store.UserRole(ctx, candidate.PlexID)
+	if err != nil {
+		return User{}, fmt.Errorf("look up user: %w", err)
+	}
+
+	if !found {
+		owner, claimErr := auth.claimOwner(ctx, candidate)
+		if claimErr != nil {
+			return User{}, fmt.Errorf("claim installation: %w", claimErr)
+		}
+
+		return owner, nil
+	}
+
+	touchErr := auth.store.TouchLogin(ctx, candidate.PlexID, candidate.Username)
+	if touchErr != nil {
+		log.Warn().Err(touchErr).Msg("failed to record plex sign-in")
+	}
+
+	candidate.Role = Role(role)
+
+	return candidate, nil
+}
+
 // bindServer selects the single discovered Plex server and persists the choice.
 //
 // Parameters:
@@ -359,6 +423,70 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 	}
 }
 
+// claimOwner makes a validated Plex account the owner of an installation that
+// has none.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - candidate: The account Plex vouched for.
+//
+// Returns:
+//   - user: The owner.
+//   - err: ErrNotAllowed when the installation is owned or held for another
+//     account, otherwise the wrapped store failure.
+func (auth *Auth) claimOwner(ctx context.Context, candidate User) (User, error) {
+	owned, err := auth.store.HasOwner(ctx)
+	if err != nil {
+		return User{}, fmt.Errorf("check owner: %w", err)
+	}
+
+	if owned || !auth.legacyOwnerAllows(ctx, candidate.PlexID) {
+		return User{}, ErrNotAllowed
+	}
+
+	claimed, err := auth.store.ClaimOwner(ctx, candidate.PlexID, candidate.Username)
+	if err != nil {
+		return User{}, fmt.Errorf("claim owner: %w", err)
+	}
+
+	if !claimed {
+		winner, winnerErr := auth.claimWinner(ctx, candidate)
+		if winnerErr != nil {
+			return User{}, fmt.Errorf("resolve lost claim: %w", winnerErr)
+		}
+
+		return winner, nil
+	}
+
+	return auth.settleClaim(ctx, candidate), nil
+}
+
+// claimWinner resolves a claim another sign-in won, which the same account may
+// have made from a second browser.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - candidate: The account that lost the claim.
+//
+// Returns:
+//   - user: The account with its stored role when it won the claim itself.
+//   - err: ErrNotAllowed when another account won, otherwise the wrapped store
+//     failure.
+func (auth *Auth) claimWinner(ctx context.Context, candidate User) (User, error) {
+	role, found, err := auth.store.UserRole(ctx, candidate.PlexID)
+	if err != nil {
+		return User{}, fmt.Errorf("look up user: %w", err)
+	}
+
+	if !found {
+		return User{}, ErrNotAllowed
+	}
+
+	candidate.Role = Role(role)
+
+	return candidate, nil
+}
+
 // clientFor builds a Plex client that presents the given access token.
 //
 // Parameters:
@@ -367,56 +495,101 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 // Returns:
 //   - client: A Plex client scoped to this service identity.
 func (auth *Auth) clientFor(accessToken string) *plex.Client {
-	build := auth.newClient
-	if build == nil {
-		build = plex.NewClient
-	}
-
-	return build(plex.ClientConfig{
+	return plex.NewClient(plex.ClientConfig{
 		Product:  auth.product,
 		ClientID: auth.clientID,
 		Token:    accessToken,
 		Timeout:  0,
-		BaseURL:  "",
+		BaseURL:  auth.plexURL,
 	})
 }
 
-// saveToken writes an access token to the token store.
+// legacyOwnerAllows reports whether an account may claim the installation.
+// When a Plex token is stored, only the account behind it may. A stored token
+// Plex rejects as unauthorized names no account, so it does not restrict the
+// claim. Any other failure to resolve the stored token refuses the claim.
 //
 // Parameters:
 //   - ctx: Request context.
-//   - accessToken: Plex access token to persist.
+//   - plexUserID: The account claiming ownership.
 //
 // Returns:
-//   - err: Wrapped error when the token could not be persisted.
-func (auth *Auth) saveToken(ctx context.Context, accessToken string) error {
-	if auth.store == nil {
-		return nil
-	}
-
-	err := auth.store.SaveToken(ctx, auth.clientID, accessToken)
+//   - allowed: True when nothing reserves the installation for another account.
+func (auth *Auth) legacyOwnerAllows(ctx context.Context, plexUserID int) bool {
+	legacyToken, err := auth.store.LegacyToken(ctx)
 	if err != nil {
-		return fmt.Errorf("save token: %w", err)
+		log.Warn().Err(err).Msg("failed to read the legacy plex token")
+
+		return false
 	}
 
-	return nil
+	if legacyToken == "" {
+		return true
+	}
+
+	valid, account, err := auth.clientFor(legacyToken).ValidateToken(ctx)
+	if errors.Is(err, plex.ErrUnauthorized) {
+		log.Warn().
+			Msg("the stored plex token is unauthorized, so the next sign-in claims this installation")
+
+		return true
+	}
+
+	if err != nil || !valid || account == nil || account.ID == 0 {
+		log.Warn().Err(err).Msg("failed to resolve the account behind the stored plex token")
+
+		return false
+	}
+
+	return account.ID == plexUserID
 }
 
-// validate resolves the Plex user behind an access token.
+// settleClaim completes a claim this sign-in won and deletes the stored Plex
+// tokens.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - candidate: The account that claimed the installation.
+//
+// Returns:
+//   - owner: The account as the owner.
+func (auth *Auth) settleClaim(ctx context.Context, candidate User) User {
+	err := auth.store.ClearLegacyTokens(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to clear legacy plex tokens")
+	}
+
+	log.Info().
+		Int("plex_user_id", candidate.PlexID).
+		Str("username", candidate.Username).
+		Msg("plex account claimed this installation")
+
+	candidate.Role = RoleOwner
+
+	return candidate
+}
+
+// validate resolves the Plex account behind an access token.
 //
 // Parameters:
 //   - ctx: Request context.
 //   - accessToken: Plex access token to validate.
 //
 // Returns:
-//   - userID: Plex user id, or zero when the token did not validate.
-func (auth *Auth) validate(ctx context.Context, accessToken string) int {
-	valid, user, err := auth.clientFor(accessToken).ValidateToken(ctx)
-	if err != nil || !valid || user == nil {
-		return 0
+//   - account: The account behind the token, without a role.
+//   - ok: False when Plex did not vouch for the token.
+func (auth *Auth) validate(ctx context.Context, accessToken string) (User, bool) {
+	valid, account, err := auth.clientFor(accessToken).ValidateToken(ctx)
+	if err != nil || !valid || account == nil || account.ID == 0 {
+		return User{}, false
 	}
 
-	return user.ID
+	username := account.Username
+	if username == "" {
+		username = account.Title
+	}
+
+	return User{PlexID: account.ID, Username: username, Role: ""}, true
 }
 
 // GenerateClientID returns a random Plex client identifier.
@@ -432,26 +605,4 @@ func GenerateClientID() string {
 	}
 
 	return hex.EncodeToString(buf[:])
-}
-
-// Restore returns the access token persisted by an earlier login.
-//
-// Parameters:
-//   - ctx: Request context.
-//   - store: Token store to read, which may be nil.
-//
-// Returns:
-//   - accessToken: Plex access token, or empty when none is stored or the
-//     read failed.
-func Restore(ctx context.Context, store TokenStore) string {
-	if store == nil {
-		return ""
-	}
-
-	accessToken, err := store.LatestToken(ctx)
-	if err != nil {
-		return ""
-	}
-
-	return accessToken
 }

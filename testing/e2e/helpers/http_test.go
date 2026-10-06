@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/csrf"
 	"github.com/stretchr/testify/assert"
@@ -121,11 +122,13 @@ func newProbeApp(t *testing.T) *app.App {
 		FFprobePath:           ResolveBinary(ffprobeBin),
 		LogLevel:              "error",
 		Env:                   Environment,
-		SessionPollSec:        sessionPollSeconds,
+		SessionPoll:           sessionPollSeconds * time.Second,
 		NumWorkers:            numWorkers,
 		MaxConcurrentPreviews: maxConcurrentPreviews,
 		MaxClipDur:            maxClipDuration,
 		PlexClientID:          ClientID,
+		// httptest requests name example.com as their host.
+		AllowedHosts: "example.com",
 	}
 
 	application, err := app.New(cfg)

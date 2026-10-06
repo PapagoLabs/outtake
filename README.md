@@ -205,6 +205,7 @@ media only**, not the clip store, and not Kubernetes media NFS.
 | --- | --- | --- |
 | `OUTTAKE_LISTEN_ADDR` | Address the web server binds | `0.0.0.0:8080` (images use `:8080`) |
 | `OUTTAKE_PUBLIC_BASE_URL` | URL Plex should return to after sign-in | derived from the listen address, or `http://localhost:8080` in images |
+| `OUTTAKE_ALLOWED_HOSTS` | More host names Outtake answers to, separated by commas. A leading dot covers a whole domain (`.example.com`). `*` turns the host check off | unset |
 | `OUTTAKE_DATABASE_BACKEND` | `sqlite` or `postgres` | `sqlite` |
 | `OUTTAKE_DATABASE_PATH` | SQLite database file | `~/.local/share/outtake/outtake.db` (images use `/data/outtake.db`) |
 | `OUTTAKE_DATABASE_URL` | Postgres/pgx DSN (when backend is `postgres`) | unset |
@@ -228,7 +229,7 @@ media only**, not the clip store, and not Kubernetes media NFS.
 | `OUTTAKE_LOG_LEVEL` | `debug`, `info`, `warn`, or `error` | `info` |
 | `OUTTAKE_PLEX_SERVER_URL` | Optional Plex Media Server URL | unset |
 | `OUTTAKE_PLEX_TOKEN` | Optional Plex token (browser sign-in does not need this) | unset |
-| `OUTTAKE_PLEX_CLIENT_ID` | Plex client identifier | generated if unset |
+| `OUTTAKE_PLEX_CLIENT_ID` | Plex client identifier | generated on first start and kept in the database |
 
 Plex gives Outtake absolute file paths. If those paths are not readable
 as-is (typical in Docker), set `OUTTAKE_LOCAL_MEDIA_ROOT` to the mount.
@@ -239,10 +240,18 @@ set, the Plex path is joined under that mount.
 If you open Outtake from another host, set `OUTTAKE_PUBLIC_BASE_URL` to
 the URL you type in the browser so Plex sign-in can return.
 
+Outtake only answers requests addressed to an IP address, `localhost`, a
+name with no dots (`nas`), a private name (`nas.local`, `*.lan`, `*.home`,
+`*.home.arpa`, `*.internal`), the host in `OUTTAKE_PUBLIC_BASE_URL`, or a
+host listed in `OUTTAKE_ALLOWED_HOSTS`. Any other host gets
+`421 Misdirected Request`. That keeps a web page on another site from
+reaching your Outtake through DNS rebinding.
+
 ## First run
 
 1. Open [http://localhost:8080](http://localhost:8080). Unauthenticated
-   visits redirect to **Login**.
+   visits redirect to **Login**. The first Plex account to sign in becomes
+   the **owner**, and Outtake refuses every other Plex account.
 2. Choose **Sign in with Plex**. Outtake opens the Plex Auth App in a
    popup and shows **Waiting for Plex authorization...** until you approve
    it.
@@ -252,7 +261,20 @@ the URL you type in the browser so Plex sign-in can return.
    Choose **Use this server**, or enter a custom URL such as
    `https://plex.example.com` and choose **Use this URL**.
 
-You can change servers later under **Settings → Servers**.
+You can change servers later under **Settings → Servers**, where
+**Forget server** stops Outtake from using the current one. **Logout** ends
+only the session in that browser.
+
+To hand Outtake to a different Plex account, reset the owner and restart:
+
+```bash
+docker exec outtake /outtake owner reset
+docker restart outtake
+```
+
+The reset also forgets the server the old owner chose. The next Plex
+account to sign in becomes the owner. If you upgraded from a version
+without owners, only the account that signed in last can claim Outtake.
 
 ## Make a clip
 
@@ -284,6 +306,11 @@ is higher quality.
 - **Login never finishes.** Approve the Plex popup. If you reach Outtake
   through a hostname other than localhost, set `OUTTAKE_PUBLIC_BASE_URL`
   to that URL.
+- **"This Outtake belongs to a different Plex account."** Sign in with the
+  owner's Plex account, or reset the owner (see [First run](#first-run)).
+- **421 Misdirected Request.** You reached Outtake through a host name it
+  does not know. Set `OUTTAKE_PUBLIC_BASE_URL` to the URL you use, or add
+  the host to `OUTTAKE_ALLOWED_HOSTS`.
 - **No Plex servers were discovered.** Use **Custom server URL** on the
   servers page. Outtake must be able to reach that address.
 - **No media found.** Select a server first, then search or browse again.

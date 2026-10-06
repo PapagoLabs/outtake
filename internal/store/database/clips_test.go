@@ -370,17 +370,17 @@ func TestScanJobReportsAnUnusableRow(t *testing.T) {
 	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
-func TestTokenAndServerPersistence(t *testing.T) {
+func TestLegacyTokenAndServerPersistence(t *testing.T) {
 	t.Parallel()
 
 	db, err := New(t.TempDir() + "/tokens.db")
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	require.NoError(t, db.SaveToken(t.Context(), "client-a", "token-1"))
-	require.NoError(t, db.SaveToken(t.Context(), "client-a", "token-2"))
+	seedLegacyToken(t, db, "client-a", "token-1")
+	seedLegacyToken(t, db, "client-b", "token-2")
 
-	token, err := db.LatestToken(t.Context())
+	token, err := db.LegacyToken(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "token-2", token)
 
@@ -399,11 +399,17 @@ func TestTokenAndServerPersistence(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, server, got)
 
-	require.NoError(t, db.ClearAuth(t.Context()))
+	require.NoError(t, db.ClearLegacyTokens(t.Context()))
 
-	token, err = db.LatestToken(t.Context())
+	token, err = db.LegacyToken(t.Context())
 	require.NoError(t, err)
 	assert.Empty(t, token)
+
+	_, ok, err = db.SelectedServer(t.Context())
+	require.NoError(t, err)
+	assert.True(t, ok, "clearing the legacy tokens keeps the selected server")
+
+	require.NoError(t, db.ClearSelectedServer(t.Context()))
 
 	_, ok, err = db.SelectedServer(t.Context())
 	require.NoError(t, err)
@@ -417,14 +423,32 @@ func TestMigrateIdempotent(t *testing.T) {
 
 	db, err := New(path)
 	require.NoError(t, err)
-	require.NoError(t, db.SaveToken(t.Context(), "c", "t"))
+	require.NoError(t, db.SaveSetting(t.Context(), "probe", "kept"))
 	require.NoError(t, db.Close())
 
 	db, err = New(path)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
-	token, err := db.LatestToken(t.Context())
+	value, found, err := db.Setting(t.Context(), "probe")
 	require.NoError(t, err)
-	assert.Equal(t, "t", token)
+	assert.True(t, found)
+	assert.Equal(t, "kept", value)
+}
+
+// seedLegacyToken inserts a row into plex_tokens.
+//
+// Parameters:
+//   - t: The test that owns the database.
+//   - db: Database to seed.
+//   - clientID: Client identifier the token was issued to.
+//   - token: Plex access token to store.
+func seedLegacyToken(t *testing.T, db *DB, clientID, token string) {
+	t.Helper()
+
+	_, err := db.conn.ExecContext(t.Context(), db.rewrite(`
+		INSERT INTO plex_tokens (client_id, access_token, created_at, updated_at)
+		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	`), clientID, token)
+	require.NoError(t, err)
 }

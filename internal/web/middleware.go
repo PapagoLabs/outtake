@@ -135,6 +135,25 @@ func csrfTrustedOrigins(cfg *config.Config) []string {
 	return []string{parsed.Scheme + "://" + parsed.Host}
 }
 
+// hostAllowlist returns the host names the host guard answers to beyond the
+// ones it always allows: the configured list and the public base URL's host.
+//
+// Parameters:
+//   - cfg: App config naming the allowed hosts and the public base URL.
+//
+// Returns:
+//   - hosts: The allowlist HostGuard reads.
+func hostAllowlist(cfg *config.Config) []string {
+	hosts := cfg.AllowedHostList()
+
+	parsed, err := url.Parse(cfg.PublicURL())
+	if err == nil && parsed.Hostname() != "" {
+		hosts = append(hosts, parsed.Hostname())
+	}
+
+	return hosts
+}
+
 // cookieSecure reports whether cookies should set the Secure attribute.
 //
 // Parameters:

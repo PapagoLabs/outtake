@@ -5,10 +5,12 @@ package auth
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -38,6 +40,10 @@ type authBrowser struct {
 }
 
 // authAnswer is what one served auth request produced.
+
+// pinToken is the access token the plex.tv stand-in hands out for the pending
+// PIN.
+const pinToken = "pin-token"
 
 // sessionApp builds an app carrying nothing but the session middleware.
 //
@@ -82,19 +88,91 @@ func authApp(t *testing.T) *fiber.App {
 //
 // Parameters:
 //   - t: The test the service belongs to.
-//   - store: Token store the service persists through, which may be nil.
+//   - store: Owner and server persistence, which may be nil.
 //   - selected: Plex server binding, which may be nil.
 //
 // Returns:
 //   - handler: The auth handler under test.
 func authHandler(
 	t *testing.T,
-	store identity.TokenStore,
+	store identity.Store,
 	selected identity.ServerBinding,
 ) *Handler {
 	t.Helper()
 
 	return New(identity.New("outtake", "test-client", "http://localhost", store, selected))
+}
+
+// newPlexTV stands in for plex.tv. The user endpoint answers with the account
+// each token belongs to and 401 for any other token, and the pending PIN
+// resolves to pinToken.
+//
+// Parameters:
+//   - t: The test the stand-in belongs to.
+//   - accounts: The plex.tv user JSON per access token.
+//
+// Returns:
+//   - server: The running plex.tv stand-in.
+func newPlexTV(t *testing.T, accounts map[string]string) *httptest.Server {
+	t.Helper()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v2/user", func(writer http.ResponseWriter, request *http.Request) {
+		account, ok := accounts[request.Header.Get("X-Plex-Token")]
+		if !ok {
+			writer.WriteHeader(http.StatusUnauthorized)
+
+			return
+		}
+
+		_, _ = writer.Write([]byte(account))
+	})
+	mux.HandleFunc("/api/v2/pins/4321", func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(`{"authToken": "` + pinToken + `"}`))
+	})
+
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	return server
+}
+
+// liveHandler builds the handler under test around a Plex authentication
+// service whose Plex calls reach a stand-in.
+//
+// Parameters:
+//   - t: The test the service belongs to.
+//   - plexTV: The plex.tv stand-in.
+//   - store: Owner and server persistence.
+//
+// Returns:
+//   - handler: The auth handler under test.
+func liveHandler(t *testing.T, plexTV *httptest.Server, store identity.Store) *Handler {
+	t.Helper()
+
+	return New(identity.New(
+		"outtake", "test-client", "http://localhost", store, nil,
+		identity.WithPlexURL(plexTV.URL),
+	))
+}
+
+// ownerStore is a store in which account 42 owns the installation.
+//
+// Parameters:
+//   - t: The test the store belongs to.
+//
+// Returns:
+//   - store: A store that knows account 42 as the owner.
+func ownerStore(t *testing.T) *identitymocks.MockStore {
+	t.Helper()
+
+	store := identitymocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 42).Return("owner", true, nil).Maybe()
+	store.EXPECT().UserRole(mock.Anything, mock.Anything).Return("", false, nil).Maybe()
+	store.EXPECT().TouchLogin(mock.Anything, 42, mock.Anything).Return(nil).Maybe()
+	store.EXPECT().HasOwner(mock.Anything).Return(true, nil).Maybe()
+
+	return store
 }
 
 // browser issues requests against an app, carrying the session cookie between
@@ -113,6 +191,23 @@ func newBrowser(t *testing.T, app *fiber.App) *authBrowser {
 }
 
 // authBrowser issues requests that share one session.
+
+// cookie returns the value of a cookie the browser holds.
+//
+// Parameters:
+//   - name: Cookie name.
+//
+// Returns:
+//   - value: The cookie value, empty when the browser holds none.
+func (browser *authBrowser) cookie(name string) string {
+	for _, held := range browser.cookies {
+		if held.Name == name {
+			return held.Value
+		}
+	}
+
+	return ""
+}
 
 // do issues one request against the app.
 //
@@ -157,9 +252,23 @@ func (browser *authBrowser) do(
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(browser.t, err)
 
-	browser.cookies = append(browser.cookies, resp.Cookies()...)
+	browser.keep(resp.Cookies())
 
 	return authAnswer{status: resp.StatusCode, header: resp.Header, body: string(body)}
+}
+
+// keep stores the cookies a response set, replacing any of the same name the
+// way a browser does.
+//
+// Parameters:
+//   - set: Cookies the response set.
+func (browser *authBrowser) keep(set []*http.Cookie) {
+	for _, cookie := range set {
+		browser.cookies = slices.DeleteFunc(browser.cookies, func(held *http.Cookie) bool {
+			return held.Name == cookie.Name
+		})
+		browser.cookies = append(browser.cookies, cookie)
+	}
 }
 
 // seedSession stores values on the session later requests will see.
@@ -292,7 +401,7 @@ func TestLoginRejectsATokenPlexWillNotAccept(t *testing.T) {
 func TestLoginKeepsARejectedTokenOutOfTheSessionAndTheStore(t *testing.T) {
 	t.Parallel()
 
-	store := identitymocks.NewMockTokenStore(t)
+	store := identitymocks.NewMockStore(t)
 
 	app := authApp(t)
 	app.Post("/api/auth/login", authHandler(t, store, nil).Login)
@@ -456,23 +565,6 @@ func TestStatusKeepsThePendingPINWhilePlexHasNotAnswered(t *testing.T) {
 		"the next poll has to be able to ask about the same PIN")
 }
 
-func TestStatusReportsAFailedLogout(t *testing.T) {
-	t.Parallel()
-
-	store := identitymocks.NewMockTokenStore(t)
-	store.EXPECT().ClearAuth(mock.Anything).Return(errStoreClosed)
-
-	app := authApp(t)
-	app.Post("/api/auth/logout", authHandler(t, store, nil).Logout)
-
-	browser := newBrowser(t, app)
-
-	answer := browser.do(http.MethodPost, "/api/auth/logout", "", false)
-
-	assert.Equal(t, fiber.StatusInternalServerError, answer.status)
-	assert.Contains(t, answer.body, api.LogoutFailed)
-}
-
 func TestPostAuthPathSendsAnUnboundInstallToTheServerPicker(t *testing.T) {
 	t.Parallel()
 
@@ -499,19 +591,18 @@ func TestPostAuthPathToleratesNoBindingAtAll(t *testing.T) {
 	assert.Equal(t, routes.PathServers, authHandler(t, nil, nil).postAuthPath())
 }
 
-func TestFinishAuthAuthenticatesEvenWhenTheTokenCannotBePersisted(t *testing.T) {
+func TestFinishAuthLeavesTheSessionAnonymousWhenPlexRejectsTheToken(t *testing.T) {
 	t.Parallel()
 
-	store := identitymocks.NewMockTokenStore(t)
-	store.EXPECT().SaveToken(mock.Anything, "test-client", "typed-token").
-		Return(errStoreClosed)
-
+	// The store and the binding have no expectations, so any use fails the test.
+	store := identitymocks.NewMockStore(t)
 	binding := identitymocks.NewMockServerBinding(t)
-	binding.EXPECT().Get().Return(plex.EmptyServer(), false)
+
+	var finishErr error
 
 	app := authApp(t)
 	app.Post("/finish", func(ctx fiber.Ctx) error {
-		authHandler(t, store, binding).
+		finishErr = authHandler(t, store, binding).
 			finishAuth(ctx, session.FromContext(ctx), "typed-token")
 
 		return ctx.SendStatus(fiber.StatusOK)
@@ -520,23 +611,66 @@ func TestFinishAuthAuthenticatesEvenWhenTheTokenCannotBePersisted(t *testing.T) 
 	browser := newBrowser(t, app)
 
 	browser.do(http.MethodPost, "/finish", "", false)
+
+	require.ErrorIs(t, finishErr, identity.ErrInvalidToken)
 
 	got := readSession(t, browser, func(sess *session.Middleware) any {
-		userID, _ := sess.Get(identity.SessionKeyUserID).(int)
-
-		return []any{identity.Token(sess), userID}
+		return []any{identity.Token(sess), identity.UserID(sess)}
 	})
 
-	assert.Equal(t, []any{"typed-token", 0}, got,
-		"a token that could not be written still authenticates the session")
+	assert.Equal(t, []any{"", 0}, got,
+		"a token Plex did not vouch for never reaches the session")
 }
 
-func TestFinishAuthStoresTheTokenOnTheSession(t *testing.T) {
+func TestFinishAuthCarriesTheOwnerOnAFreshSession(t *testing.T) {
 	t.Parallel()
 
-	app := authApp(t)
+	plexTV := newPlexTV(t, map[string]string{"typed-token": `{"id": 42, "username": "nick"}`})
+
+	var finishErr error
+
+	app := sessionApp(t)
 	app.Post("/finish", func(ctx fiber.Ctx) error {
-		authHandler(t, nil, nil).
+		finishErr = liveHandler(t, plexTV, ownerStore(t)).
+			finishAuth(ctx, session.FromContext(ctx), "typed-token")
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	browser := newBrowser(t, app)
+
+	seedSession(t, browser, map[string]any{"seeded": true})
+
+	before := browser.cookie("session_id")
+	require.NotEmpty(t, before)
+
+	browser.do(http.MethodPost, "/finish", "", false)
+
+	require.NoError(t, finishErr)
+
+	assert.NotEqual(t, before, browser.cookie("session_id"),
+		"signing in moves the browser to a new session id")
+
+	got := readSession(t, browser, func(sess *session.Middleware) any {
+		seeded, _ := sess.Get("seeded").(bool)
+
+		return []any{identity.Token(sess), identity.UserID(sess), seeded}
+	})
+
+	assert.Equal(t, []any{"typed-token", 42, true}, got,
+		"the new session carries the token, the user, and what the old one held")
+}
+
+func TestFinishAuthRefusesAnAccountTheInstallationDoesNotBelongTo(t *testing.T) {
+	t.Parallel()
+
+	plexTV := newPlexTV(t, map[string]string{"typed-token": `{"id": 7, "username": "intruder"}`})
+
+	var finishErr error
+
+	app := sessionApp(t)
+	app.Post("/finish", func(ctx fiber.Ctx) error {
+		finishErr = liveHandler(t, plexTV, ownerStore(t)).
 			finishAuth(ctx, session.FromContext(ctx), "typed-token")
 
 		return ctx.SendStatus(fiber.StatusOK)
@@ -546,11 +680,135 @@ func TestFinishAuthStoresTheTokenOnTheSession(t *testing.T) {
 
 	browser.do(http.MethodPost, "/finish", "", false)
 
-	assert.Equal(t, "typed-token",
-		readSession(t, browser, func(sess *session.Middleware) any {
-			return identity.Token(sess)
-		}),
-		"the session carries the token Plex handed out")
+	require.ErrorIs(t, finishErr, identity.ErrNotAllowed)
+
+	got := readSession(t, browser, func(sess *session.Middleware) any {
+		return []any{identity.Token(sess), identity.UserID(sess)}
+	})
+
+	assert.Equal(t, []any{"", 0}, got, "a refused account never reaches the session")
+}
+
+func TestLoginSignsTheOwnerInWithAnEnteredToken(t *testing.T) {
+	t.Parallel()
+
+	plexTV := newPlexTV(t, map[string]string{"typed-token": `{"id": 42, "username": "nick"}`})
+
+	app := sessionApp(t)
+	app.Post("/api/auth/login", liveHandler(t, plexTV, ownerStore(t)).Login)
+
+	browser := newBrowser(t, app)
+
+	answer := browser.do(
+		http.MethodPost,
+		"/api/auth/login",
+		url.Values{"token": {"typed-token"}}.Encode(),
+		false,
+	)
+
+	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	assert.Equal(t, fiber.StatusSeeOther, answer.status)
+	assert.Equal(t, routes.PathServers, path, "no server is bound yet, so the owner picks one")
+	assert.Empty(t, flash)
+}
+
+func TestLoginExplainsWhyAnotherAccountIsRefused(t *testing.T) {
+	t.Parallel()
+
+	plexTV := newPlexTV(t, map[string]string{"typed-token": `{"id": 7, "username": "intruder"}`})
+
+	app := sessionApp(t)
+	app.Post("/api/auth/login", liveHandler(t, plexTV, ownerStore(t)).Login)
+
+	browser := newBrowser(t, app)
+
+	answer := browser.do(
+		http.MethodPost,
+		"/api/auth/login",
+		url.Values{"token": {"typed-token"}}.Encode(),
+		false,
+	)
+
+	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	assert.Equal(t, routes.PathLogin, path)
+	assert.Equal(t, msgNotOwner, flash)
+}
+
+func TestCallbackSendsARefusedAccountBackToTheLoginPage(t *testing.T) {
+	t.Parallel()
+
+	plexTV := newPlexTV(t, map[string]string{pinToken: `{"id": 7, "username": "intruder"}`})
+
+	app := sessionApp(t)
+	app.Get("/api/auth/callback", liveHandler(t, plexTV, ownerStore(t)).Callback)
+
+	browser := newBrowser(t, app)
+
+	seedSession(t, browser, pendingPIN())
+
+	answer := browser.do(http.MethodGet, "/api/auth/callback", "", false)
+
+	assert.Equal(t, fiber.StatusOK, answer.status, "the popup hand-off page still renders")
+	assert.Contains(t, answer.body, url.QueryEscape(msgNotOwner),
+		"the hand-off sends the opener to the login page with the reason")
+}
+
+func TestCallbackSignsTheOwnerIn(t *testing.T) {
+	t.Parallel()
+
+	plexTV := newPlexTV(t, map[string]string{pinToken: `{"id": 42, "username": "nick"}`})
+
+	app := sessionApp(t)
+	app.Get("/api/auth/callback", liveHandler(t, plexTV, ownerStore(t)).Callback)
+
+	browser := newBrowser(t, app)
+
+	seedSession(t, browser, pendingPIN())
+
+	answer := browser.do(http.MethodGet, "/api/auth/callback", "", false)
+
+	assert.Equal(t, fiber.StatusOK, answer.status)
+	assert.Contains(t, answer.body, routes.PathServers)
+
+	got := readSession(t, browser, func(sess *session.Middleware) any {
+		pinID, _ := identity.StoredPIN(sess)
+
+		return []any{identity.Token(sess), identity.UserID(sess), pinID}
+	})
+
+	assert.Equal(t, []any{pinToken, 42, 0}, got, "the PIN is spent and the owner is signed in")
+}
+
+func TestStatusRedirectsARefusedAccountToTheLoginPage(t *testing.T) {
+	t.Parallel()
+
+	plexTV := newPlexTV(t, map[string]string{pinToken: `{"id": 7, "username": "intruder"}`})
+
+	app := sessionApp(t)
+	app.Get("/api/auth/status", liveHandler(t, plexTV, ownerStore(t)).Status)
+
+	browser := newBrowser(t, app)
+
+	seedSession(t, browser, pendingPIN())
+
+	answer := browser.do(http.MethodGet, "/api/auth/status", "", true)
+
+	path, flash := flashOf(t, answer.header.Get("Hx-Redirect"))
+	assert.Equal(t, statusRefused, answer.body)
+	assert.Equal(t, routes.PathLogin, path)
+	assert.Equal(t, msgNotOwner, flash)
+}
+
+func TestRefusalMessageExplainsEachFailure(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, msgNotOwner, refusalMessage(fmt.Errorf("sign in: %w", identity.ErrNotAllowed)))
+	assert.Equal(
+		t,
+		msgInvalidPlexToken,
+		refusalMessage(fmt.Errorf("sign in: %w", identity.ErrInvalidToken)),
+	)
+	assert.Equal(t, msgSignInFailed, refusalMessage(assert.AnError))
 }
 
 func TestSendAuthCompleteReportsARenderFailure(t *testing.T) {

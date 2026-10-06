@@ -176,7 +176,7 @@ func (a *App) WaitForClipStatus(
 	for {
 		clip := DecodeClip(ReadBody(a.Do(ctx, http.MethodGet, path)))
 
-		if clip.Status == expected {
+		if string(clip.Status) == expected {
 			return
 		}
 

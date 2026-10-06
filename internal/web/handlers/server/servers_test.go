@@ -129,7 +129,7 @@ func selectServer(t *testing.T, handler *Handler, form string) pageAnswer {
 	t.Helper()
 
 	return serveMethod(t, serversApp(handler), http.MethodPost, routes.PathServers+"/select",
-		false, "", form)
+		false, form)
 }
 
 // flashOf reads the path and flash text a redirect carries.
@@ -264,6 +264,64 @@ func TestServersWarnsWithNoServerBound(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, `name="customUrl"`,
 		"with no Plex bound, typing an address is the only way forward")
+}
+
+func TestServersOffersToForgetTheServerInUse(t *testing.T) {
+	t.Parallel()
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().Selected().Return(plex.Server{Name: "Attic"}, true).Maybe()
+
+	answer := getServers(t, pageHandler(t, auth, silentSources(t)))
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, `action="/servers/forget"`,
+		"a server in use can be forgotten")
+	assertBodyContains(t, answer.body, "data-confirm",
+		"forgetting the server asks first")
+}
+
+func TestServersOffersNothingToForgetWithoutAServerInUse(t *testing.T) {
+	t.Parallel()
+
+	answer := getServers(t, pageHandler(t, offlineAuth(t), silentSources(t)))
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyOmits(t, answer.body, "/servers/forget",
+		"there is no server to forget")
+}
+
+func TestForgetServerReturnsToTheServerPicker(t *testing.T) {
+	t.Parallel()
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().ForgetServer(mock.Anything).Return(nil).Once()
+
+	app := fiber.New()
+	app.Post("/servers/forget", pageHandler(t, auth, silentSources(t)).ForgetServer)
+
+	answer := serveMethod(t, app, http.MethodPost, "/servers/forget", false, "")
+
+	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	assert.Equal(t, fiber.StatusSeeOther, answer.status)
+	assert.Equal(t, routes.PathServers, path, "the owner picks the next server")
+	assert.Empty(t, flash)
+}
+
+func TestForgetServerReportsAServerItCouldNotForget(t *testing.T) {
+	t.Parallel()
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().ForgetServer(mock.Anything).Return(errSelectFailed).Once()
+
+	app := fiber.New()
+	app.Post("/servers/forget", pageHandler(t, auth, silentSources(t)).ForgetServer)
+
+	answer := serveMethod(t, app, http.MethodPost, "/servers/forget", false, "")
+
+	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	assert.Equal(t, routes.PathServers, path)
+	assert.NotEmpty(t, flash, "the owner is told the server was not forgotten")
 }
 
 func TestSelectServerBindsACustomURL(t *testing.T) {

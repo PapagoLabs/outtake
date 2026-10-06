@@ -212,9 +212,6 @@ func TestLogoutFormFlow(t *testing.T) {
 	token := csrfTokenFromLoginHTML(string(loginBody))
 	require.NotEmpty(t, token)
 
-	err = application.db.SaveToken(t.Context(), "test-client", "plex-token")
-	require.NoError(t, err)
-
 	form := url.Values{}
 	form.Set(identity.CSRFFormField, token)
 
@@ -271,8 +268,10 @@ func testAppConfig(t *testing.T, publicBaseURL string) *config.Config {
 		PlexToken:       "",
 		PlexClientID:    "",
 		PublicBaseURL:   publicBaseURL,
-		PlexMediaRoot:   "",
-		LocalMediaRoot:  "",
+		// httptest requests name example.com as their host.
+		AllowedHosts:   "example.com",
+		PlexMediaRoot:  "",
+		LocalMediaRoot: "",
 	}
 }
 
@@ -325,7 +324,8 @@ func TestPlexIdentityGeneratesAClientIDWhenNoneIsConfigured(t *testing.T) {
 
 	db := testDatabase(t)
 
-	auth, bind := plexIdentity(testAppConfig(t, ""), db)
+	auth, bind, err := plexIdentity(testAppConfig(t, ""), db)
+	require.NoError(t, err)
 	t.Cleanup(bind.Stop)
 
 	require.NotNil(t, auth, "a generated client id still yields an auth service")
@@ -342,11 +342,123 @@ func TestPlexIdentityKeepsTheConfiguredClientID(t *testing.T) {
 
 	cfg.PlexClientID = "configured-client-id"
 
-	auth, bind := plexIdentity(cfg, testDatabase(t))
+	auth, bind, err := plexIdentity(cfg, testDatabase(t))
+	require.NoError(t, err)
 	t.Cleanup(bind.Stop)
 
 	require.NotNil(t, auth, "a configured client id still yields an auth service")
 	assert.False(t, auth.Bound())
+}
+
+func TestResolveClientIDKeepsAGeneratedIDAcrossRestarts(t *testing.T) {
+	t.Parallel()
+
+	db := testDatabase(t)
+	cfg := testAppConfig(t, "")
+
+	first, err := resolveClientID(t.Context(), cfg, db)
+	require.NoError(t, err)
+
+	second, err := resolveClientID(t.Context(), cfg, db)
+	require.NoError(t, err)
+
+	require.NotEmpty(t, first)
+	assert.Equal(t, first, second, "Plex sees the same device after a restart")
+
+	stored, found, err := db.Setting(t.Context(), clientIDSetting)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, first, stored)
+}
+
+func TestResolveClientIDPrefersTheConfiguredID(t *testing.T) {
+	t.Parallel()
+
+	db := testDatabase(t)
+	cfg := testAppConfig(t, "")
+
+	cfg.PlexClientID = "configured-client-id"
+
+	clientID, err := resolveClientID(t.Context(), cfg, db)
+	require.NoError(t, err)
+	assert.Equal(t, "configured-client-id", clientID)
+
+	_, found, err := db.Setting(t.Context(), clientIDSetting)
+	require.NoError(t, err)
+	assert.False(t, found, "a configured id is not copied into the database")
+}
+
+func TestResolveClientIDReportsAnUnreadableDatabase(t *testing.T) {
+	t.Parallel()
+
+	clientID, err := resolveClientID(t.Context(), testAppConfig(t, ""), closedDatabase(t))
+
+	require.ErrorContains(t, err, "read client id")
+	assert.Empty(t, clientID)
+}
+
+func TestPlexIdentityReportsAClientIDItCannotResolve(t *testing.T) {
+	t.Parallel()
+
+	auth, bind, err := plexIdentity(testAppConfig(t, ""), closedDatabase(t))
+
+	require.ErrorContains(t, err, "resolve client id")
+	assert.Nil(t, auth)
+	assert.Nil(t, bind)
+}
+
+func TestNewRefusesTheE2EEnvironmentOffLoopback(t *testing.T) {
+	t.Parallel()
+
+	cfg := testAppConfig(t, "")
+
+	cfg.Env = config.EnvE2E
+	cfg.ListenAddr = "0.0.0.0:8080"
+
+	application, err := New(cfg)
+
+	require.ErrorIs(t, err, errE2EOffLoopback)
+	assert.Nil(t, application)
+}
+
+func TestCheckEnvironment(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		env  string
+		addr string
+		ok   bool
+	}{
+		{name: "production on every interface", env: "production", addr: "0.0.0.0:8080", ok: true},
+		{name: "e2e on IPv4 loopback", env: config.EnvE2E, addr: "127.0.0.1:0", ok: true},
+		{name: "e2e on IPv6 loopback", env: config.EnvE2E, addr: "[::1]:8080", ok: true},
+		{name: "e2e on localhost", env: config.EnvE2E, addr: "localhost:8080", ok: true},
+		{name: "e2e on every interface", env: config.EnvE2E, addr: "0.0.0.0:8080", ok: false},
+		{name: "e2e with no host", env: config.EnvE2E, addr: ":8080", ok: false},
+		{name: "e2e on a LAN address", env: config.EnvE2E, addr: "192.168.1.5:8080", ok: false},
+		{
+			name: "e2e on an unreadable address",
+			env:  config.EnvE2E,
+			addr: "not-an-address",
+			ok:   false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := checkEnvironment(&config.Config{Env: test.env, ListenAddr: test.addr})
+			if test.ok {
+				assert.NoError(t, err)
+
+				return
+			}
+
+			assert.ErrorIs(t, err, errE2EOffLoopback)
+		})
+	}
 }
 
 func TestRunReportsAListenFailure(t *testing.T) {

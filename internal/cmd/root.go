@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/PapagoLabs/outtake/internal/cmd/health"
+	"github.com/PapagoLabs/outtake/internal/cmd/owner"
 	"github.com/PapagoLabs/outtake/internal/cmd/server"
 	"github.com/PapagoLabs/outtake/internal/cmd/version"
 )
@@ -27,6 +28,7 @@ func Execute() error {
 
 	rootCmd.AddCommand(server.NewCommand())
 	rootCmd.AddCommand(health.NewCommand())
+	rootCmd.AddCommand(owner.NewCommand())
 	rootCmd.AddCommand(version.NewCommand())
 
 	err := rootCmd.Execute()

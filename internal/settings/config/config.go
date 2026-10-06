@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/adrg/xdg"
 	"github.com/spf13/viper"
@@ -79,11 +80,20 @@ type Config struct {
 	PlexClientID string `mapstructure:"plex-client-id"`
 	// PublicBaseURL is the externally reachable base URL for Plex callbacks.
 	PublicBaseURL string `mapstructure:"public-base-url"`
+	// AllowedHosts lists further host names the server answers to, separated by
+	// commas or spaces. A leading dot covers a whole domain and "*" turns the
+	// host check off.
+	AllowedHosts string `mapstructure:"allowed-hosts"`
 	// PlexMediaRoot is the media path prefix as reported by Plex.
 	PlexMediaRoot string `mapstructure:"plex-media-root"`
 	// LocalMediaRoot is the local path prefix that replaces PlexMediaRoot.
 	LocalMediaRoot string `mapstructure:"local-media-root"`
 }
+
+// EnvE2E is the environment the end-to-end suite runs the app in. It skips
+// sign-in and reads media ids as local file paths, so the app only accepts it
+// on a loopback listen address.
+const EnvE2E = "e2e"
 
 const (
 	// appName is the application name.
@@ -219,6 +229,7 @@ func emptyConfig() *Config {
 		PlexToken:       "",
 		PlexClientID:    "",
 		PublicBaseURL:   "",
+		AllowedHosts:    "",
 		PlexMediaRoot:   "",
 		LocalMediaRoot:  "",
 	}
@@ -252,6 +263,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("crop-black-bars", false)
 	viperInstance.SetDefault("preserve-hdr", false)
 	viperInstance.SetDefault("web-safe-color", false)
+	viperInstance.SetDefault("allowed-hosts", "")
 	viperInstance.SetDefault("plex-media-root", "")
 	viperInstance.SetDefault("local-media-root", "")
 }
@@ -349,6 +361,7 @@ func bindEnv(viperInstance *viper.Viper) error {
 		"plex-token",
 		"plex-client-id",
 		"public-base-url",
+		"allowed-hosts",
 		"plex-media-root",
 		"local-media-root",
 	}
@@ -361,6 +374,16 @@ func bindEnv(viperInstance *viper.Viper) error {
 	}
 
 	return nil
+}
+
+// AllowedHostList splits AllowedHosts into the entries it lists.
+//
+// Returns:
+//   - hosts: The listed host names, domains, and wildcard, in order.
+func (cfg *Config) AllowedHostList() []string {
+	return strings.FieldsFunc(cfg.AllowedHosts, func(char rune) bool {
+		return char == ',' || unicode.IsSpace(char)
+	})
 }
 
 // PublicURL returns the base URL used for Plex OAuth callbacks.

@@ -5,10 +5,12 @@ package web
 
 import (
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -55,13 +57,26 @@ type answer struct {
 type browser struct {
 	// app is the router under test.
 	app *fiber.App
-	// db is the store RestoreToken reads the persisted token from.
+	// db is the store the owner and the selected server live in.
 	db *database.DB
 	// cookies are the cookies the application set.
 	cookies []*http.Cookie
 	// csrfToken is the token the CSRF cookie carries.
 	csrfToken string
+	// host is the Host header the browser sends.
+	host string
 }
+
+const (
+	// ownerToken is the Plex token the plex.tv stand-in maps to account 42.
+	ownerToken = "plex-token"
+
+	// otherToken is the Plex token the plex.tv stand-in maps to account 7.
+	otherToken = "other-token"
+
+	// routerHost is the Host header every browser request carries.
+	routerHost = "localhost"
+)
 
 // wantRoutes is the complete route table New must register, in registration
 // order, with each route classified as guarded or open.
@@ -109,6 +124,7 @@ var wantRoutes = []routerRoute{
 		sample:  "/settings/profiles",
 	},
 	{method: http.MethodPost, path: "/servers", guarded: true, sample: "/servers"},
+	{method: http.MethodPost, path: "/servers/forget", guarded: true, sample: "/servers/forget"},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/profiles",
@@ -183,7 +199,7 @@ var wantRoutes = []routerRoute{
 	{method: http.MethodPost, path: "/api/auth/login", sample: "/api/auth/login"},
 	{method: http.MethodGet, path: "/api/auth/callback", sample: "/api/auth/callback"},
 	{method: http.MethodGet, path: "/api/auth/status", sample: "/api/auth/status"},
-	{method: http.MethodPost, path: "/api/auth/logout", guarded: true, sample: "/api/auth/logout"},
+	{method: http.MethodPost, path: "/api/auth/logout", sample: "/api/auth/logout"},
 	{method: http.MethodGet, path: "/api/healthz", sample: "/api/healthz"},
 }
 
@@ -268,17 +284,14 @@ func TestNewBlocksAnonymousRequestsToEveryGuardedRoute(t *testing.T) {
 	}
 }
 
-// The servers page is the one guarded route a token sends outbound: identity.Auth
-// builds its Plex client against plex.tv with no injectable base URL, so that
-// route is proven by the route table and by its anonymous guard answer instead.
 func TestNewAdmitsAuthenticatedRequestsToEveryGuardedRoute(t *testing.T) {
 	t.Parallel()
 
 	client := newBrowser(t)
-	client.authenticate(t, "plex-token")
+	client.authenticate(t)
 
 	for _, route := range wantRoutes {
-		if !route.guarded || route.path == "/servers" {
+		if !route.guarded {
 			continue
 		}
 
@@ -286,14 +299,94 @@ func TestNewAdmitsAuthenticatedRequestsToEveryGuardedRoute(t *testing.T) {
 
 		assert.NotEqual(t, fiber.StatusUnauthorized, got.status,
 			"%s %s", route.method, route.path)
-
-		if route.path == "/api/auth/logout" {
-			continue
-		}
-
 		assert.NotEqual(t, "/login", got.location,
 			"%s %s", route.method, route.path)
 	}
+}
+
+func TestNewKeepsASecondBrowserAnonymous(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+
+	stranger := owner.sibling(t)
+
+	got := stranger.request(t, http.MethodGet, "/")
+
+	assert.Equal(t, fiber.StatusSeeOther, got.status,
+		"signing in one browser does not sign in every other")
+	assert.Equal(t, "/login", got.location)
+}
+
+func TestNewRefusesASecondPlexAccount(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+
+	intruder := owner.sibling(t)
+
+	got := intruder.submit(t, "/api/auth/login", url.Values{"token": {otherToken}})
+
+	require.Equal(t, fiber.StatusSeeOther, got.status)
+	assert.True(t, strings.HasPrefix(got.location, "/login?"),
+		"the second account is sent back to the login page, not %q", got.location)
+	assert.Equal(t, "/login", intruder.request(t, http.MethodGet, "/").location,
+		"the refused account holds no session")
+}
+
+func TestNewLogoutEndsOnlyThatBrowsersSession(t *testing.T) {
+	t.Parallel()
+
+	first := newBrowser(t)
+	first.authenticate(t)
+
+	second := first.sibling(t)
+	second.authenticate(t)
+
+	got := first.submit(t, "/api/auth/logout", nil)
+
+	require.Equal(t, fiber.StatusSeeOther, got.status)
+	assert.Equal(t, "/login", got.location)
+	assert.Equal(t, "/login", first.request(t, http.MethodGet, "/").location,
+		"the browser that logged out is anonymous again")
+	assert.Equal(t, fiber.StatusOK, second.request(t, http.MethodGet, "/").status,
+		"the other browser stays signed in")
+
+	owned, err := first.db.HasOwner(t.Context())
+	require.NoError(t, err)
+	assert.True(t, owned, "logging out keeps the owner")
+}
+
+func TestNewLogsOutAnExpiredSessionToo(t *testing.T) {
+	t.Parallel()
+
+	client := newBrowser(t)
+	client.start(t)
+
+	got := client.submit(t, "/api/auth/logout", nil)
+
+	assert.Equal(t, fiber.StatusSeeOther, got.status,
+		"logging out never needs a live session, only a CSRF token")
+	assert.Equal(t, "/login", got.location)
+}
+
+func TestNewRefusesAForeignHost(t *testing.T) {
+	t.Parallel()
+
+	client := newBrowser(t)
+
+	client.host = "rebind.attacker.example"
+
+	for _, target := range []string{"/login", "/api/auth/status", "/assets/css/output.css"} {
+		got := client.request(t, http.MethodGet, target)
+
+		assert.Equal(t, fiber.StatusMisdirectedRequest, got.status, target)
+	}
+
+	assert.Equal(t, fiber.StatusOK, client.request(t, http.MethodGet, "/api/healthz").status,
+		"probes reach the health check under any host")
 }
 
 func TestNewServesTheOpenRoutesWithoutASession(t *testing.T) {
@@ -323,11 +416,11 @@ func TestNewAnswersTheHealthCheckWithoutASession(t *testing.T) {
 	assert.JSONEq(t, `{"status":"ok","service":"outtake"}`, got.body)
 }
 
-func TestNewRendersTheSessionPagesOnceTheTokenIsRestored(t *testing.T) {
+func TestNewRendersTheSessionPagesOnceSignedIn(t *testing.T) {
 	t.Parallel()
 
 	client := newBrowser(t)
-	client.authenticate(t, "plex-token")
+	client.authenticate(t)
 
 	for _, target := range []string{"/", routeClips, "/media", "/settings/profiles"} {
 		got := client.request(t, http.MethodGet, target)
@@ -446,17 +539,76 @@ func TestNewRouterHandlersBuildsEveryMountedHandler(t *testing.T) {
 	assert.NotNil(t, built.health)
 }
 
-// authenticate stores a token the middleware restores into every later session.
+// authenticate signs the browser in as the owner through the login form,
+// against the plex.tv stand-in.
 //
 // Parameters:
-//   - t: The test that primes the session.
-//   - token: Plex access token to persist.
-func (b *browser) authenticate(t *testing.T, token string) {
+//   - t: The test that signs in.
+func (b *browser) authenticate(t *testing.T) {
 	t.Helper()
 
 	b.start(t)
 
-	require.NoError(t, b.db.SaveToken(t.Context(), "test-client", token))
+	got := b.submit(t, "/api/auth/login", url.Values{"token": {ownerToken}})
+	require.Equal(t, fiber.StatusSeeOther, got.status)
+	require.False(t, strings.HasPrefix(got.location, "/login"),
+		"the sign-in was refused: %s", got.location)
+}
+
+// do sends a form request the way a browser would, keeping the cookies the
+// response sets.
+//
+// Parameters:
+//   - t: The test that issues the request.
+//   - method: HTTP method of the request.
+//   - target: Request path.
+//   - form: Form body to send.
+//
+// Returns:
+//   - got: The response the router produced.
+func (b *browser) do(t *testing.T, method, target string, form url.Values) answer {
+	t.Helper()
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		method,
+		target,
+		strings.NewReader(form.Encode()),
+	)
+
+	req.Host = b.host
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationForm)
+	req.Header.Set("X-Csrf-Token", b.csrfToken)
+
+	for _, cookie := range b.cookies {
+		req.AddCookie(cookie)
+	}
+
+	resp, err := b.app.Test(req)
+	require.NoError(t, err)
+
+	got := readAnswer(t, resp)
+	b.keep(got.cookies)
+
+	return got
+}
+
+// keep stores the cookies a response set, replacing any of the same name the
+// way a browser does, and follows a CSRF token the response rotated.
+//
+// Parameters:
+//   - set: Cookies the response set.
+func (b *browser) keep(set []*http.Cookie) {
+	for _, cookie := range set {
+		b.cookies = slices.DeleteFunc(b.cookies, func(held *http.Cookie) bool {
+			return held.Name == cookie.Name
+		})
+		b.cookies = append(b.cookies, cookie)
+
+		if cookie.Name == "csrf_" {
+			b.csrfToken = cookie.Value
+		}
+	}
 }
 
 // request issues one request, carrying the session cookies and the CSRF token.
@@ -474,23 +626,7 @@ func (b *browser) request(t *testing.T, method, target string) answer {
 	form := url.Values{}
 	form.Set("_csrf", b.csrfToken)
 
-	req := httptest.NewRequestWithContext(
-		t.Context(),
-		method,
-		target,
-		strings.NewReader(form.Encode()),
-	)
-	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationForm)
-	req.Header.Set("X-Csrf-Token", b.csrfToken)
-
-	for _, cookie := range b.cookies {
-		req.AddCookie(cookie)
-	}
-
-	resp, err := b.app.Test(req)
-	require.NoError(t, err)
-
-	return readAnswer(t, resp)
+	return b.do(t, method, target, form)
 }
 
 // send issues the request a route row stands for.
@@ -507,6 +643,23 @@ func (b *browser) send(t *testing.T, route routerRoute) answer {
 	return b.request(t, route.method, route.sample)
 }
 
+// sibling builds a second browser against the same router and database, with
+// cookies of its own.
+//
+// Parameters:
+//   - t: The test that owns the browser.
+//
+// Returns:
+//   - other: A browser that shares nothing with b but the server.
+func (b *browser) sibling(t *testing.T) *browser {
+	t.Helper()
+
+	other := &browser{app: b.app, db: b.db, cookies: nil, csrfToken: "", host: routerHost}
+	other.start(t)
+
+	return other
+}
+
 // start primes the cookies and the CSRF token from the login page.
 //
 // Parameters:
@@ -516,20 +669,33 @@ func (b *browser) start(t *testing.T) {
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", http.NoBody)
 
+	req.Host = b.host
+
 	resp, err := b.app.Test(req)
 	require.NoError(t, err)
 
-	got := readAnswer(t, resp)
-
-	b.cookies = got.cookies
-
-	for _, cookie := range b.cookies {
-		if cookie.Name == "csrf_" {
-			b.csrfToken = cookie.Value
-		}
-	}
+	b.keep(readAnswer(t, resp).cookies)
 
 	require.NotEmpty(t, b.csrfToken, "the login page issued a CSRF token")
+}
+
+// submit posts a form carrying the CSRF token.
+//
+// Parameters:
+//   - t: The test that posts the form.
+//   - target: Request path.
+//   - fields: Form fields beyond the CSRF token, which may be nil.
+//
+// Returns:
+//   - got: The response the router produced.
+func (b *browser) submit(t *testing.T, target string, fields url.Values) answer {
+	t.Helper()
+
+	form := url.Values{}
+	maps.Copy(form, fields)
+	form.Set("_csrf", b.csrfToken)
+
+	return b.do(t, http.MethodPost, target, form)
 }
 
 // readAnswer drains a response and closes it.
@@ -568,7 +734,13 @@ func newBrowser(t *testing.T) *browser {
 
 	db := testRouterDatabase(t)
 
-	return &browser{app: New(testRouterDeps(t, db)), db: db}
+	return &browser{
+		app:       New(testRouterDeps(t, db)),
+		db:        db,
+		cookies:   nil,
+		csrfToken: "",
+		host:      routerHost,
+	}
 }
 
 // testRouterDatabase opens a migrated SQLite database inside a temp directory.
@@ -612,6 +784,38 @@ func testRouterDeps(t *testing.T, db *database.DB) Deps {
 		Cfg:   cfg,
 		DB:    db,
 		Queue: queue.NewQueue(1, nil),
-		Auth:  identity.New("outtake", "test-client", "http://localhost", db, nil),
+		Auth: identity.New(
+			"outtake", "test-client", "http://localhost", db, nil,
+			identity.WithPlexURL(routerPlexTV(t).URL),
+		),
 	}
+}
+
+// routerPlexTV stands in for plex.tv. ownerToken belongs to account 42 and
+// otherToken to account 7. Every other request is refused.
+//
+// Parameters:
+//   - t: The test that owns the stand-in.
+//
+// Returns:
+//   - server: The running plex.tv stand-in.
+func routerPlexTV(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v2/user", func(writer http.ResponseWriter, request *http.Request) {
+		switch request.Header.Get("X-Plex-Token") {
+		case ownerToken:
+			_, _ = writer.Write([]byte(`{"id": 42, "username": "owner"}`))
+		case otherToken:
+			_, _ = writer.Write([]byte(`{"id": 7, "username": "other"}`))
+		default:
+			writer.WriteHeader(http.StatusUnauthorized)
+		}
+	})
+
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	return server
 }

@@ -180,6 +180,57 @@ func (_c *MockPlexAuth_Discover_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// ForgetServer provides a mock function for the type MockPlexAuth
+func (_mock *MockPlexAuth) ForgetServer(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForgetServer")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockPlexAuth_ForgetServer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ForgetServer'
+type MockPlexAuth_ForgetServer_Call struct {
+	*mock.Call
+}
+
+// ForgetServer is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockPlexAuth_Expecter) ForgetServer(ctx any) *MockPlexAuth_ForgetServer_Call {
+	return &MockPlexAuth_ForgetServer_Call{Call: _e.mock.On("ForgetServer", ctx)}
+}
+
+func (_c *MockPlexAuth_ForgetServer_Call) Run(run func(ctx context.Context)) *MockPlexAuth_ForgetServer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPlexAuth_ForgetServer_Call) Return(err error) *MockPlexAuth_ForgetServer_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockPlexAuth_ForgetServer_Call) RunAndReturn(run func(ctx context.Context) error) *MockPlexAuth_ForgetServer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Select provides a mock function for the type MockPlexAuth
 func (_mock *MockPlexAuth) Select(ctx context.Context, server plex.Server) error {
 	ret := _mock.Called(ctx, server)

@@ -20,6 +20,8 @@ import (
 type ServersProps struct {
 	Servers []view.ServerItem
 	Error   string
+	// Bound is true when a server is in use, which offers to forget it.
+	Bound bool
 }
 
 // serverSelectedClass is the treatment the server already in use carries.
@@ -120,6 +122,27 @@ templ Servers(props ServersProps) {
 							Use this URL
 						}
 					</form>
+				}
+			}
+			if props.Bound {
+				@card.Card() {
+					@card.Content() {
+						<form
+							action="/servers/forget"
+							method="POST"
+							class="flex items-center justify-between gap-4"
+							data-confirm="Forget the server in use? Outtake stops reading from Plex until you pick a server again."
+						>
+							@csrf.Field()
+							<div>
+								<p class="font-medium">Forget the server in use</p>
+								<p class="text-sm text-muted-foreground">Outtake stops reading from it until you pick a server again.</p>
+							</div>
+							@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Variant: button.VariantDestructive}) {
+								Forget server
+							}
+						</form>
+					}
 				}
 			}
 		</div>

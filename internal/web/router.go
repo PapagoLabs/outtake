@@ -72,6 +72,13 @@ type routerHandlers struct {
 // routeClips is the clips collection path.
 const routeClips = "/clips"
 
+// routeAPI is the prefix every JSON route sits under.
+const routeAPI = "/api"
+
+// routeHealth is the health check path inside the API group. Probes reach it
+// by IP address or service name, so the host guard lets it through.
+const routeHealth = "/healthz"
+
 // New constructs the Fiber application and registers routes.
 //
 // Parameters:
@@ -85,9 +92,9 @@ func New(deps Deps) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: respond.PageError,
 	})
-	useMiddleware(app, deps.Cfg, deps.DB)
+	useMiddleware(app, deps.Cfg)
 
-	guard := middleware.AuthGuard(deps.Cfg.Env)
+	guard := middleware.AuthGuard(deps.Cfg.Env, deps.DB)
 	mountPages(app, guard, built)
 	mountAPI(app, guard, built)
 
@@ -157,16 +164,15 @@ func newRouterHandlers(deps Deps) routerHandlers {
 //
 // Parameters:
 //   - app: The application to install onto.
-//   - cfg: Configuration supplying the CSRF and session settings.
-//   - db: Database the stored token is restored from.
-func useMiddleware(app *fiber.App, cfg *config.Config, db *database.DB) {
+//   - cfg: Configuration supplying the host, CSRF, and session settings.
+func useMiddleware(app *fiber.App, cfg *config.Config) {
 	app.Use(recover.New())
 	app.Use(middleware.RequestLogger())
 	app.Use(helmet.New(helmetConfig()))
+	app.Use(middleware.HostGuard(hostAllowlist(cfg), routeAPI+routeHealth))
 	app.Use(session.New(sessionConfig(cfg)))
 	app.Use(csrf.New(csrfConfig(cfg)))
 	app.Use(middleware.BindCSRFToken())
-	app.Use(middleware.RestoreToken(db))
 	app.Use("/assets", static.New("assets", staticConfig()))
 }
 
@@ -201,6 +207,7 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get(routeClips, guard, clipHandler.Clips)
 	app.Get("/servers", guard, serverHandler.Servers)
 	app.Post("/servers", guard, serverHandler.SelectServer)
+	app.Post("/servers/forget", guard, serverHandler.ForgetServer)
 	app.Get("/settings/appearance", guard, homeHandler.Appearance)
 	app.Get("/settings/profiles", guard, profilesHandler.ClipProfiles)
 	app.Post("/settings/profiles", guard, profilesHandler.CreateClipProfile)
@@ -222,7 +229,7 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	authHandler := built.auth
 	healthHandler := built.health
 
-	api := app.Group("/api")
+	api := app.Group(routeAPI)
 	api.Post(routeClips, guard, clipHandler.Create)
 	api.Post("/clips/preview", guard, previewHandler.Preview)
 	api.Get("/clips/preview/:id", guard, previewHandler.PreviewStatus)
@@ -238,6 +245,6 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	api.Post("/auth/login", authHandler.Login)
 	api.Get("/auth/callback", authHandler.Callback)
 	api.Get("/auth/status", authHandler.Status)
-	api.Post("/auth/logout", guard, authHandler.Logout)
-	api.Get("/healthz", healthHandler.Health)
+	api.Post("/auth/logout", authHandler.Logout)
+	api.Get(routeHealth, healthHandler.Health)
 }

@@ -6,25 +6,28 @@ package middleware
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
-	"github.com/PapagoLabs/outtake/internal/plex/identity/mocks"
+	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/mocks"
 )
 
-// errStoreUnreadable reports a token store that cannot be read.
-var errStoreUnreadable = errors.New("token store is unreadable")
+// errStoreUnreadable reports a user store that cannot be read.
+var errStoreUnreadable = errors.New("user store is unreadable")
 
 func TestAuthGuardPassesTheE2EEnvironmentThroughWithoutAToken(t *testing.T) {
 	t.Parallel()
 
-	got := issueRequest(t, guardApp(t, e2eEnv, nil), http.MethodGet, "/dashboard/sessions")
+	got := issueRequest(t, guardApp(t, config.EnvE2E, nil), http.MethodGet, "/dashboard/sessions")
 
 	assert.Equal(t, fiber.StatusOK, got.status)
 }
@@ -49,10 +52,13 @@ func TestAuthGuardRedirectsAnonymousPageRequestsToLogin(t *testing.T) {
 	}
 }
 
-func TestAuthGuardPassesThroughARequestCarryingAToken(t *testing.T) {
+func TestAuthGuardPassesASessionSignedInAsAKnownUser(t *testing.T) {
 	t.Parallel()
 
-	app := guardApp(t, "test", withToken("session-token"))
+	users := mocks.NewMockUserLookup(t)
+	users.EXPECT().UserRole(mock.Anything, 42).Return("owner", true, nil).Twice()
+
+	app := guardAppWith(t, users, withUser(42))
 
 	for _, target := range []string{"/api/clips", "/dashboard/sessions"} {
 		got := issueRequest(t, app, http.MethodGet, target)
@@ -61,79 +67,68 @@ func TestAuthGuardPassesThroughARequestCarryingAToken(t *testing.T) {
 	}
 }
 
-func TestRestoreTokenPassesThroughWhenThereIsNoSession(t *testing.T) {
+func TestAuthGuardRefusesATokenWithoutAUser(t *testing.T) {
 	t.Parallel()
 
-	store := mocks.NewMockTokenStore(t)
+	// A lookup with no expectations fails the test if the guard consults it.
+	users := mocks.NewMockUserLookup(t)
 
-	reached := false
+	got := issueRequest(t, guardAppWith(t, users, withToken("session-token")), http.MethodGet, "/")
 
-	app := chainApp(t, func(ctx fiber.Ctx) error {
-		reached = true
-
-		assert.Nil(t, session.FromContext(ctx))
-
-		return ctx.SendStatus(fiber.StatusNoContent)
-	}, RestoreToken(store))
-
-	got := issueRequest(t, app, http.MethodGet, "/dashboard/sessions")
-
-	assert.Equal(t, fiber.StatusNoContent, got.status)
-	assert.True(t, reached, "the chain still runs without a session")
-	store.AssertNotCalled(t, "LatestToken", mock.Anything)
+	assert.Equal(t, fiber.StatusSeeOther, got.status)
+	assert.Equal(t, "/login", got.location)
 }
 
-func TestRestoreTokenKeepsAnExistingTokenWithoutReadingTheStore(t *testing.T) {
+func TestAuthGuardRefusesEverySessionWithoutAUserStore(t *testing.T) {
 	t.Parallel()
 
-	store := mocks.NewMockTokenStore(t)
+	got := issueRequest(t, guardAppWith(t, nil, withUser(42)), http.MethodGet, "/api/clips")
+
+	assert.Equal(t, fiber.StatusUnauthorized, got.status)
+}
+
+func TestAuthGuardSignsOutASessionWhoseUserWasRemoved(t *testing.T) {
+	t.Parallel()
+
+	users := mocks.NewMockUserLookup(t)
+	users.EXPECT().UserRole(mock.Anything, 7).Return("", false, nil).Once()
 
 	app := chainApp(t, func(ctx fiber.Ctx) error {
 		return ctx.SendString(identity.Token(session.FromContext(ctx)))
-	}, session.New(), withToken("session-token"), RestoreToken(store))
+	},
+		session.New(),
+		withUser(7),
+		func(ctx fiber.Ctx) error {
+			err := AuthGuard("test", users)(ctx)
 
-	got := issueRequest(t, app, http.MethodGet, "/dashboard/sessions")
+			// The guard answered with a redirect. Expose what it left on the
+			// session, so the test can tell the session was reset.
+			ctx.Set("X-Remaining-Token", identity.Token(session.FromContext(ctx)))
 
-	assert.Equal(t, "session-token", got.body)
-	store.AssertNotCalled(t, "LatestToken", mock.Anything)
+			return err
+		},
+	)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
+	assert.Equal(t, "/login", resp.Header.Get(fiber.HeaderLocation))
+	assert.Empty(t, resp.Header.Get("X-Remaining-Token"), "the revoked session was reset")
 }
 
-func TestRestoreTokenSeedsAnEmptySessionFromTheStore(t *testing.T) {
+func TestAuthGuardFailsClosedWhenTheUserCannotBeResolved(t *testing.T) {
 	t.Parallel()
 
-	store := mocks.NewMockTokenStore(t)
-	store.EXPECT().
-		LatestToken(mock.Anything).
-		Return("restored-token", nil).
-		Once()
+	users := mocks.NewMockUserLookup(t)
+	users.EXPECT().UserRole(mock.Anything, 9).Return("", false, errStoreUnreadable).Once()
 
-	app := chainApp(t, func(ctx fiber.Ctx) error {
-		return ctx.SendString(identity.Token(session.FromContext(ctx)))
-	}, session.New(), RestoreToken(store))
+	got := issueRequest(t, guardAppWith(t, users, withUser(9)), http.MethodGet, "/")
 
-	got := issueRequest(t, app, http.MethodGet, "/dashboard/sessions")
-
-	assert.Equal(t, "restored-token", got.body)
-	store.AssertExpectations(t)
-}
-
-func TestRestoreTokenLeavesTheTokenUnsetWhenTheStoreFails(t *testing.T) {
-	t.Parallel()
-
-	store := mocks.NewMockTokenStore(t)
-	store.EXPECT().
-		LatestToken(mock.Anything).
-		Return("", errStoreUnreadable).
-		Once()
-
-	app := chainApp(t, func(ctx fiber.Ctx) error {
-		return ctx.SendString(identity.Token(session.FromContext(ctx)))
-	}, session.New(), RestoreToken(store))
-
-	got := issueRequest(t, app, http.MethodGet, "/dashboard/sessions")
-
-	assert.Empty(t, got.body)
-	store.AssertExpectations(t)
+	assert.Equal(t, fiber.StatusInternalServerError, got.status)
 }
 
 func TestUnauthenticatedRedirectsAPathWithoutTheAPIPrefix(t *testing.T) {
@@ -164,7 +159,7 @@ func TestUnauthenticatedDoesNotContinueTheChain(t *testing.T) {
 }
 
 // guardApp builds a session-backed application with the auth guard in front of
-// the terminal handler.
+// the terminal handler, resolving users against an empty store.
 //
 // Parameters:
 //   - t: The test that owns the application.
@@ -181,7 +176,23 @@ func guardApp(t *testing.T, env string, seed fiber.Handler) *fiber.App {
 		middle = append(middle, seed)
 	}
 
-	return chainApp(t, okHandler(), append(middle, AuthGuard(env))...)
+	return chainApp(t, okHandler(), append(middle, AuthGuard(env, mocks.NewMockUserLookup(t)))...)
+}
+
+// guardAppWith builds a session-backed application whose auth guard resolves
+// users against a given store.
+//
+// Parameters:
+//   - t: The test that owns the application.
+//   - users: User store the guard consults, which may be nil.
+//   - seed: Middleware run before the guard.
+//
+// Returns:
+//   - app: An application whose only route is guarded.
+func guardAppWith(t *testing.T, users UserLookup, seed fiber.Handler) *fiber.App {
+	t.Helper()
+
+	return chainApp(t, okHandler(), session.New(), seed, AuthGuard("test", users))
 }
 
 // refusingApp builds an application that answers every request with
@@ -210,6 +221,24 @@ func refusingApp(t *testing.T) *fiber.App {
 func withToken(token string) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		identity.SetToken(session.FromContext(ctx), token)
+
+		return ctx.Next()
+	}
+}
+
+// withUser seeds the session with a Plex access token and the Plex user id it
+// signed in as, before the guard runs.
+//
+// Parameters:
+//   - plexUserID: Plex user id to store on the session.
+//
+// Returns:
+//   - handler: Middleware that seeds the session and continues the chain.
+func withUser(plexUserID int) fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		sess := session.FromContext(ctx)
+		identity.SetToken(sess, "session-token")
+		identity.SetUserID(sess, plexUserID)
 
 		return ctx.Next()
 	}
