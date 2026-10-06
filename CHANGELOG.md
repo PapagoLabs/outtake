@@ -8,8 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Persist sessions and csrf tokens in the database by @nicholas-fedor in [#326](https://github.com/PapagoLabs/outtake/pull/326)
+
 ### Chores
 
+- Update module github.com/fxamacker/cbor/v2 to v2.9.6 by @renovate[bot] in [#330](https://github.com/PapagoLabs/outtake/pull/330)
 - Update module github.com/aws/smithy-go to v1.28.3 by @renovate[bot] in [#329](https://github.com/PapagoLabs/outtake/pull/329)
 - Update github.com/google/pprof digest to d99a617 by @renovate[bot] in [#324](https://github.com/PapagoLabs/outtake/pull/324)
 - Update module github.com/mattn/go-colorable to v0.1.16 by @renovate[bot] in [#318](https://github.com/PapagoLabs/outtake/pull/318)
