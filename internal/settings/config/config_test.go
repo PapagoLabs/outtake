@@ -112,6 +112,20 @@ func TestLoad_EnvMaxClipDurIsSeconds(t *testing.T) {
 	assert.Equal(t, 90*time.Second, cfg.MaxClipDur)
 }
 
+func TestLoad_RunsAtLeastOneWorker(t *testing.T) {
+	for _, workers := range []string{"0", "-3"} {
+		t.Run(workers, func(t *testing.T) {
+			t.Setenv("XDG_DATA_HOME", t.TempDir())
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			t.Setenv("OUTTAKE_NUM_WORKERS", workers)
+
+			cfg, err := Load("")
+			require.NoError(t, err)
+			assert.Equal(t, 1, cfg.NumWorkers, "a queue with no workers would never render a clip")
+		})
+	}
+}
+
 func TestLoad_DefaultMaxClipDur(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

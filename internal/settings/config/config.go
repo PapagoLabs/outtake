@@ -189,6 +189,9 @@ func Load(configFile string) (*Config, error) {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
 	}
 
+	// At least one render worker runs, or every clip would wait forever.
+	cfg.NumWorkers = max(cfg.NumWorkers, 1)
+
 	err = ensureDirs(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("ensure dirs: %w", err)

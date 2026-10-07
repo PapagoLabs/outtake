@@ -22,17 +22,25 @@ import (
 type JobHandler func(ctx context.Context, job *clip.Job) error
 
 // Queue represents a job queue.
+//
+// The queue owns a copy of every job it is handed. Waiting jobs are held as
+// ids in submission order, so queueing never blocks, and a worker renders a
+// snapshot of the entry while the entry itself only changes under the lock.
 type Queue struct {
 	workers  int
-	jobChan  chan *clip.Job
+	line     []string
+	wake     chan struct{}
 	jobs     map[string]*clip.Job
 	cancels  map[string]context.CancelFunc
 	dropped  map[string]struct{}
 	waiting  map[string]struct{}
-	deleted  map[string]bool
+	deleted  map[string]struct{}
 	stop     sync.Once
 	stopped  bool
 	mu       sync.RWMutex
+	notifyMu sync.Mutex
+	reported *sync.Cond
+	inFlight string
 	wg       sync.WaitGroup
 	handler  JobHandler
 	done     chan struct{}
@@ -40,7 +48,8 @@ type Queue struct {
 	statusFn StatusFunc
 }
 
-// StatusFunc is called whenever a job status changes.
+// StatusFunc is called with a copy of a job whenever its status or progress
+// changes.
 type StatusFunc func(job *clip.Job)
 
 // outcome is how a job's processing ended.
@@ -56,10 +65,6 @@ const (
 )
 
 const (
-	// errQueueStoppedFormat wraps ErrQueueStopped with the id it refused.
-	errQueueStoppedFormat = "%w: %s"
-	// jobChannelSize is the size of the job channel buffer.
-	jobChannelSize = 100
 
 	// progressDone is the progress value that means a job is finished.
 	progressDone = 100
@@ -94,19 +99,25 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 	queue := &Queue{
 		stop:     sync.Once{},
 		workers:  workers,
-		jobChan:  make(chan *clip.Job, jobChannelSize),
+		line:     nil,
+		wake:     make(chan struct{}, 1),
 		jobs:     make(map[string]*clip.Job),
 		cancels:  make(map[string]context.CancelFunc),
 		dropped:  make(map[string]struct{}),
 		waiting:  make(map[string]struct{}),
-		deleted:  make(map[string]bool),
+		deleted:  make(map[string]struct{}),
 		mu:       sync.RWMutex{},
+		notifyMu: sync.Mutex{},
+		reported: nil,
+		inFlight: "",
 		wg:       sync.WaitGroup{},
 		handler:  handler,
 		done:     make(chan struct{}),
 		cancel:   cancel,
 		statusFn: nil,
 	}
+
+	queue.reported = sync.NewCond(&queue.mu)
 
 	return queue
 }
@@ -128,22 +139,32 @@ func (q *Queue) Cancel(id string) bool {
 		return false
 	}
 
-	if cancel, exists := q.cancels[id]; exists {
+	if cancel, running := q.cancels[id]; running {
+		// The worker unwinds on its own, and the marker tells it to record a
+		// cancellation rather than the error the abort produces.
 		cancel()
+
+		q.dropped[id] = struct{}{}
 	}
 
-	q.dropped[id] = struct{}{}
+	// A job still waiting simply leaves the line, so nothing is left holding
+	// its id and it can be queued again at once.
+	q.leaveLine(id)
+
 	job.Status = clip.StatusCancelled
 	job.Error = canceledMessage
 	job.UpdatedAt = time.Now()
 	q.mu.Unlock()
 
-	q.notify(job)
+	q.notify(id)
 
 	return true
 }
 
-// Delete removes a job from the in-memory map.
+// Delete removes a job from the in-memory map. A waiting job leaves the line,
+// and a running one is canceled and tombstoned, so its worker writes nothing
+// back. A report of this job already under way finishes first, so it cannot
+// write the job back after the caller deletes its row.
 //
 // Parameters:
 //   - id: The clip to remove.
@@ -151,38 +172,24 @@ func (q *Queue) Delete(id string) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	job, exists := q.jobs[id]
-	if !exists {
+	for q.inFlight == id {
+		q.reported.Wait()
+	}
+
+	if _, exists := q.jobs[id]; !exists {
 		return
 	}
 
-	// Captured before the cleanup below takes them away, because either one means
-	// a worker may still be reaching for this job.
-	_, running := q.cancels[id]
-	_, wasDropped := q.dropped[id]
-
-	if cancel, ok := q.cancels[id]; ok {
+	if cancel, running := q.cancels[id]; running {
 		cancel()
-		delete(q.cancels, id)
+
+		// Marked as a cancellation too, so a worker settling a reinstated job
+		// records what the user asked for rather than the abort's error.
+		q.dropped[id] = struct{}{}
+		q.deleted[id] = struct{}{}
 	}
 
-	// reached: Pending and processing jobs, and any carrying a live marker.
-	//
-	// A job that has already settled, or that Restore put in the map without
-	// enqueueing it, has no worker coming at all. Marking those would leave the
-	// entry behind for the life of the process.
-	reachable := job.Status == clip.StatusPending || job.Status == clip.StatusProcessing ||
-		running || wasDropped
-	if reachable {
-		// A live cancel entry means a worker is holding the job, so whatever
-		// settles it is that worker. Without one the job is still in the channel
-		// and has to be stopped before it starts, which is what the flag records.
-		q.deleted[id] = !running
-	}
-
-	// The canceled marker goes too, now that the tombstone is what stops a job
-	// still waiting in the channel from running.
-	delete(q.dropped, id)
+	q.leaveLine(id)
 	delete(q.jobs, id)
 }
 
@@ -242,109 +249,64 @@ func (q *Queue) GetJob(id string) *clip.Job {
 	return q.jobs[id].Clone()
 }
 
-// IfLive runs fn only while the queue still owns the job, holding the read
-// lock for its duration.
+// Reinstate puts a job back after a delete that could not be completed. The
+// job comes back canceled, so a later start does not resume a render the
+// delete stopped. A job a worker still holds is settled by that worker, which
+// records the same cancellation.
 //
 // Parameters:
-//   - id: The clip the caller is about to write.
-//   - fn: The write.
-func (q *Queue) IfLive(id string, fn func()) {
-	q.mu.RLock()
-	defer q.mu.RUnlock()
-
-	if _, deleted := q.deleted[id]; deleted {
-		return
-	}
-
-	fn()
-}
-
-// Reinstate puts a job back after a delete that could not be completed.
-//
-// Parameters:
-//   - job: The job Delete took.
+//   - job: The job as it was before the delete.
 func (q *Queue) Reinstate(job *clip.Job) {
 	q.mu.Lock()
-	defer q.mu.Unlock()
 
-	// The marker is cleared, but a job still sitting in the channel has nothing
-	// else stopping it from starting now, so it becomes a canceled one instead.
-	queued := q.deleted[job.ID]
-	delete(q.deleted, job.ID)
-	delete(q.dropped, job.ID)
+	entry := job.Clone()
 
-	if queued {
-		// Only a job still waiting in the channel has to be stopped. A finished
-		// clip, or one a worker is already settling, keeps the status it had.
-		q.dropped[job.ID] = struct{}{}
-		job.Status = clip.StatusCancelled
-		job.Error = canceledMessage
+	delete(q.deleted, entry.ID)
+
+	_, running := q.cancels[entry.ID]
+
+	switch {
+	case running, entry.Status == clip.StatusPending || entry.Status == clip.StatusProcessing:
+		entry.Status = clip.StatusCancelled
+		entry.Error = canceledMessage
+	default:
+		// A settled job keeps the status it had.
 	}
 
-	job.UpdatedAt = time.Now()
-	q.jobs[job.ID] = job
+	entry.UpdatedAt = time.Now()
+	q.jobs[entry.ID] = entry
+	q.mu.Unlock()
 }
 
-// Requeue puts an idle job back on the queue for another attempt.
+// Requeue puts an idle job back on the queue for another attempt. The job is
+// reset to pending in place, so the caller's copy matches the queued one.
 //
 // Parameters:
 //   - job: The clip to run again.
 //
 // Returns:
-//   - err: ErrJobActive when a worker holds the job or the channel already has it.
+//   - err: ErrJobActive when a worker holds the job or it is already waiting,
+//     ErrQueueStopped when the queue has stopped.
 func (q *Queue) Requeue(job *clip.Job) error {
 	q.mu.Lock()
 
-	if q.stopped {
+	detail, refused := q.admit(job.ID)
+	if refused != nil {
 		q.mu.Unlock()
 
-		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
+		return fmt.Errorf("%w: %s", refused, detail)
 	}
-
-	if reason := q.heldReason(job.ID); reason != "" {
-		q.mu.Unlock()
-
-		return fmt.Errorf("%w: %s is %s", ErrJobActive, job.ID, reason)
-	}
-
-	// Kept so the reset below can be undone if the queue stops between taking the
-	// job and queueing it.
-	previous := *job
 
 	job.Status = clip.StatusPending
 	job.Progress = progressReset
 	job.Error = ""
 	job.UpdatedAt = time.Now()
 
-	// A cancellation marker left by a job that was never picked up would
-	// otherwise skip this one instead.
-	delete(q.dropped, job.ID)
-
-	q.jobs[job.ID] = job
-	q.waiting[job.ID] = struct{}{}
+	q.enqueue(job)
 	q.mu.Unlock()
 
-	// Reported before the entry is on the channel, so a worker that picks the job
-	// up first cannot have this write land over its processing status.
-	q.notify(job)
-
-	select {
-	case q.jobChan <- job:
-	case <-q.done:
-		// Shutdown between taking the job and queueing it. The job goes back to
-		// what it said before this call, so it is not left pending with nothing
-		// running it and nothing queued to pick it up.
-		q.mu.Lock()
-		delete(q.waiting, job.ID)
-
-		*job = previous
-		q.jobs[job.ID] = job
-		q.mu.Unlock()
-
-		q.notify(job)
-
-		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
-	}
+	q.notify(job.ID)
+	q.signal()
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
@@ -354,7 +316,7 @@ func (q *Queue) Requeue(job *clip.Job) error {
 	return nil
 }
 
-// Restore registers a job without enqueueing it.
+// Restore registers a copy of a job without enqueueing it.
 //
 // Parameters:
 //   - job: The clip to track without running.
@@ -362,10 +324,10 @@ func (q *Queue) Restore(job *clip.Job) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	q.jobs[job.ID] = job
+	q.jobs[job.ID] = job.Clone()
 }
 
-// SetProgress records how far a render has got.
+// SetProgress records how far a render has got and reports it.
 //
 // Parameters:
 //   - id: The clip being rendered.
@@ -375,17 +337,23 @@ func (q *Queue) Restore(job *clip.Job) {
 //   - job: The updated job, nil when the queue no longer has it.
 func (q *Queue) SetProgress(id string, percent int) *clip.Job {
 	q.mu.Lock()
-	defer q.mu.Unlock()
 
 	job, ok := q.jobs[id]
 	if !ok {
+		q.mu.Unlock()
+
 		return nil
 	}
 
 	job.Progress = percent
 	job.UpdatedAt = time.Now()
 
-	return job.Clone()
+	updated := job.Clone()
+	q.mu.Unlock()
+
+	q.notify(id)
+
+	return updated
 }
 
 // SetStatusFunc registers a callback invoked on job status changes.
@@ -393,6 +361,9 @@ func (q *Queue) SetProgress(id string, percent int) *clip.Job {
 // Parameters:
 //   - fn: The callback, or nil to stop reporting.
 func (q *Queue) SetStatusFunc(fn StatusFunc) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	q.statusFn = fn
 }
 
@@ -416,9 +387,9 @@ func (q *Queue) Start(ctx context.Context) {
 	// that can never run it.
 	context.AfterFunc(ctx, q.Stop)
 
-	for i := range q.workers {
+	for range q.workers {
 		q.wg.Go(func() {
-			q.worker(ctx, i)
+			q.worker(ctx)
 		})
 	}
 
@@ -440,49 +411,29 @@ func (q *Queue) Stop() {
 	q.wg.Wait()
 }
 
-// Submit submits a job to the queue.
+// Submit submits a copy of a job to the queue. It never waits on a worker.
 //
 // Parameters:
 //   - job: The clip to queue.
 //
 // Returns:
-//   - err: ErrJobActive when the id is already queued or running.
+//   - err: ErrJobActive when the id is already queued or running,
+//     ErrQueueStopped when the queue has stopped.
 func (q *Queue) Submit(job *clip.Job) error {
 	q.mu.Lock()
 
-	if q.stopped {
+	detail, refused := q.admit(job.ID)
+	if refused != nil {
 		q.mu.Unlock()
 
-		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
+		return fmt.Errorf("%w: %s", refused, detail)
 	}
 
-	if reason := q.heldReason(job.ID); reason != "" {
-		q.mu.Unlock()
-
-		return fmt.Errorf("%w: %s is %s", ErrJobActive, job.ID, reason)
-	}
-
-	q.jobs[job.ID] = job
-	q.waiting[job.ID] = struct{}{}
+	q.enqueue(job)
 	q.mu.Unlock()
 
-	// Reported before the entry is on the channel, for the same reason as
-	// Requeue.
-	q.notify(job)
-
-	// Waiting on the shutdown as well as the channel, which covers the narrow
-	// window where the queue goes down between the check above and this send.
-	select {
-	case q.jobChan <- job:
-	case <-q.done:
-		// Shutdown between taking the job and queueing it. The mark goes back,
-		// since nothing is going to reach it.
-		q.mu.Lock()
-		delete(q.waiting, job.ID)
-		q.mu.Unlock()
-
-		return fmt.Errorf(errQueueStoppedFormat, ErrQueueStopped, job.ID)
-	}
+	q.notify(job.ID)
+	q.signal()
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
@@ -490,6 +441,37 @@ func (q *Queue) Submit(job *clip.Job) error {
 		Msg("job submitted")
 
 	return nil
+}
+
+// admit reports whether an id may be queued. The caller holds the lock.
+//
+// Parameters:
+//   - id: The clip id to queue.
+//
+// Returns:
+//   - detail: What the refusal is about, for the caller's error.
+//   - refused: ErrQueueStopped or ErrJobActive, nil when the id may be queued.
+func (q *Queue) admit(id string) (string, error) {
+	if q.stopped {
+		return id, ErrQueueStopped
+	}
+
+	if reason := q.heldReason(id); reason != "" {
+		return id + " is " + reason, ErrJobActive
+	}
+
+	return "", nil
+}
+
+// enqueue stores a copy of a job and puts its id at the back of the line. The
+// caller holds the lock.
+//
+// Parameters:
+//   - job: The clip to queue.
+func (q *Queue) enqueue(job *clip.Job) {
+	q.jobs[job.ID] = job.Clone()
+	q.waiting[job.ID] = struct{}{}
+	q.line = append(q.line, job.ID)
 }
 
 // heldReason reports why an id is already taken, and whether it is.
@@ -511,66 +493,78 @@ func (q *Queue) heldReason(id string) string {
 	return ""
 }
 
-// notify invokes the status callback when one is registered.
+// leaveLine takes a waiting id out of the line. The caller holds the lock.
 //
 // Parameters:
-//   - job: The job whose status changed.
-func (q *Queue) notify(job *clip.Job) {
-	if q.statusFn == nil {
+//   - id: The clip id to remove.
+func (q *Queue) leaveLine(id string) {
+	if _, waiting := q.waiting[id]; !waiting {
 		return
 	}
 
-	q.mu.RLock()
-	defer q.mu.RUnlock()
+	delete(q.waiting, id)
 
-	if _, deleted := q.deleted[job.ID]; deleted {
-		return
-	}
-
-	q.statusFn(job)
+	q.line = slices.DeleteFunc(q.line, func(queued string) bool {
+		return queued == id
+	})
 }
 
-// processJob processes a single job.
+// notify reports a job's current state to the status callback. Reports are
+// made one at a time and each reads the entry as it is then, so the last one
+// to land always carries the latest state. The callback runs without the
+// queue lock, and the job it reports is marked in flight, so only a delete of
+// that job waits for it.
+//
+// Parameters:
+//   - id: The job whose status or progress changed.
+func (q *Queue) notify(id string) {
+	q.notifyMu.Lock()
+	defer q.notifyMu.Unlock()
+
+	q.mu.Lock()
+
+	job, ok := q.jobs[id]
+	if !ok || q.statusFn == nil {
+		q.mu.Unlock()
+
+		return
+	}
+
+	report, snapshot := q.statusFn, job.Clone()
+
+	q.inFlight = id
+	q.mu.Unlock()
+
+	defer func() {
+		q.mu.Lock()
+
+		q.inFlight = ""
+		q.reported.Broadcast()
+		q.mu.Unlock()
+	}()
+
+	report(snapshot)
+}
+
+// processJob runs the next waiting job, if there is one.
 //
 // Parameters:
 //   - ctx: The worker's context, which a single job can be canceled from.
-//   - job: The job to run.
-func (q *Queue) processJob(ctx context.Context, job *clip.Job) {
-	// The worker's own context, so a single job can be canceled without
+//
+// Returns:
+//   - ran: False when nothing was waiting.
+func (q *Queue) processJob(ctx context.Context) bool {
+	// The job's own context, so a single job can be canceled without
 	// disturbing the rest of the queue.
 	jobCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	q.mu.Lock()
-
-	// The entry is in a worker's hands now, so the queue no longer has it
-	// waiting. This is cleared here rather than where the entry was received,
-	// because between those two locks nothing records the id at all.
-	delete(q.waiting, job.ID)
-
-	if _, gone := q.deleted[job.ID]; gone {
-		// Deleted before it ever started. Both markers go, so neither outlives
-		// the worker that would have removed it.
-		delete(q.deleted, job.ID)
-		delete(q.dropped, job.ID)
-		q.mu.Unlock()
-
-		return
+	job, ok := q.take(cancel)
+	if !ok {
+		return false
 	}
 
-	if _, dropped := q.dropped[job.ID]; dropped {
-		delete(q.dropped, job.ID)
-		q.mu.Unlock()
-
-		return
-	}
-
-	job.Status = clip.StatusProcessing
-	job.UpdatedAt = time.Now()
-	q.cancels[job.ID] = cancel
-	q.mu.Unlock()
-
-	q.notify(job)
+	q.notify(job.ID)
 
 	logging.Logger.Info().
 		Str("job_id", job.ID).
@@ -579,7 +573,7 @@ func (q *Queue) processJob(ctx context.Context, job *clip.Job) {
 
 	err := q.runHandler(jobCtx, job)
 
-	result, settled := q.settle(job, err)
+	result := q.settle(job.ID, err)
 
 	switch {
 	case result == outcomeDeleted:
@@ -597,13 +591,11 @@ func (q *Queue) processJob(ctx context.Context, job *clip.Job) {
 			Msg("job completed")
 	}
 
-	if result == outcomeDeleted {
-		return
+	if result != outcomeDeleted {
+		q.notify(job.ID)
 	}
 
-	// The entry settle recorded against, not the object this worker captured,
-	// since a reinstate replaces the entry with a caller's copy.
-	q.notify(settled)
+	return true
 }
 
 // runHandler invokes the job handler, turning a panic into an error.
@@ -641,38 +633,30 @@ func (q *Queue) runHandler(ctx context.Context, job *clip.Job) (err error) {
 	return q.handler(ctx, job)
 }
 
-// settle records how a job ended and releases its bookkeeping.
+// settle records how a job ended on the queue's entry and releases its
+// bookkeeping.
 //
 // Parameters:
-//   - job: The job that was processed.
+//   - id: The job that was processed.
 //   - err: What the handler returned.
 //
 // Returns:
 //   - outcome: How the job ended.
-//   - settled: The entry the outcome was recorded against, nil when the job was
-//     deleted while running and nothing should be written.
-func (q *Queue) settle(job *clip.Job, err error) (outcome, *clip.Job) {
+func (q *Queue) settle(id string, err error) outcome {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	_, canceled := q.dropped[job.ID]
-	_, gone := q.deleted[job.ID]
-	delete(q.dropped, job.ID)
-	delete(q.deleted, job.ID)
-	delete(q.cancels, job.ID)
+	_, canceled := q.dropped[id]
+	_, gone := q.deleted[id]
+	delete(q.dropped, id)
+	delete(q.deleted, id)
+	delete(q.cancels, id)
 
-	if gone {
-		// The row was deleted while this was running, so the result is not
-		// written back. The status is left as the handler left it rather than
-		// being recorded, since there is no longer a job to record it against.
-		return outcomeDeleted, nil
-	}
-
-	// Everything downstream reads the entry the queue holds, so the outcome
-	// belongs on that one rather than on the object this worker captured.
-	live, tracked := q.jobs[job.ID]
-	if !tracked {
-		live = job
+	live, tracked := q.jobs[id]
+	if gone || !tracked {
+		// The row was deleted while this was running, so there is no job left
+		// to record the result against.
+		return outcomeDeleted
 	}
 
 	switch {
@@ -690,9 +674,7 @@ func (q *Queue) settle(job *clip.Job, err error) (outcome, *clip.Job) {
 		live.Error = err.Error()
 	default:
 		live.Status = clip.StatusCompleted
-		// Cleared, because a reinstated job that a worker unwinds may then
-		// report success, leaving a completed job whose error says it was
-		// canceled.
+		// Cleared, so a completed job never carries an earlier failure.
 		live.Error = ""
 		live.Progress = progressDone
 	}
@@ -700,28 +682,72 @@ func (q *Queue) settle(job *clip.Job, err error) (outcome, *clip.Job) {
 	live.UpdatedAt = time.Now()
 
 	if canceled {
-		return outcomeCanceled, live
+		return outcomeCanceled
 	}
 
-	return outcomeRecorded, live
+	return outcomeRecorded
 }
 
-// worker processes jobs from the queue.
+// signal wakes an idle worker, if one is waiting for work.
+func (q *Queue) signal() {
+	select {
+	case q.wake <- struct{}{}:
+	default:
+	}
+}
+
+// take hands the next waiting job to a worker. The entry is marked processing
+// and registered as running under one lock, so its id is never unaccounted
+// for.
+//
+// Parameters:
+//   - cancel: Stops the job's context, called when the job is canceled.
+//
+// Returns:
+//   - job: A snapshot of the entry for the handler to render.
+//   - ok: False when the queue is stopped or nothing is waiting.
+func (q *Queue) take(cancel context.CancelFunc) (*clip.Job, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.stopped || len(q.line) == 0 {
+		return nil, false
+	}
+
+	id := q.line[0]
+
+	q.line = q.line[1:]
+	delete(q.waiting, id)
+
+	// Another worker may be idle while more jobs wait, and the single wake
+	// slot only reached this one.
+	if len(q.line) > 0 {
+		q.signal()
+	}
+
+	live := q.jobs[id]
+
+	live.Status = clip.StatusProcessing
+	live.UpdatedAt = time.Now()
+	q.cancels[id] = cancel
+
+	return live.Clone(), true
+}
+
+// worker runs waiting jobs until the queue stops.
 //
 // Parameters:
 //   - ctx: The worker lifetime, canceled when the queue stops.
-//   - _: Unused worker index.
-func (q *Queue) worker(ctx context.Context, _ int) {
+func (q *Queue) worker(ctx context.Context) {
 	for {
+		if q.processJob(ctx) {
+			continue
+		}
+
 		select {
 		case <-q.done:
 			return
-		case job, ok := <-q.jobChan:
-			if !ok {
-				return
-			}
-
-			q.processJob(ctx, job)
+		case <-q.wake:
 		}
 	}
 }

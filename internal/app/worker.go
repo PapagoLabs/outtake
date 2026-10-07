@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"slices"
 
 	"github.com/rs/zerolog/log"
 
@@ -24,52 +25,48 @@ import (
 // Parameters:
 //   - ctx: The job's context, canceled when the job is canceled or deleted.
 //   - job: The job being rendered.
-//   - db: Database handle.
 //   - jobQueue: The queue that owns the job.
 //
 // Returns:
 //   - report: Callback for progress.WithProgress.
-func persistProgress(
-	ctx context.Context,
-	job *clip.Job,
-	db *database.DB,
-	jobQueue *queue.Queue,
-) func(int) {
+func persistProgress(ctx context.Context, job *clip.Job, jobQueue *queue.Queue) func(int) {
 	return func(percent int) {
-		saveProgress(ctx, job, db, jobQueue, percent)
+		saveProgress(ctx, job, jobQueue, percent)
 	}
 }
 
 // saveProgress records how far a render has got, if the job still wants it.
+// The queue reports the change through its status callback, which persists it.
 //
 // Parameters:
 //   - ctx: The job's context, canceled when the job is canceled or deleted.
 //   - job: The job being rendered.
-//   - db: Database handle.
 //   - jobQueue: The queue that owns the job.
 //   - percent: Progress so far.
-func saveProgress(
-	ctx context.Context,
-	job *clip.Job,
-	db *database.DB,
-	jobQueue *queue.Queue,
-	percent int,
-) {
+func saveProgress(ctx context.Context, job *clip.Job, jobQueue *queue.Queue, percent int) {
 	if ctx.Err() != nil {
 		return
 	}
 
-	updated := jobQueue.SetProgress(job.ID, percent)
-	if updated == nil {
-		return
-	}
+	jobQueue.SetProgress(job.ID, percent)
+}
 
-	jobQueue.IfLive(job.ID, func() {
-		saveErr := db.SaveClip(context.WithoutCancel(ctx), updated)
+// persistStatus returns the queue callback that writes a job's state.
+//
+// Parameters:
+//   - ctx: The lifetime context. Writes outlive its cancellation, so a job
+//     settled during shutdown is still recorded.
+//   - db: Database handle.
+//
+// Returns:
+//   - report: Callback for queue.SetStatusFunc.
+func persistStatus(ctx context.Context, db *database.DB) queue.StatusFunc {
+	return func(job *clip.Job) {
+		saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
 		if saveErr != nil {
-			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip progress")
+			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip status")
 		}
-	})
+	}
 }
 
 // startQueue creates the worker queue and restores persisted jobs.
@@ -93,24 +90,17 @@ func startQueue(
 	var jobQueue *queue.Queue
 
 	jobQueue = queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *clip.Job) error {
-		progressCtx := progress.WithProgress(ctx, persistProgress(ctx, job, db, jobQueue))
+		progressCtx := progress.WithProgress(ctx, persistProgress(ctx, job, jobQueue))
 
 		return processJob(progressCtx, job, runner, db, store)
 	})
 
-	jobQueue.SetStatusFunc(func(job *clip.Job) {
-		saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
-		if saveErr != nil {
-			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip status")
-		}
-	})
+	jobQueue.SetStatusFunc(persistStatus(ctx, db))
 	jobQueue.Start(ctx)
 
-	// Restoring waits on the job channel once the buffer is full and the
-	// workers are inside an encode. Doing that before Listen would keep the
-	// port closed for the length of the backlog, so the reload runs beside
-	// the server. Submit already refuses a queue that has stopped.
-	go restoreJobs(ctx, db, jobQueue)
+	// Submitting never waits on a worker, so the whole backlog is back in the
+	// queue before the server listens and every request sees every clip.
+	restoreJobs(ctx, db, jobQueue)
 
 	return jobQueue
 }
@@ -140,7 +130,9 @@ func restoreBinding(cfg *config.Config, db *database.DB, bind *identity.Binding)
 	}
 }
 
-// restoreJobs reloads persisted clips into the in-memory queue.
+// restoreJobs reloads persisted clips into the in-memory queue. Unfinished
+// clips are submitted again oldest first, so they render in the order they
+// were made.
 //
 // Parameters:
 //   - ctx: The lifetime context the queue runs under.
@@ -154,18 +146,27 @@ func restoreJobs(ctx context.Context, db *database.DB, jobQueue *queue.Queue) {
 		return
 	}
 
+	unfinished := make([]*clip.Job, 0, len(jobs))
+
 	for _, job := range jobs {
 		switch job.Status {
 		case clip.StatusPending, clip.StatusProcessing:
-			job.Status = clip.StatusPending
-			job.Error = ""
-
-			err := jobQueue.Submit(job)
-			if err != nil {
-				log.Error().Err(err).Str("job_id", job.ID).Msg("failed to restore job")
-			}
+			unfinished = append(unfinished, job)
 		default:
 			jobQueue.Restore(job)
+		}
+	}
+
+	// ListClips is newest first.
+	slices.Reverse(unfinished)
+
+	for _, job := range unfinished {
+		job.Status = clip.StatusPending
+		job.Error = ""
+
+		err := jobQueue.Submit(job)
+		if err != nil {
+			log.Error().Err(err).Str("job_id", job.ID).Msg("failed to restore job")
 		}
 	}
 }

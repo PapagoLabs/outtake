@@ -48,6 +48,24 @@ func testIdleQueue(t *testing.T) *queue.Queue {
 	return jobQueue
 }
 
+// persistedQueue builds an idle queue that writes every change it reports to
+// the database, as the composition root wires it.
+//
+// Parameters:
+//   - t: The test that needs the queue.
+//   - db: Database the changes are written to.
+//
+// Returns:
+//   - jobQueue: A queue nothing will ever run.
+func persistedQueue(t *testing.T, db *database.DB) *queue.Queue {
+	t.Helper()
+
+	jobQueue := testIdleQueue(t)
+	jobQueue.SetStatusFunc(persistStatus(t.Context(), db))
+
+	return jobQueue
+}
+
 // persistClip writes a clip row the restore tests read back.
 //
 // Parameters:
@@ -128,10 +146,10 @@ func TestPersistProgressRecordsThroughSaveProgress(t *testing.T) {
 	job := testClipJob("progress-recorded")
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
-	jobQueue := testIdleQueue(t)
+	jobQueue := persistedQueue(t, db)
 	jobQueue.Restore(job)
 
-	persistProgress(t.Context(), job, db, jobQueue)(40)
+	persistProgress(t.Context(), job, jobQueue)(40)
 
 	stored, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
@@ -146,13 +164,13 @@ func TestPersistProgressSkipsACanceledRender(t *testing.T) {
 	job := testClipJob("progress-canceled")
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
-	jobQueue := testIdleQueue(t)
+	jobQueue := persistedQueue(t, db)
 	jobQueue.Restore(job)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	persistProgress(ctx, job, db, jobQueue)(40)
+	persistProgress(ctx, job, jobQueue)(40)
 
 	stored, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
@@ -167,13 +185,13 @@ func TestSaveProgressSkipsACanceledContext(t *testing.T) {
 	job := testClipJob("save-canceled")
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
-	jobQueue := testIdleQueue(t)
+	jobQueue := persistedQueue(t, db)
 	jobQueue.Restore(job)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	saveProgress(ctx, job, db, jobQueue, 40)
+	saveProgress(ctx, job, jobQueue, 40)
 
 	stored, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
@@ -188,7 +206,7 @@ func TestSaveProgressSkipsAJobTheQueueDoesNotHave(t *testing.T) {
 	job := testClipJob("save-unknown")
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
-	saveProgress(t.Context(), job, db, testIdleQueue(t), 40)
+	saveProgress(t.Context(), job, persistedQueue(t, db), 40)
 
 	stored, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
@@ -203,10 +221,10 @@ func TestSaveProgressPersistsTheRecordedProgress(t *testing.T) {
 	job := testClipJob("save-recorded")
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
-	jobQueue := testIdleQueue(t)
+	jobQueue := persistedQueue(t, db)
 	jobQueue.Restore(job)
 
-	saveProgress(t.Context(), job, db, jobQueue, 40)
+	saveProgress(t.Context(), job, jobQueue, 40)
 
 	stored, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
@@ -217,10 +235,10 @@ func TestSaveProgressPersistsTheRecordedProgress(t *testing.T) {
 func TestSaveProgressReportsAWriteFailure(t *testing.T) {
 	job := testClipJob("save-failure")
 
-	jobQueue := testIdleQueue(t)
+	jobQueue := persistedQueue(t, closedDatabase(t))
 	jobQueue.Restore(job)
 
-	saveProgress(t.Context(), job, closedDatabase(t), jobQueue, 40)
+	saveProgress(t.Context(), job, jobQueue, 40)
 
 	assert.Equal(t, 40, jobQueue.GetJob(job.ID).Progress,
 		"the queue still carries the progress it recorded")
@@ -240,11 +258,14 @@ func TestStartQueueRestoresPersistedJobs(t *testing.T) {
 	)
 	t.Cleanup(jobQueue.Stop)
 
-	require.Eventually(t, func() bool {
-		restored := jobQueue.GetJob("restore-queued")
+	restored := jobQueue.GetJob("restore-queued")
+	require.NotNil(t, restored, "the persisted clip is back in the queue before startQueue returns")
+	assert.NotEqual(t, clip.StatusCompleted, restored.Status,
+		"and it is unfinished work, queued or already rendering")
 
-		return restored != nil && restored.Status == clip.StatusPending
-	}, time.Second, 5*time.Millisecond, "the persisted clip was handed back to the queue")
+	jobQueue.Delete("restore-queued")
+	assert.Nil(t, jobQueue.GetJob("restore-queued"),
+		"a clip deleted once the server is up stays deleted, with no reload left to bring it back")
 }
 
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
@@ -338,6 +359,31 @@ func TestRestoreJobsResubmitsPendingAndProcessingClips(t *testing.T) {
 			"an interrupted clip is picked up again from the start")
 		assert.Empty(t, restored.Error, "the previous failure is cleared")
 	}
+}
+
+//nolint:paralleltest // The queue's submission log reads the process-global logger New rewrites.
+func TestRestoreJobsSubmitsTheOldestClipFirst(t *testing.T) {
+	db := testDatabase(t)
+
+	older := testClipJob("restore-older")
+	newer := testClipJob("restore-newer")
+
+	newer.CreatedAt = older.CreatedAt.Add(time.Minute)
+
+	persistClip(t, db, newer)
+	persistClip(t, db, older)
+
+	var submitted []string
+
+	jobQueue := testIdleQueue(t)
+	jobQueue.SetStatusFunc(func(job *clip.Job) {
+		submitted = append(submitted, job.ID)
+	})
+
+	restoreJobs(t.Context(), db, jobQueue)
+
+	assert.Equal(t, []string{"restore-older", "restore-newer"}, submitted,
+		"unfinished clips render in the order they were made")
 }
 
 func TestRestoreJobsRestoresSettledClips(t *testing.T) {

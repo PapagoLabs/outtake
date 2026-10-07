@@ -214,7 +214,7 @@ func TestCancelAnswersAnAPICallerWithTheClip(t *testing.T) {
 	assert.Contains(t, answer.body, `"progress":0`)
 }
 
-func TestCancelAnswersWithTheClipItLookedUp(t *testing.T) {
+func TestCancelAnswersWithTheCanceledClip(t *testing.T) {
 	t.Parallel()
 
 	handler, _ := cancelTestHandler(t, clipdom.StatusPending, "42")
@@ -222,12 +222,8 @@ func TestCancelAnswersWithTheClipItLookedUp(t *testing.T) {
 	answer := cancelClip(t, handler, "cancel-me", fiber.MIMEApplicationJSON, false)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assert.Contains(t, answer.body, `"status":"pending"`,
-		"catalog.Job hands back a copy taken before the cancel, so the body "+
-			"still carries the status the handler found")
-	assert.Equal(t, clipdom.StatusCancelled,
-		handler.clipQueue.GetJob("cancel-me").Status,
-		"the queue is what moved the clip on")
+	assert.Contains(t, answer.body, `"status":"canceled"`,
+		"the body carries the status after the cancel, not the one before it")
 }
 
 func TestCancelPersistsTheCanceledStatus(t *testing.T) {
