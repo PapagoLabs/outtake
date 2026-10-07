@@ -237,7 +237,7 @@ func TestIntegration_CancelStopsARunningJobAndIsRefusedAfterwards(t *testing.T) 
 func TestIntegration_CancelRemovesAPendingJobBeforeItStarts(t *testing.T) {
 	t.Parallel()
 
-	// No worker drains the channel, so the job is still waiting when it is canceled.
+	// No worker takes from the line, so the job is still waiting when it is canceled.
 	handler, _, _ := blockedHandler(t)
 	work := startedQueue(t, 0, handler)
 
@@ -390,10 +390,10 @@ func TestIntegration_DeleteLeavesNoTraceBehindTheWorker(t *testing.T) {
 	work.Delete("clip-1")
 	assert.Nil(t, work.GetJob("clip-1"))
 
-	wrote := false
+	reported := len(snapshot())
 
-	work.IfLive("clip-1", func() { wrote = true })
-	assert.False(t, wrote, "a deleted job is not written back through IfLive")
+	assert.Nil(t, work.SetProgress("clip-1", 50), "a deleted job has nowhere to record progress")
+	assert.Len(t, snapshot(), reported, "and nothing is reported for it")
 
 	release()
 

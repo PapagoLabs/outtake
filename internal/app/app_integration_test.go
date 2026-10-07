@@ -72,9 +72,9 @@ func appConfig(t *testing.T) *config.Config {
 		Env:             "e2e",
 		SessionPoll:     60 * time.Second,
 
-		// The HTTP tests drive the create route, which answers with the job a
-		// worker would then be mutating, so they run without a render worker.
-		// The lifecycle tests turn one back on to watch a render through.
+		// The HTTP tests read a created clip back while it is still pending,
+		// so they run without a render worker. The lifecycle tests turn one
+		// back on to watch a render through.
 		NumWorkers:            0,
 		MaxConcurrentPreviews: 1,
 		MaxClipDur:            600 * time.Second,
@@ -555,7 +555,7 @@ func TestIntegration_RenderOutcomeReachesTheDatabase(t *testing.T) {
 
 	// A stored pending clip is what the application finds when it starts, so
 	// the render, the queue transition, and the write-back are all exercised
-	// without asking the create route to hand out a job a worker is mutating.
+	// through the restore path.
 	require.NoError(
 		t,
 		db.SaveClip(t.Context(), storedClip("restored-clip", mediaID, clip.StatusPending)),

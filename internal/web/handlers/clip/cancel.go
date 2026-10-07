@@ -35,9 +35,12 @@ func (handler *Handler) Cancel(ctx fiber.Ctx) error {
 		)
 	}
 
-	// The queue marks the job canceled and persists that itself, and the clip
-	// looked up above is that same job, so the response carries the new status
-	// without a second write.
+	// The queue marks the job canceled and persists that itself. Reading it
+	// again lets the response carry the status after the cancel.
+	if canceled := handler.lookupJob(ctx.Context(), id); canceled != nil {
+		job = canceled
+	}
+
 	if respond.IsHTMXRequest(ctx) {
 		ctx.Set(routes.HeaderHXRefresh, "true")
 

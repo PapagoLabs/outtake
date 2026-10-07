@@ -56,6 +56,11 @@ func sweepSessions(ctx context.Context, sessions sessionSweeper, interval time.D
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			// A select picks at random when the context ends as a tick is
+			// due, so the context is checked again before sweeping.
+			if ctx.Err() != nil {
+				return
+			}
 		}
 	}
 }

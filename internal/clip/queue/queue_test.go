@@ -63,7 +63,7 @@ func TestNewQueue(t *testing.T) {
 
 	q := NewQueue(2, nil)
 	assert.Equal(t, 2, q.workers)
-	assert.Empty(t, q.jobChan)
+	assert.Empty(t, q.line)
 }
 
 func TestQueue_SubmitAndRetrieve(t *testing.T) {
@@ -352,13 +352,14 @@ func TestQueue_DeleteBlocksUntilTheCallbackFinishes(t *testing.T) {
 	deleted := make(chan struct{})
 
 	q := NewQueue(1, nil)
+	q.Restore(testJob("in-callback", clip.StatusCompleted))
 	q.SetStatusFunc(func(_ *clip.Job) {
 		close(entered)
 		<-release
 	})
 
 	go func() {
-		q.notify(testJob("in-callback", clip.StatusCompleted))
+		q.notify("in-callback")
 	}()
 
 	<-entered
@@ -376,6 +377,33 @@ func TestQueue_DeleteBlocksUntilTheCallbackFinishes(t *testing.T) {
 
 	close(release)
 	<-deleted
+}
+
+func TestQueue_AReportBlocksOnlyADeleteOfItsOwnJob(t *testing.T) {
+	t.Parallel()
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+
+	q := NewQueue(1, nil)
+	q.Restore(testJob("reporting", clip.StatusCompleted))
+	q.Restore(testJob("other", clip.StatusCompleted))
+	q.SetStatusFunc(func(_ *clip.Job) {
+		close(entered)
+		<-release
+	})
+
+	go q.notify("reporting")
+
+	<-entered
+
+	assert.NotNil(t, q.GetJob("reporting"), "a read does not wait on the report")
+	assert.Len(t, q.GetAllJobs(), 2)
+
+	q.Delete("other")
+	assert.Nil(t, q.GetJob("other"), "and neither does a delete of another job")
+
+	close(release)
 }
 
 func TestQueue_NotifySkipsAJobDeletedFirst(t *testing.T) {
@@ -401,7 +429,7 @@ func TestQueue_NotifySkipsAJobDeletedFirst(t *testing.T) {
 	mu.Unlock()
 
 	q.Delete("gone-first")
-	q.notify(testJob("gone-first", clip.StatusCompleted))
+	q.notify("gone-first")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -413,7 +441,7 @@ func TestQueue_NotifySkipsAJobDeletedFirst(t *testing.T) {
 func TestQueue_DeleteTombstonesOnlyWorkableJobs(t *testing.T) {
 	t.Parallel()
 
-	t.Run("a pending job is tombstoned so a worker skips it", func(t *testing.T) {
+	t.Run("a waiting job leaves the line instead", func(t *testing.T) {
 		t.Parallel()
 
 		q := NewQueue(1, nil)
@@ -421,8 +449,9 @@ func TestQueue_DeleteTombstonesOnlyWorkableJobs(t *testing.T) {
 
 		q.Delete("pending")
 
-		assert.Contains(t, q.deleted, "pending",
-			"a job still in the channel can be picked up, so it needs a tombstone")
+		assert.Empty(t, q.deleted, "no worker can reach a job that left the line")
+		assert.Empty(t, q.line)
+		assert.Empty(t, q.heldReason("pending"), "and its id is free again")
 	})
 
 	t.Run("a finished job is not", func(t *testing.T) {
@@ -544,7 +573,7 @@ func TestQueue_DeleteTombstonesAJobAWorkerCanStillReach(t *testing.T) {
 func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 	t.Parallel()
 
-	t.Run("a job still in the channel is owned again, and stays stopped", func(t *testing.T) {
+	t.Run("a job that was waiting is owned again, and stays stopped", func(t *testing.T) {
 		t.Parallel()
 
 		synctest.Test(t, func(t *testing.T) {
@@ -581,13 +610,13 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 
 			q.Delete("abandoned")
 			require.Nil(t, q.GetJob("abandoned"), "the delete took the job out of the map")
-			require.Contains(t, q.deleted, "abandoned", "a queued job is marked as one to stop")
+			require.Empty(t, q.line, "and out of the line")
 
 			q.Reinstate(abandoned)
 
-			assert.Equal(t, abandoned, q.GetJob("abandoned"),
-				"the row that survived the failed delete is owned again")
-			assert.Empty(t, q.deleted, "the tombstone is consumed by the reinstate")
+			reinstated := q.GetJob("abandoned")
+			require.NotNil(t, reinstated, "the row that survived the failed delete is owned again")
+			assert.Equal(t, clip.StatusCancelled, reinstated.Status)
 
 			close(releaseBlocker)
 			synctest.Wait()
@@ -596,9 +625,8 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 			defer mu.Unlock()
 
 			assert.False(t, ran, "a job the delete stopped must not start afterwards")
-			assert.Empty(t, q.dropped,
-				"the worker returned on the canceled marker and consumed it, so none is retained")
-			assert.Equal(t, abandoned, q.GetJob("abandoned"),
+			assert.Empty(t, q.dropped)
+			assert.Equal(t, clip.StatusCancelled, q.GetJob("abandoned").Status,
 				"and the job is still owned, since its row survived")
 		})
 	})
@@ -622,7 +650,7 @@ func TestQueue_ReinstateTakesBackAJobAFailedDeleteLeftBehind(t *testing.T) {
 	})
 }
 
-func TestQueue_SettleClearsTheErrorOnAReinstatedJobThatSucceeds(t *testing.T) {
+func TestQueue_AReinstatedRunningJobSettlesCanceledEvenIfItSucceeds(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -652,13 +680,13 @@ func TestQueue_SettleClearsTheErrorOnAReinstatedJobThatSucceeds(t *testing.T) {
 
 		settled := q.GetJob("reinstated")
 		require.NotNil(t, settled)
-		assert.Equal(t, clip.StatusCompleted, settled.Status)
-		assert.Empty(t, settled.Error,
-			"a completed job must not still be carrying its cancellation error")
+		assert.Equal(t, clip.StatusCancelled, settled.Status,
+			"the delete canceled the render, whatever the worker made of it")
+		assert.Equal(t, canceledMessage, settled.Error)
 	})
 }
 
-func TestQueue_ReinstateLeavesAnUnwindingJobToRecordItsOutcome(t *testing.T) {
+func TestQueue_AReinstatedRunningJobSettlesCanceledRatherThanFailed(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -684,17 +712,20 @@ func TestQueue_ReinstateLeavesAnUnwindingJobToRecordItsOutcome(t *testing.T) {
 		q.Delete("unwinding-reinstate")
 		q.Reinstate(job)
 
-		assert.Empty(t, q.dropped,
-			"a job a worker is unwinding must not be marked to stop, or its outcome is lost")
+		assert.Contains(t, q.dropped, "unwinding-reinstate",
+			"the delete is a cancellation the worker must record")
+		assert.Equal(t, clip.StatusCancelled, q.GetJob("unwinding-reinstate").Status,
+			"and the reinstated clip shows it while the worker unwinds")
 
 		close(release)
 		synctest.Wait()
 
 		settled := q.GetJob("unwinding-reinstate")
 		require.NotNil(t, settled)
-		assert.Equal(t, clip.StatusFailed, settled.Status,
-			"the worker's own outcome is recorded, not the cancellation the reinstate wrote")
-		assert.Equal(t, errRenderAborted.Error(), settled.Error)
+		assert.Equal(t, clip.StatusCancelled, settled.Status,
+			"the abort the delete caused is not reported as a failure")
+		assert.Equal(t, canceledMessage, settled.Error)
+		assert.Empty(t, q.dropped, "the worker consumed the marker")
 	})
 }
 
@@ -885,7 +916,7 @@ func TestQueue_RequeueRefusesWhileAWorkerHoldsTheJob(t *testing.T) {
 		err := q.Requeue(job)
 		require.Error(t, err, "a rendering clip is not re-runnable")
 		require.ErrorIs(t, err, ErrJobActive)
-		assert.Equal(t, clip.StatusProcessing, job.Status,
+		assert.Equal(t, clip.StatusProcessing, q.GetJob(job.ID).Status,
 			"and the status is left as it was, or the clip would look queued while it renders")
 
 		close(release)
@@ -923,7 +954,7 @@ func TestQueue_RequeueIsIdempotentWhileQueued(t *testing.T) {
 
 		err := q.Requeue(job)
 		require.ErrorIs(t, err, ErrJobActive,
-			"a job already in the channel would be handed to a second worker")
+			"a job already in the line would be handed to a second worker")
 
 		close(release)
 		synctest.Wait()
@@ -946,6 +977,12 @@ func TestQueue_RequeueResetsTheJob(t *testing.T) {
 	require.NoError(t, q.Requeue(job))
 
 	assert.Equal(t, clip.StatusPending, job.Status, "queued for another attempt")
+	assert.Equal(
+		t,
+		clip.StatusPending,
+		q.GetJob(job.ID).Status,
+		"in the caller's copy and the queue's",
+	)
 	assert.Equal(t, 0, job.Progress, "and progress starts over, not from where it stopped")
 	assert.Empty(t, job.Error, "with no leftover from the canceled attempt")
 	assert.NotEmpty(t, q.heldReason(job.ID), "and the id is queued again")
@@ -1069,7 +1106,7 @@ func TestSettleNotifiesTheEntryItRecordedAgainst(t *testing.T) {
 		<-started
 
 		q.Delete("notify")
-		q.Reinstate(testJob("notify", clip.StatusCancelled))
+		q.Reinstate(testJob("notify", clip.StatusCompleted))
 
 		close(release)
 		synctest.Wait()
@@ -1077,9 +1114,9 @@ func TestSettleNotifiesTheEntryItRecordedAgainst(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 
-		assert.Equal(t, clip.StatusCompleted, notified["notify"],
+		assert.Equal(t, clip.StatusCancelled, notified["notify"],
 			"the notification carries the settled status, not the captured one")
-		assert.Equal(t, clip.StatusCompleted, q.GetJob("notify").Status)
+		assert.Equal(t, clip.StatusCancelled, q.GetJob("notify").Status)
 	})
 }
 
@@ -1187,22 +1224,31 @@ func TestSubmitToAStoppedQueueIsRefused(t *testing.T) {
 		"a refused submit leaves no mark, since nothing will reach it")
 }
 
-func TestSubmitUnblocksWhenTheBufferIsFullAndTheQueueStops(t *testing.T) {
+func TestSubmitNeverWaitsOnAWorkerAndJobsRunInOrder(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
+		const backlog = 1000
+
 		release := make(chan struct{})
 		holding := make(chan struct{})
 
-		q := NewQueue(1, func(ctx context.Context, job *clip.Job) error {
-			if job.ID == "filler" {
+		var mu sync.Mutex
+
+		var order []string
+
+		q := NewQueue(1, func(_ context.Context, job *clip.Job) error {
+			if job.ID == "blocker" {
 				close(holding)
+				<-release
+
+				return nil
 			}
 
-			select {
-			case <-release:
-			case <-ctx.Done():
-			}
+			mu.Lock()
+			defer mu.Unlock()
+
+			order = append(order, job.ID)
 
 			return nil
 		})
@@ -1210,39 +1256,168 @@ func TestSubmitUnblocksWhenTheBufferIsFullAndTheQueueStops(t *testing.T) {
 
 		t.Cleanup(q.Stop)
 
-		q.Submit(testJob("filler", clip.StatusPending))
+		require.NoError(t, q.Submit(testJob("blocker", clip.StatusPending)))
 		<-holding
 
-		for i := range jobChannelSize {
-			id := fmt.Sprintf("%s-%d", "filler", i)
+		want := make([]string, 0, backlog)
 
-			require.NoError(t, q.Submit(testJob(id, clip.StatusPending)))
+		for i := range backlog {
+			id := fmt.Sprintf("job-%04d", i)
+
+			want = append(want, id)
+
+			require.NoError(t, q.Submit(testJob(id, clip.StatusPending)),
+				"a submit is accepted while the only worker is busy")
 		}
-
-		done := make(chan error, 1)
-
-		go func() {
-			done <- q.Submit(testJob("stop", clip.StatusPending))
-		}()
-
-		q.Stop()
-
-		select {
-		case err := <-done:
-			require.ErrorIs(t, err, ErrQueueStopped,
-				"a submit that cannot be queued reports the shutdown rather than hanging")
-		case <-time.After(2 * time.Second):
-			t.Fatal("the submit never returned")
-		}
-
-		q.mu.RLock()
-		defer q.mu.RUnlock()
-
-		assert.NotContains(t, q.waiting, "stop",
-			"and it leaves no mark, since nothing was going to reach it")
 
 		close(release)
+		synctest.Wait()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		assert.Equal(t, want, order, "jobs run in the order they were submitted")
 	})
+}
+
+func TestEveryIdleWorkerIsWoken(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+
+		var running sync.WaitGroup
+
+		running.Add(2)
+
+		q := NewQueue(2, func(_ context.Context, _ *clip.Job) error {
+			running.Done()
+			<-release
+
+			return nil
+		})
+		q.Start(t.Context())
+
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(testJob("first", clip.StatusPending)))
+		require.NoError(t, q.Submit(testJob("second", clip.StatusPending)))
+
+		// Both jobs start at once, or the second waits on the first and this
+		// never returns.
+		running.Wait()
+
+		close(release)
+		synctest.Wait()
+	})
+}
+
+func TestSubmitKeepsItsOwnCopy(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		q := NewQueue(1, func(_ context.Context, job *clip.Job) error {
+			job.Name = "renamed by the handler"
+
+			return nil
+		})
+
+		job := testJob("copied", clip.StatusPending)
+		require.NoError(t, q.Submit(job))
+
+		job.Name = "renamed by the caller"
+		job.Status = clip.StatusFailed
+
+		queued := q.GetJob("copied")
+		assert.Empty(t, queued.Name, "a write to the submitted job does not reach the queue")
+		assert.Equal(t, clip.StatusPending, queued.Status)
+
+		q.Start(t.Context())
+		t.Cleanup(q.Stop)
+		synctest.Wait()
+
+		settled := q.GetJob("copied")
+		assert.Empty(t, settled.Name, "the handler renders a snapshot, not the entry")
+		assert.Equal(t, clip.StatusCompleted, settled.Status)
+		assert.Equal(
+			t,
+			clip.StatusFailed,
+			job.Status,
+			"and the queue never writes to the caller's job",
+		)
+	})
+}
+
+func TestCancelThenRequeueRendersOnce(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		holding := make(chan struct{})
+
+		var mu sync.Mutex
+
+		renders := 0
+
+		q := NewQueue(1, func(_ context.Context, job *clip.Job) error {
+			if job.ID == "blocker" {
+				close(holding)
+				<-release
+
+				return nil
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			renders++
+
+			return nil
+		})
+		q.Start(t.Context())
+
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(testJob("blocker", clip.StatusPending)))
+		<-holding
+
+		job := testJob("again", clip.StatusPending)
+		require.NoError(t, q.Submit(job))
+		require.True(t, q.Cancel("again"))
+
+		require.NoError(
+			t,
+			q.Requeue(job),
+			"a canceled job that never started is free to queue again",
+		)
+
+		close(release)
+		synctest.Wait()
+
+		mu.Lock()
+		defer mu.Unlock()
+
+		assert.Equal(t, 1, renders, "the canceled attempt left nothing behind to run")
+		assert.Equal(t, clip.StatusCompleted, q.GetJob("again").Status)
+	})
+}
+
+func TestEveryReportCarriesTheLatestState(t *testing.T) {
+	t.Parallel()
+
+	var reported []clip.Status
+
+	q := NewQueue(1, nil)
+	q.Restore(testJob("racing", clip.StatusPending))
+	q.SetStatusFunc(func(job *clip.Job) {
+		reported = append(reported, job.Status)
+	})
+
+	require.True(t, q.Cancel("racing"))
+	require.NotNil(t, q.SetProgress("racing", 40))
+
+	assert.Equal(t, []clip.Status{clip.StatusCancelled, clip.StatusCancelled}, reported,
+		"a progress report after a cancel carries the cancel, so it cannot write it away")
 }
 
 func TestAJobInterruptedByShutdownStaysPending(t *testing.T) {
