@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
@@ -17,6 +18,10 @@ const (
 	qualityFlag = "-q:v"
 	// encodeScreenshotErrFmt is the message screenshot encode failures are wrapped with.
 	encodeScreenshotErrFmt = "encode screenshot: %w"
+	// stillPeakWindow is how much of the source after a still its HDR peak is
+	// sampled from. A still has no length of its own, and a short window keeps
+	// a brighter shot later on from darkening it.
+	stillPeakWindow = time.Second
 )
 
 // screenshotEncodeArgs builds the ffmpeg argv for a still frame.
@@ -27,6 +32,7 @@ const (
 //   - output: Destination image path.
 //   - timestamp: Offset into the source to grab the frame from.
 //   - rect: Optional black-bar crop.
+//   - toneMap: HDR tone map chain, empty when none applies.
 //
 // Returns:
 //   - args: ffmpeg argv including the binary path.
@@ -34,6 +40,7 @@ func screenshotEncodeArgs(
 	ffmpegPath, input, output string,
 	timestamp time.Duration,
 	rect crop.CropRect,
+	toneMap string,
 ) []string {
 	args := []string{
 		ffmpegPath,
@@ -44,11 +51,31 @@ func screenshotEncodeArgs(
 		framesFlag, "1",
 		qualityFlag, "2",
 	}
-	if rect.Valid() {
-		args = append(args, videoFilterFlag, rect.Filter())
+	if filter := screenshotFilter(rect, toneMap); filter != "" {
+		args = append(args, videoFilterFlag, filter)
 	}
 
 	return append(args, output)
+}
+
+// screenshotFilter builds the still's -vf chain: the crop, then the tone map.
+//
+// Parameters:
+//   - rect: Optional black-bar crop.
+//   - toneMap: HDR tone map chain, empty when none applies.
+//
+// Returns:
+//   - filter: The chain, empty when there is nothing to apply.
+func screenshotFilter(rect crop.CropRect, toneMap string) string {
+	if toneMap == "" {
+		if rect.Valid() {
+			return rect.Filter()
+		}
+
+		return ""
+	}
+
+	return prependCrop(rect, toneMap)
 }
 
 // ExtractScreenshot extracts a screenshot from a video.
@@ -59,6 +86,8 @@ func screenshotEncodeArgs(
 //   - output: Destination image path.
 //   - timestamp: Offset into the source to grab the frame from.
 //   - rect: Optional black-bar crop.
+//   - preset: Encode options; only WebSafeColor is read, which tone maps an
+//     HDR source to Rec.709.
 //
 // Returns:
 //   - err: Non-nil when the still could not be written.
@@ -67,6 +96,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 	input, output string,
 	timestamp time.Duration,
 	rect crop.CropRect,
+	preset clip.QualityPreset,
 ) error {
 	// Build and run the screenshot ffmpeg command.
 	cleanInput, err := mediaPath(input)
@@ -79,11 +109,23 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
+	toneMap := ""
+	if preset.WebSafeColor {
+		toneMap = execFFmpeg.webSafeToneMap(ctx, cleanInput, timestamp, stillPeakWindow)
+	}
+
 	err = publish(ctx, cleanOutput, func(staging string) error {
 		return execFFmpeg.run(
 			ctx,
 			0,
-			screenshotEncodeArgs(execFFmpeg.ffmpegPath, cleanInput, staging, timestamp, rect)...,
+			screenshotEncodeArgs(
+				execFFmpeg.ffmpegPath,
+				cleanInput,
+				staging,
+				timestamp,
+				rect,
+				toneMap,
+			)...,
 		)
 	})
 	if err != nil {

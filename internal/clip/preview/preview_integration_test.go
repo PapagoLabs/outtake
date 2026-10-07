@@ -390,14 +390,6 @@ func TestIntegration_DiscardedRendersLeaveNothingBehind(t *testing.T) {
 
 	_, store := previewService(t)
 
-	staged := store.PreviewPath("staged-uuid")
-	require.NoError(t, os.WriteFile(staged, []byte("half rendered"), 0o644))
-
-	preview.DiscardStaged(staged)
-	assert.False(t, store.FileExists(staged))
-
-	preview.DiscardStaged(staged)
-
 	published := store.PreviewPath("published-id")
 	require.NoError(t, os.WriteFile(published, []byte("upload failed"), 0o644))
 

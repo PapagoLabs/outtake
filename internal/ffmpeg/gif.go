@@ -8,9 +8,26 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
+
+// gifFrames is what a GIF renders: its window, size, rate, crop, and color.
+type gifFrames struct {
+	// start is the seek offset into the source.
+	start time.Duration
+	// duration is the length of the GIF window.
+	duration time.Duration
+	// width is the output width in pixels.
+	width int
+	// fps is the output frame rate.
+	fps int
+	// rect is the optional black-bar crop.
+	rect crop.CropRect
+	// toneMap is the HDR tone map chain, empty when none applies.
+	toneMap string
+}
 
 const (
 	// defaultFPS is the default frames per second.
@@ -51,40 +68,39 @@ func gifScaleFilter(width, fps int) string {
 // gifVideoChain is the shared decode/scale chain for both GIF passes.
 //
 // Parameters:
-//   - width: Output width in pixels.
-//   - fps: Output frames per second.
-//   - rect: Optional black-bar crop.
+//   - frames: Window, size, rate, crop, and tone map of the GIF.
 //
 // Returns:
-//   - filter: crop, fps, scale, and yuv420p conversion.
-func gifVideoChain(width, fps int, rect crop.CropRect) string {
-	return prependCrop(rect, gifScaleFilter(width, fps)+",format=yuv420p")
+//   - filter: crop, tone map, fps, scale, and yuv420p conversion.
+func gifVideoChain(frames gifFrames) string {
+	chain := gifScaleFilter(frames.width, frames.fps) + ",format=yuv420p"
+	if frames.toneMap != "" {
+		chain = frames.toneMap + "," + chain
+	}
+
+	return prependCrop(frames.rect, chain)
 }
 
 // gifPaletteFilter builds the palettegen -vf chain, with optional crop first.
 //
 // Parameters:
-//   - width: Output width in pixels.
-//   - fps: Output frames per second.
-//   - rect: Optional black-bar crop.
+//   - frames: Window, size, rate, crop, and tone map of the GIF.
 //
 // Returns:
 //   - filter: Palette generation -vf string.
-func gifPaletteFilter(width, fps int, rect crop.CropRect) string {
-	return gifVideoChain(width, fps, rect) + ",palettegen=stats_mode=diff"
+func gifPaletteFilter(frames gifFrames) string {
+	return gifVideoChain(frames) + ",palettegen=stats_mode=diff"
 }
 
 // gifEncodeFilter builds the paletteuse -filter_complex chain.
 //
 // Parameters:
-//   - width: Output width in pixels.
-//   - fps: Output frames per second.
-//   - rect: Optional black-bar crop.
+//   - frames: Window, size, rate, crop, and tone map of the GIF.
 //
 // Returns:
 //   - filter: Labeled paletteuse filter_complex string.
-func gifEncodeFilter(width, fps int, rect crop.CropRect) string {
-	return "[0:v]" + gifVideoChain(width, fps, rect) +
+func gifEncodeFilter(frames gifFrames) string {
+	return "[0:v]" + gifVideoChain(frames) +
 		"[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5"
 }
 
@@ -175,7 +191,7 @@ func gifEncodeArgs(
 // ExtractGIF extracts a GIF from a video using the palettegen/paletteuse pair.
 //
 // Parameters:
-//   - ctx: Cancellation and deadline for both passes.
+//   - ctx: Cancellation and deadline for the encode.
 //   - input: Source media path.
 //   - output: Destination GIF path.
 //   - start: Seek offset into the source.
@@ -183,15 +199,20 @@ func gifEncodeArgs(
 //   - width: Output width in pixels, or 0 for the default.
 //   - fps: Output frames per second, or 0 for the default.
 //   - rect: Optional black-bar crop.
+//   - preset: Encode options; only WebSafeColor is read, which tone maps an
+//     HDR source to Rec.709 before the palette is built.
 //
 // Returns:
 //   - err: Non-nil when either pass failed.
+//
+//nolint:revive // argument-limit: each argument is a distinct render setting, as on ExtractClip.
 func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	ctx context.Context,
 	input, output string,
 	start, duration time.Duration,
 	width, fps int,
 	rect crop.CropRect,
+	preset clip.QualityPreset,
 ) error {
 	// Build and run the two-pass GIF ffmpeg command.
 	cleanInput, err := mediaPath(input)
@@ -211,8 +232,21 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 		fps = defaultFPS
 	}
 
+	frames := gifFrames{
+		start:    start,
+		duration: duration,
+		width:    width,
+		fps:      fps,
+		rect:     rect,
+		toneMap:  "",
+	}
+
+	if preset.WebSafeColor {
+		frames.toneMap = execFFmpeg.webSafeToneMap(ctx, cleanInput, start, duration)
+	}
+
 	err = publish(ctx, cleanOutput, func(staging string) error {
-		return execFFmpeg.renderGIF(ctx, cleanInput, staging, start, duration, width, fps, rect)
+		return execFFmpeg.renderGIF(ctx, cleanInput, staging, frames)
 	})
 	if err != nil {
 		return fmt.Errorf(encodeGIFErrFmt, err)
@@ -227,20 +261,14 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 //   - ctx: Cancellation and deadline for the passes.
 //   - input: Absolute source media path.
 //   - output: Absolute path the GIF is written to.
-//   - start: Seek offset into the source.
-//   - duration: Length of the GIF window.
-//   - width: Output width in pixels.
-//   - fps: Output frames per second.
-//   - rect: Optional black-bar crop.
+//   - frames: Window, size, rate, crop, and tone map of the GIF.
 //
 // Returns:
 //   - err: Non-nil when either pass failed.
 func (execFFmpeg *ExecFFmpeg) renderGIF(
 	ctx context.Context,
 	input, output string,
-	start, duration time.Duration,
-	width, fps int,
-	rect crop.CropRect,
+	frames gifFrames,
 ) error {
 	palettePath := output + paletteSuffix
 	// palettegen can create the PNG and then fail. The remove has to be armed
@@ -249,28 +277,28 @@ func (execFFmpeg *ExecFFmpeg) renderGIF(
 
 	err := execFFmpeg.run(
 		ctx,
-		duration,
+		frames.duration,
 		gifPaletteArgs(
 			execFFmpeg.ffmpegPath,
 			input,
 			palettePath,
-			start,
-			duration,
-			gifPaletteFilter(width, fps, rect),
+			frames.start,
+			frames.duration,
+			gifPaletteFilter(frames),
 		)...,
 	)
 	if err != nil {
 		return fmt.Errorf("palettegen: %w", err)
 	}
 
-	err = execFFmpeg.run(ctx, duration, gifEncodeArgs(
+	err = execFFmpeg.run(ctx, frames.duration, gifEncodeArgs(
 		execFFmpeg.ffmpegPath,
 		input,
 		palettePath,
 		output,
-		start,
-		duration,
-		gifEncodeFilter(width, fps, rect),
+		frames.start,
+		frames.duration,
+		gifEncodeFilter(frames),
 	)...)
 	if err != nil {
 		return fmt.Errorf("paletteuse: %w", err)

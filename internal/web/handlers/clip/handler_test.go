@@ -270,9 +270,10 @@ func TestValidateEditBoundsASelectionByTheSourceLength(t *testing.T) {
 
 	app.Post("/api/clips/create", func(ctx fiber.Ctx) error {
 		gotErr = handler.validateEdit(ctx.Context(), "/media/movie.mkv", clipdom.Edit{
+			Type:   clipdom.TypeClip,
 			Start:  2 * time.Minute,
 			Length: 30 * time.Second,
-		}, clipdom.TypeClip)
+		})
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -302,9 +303,10 @@ func TestValidateEditAcceptsAnythingFromAnUnprobedSource(t *testing.T) {
 
 	app.Post("/api/clips/create", func(ctx fiber.Ctx) error {
 		gotErr = handler.validateEdit(ctx.Context(), "/media/movie.mkv", clipdom.Edit{
+			Type:   clipdom.TypeClip,
 			Start:  2 * time.Hour,
 			Length: 10 * time.Minute,
-		}, clipdom.TypeClip)
+		})
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -445,8 +447,9 @@ func TestValidateEditStillBoundsAnUnprobedSourceByTheMaximum(t *testing.T) {
 
 	app.Post("/api/clips/create", func(ctx fiber.Ctx) error {
 		gotErr = handler.validateEdit(ctx.Context(), "/media/movie.mkv", clipdom.Edit{
+			Type:   clipdom.TypeClip,
 			Length: 2 * time.Hour,
-		}, clipdom.TypeClip)
+		})
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})

@@ -80,7 +80,7 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 
 	edit := mergeEdit(job, req, jobType, quality)
 
-	err = handler.validateEdit(ctx.Context(), job.InputPath, edit, jobType)
+	err = handler.validateEdit(ctx.Context(), job.InputPath, edit)
 	if err != nil {
 		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, err.Error())
 	}

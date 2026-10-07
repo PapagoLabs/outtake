@@ -10,6 +10,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 )
 
@@ -43,13 +44,17 @@ func New(
 	paths blob.Paths,
 	runner *ffmpeg.ExecFFmpeg,
 ) *Service {
-	return &Service{
-		entries: newRegistry(),
+	service := &Service{
+		entries: nil,
 		gate:    NewGate(limit),
 		store:   store,
 		paths:   paths,
 		ffmpeg:  runner,
 	}
+
+	service.entries = newRegistry(service.discard)
+
+	return service
 }
 
 // Acquire takes a render slot, waiting up to timeout for one to free.
@@ -79,6 +84,23 @@ func (service *Service) Acquire(ctx context.Context, timeout time.Duration) (fun
 //   - stopped: True when a running preview was canceled.
 func (service *Service) Cancel(previewID string) bool {
 	return service.entries.cancel(previewID)
+}
+
+// Close refuses new previews, cancels the running ones, and waits for them to
+// finish, so none is still writing when storage is torn down.
+//
+// Parameters:
+//   - ctx: Bounds how long the wait may take.
+//
+// Returns:
+//   - err: The context's error when previews were still running at its end.
+func (service *Service) Close(ctx context.Context) error {
+	err := service.entries.shutdown(ctx)
+	if err != nil {
+		return fmt.Errorf("close previews: %w", err)
+	}
+
+	return nil
 }
 
 // OutputPath is where a published preview is stored.
@@ -143,7 +165,6 @@ func (service *Service) RenderInto(
 	err = Render(
 		ctx,
 		service.store,
-		service.paths,
 		service.ffmpeg,
 		source,
 		service.OutputPath(previewID),
@@ -197,4 +218,19 @@ func (service *Service) Submit(
 	fn func(context.Context) error,
 ) Admission {
 	return service.entries.render(ctx, previewID, service.gate.Capacity(), fn)
+}
+
+// discard removes the file of a preview retention dropped, so the preview
+// directory holds only the previews the registry still knows.
+//
+// Parameters:
+//   - previewID: Preview id whose file is removed.
+func (service *Service) discard(previewID string) {
+	err := service.store.DeleteFile(service.OutputPath(previewID))
+	if err != nil {
+		logging.Logger.Warn().
+			Err(err).
+			Str("preview_id", previewID).
+			Msg("failed to remove an evicted preview")
+	}
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 )
 
@@ -30,6 +31,7 @@ func TestExecFFmpeg_ExtractGIF_MissingInput(t *testing.T) {
 		480,
 		10,
 		crop.CropRect{},
+		clip.QualityPreset{},
 	)
 	assert.Error(t, err)
 }
@@ -60,7 +62,10 @@ func TestExtractGIFWritesFile(t *testing.T) {
 	out := filepath.Join(dir, "out.gif")
 
 	err = NewExecFFmpeg(ffmpegPath, "ffprobe").
-		ExtractGIF(t.Context(), src, out, 0, 500*time.Millisecond, 160, 10, crop.CropRect{})
+		ExtractGIF(
+			t.Context(),
+			src, out, 0, 500*time.Millisecond, 160, 10, crop.CropRect{}, clip.QualityPreset{},
+		)
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(out)
@@ -76,7 +81,7 @@ func TestGIFPaletteFilterCropsBlackBars(t *testing.T) {
 	want := rect.Filter() +
 		",fps=10,scale='trunc(480/2)*2':-2:flags=lanczos,format=yuv420p,palettegen=stats_mode=diff"
 
-	assert.Equal(t, want, gifPaletteFilter(480, 10, rect))
+	assert.Equal(t, want, gifPaletteFilter(gifFrames{width: 480, fps: 10, rect: rect}))
 }
 
 func TestGIFEncodeFilterCropsBlackBars(t *testing.T) {
@@ -86,13 +91,13 @@ func TestGIFEncodeFilterCropsBlackBars(t *testing.T) {
 	want := "[0:v]" + rect.Filter() +
 		",fps=10,scale='trunc(480/2)*2':-2:flags=lanczos,format=yuv420p[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5"
 
-	assert.Equal(t, want, gifEncodeFilter(480, 10, rect))
+	assert.Equal(t, want, gifEncodeFilter(gifFrames{width: 480, fps: 10, rect: rect}))
 }
 
 func TestGIFPaletteFilterOmitsCropWhenEmpty(t *testing.T) {
 	t.Parallel()
 
-	got := gifPaletteFilter(480, 10, crop.CropRect{})
+	got := gifPaletteFilter(gifFrames{width: 480, fps: 10, rect: crop.CropRect{}})
 	want := "fps=10,scale='trunc(480/2)*2':-2:flags=lanczos,format=yuv420p,palettegen=stats_mode=diff"
 
 	assert.Equal(t, want, got)

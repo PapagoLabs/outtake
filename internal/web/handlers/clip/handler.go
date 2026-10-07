@@ -132,11 +132,7 @@ func (handler *Handler) resolveNewClip(
 		return "", api.MediaPathUnresolved, fmt.Errorf("resolve input: %w", err)
 	}
 
-	edit := clipEdit(*req)
-
-	edit.Type = jobType
-
-	err = handler.validateEdit(ctx.Context(), inputPath, edit, jobType)
+	err = handler.validateEdit(ctx.Context(), inputPath, RequestEdit(*req, jobType))
 	if err != nil {
 		//nolint:wrapcheck // The handler writes the error as the response body.
 		return "", api.InvalidRequest, err
@@ -150,8 +146,7 @@ func (handler *Handler) resolveNewClip(
 // Parameters:
 //   - ctx: Request context.
 //   - inputPath: Resolved source media path.
-//   - edit: The change the request describes.
-//   - jobType: Normalized job type.
+//   - edit: The change the request describes, with its type resolved.
 //
 // Returns:
 //   - err: Non-nil when the edit may not be persisted.
@@ -159,14 +154,13 @@ func (handler *Handler) validateEdit(
 	ctx context.Context,
 	inputPath string,
 	edit clipdom.Edit,
-	jobType clipdom.Type,
 ) error {
-	sourceLength, ok := handler.sources.Duration(ctx, inputPath)
-	if !ok {
-		sourceLength = 0
-	}
-
-	err := edit.Validate(jobType, sourceLength, clipdom.DurationCap(handler.cfg.MaxClipDur))
+	err := handler.sources.CheckEdit(
+		ctx,
+		inputPath,
+		edit,
+		clipdom.DurationCap(handler.cfg.MaxClipDur),
+	)
 	if err != nil {
 		return fmt.Errorf("validate range: %w", err)
 	}

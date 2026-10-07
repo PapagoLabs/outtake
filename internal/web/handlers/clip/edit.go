@@ -34,6 +34,12 @@ func parseEdit(ctx fiber.Ctx) (clipdom.EditRequest, error) {
 			return clipdom.EditRequest{}, fmt.Errorf("bind json: %w", err)
 		}
 
+		err = checkMarks(valueOr(req.StartTime, 0), valueOr(req.Duration, 0))
+		if err != nil {
+			//nolint:wrapcheck // The error message names the mark the caller has to correct.
+			return clipdom.EditRequest{}, err
+		}
+
 		return req, nil
 	}
 

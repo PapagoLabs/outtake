@@ -15,9 +15,26 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/tonemap"
 )
+
+// hlgProbe is an ffprobe answer for an HLG source, which tone maps against a
+// nominal peak and so needs no luma sampling pass.
+const hlgProbe = `{"format":{"duration":"60.0","bit_rate":"8000","format_name":"matroska"},` +
+	`"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","width":3840,` +
+	`"height":2160,"color_transfer":"arib-std-b67"}]}`
+
+// pqProbe is an ffprobe answer for a PQ source, whose peak is sampled.
+const pqProbe = `{"format":{"duration":"60.0","bit_rate":"8000","format_name":"matroska"},` +
+	`"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","width":3840,` +
+	`"height":2160,"color_transfer":"smpte2084"}]}`
+
+// sdrProbe is an ffprobe answer for a Rec.709 source.
+const sdrProbe = `{"format":{"duration":"60.0","bit_rate":"8000","format_name":"matroska"},` +
+	`"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":1920,` +
+	`"height":1080,"color_transfer":"bt709"}]}`
 
 // signalstatsLog is the stderr a stubbed luma pass writes.
 const signalstatsLog = "lavfi.signalstats.YMAX=143.0\nlavfi.signalstats.YMAX=158.0\n"
@@ -341,4 +358,131 @@ func TestPeakSampleSecondsPinsTheWindow(t *testing.T) {
 	assert.Equal(t, webSafePeak, peakSampleSeconds(600*time.Second))
 	assert.Equal(t, webSafePeak, peakSampleSeconds(0))
 	assert.Equal(t, 3500*time.Millisecond, peakSampleSeconds(3500*time.Millisecond))
+}
+
+// TestStillsAndGIFsToneMapOnlyWhenWebSafeMeetsHDR covers the GIF and the
+// screenshot: web-safe color tone maps an HDR source, and leaves an SDR
+// source, or an export without web-safe color, as it is.
+func TestStillsAndGIFsToneMapOnlyWhenWebSafeMeetsHDR(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		probe   string
+		webSafe bool
+		mapped  bool
+	}{
+		{name: "web-safe HDR", probe: hlgProbe, webSafe: true, mapped: true},
+		{name: "HDR without web-safe", probe: hlgProbe, webSafe: false, mapped: false},
+		{name: "web-safe SDR", probe: sdrProbe, webSafe: true, mapped: false},
+	}
+
+	exports := map[string]func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture, preset clip.QualityPreset){
+		"gif": func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture, preset clip.QualityPreset) {
+			t.Helper()
+
+			require.NoError(t, runner.ExtractGIF(
+				t.Context(), fixture.input, fixture.output, time.Second, 3*time.Second, 0, 0,
+				crop.CropRect{}, preset,
+			))
+		},
+		"screenshot": func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture, preset clip.QualityPreset) {
+			t.Helper()
+
+			require.NoError(t, runner.ExtractScreenshot(
+				t.Context(), fixture.input, fixture.output, time.Second, crop.CropRect{}, preset,
+			))
+		},
+	}
+
+	for export, render := range exports {
+		for _, test := range tests {
+			t.Run(export+" "+test.name, func(t *testing.T) {
+				t.Parallel()
+
+				fixture := newEncodeFixture(t, "out."+export)
+				logPath := filepath.Join(t.TempDir(), "argv")
+
+				runner := NewExecFFmpeg(
+					ffmpegtest.Install(t, ffmpegtest.Stub{ArgvFile: logPath, Output: "rendered"}),
+					probeStub(t, test.probe),
+				)
+
+				render(t, runner, fixture, clip.QualityPreset{WebSafeColor: test.webSafe})
+
+				recorded, err := os.ReadFile(logPath)
+				require.NoError(t, err)
+
+				if test.mapped {
+					assert.Contains(
+						t,
+						string(recorded),
+						"tonemap=hable",
+						"the HDR frames are mapped to Rec.709",
+					)
+
+					return
+				}
+
+				assert.NotContains(
+					t,
+					string(recorded),
+					"tonemap=",
+					"the frames are left as they are",
+				)
+			})
+		}
+	}
+}
+
+// TestToneMapSitsBetweenCropAndScale covers the filter order for a GIF and a
+// still: the crop sees source pixels, and the scale sees mapped ones.
+func TestToneMapSitsBetweenCropAndScale(t *testing.T) {
+	t.Parallel()
+
+	rect := crop.CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
+	toneMap := tonemap.ToneMapFilter(clip.TransferHLGAlias, 0)
+
+	gif := gifPaletteFilter(gifFrames{width: 480, fps: 10, rect: rect, toneMap: toneMap})
+	assert.True(t, strings.HasPrefix(gif, rect.Filter()+","+toneMap+",fps=10"), gif)
+
+	assert.Equal(t, rect.Filter()+","+toneMap, screenshotFilter(rect, toneMap))
+	assert.Equal(t, toneMap, screenshotFilter(crop.CropRect{}, toneMap))
+	assert.Equal(t, rect.Filter(), screenshotFilter(rect, ""))
+	assert.Empty(t, screenshotFilter(crop.CropRect{}, ""))
+}
+
+// TestAScreenshotSamplesItsPeakNearTheStill covers the PQ peak of a
+// web-safe screenshot: it is sampled from a short window starting at the
+// still, not the longer window a clip uses.
+func TestAScreenshotSamplesItsPeakNearTheStill(t *testing.T) {
+	t.Parallel()
+
+	fixture := newEncodeFixture(t, "still.jpg")
+	logPath := filepath.Join(t.TempDir(), "argv")
+
+	runner := NewExecFFmpeg(
+		ffmpegtest.Install(t, ffmpegtest.Stub{
+			ArgvFile:      logPath,
+			ArgvSeparator: "--",
+			Output:        "frame",
+		}),
+		probeStub(t, pqProbe),
+	)
+
+	require.NoError(t, runner.ExtractScreenshot(
+		t.Context(), fixture.input, fixture.output, 90*time.Second, crop.CropRect{},
+		clip.QualityPreset{WebSafeColor: true},
+	))
+
+	recorded, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+
+	passes := strings.Split(string(recorded), "--\n")
+	require.GreaterOrEqual(t, len(passes), 2, "a luma pass runs before the still is encoded")
+
+	sample := strings.Fields(passes[0])
+	require.Contains(t, sample, signalstatsFilter, "the first pass samples luma")
+	assert.Equal(t, "90.000", sample[indexOf(sample, ssFlag)+1], "it starts at the still")
+	assert.Equal(t, "1.000", sample[indexOf(sample, durationFlag)+1], "and covers one second")
 }

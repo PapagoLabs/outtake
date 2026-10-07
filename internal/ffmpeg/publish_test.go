@@ -215,6 +215,7 @@ func TestExtractGIFPublishesAndLeavesNoPalette(t *testing.T) {
 	).ExtractGIF(
 		t.Context(),
 		fixture.input, fixture.output, time.Second, 3*time.Second, 0, 0, crop.CropRect{},
+		clip.QualityPreset{},
 	)
 	require.NoError(t, err)
 
@@ -246,7 +247,7 @@ func TestEncodesAbortOnEmptyOutputAndDropSourceMetadata(t *testing.T) {
 	)
 	assert.Equal(t, dropAll, args[indexOf(args, mapChaptersFlag)+1], "and so are its chapters")
 
-	still := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", time.Second, crop.CropRect{})
+	still := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", time.Second, crop.CropRect{}, "")
 	assert.Equal(t, []string{abortOnFlag, abortOnEmptyOutput}, still[2:4])
 
 	gif := gifSeekArgs("ffmpeg", "/in.mkv", time.Second, time.Second)

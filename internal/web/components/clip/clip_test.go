@@ -487,3 +487,14 @@ func TestClipCardPostsBackSettingsItDoesNotShow(t *testing.T) {
 
 	assert.NotContains(t, buf.String(), `name="preserveHdr"`, "an unset setting posts as absent")
 }
+
+// TestWebSafeColorIsOfferedForEveryExportType covers the toggle's visibility:
+// it tone maps a GIF and a screenshot as well as a video clip.
+func TestWebSafeColorIsOfferedForEveryExportType(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	require.NoError(t, WebSafeColorField(false).Render(t.Context(), &buf))
+	assert.Contains(t, buf.String(), `data-export-for="clip,gif,screenshot"`)
+}

@@ -31,13 +31,13 @@ var (
 	errRemove = errors.New("delete rejected")
 )
 
-func newStagingFixture(t *testing.T) (*blob.Storage, blob.Paths, string) {
+func newStagingFixture(t *testing.T) (*blob.Storage, string) {
 	t.Helper()
 
 	store, err := blob.NewStorage(blob.NewPaths(t.TempDir()))
 	require.NoError(t, err)
 
-	return store, store.Paths, store.PreviewPath("content-hash")
+	return store, store.PreviewPath("content-hash")
 }
 
 func previewList(t *testing.T, store *blob.Storage) []string {
@@ -64,7 +64,6 @@ func previewList(t *testing.T, store *blob.Storage) []string {
 func renderStagedPreview(
 	t *testing.T,
 	store blob.Blob,
-	paths blob.Paths,
 	encodeErr bool,
 	final string,
 ) error {
@@ -73,7 +72,6 @@ func renderStagedPreview(
 	err := Render(
 		t.Context(),
 		store,
-		paths,
 		stagingFFmpeg(t, encodeErr),
 		"/media/source.mkv",
 		final,
@@ -90,9 +88,9 @@ func renderStagedPreview(
 func TestRenderPreviewStagesBeforePublishing(t *testing.T) {
 	t.Parallel()
 
-	store, paths, final := newStagingFixture(t)
+	store, final := newStagingFixture(t)
 
-	err := renderStagedPreview(t, store, paths, false, final)
+	err := renderStagedPreview(t, store, false, final)
 	require.NoError(t, err)
 
 	targets := recordedTargets(t, store)
@@ -109,9 +107,9 @@ func TestRenderPreviewStagesBeforePublishing(t *testing.T) {
 func TestRenderPreviewStagedEncodeIsBrowserSafe(t *testing.T) {
 	t.Parallel()
 
-	store, paths, final := newStagingFixture(t)
+	store, final := newStagingFixture(t)
 
-	err := renderStagedPreview(t, store, paths, false, final)
+	err := renderStagedPreview(t, store, false, final)
 	require.NoError(t, err)
 
 	targets := recordedTargets(t, store)
@@ -135,9 +133,9 @@ func TestRenderPreviewStagedEncodeIsBrowserSafe(t *testing.T) {
 func TestRenderPreviewRemovesStagedFileOnFailure(t *testing.T) {
 	t.Parallel()
 
-	store, paths, final := newStagingFixture(t)
+	store, final := newStagingFixture(t)
 
-	err := renderStagedPreview(t, store, paths, true, final)
+	err := renderStagedPreview(t, store, true, final)
 	requireRenderFailed(t, err, final)
 
 	assert.NoFileExists(t, final, "a failed render must not publish a preview")
@@ -147,10 +145,10 @@ func TestRenderPreviewRemovesStagedFileOnFailure(t *testing.T) {
 func TestRenderPreviewKeepsAnEarlierPreviewOnFailure(t *testing.T) {
 	t.Parallel()
 
-	store, paths, final := newStagingFixture(t)
+	store, final := newStagingFixture(t)
 	require.NoError(t, os.WriteFile(final, []byte("earlier"), 0o600))
 
-	err := renderStagedPreview(t, store, paths, true, final)
+	err := renderStagedPreview(t, store, true, final)
 	requireRenderFailed(t, err, final)
 
 	contents, readErr := os.ReadFile(final)
@@ -163,10 +161,10 @@ func TestRenderPreviewKeepsAnEarlierPreviewOnFailure(t *testing.T) {
 func TestRenderPreviewStagingIsUniquePerRender(t *testing.T) {
 	t.Parallel()
 
-	store, paths, final := newStagingFixture(t)
+	store, final := newStagingFixture(t)
 
 	for range 2 {
-		err := renderStagedPreview(t, store, paths, false, final)
+		err := renderStagedPreview(t, store, false, final)
 		require.NoError(t, err)
 	}
 
@@ -197,10 +195,10 @@ func (store *failingPutStore) Put(context.Context, string) error {
 func TestRenderPreviewRemovesAPublishedPreviewThatFailedToUpload(t *testing.T) {
 	t.Parallel()
 
-	store, paths, final := newStagingFixture(t)
+	store, final := newStagingFixture(t)
 	failing := &failingPutStore{Storage: store, putErr: errUpload}
 
-	err := renderStagedPreview(t, failing, paths, false, final)
+	err := renderStagedPreview(t, failing, false, final)
 	require.ErrorIs(t, err, errUpload)
 
 	assert.NoFileExists(t, final, "a preview that never uploaded must not be a cache hit")
@@ -210,10 +208,10 @@ func TestRenderPreviewRemovesAPublishedPreviewThatFailedToUpload(t *testing.T) {
 func TestRenderPreviewReportsAFailedCleanup(t *testing.T) {
 	t.Parallel()
 
-	store, paths, final := newStagingFixture(t)
+	store, final := newStagingFixture(t)
 	failing := &failingPutStore{Storage: store, putErr: errUpload, deleteErr: errRemove}
 
-	err := renderStagedPreview(t, failing, paths, false, final)
+	err := renderStagedPreview(t, failing, false, final)
 	require.ErrorIs(t, err, errUpload, "the upload failure must be preserved")
 	require.ErrorIs(t, err, errRemove, "a cleanup that also failed must be reported")
 }
@@ -221,18 +219,10 @@ func TestRenderPreviewReportsAFailedCleanup(t *testing.T) {
 func TestDiscardPublishedPreviewToleratesAMissingFile(t *testing.T) {
 	t.Parallel()
 
-	store, _, _ := newStagingFixture(t)
+	store, _ := newStagingFixture(t)
 	absent := store.PreviewPath("never-published")
 
 	assert.NotPanics(t, func() { DiscardPublished(store, absent) })
-}
-
-func TestDiscardStagedPreviewToleratesAMissingFile(t *testing.T) {
-	t.Parallel()
-
-	absent := filepath.Join(t.TempDir(), "never-written.mp4")
-
-	assert.NotPanics(t, func() { DiscardStaged(absent) })
 }
 
 func requireRenderFailed(t *testing.T, err error, final string) {

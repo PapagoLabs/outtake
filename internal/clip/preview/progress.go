@@ -48,6 +48,8 @@ func (registry *registry) render(
 	}
 
 	result := registry.admit(item, slots)
+	defer registry.flushEvicted()
+
 	if result != AdmittedRender {
 		// Nothing new was registered, so nothing owns this cancel. Releasing it
 		// keeps the detached context from being retained. An id that is already
@@ -58,6 +60,8 @@ func (registry *registry) render(
 	}
 
 	go func() {
+		defer registry.running.Done()
+
 		registry.setStatus(previewID, clip.StatusProcessing, 0)
 
 		renderCtx := progress.WithProgress(jobCtx, func(percent int) {

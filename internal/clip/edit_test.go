@@ -35,7 +35,7 @@ func TestEditValidateRejectsAGIFOutsideTheEncoderBounds(t *testing.T) {
 
 			edit := Edit{Length: 5 * time.Second, Width: test.width, FPS: test.fps}
 
-			err := edit.Validate(TypeGIF, 2*time.Hour, 10*time.Minute)
+			err := edit.Validate(TypeGIF, Source{Length: 2 * time.Hour}, 10*time.Minute)
 
 			if test.wantErr == nil {
 				require.NoError(t, err)
@@ -57,26 +57,36 @@ func TestEditValidateIgnoresGIFBoundsForEveryOtherType(t *testing.T) {
 		FPS:    MaxGIFFPS + 100,
 	}
 
-	require.NoError(t, edit.Validate(TypeClip, 2*time.Hour, 10*time.Minute))
-	require.NoError(t, edit.Validate(TypeScreenshot, 2*time.Hour, 10*time.Minute))
+	require.NoError(t, edit.Validate(TypeClip, Source{Length: 2 * time.Hour}, 10*time.Minute))
+	require.NoError(t, edit.Validate(TypeScreenshot, Source{Length: 2 * time.Hour}, 10*time.Minute))
 }
 
 func TestEditValidateReportsWhichBoundItBroke(t *testing.T) {
 	t.Parallel()
 
 	tooLong := Edit{Start: 30 * time.Second, Length: 10*time.Minute + time.Second}
-	require.ErrorIs(t, tooLong.Validate(TypeClip, 2*time.Hour, 10*time.Minute), ErrInvalidDuration)
+	require.ErrorIs(
+		t,
+		tooLong.Validate(TypeClip, Source{Length: 2 * time.Hour}, 10*time.Minute),
+		ErrInvalidDuration,
+	)
 	assert.Contains(
-		t, tooLong.Validate(TypeClip, 2*time.Hour, 10*time.Minute).Error(), "validate duration",
+		t,
+		tooLong.Validate(TypeClip, Source{Length: 2 * time.Hour}, 10*time.Minute).Error(),
+		"validate duration",
 		"the message names the check that failed",
 	)
 
 	outOfRange := Edit{Start: 11 * time.Hour, Length: 20 * time.Second}
 	require.ErrorIs(
-		t, outOfRange.Validate(TypeClip, 2*time.Hour, 10*time.Minute), ErrRangeOutsideMedia,
+		t,
+		outOfRange.Validate(TypeClip, Source{Length: 2 * time.Hour}, 10*time.Minute),
+		ErrRangeOutsideMedia,
 	)
 	assert.Contains(
-		t, outOfRange.Validate(TypeClip, 2*time.Hour, 10*time.Minute).Error(), "check range",
+		t,
+		outOfRange.Validate(TypeClip, Source{Length: 2 * time.Hour}, 10*time.Minute).Error(),
+		"check range",
 		"the message names the check that failed",
 	)
 }
@@ -234,6 +244,51 @@ func TestRendersLike(t *testing.T) {
 			test.change(&changed)
 
 			assert.Equal(t, test.same, changed.RendersLike(&base))
+		})
+	}
+}
+
+// TestEditValidateChecksTheAudioTrack covers the audio track bound: a track
+// the source carries passes, and one it does not is refused rather than
+// rendering a silent clip.
+func TestEditValidateChecksTheAudioTrack(t *testing.T) {
+	t.Parallel()
+
+	twoTracks := Source{Length: 2 * time.Hour, AudioTracks: 2, Probed: true}
+	silent := Source{Length: 2 * time.Hour, AudioTracks: 0, Probed: true}
+	unprobed := Source{}
+
+	tests := []struct {
+		name   string
+		kind   Type
+		index  int
+		source Source
+		valid  bool
+	}{
+		{"the first of two tracks", TypeClip, 0, twoTracks, true},
+		{"the second of two tracks", TypeClip, 1, twoTracks, true},
+		{"a third of two tracks", TypeClip, 2, twoTracks, false},
+		{"a negative track", TypeClip, -1, twoTracks, false},
+		{"the default track of a silent source", TypeClip, 0, silent, true},
+		{"a second track of a silent source", TypeClip, 1, silent, false},
+		{"any track of a source that could not be probed", TypeClip, 4, unprobed, true},
+		{"a GIF, which carries no audio", TypeGIF, 4, twoTracks, true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			edit := Edit{Start: time.Second, Length: 5 * time.Second, AudioIndex: test.index}
+
+			err := edit.Validate(test.kind, test.source, 10*time.Minute)
+			if test.valid {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.ErrorIs(t, err, ErrNoSuchAudioTrack)
 		})
 	}
 }

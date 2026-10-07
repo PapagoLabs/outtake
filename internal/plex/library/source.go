@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
@@ -77,6 +78,42 @@ func NewMediaSource(
 		cfg:      cfg,
 		selected: selected,
 	}
+}
+
+// CheckEdit probes a source once and reports whether an edit fits it: within
+// the length cap, inside the source, and naming an audio track it carries.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - path: Local media file path.
+//   - edit: The change, with its type resolved.
+//   - limit: Longest clip the installation accepts.
+//
+// Returns:
+//   - err: Non-nil when the edit may not be rendered from this source.
+func (source *MediaSource) CheckEdit(
+	ctx context.Context,
+	path string,
+	edit clip.Edit,
+	limit time.Duration,
+) error {
+	facts := clip.Source{Length: 0, AudioTracks: 0, Probed: false}
+
+	info, err := source.prober.Probe(ctx, path)
+	if err == nil {
+		facts = clip.Source{
+			Length:      max(info.Duration, 0),
+			AudioTracks: len(info.AudioTracks),
+			Probed:      true,
+		}
+	}
+
+	err = edit.Validate(edit.Type, facts, limit)
+	if err != nil {
+		return fmt.Errorf("check edit: %w", err)
+	}
+
+	return nil
 }
 
 // Describe resolves a Plex media item and probes the file behind it.

@@ -453,3 +453,32 @@ func TestUpdateOfARenderingClipOnlyAcceptsARename(t *testing.T) {
 	assert.Equal(t, fiber.StatusSeeOther, answer.status, "a rename leaves the file as it is")
 	assert.Equal(t, "Renamed", work.GetJob("stored").Name)
 }
+
+// TestUpdateRefusesANegativeMark covers a JSON edit whose start or length is
+// below zero, which a conversion to a duration would otherwise read as zero.
+func TestUpdateRefusesANegativeMark(t *testing.T) {
+	t.Parallel()
+
+	for _, body := range []string{`{"startTime":-5}`, `{"duration":-1}`} {
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+
+			db := updateTestDB(t)
+			handler := updateTestHandler(t, db)
+
+			answer := postUpdate(t, handler, apiJSONRequest(t, body))
+			assert.Equal(t, fiber.StatusBadRequest, answer.status)
+			assert.Contains(t, answer.body, "must not be negative")
+
+			stored, err := db.GetClip(t.Context(), "stored")
+			require.NoError(t, err)
+			assert.InDelta(
+				t,
+				30,
+				stored.StartTime.Seconds(),
+				0.0005,
+				"the stored start is untouched",
+			)
+		})
+	}
+}
