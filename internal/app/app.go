@@ -34,8 +34,10 @@ type App struct {
 	cfg    *config.Config
 	router *fiber.App
 	queue  *queue.Queue
-	db     *database.DB
-	bind   *identity.Binding
+	// previews renders the export form's previews, closed before storage.
+	previews *preview.Service
+	db       *database.DB
+	bind     *identity.Binding
 	//nolint:containedctx // a service holding its own lifetime context, not a request one.
 	ctx  context.Context
 	stop context.CancelFunc
@@ -64,6 +66,8 @@ var errClientIDUnavailable = errors.New("generate plex client id")
 // Returns:
 //   - app: The wired application.
 //   - error: Non-nil when a dependency fails to initialize.
+//
+//nolint:funlen // The composition root wires one dependency per step.
 func New(cfg *config.Config) (*App, error) {
 	err := checkEnvironment(cfg)
 	if err != nil {
@@ -121,9 +125,10 @@ func New(cfg *config.Config) (*App, error) {
 			Sources:  sources,
 			Sessions: startSessionStore(ctx, db),
 		}),
-		queue: jobQueue,
-		db:    db,
-		bind:  bind,
+		queue:    jobQueue,
+		previews: previews,
+		db:       db,
+		bind:     bind,
 	}, nil
 }
 
@@ -266,9 +271,18 @@ func (app *App) Close() {
 	app.stop()
 
 	app.queue.Stop()
+
+	closeCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	err := app.previews.Close(closeCtx)
+	if err != nil {
+		log.Warn().Err(err).Msg("previews did not finish before shutdown")
+	}
+
 	app.bind.Stop()
 
-	err := app.db.Close()
+	err = app.db.Close()
 	if err != nil {
 		log.Error().Err(err).Msg("error closing database")
 	}

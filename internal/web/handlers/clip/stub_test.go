@@ -29,10 +29,13 @@ type stubProber struct {
 //   - path: Media file path, unused.
 //
 // Returns:
-//   - info: A probe result carrying the stubbed length.
+//   - info: A probe result carrying the stubbed length and three audio tracks.
 //   - err: Always nil.
 func (prober *stubProber) Probe(_ context.Context, _ string) (probe.Info, error) {
-	return probe.Info{Duration: prober.duration}, nil
+	// Three audio tracks, so a test may pick any track up to the third.
+	tracks := []probe.Track{{Index: 0}, {Index: 1}, {Index: 2}}
+
+	return probe.Info{Duration: prober.duration, AudioTracks: tracks}, nil
 }
 
 // noopJobHandler is a queue worker that renders nothing, for tests that only

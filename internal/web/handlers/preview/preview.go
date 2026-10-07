@@ -93,9 +93,9 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		return respond.WriteError(ctx, fiber.StatusBadRequest, api.InvalidRequest, err.Error())
 	}
 
-	inputPath, err := handler.sources.Resolve(ctx.Context(), req.MediaID)
+	inputPath, code, err := handler.resolveSelection(ctx.Context(), req)
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadRequest, api.MediaPathUnresolved, err.Error())
+		return respond.WriteError(ctx, fiber.StatusBadRequest, code, err.Error())
 	}
 
 	// Resolved before the id is derived, because the id has to reflect the
@@ -133,7 +133,9 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 			return handler.previews.RenderInto(renderCtx, previewID, inputPath, req, preserveHDR)
 		},
 	)
-	if admitted == clippreview.RefusedFull {
+	// A service that is closing refuses like a full one, and the client can
+	// ask again once the server is back.
+	if admitted == clippreview.RefusedFull || admitted == clippreview.RefusedClosed {
 		return respond.WriteError(
 			ctx,
 			fiber.StatusTooManyRequests,
@@ -196,4 +198,43 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	}
 
 	return respond.WriteJSON(ctx, fiber.StatusOK, payload)
+}
+
+// resolveSelection resolves a preview's source and checks its window. A
+// preview is held to the same bounds as the clip it previews, so the
+// configured cap applies here too and a bad window fails before it renders.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - req: Parsed preview request.
+//
+// Returns:
+//   - inputPath: Resolved source media path.
+//   - code: API error code for whatever failed.
+//   - err: Non-nil when the preview may not be rendered.
+func (handler *Handler) resolveSelection(
+	ctx context.Context,
+	req api.ClipRequest,
+) (string, api.ErrorCode, error) {
+	kind, err := clip.ResolveType(req.ClipType, clip.TypeClip)
+	if err != nil {
+		return "", api.InvalidClipType, fmt.Errorf("resolve type: %w", err)
+	}
+
+	inputPath, err := handler.sources.Resolve(ctx, req.MediaID)
+	if err != nil {
+		return "", api.MediaPathUnresolved, fmt.Errorf("resolve source: %w", err)
+	}
+
+	err = handler.sources.CheckEdit(
+		ctx,
+		inputPath,
+		clips.RequestEdit(req, kind),
+		clip.DurationCap(handler.cfg.MaxClipDur),
+	)
+	if err != nil {
+		return "", api.InvalidRequest, fmt.Errorf("check selection: %w", err)
+	}
+
+	return inputPath, "", nil
 }

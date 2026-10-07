@@ -270,3 +270,52 @@ func TestRemapMediaPath(t *testing.T) {
 	empty := testConfig()
 	assert.Equal(t, "/data/media/a.mkv", empty.RemapMediaPath("/data/media/a.mkv"))
 }
+
+// TestRemapMediaPathMapsWindowsPaths covers a Plex server on Windows: drive
+// letter and UNC paths, backslashes, a root matched without regard to case,
+// and traversal still refused.
+func TestRemapMediaPathMapsWindowsPaths(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		plexRoot  string
+		plexPath  string
+		wantLocal string
+	}{
+		{"a drive path under the root", `D:\Media`, `D:\Media\Movies\a.mkv`, "/media/Movies/a.mkv"},
+		{"a root written with slashes", "D:/Media", `D:\Media\Movies\a.mkv`, "/media/Movies/a.mkv"},
+		{"a root in another case", `d:\media`, `D:\Media\Movies\a.mkv`, "/media/Movies/a.mkv"},
+		{"a UNC share", `\\nas\share\Media`, `\\NAS\share\Media\Shows\b.mkv`, "/media/Shows/b.mkv"},
+		{"the root itself", `D:\Media`, `D:\Media`, "/media"},
+		{"a sibling of the root", `D:\Media`, `D:\Media-other\a.mkv`, `D:\Media-other\a.mkv`},
+		{"another drive", `D:\Media`, `E:\Media\a.mkv`, `E:\Media\a.mkv`},
+		{"a traversal out of the mount", `D:\Media`, `D:\Media\..\..\etc\passwd`, ""},
+		{"a drive path with no root", "", `D:\Media\Movies\a.mkv`, "/media/Media/Movies/a.mkv"},
+		{"a UNC path with no root", "", `\\nas\share\Movies\a.mkv`, "/media/Movies/a.mkv"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := testConfig()
+
+			cfg.PlexMediaRoot = test.plexRoot
+			cfg.LocalMediaRoot = "/media"
+
+			assert.Equal(t, test.wantLocal, cfg.RemapMediaPath(test.plexPath))
+		})
+	}
+
+	linux := testConfig()
+
+	linux.PlexMediaRoot = "/data/media"
+	linux.LocalMediaRoot = "/media"
+	assert.Equal(t, `/media/odd\name.mkv`, linux.RemapMediaPath(`/data/media/odd\name.mkv`),
+		"a backslash in a Linux file name is part of the name")
+
+	linux.PlexMediaRoot = ""
+	assert.Equal(t, "/media/data/x.mkv", linux.RemapMediaPath("//data/x.mkv"),
+		"a Linux path that starts with two slashes is not a UNC share")
+}

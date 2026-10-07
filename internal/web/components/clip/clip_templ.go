@@ -1581,7 +1581,8 @@ func PreserveHDRField(checked bool) templ.Component {
 	})
 }
 
-// WebSafeColorField renders the web-safe color checkbox.
+// WebSafeColorField renders the web-safe color checkbox, which tone maps an HDR
+// source for every export type.
 //
 // Parameters:
 //   - checked: The checkbox is checked.
@@ -1606,7 +1607,7 @@ func WebSafeColorField(checked bool) templ.Component {
 			templ_7745c5c3_Var81 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<label class=\"flex items-center gap-2 text-sm\" data-export-for=\"clip\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<label class=\"flex items-center gap-2 text-sm\" data-export-for=\"clip,gif,screenshot\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

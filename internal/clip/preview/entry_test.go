@@ -45,7 +45,7 @@ func awaitPreview(t *testing.T, registry *registry) View {
 func TestPreviewRegistryRecordsProgress(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	callbacks := make(chan func(int), 1)
 	released := make(chan struct{})
 
@@ -86,7 +86,7 @@ func TestPreviewRegistryRecordsProgress(t *testing.T) {
 func TestPreviewRegistryRecordsFailure(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 
 	registry.render(t.Context(), "p1", 4, func(context.Context) error {
 		return errRender
@@ -100,7 +100,7 @@ func TestPreviewRegistryRecordsFailure(t *testing.T) {
 func TestPreviewRegistryRecordsCancellation(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	started := make(chan struct{})
 
 	registry.render(t.Context(), "p1", 4, func(ctx context.Context) error {
@@ -123,7 +123,7 @@ func TestPreviewRegistryRecordsCancellation(t *testing.T) {
 func TestPreviewRegistryCancelIgnoresFinished(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 
 	registry.render(t.Context(), "p1", 4, func(context.Context) error { return nil })
 	awaitPreview(t, registry)
@@ -135,7 +135,7 @@ func TestPreviewRegistryCancelIgnoresFinished(t *testing.T) {
 func TestPreviewRegistryOutlivesRequest(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 
 	requestCtx, endRequest := context.WithCancel(t.Context())
 	finished := make(chan struct{})
@@ -161,7 +161,7 @@ func TestPreviewRegistryOutlivesRequest(t *testing.T) {
 func TestPreviewRegistryClampsProgress(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	held := make(chan struct{})
 
 	registry.render(t.Context(), "p1", 4, func(ctx context.Context) error {
@@ -195,7 +195,7 @@ func TestPreviewRegistryClampsProgress(t *testing.T) {
 func TestPreviewRegistryIgnoresProgressGoingBackwards(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	released := make(chan struct{})
 
 	registry.render(t.Context(), "p1", 4, func(ctx context.Context) error {
@@ -228,7 +228,7 @@ func TestPreviewRegistryIgnoresProgressGoingBackwards(t *testing.T) {
 func TestPreviewRegistryRejectsDuplicateID(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	firstStarted := make(chan struct{})
 	release := make(chan struct{})
 	renders := 0
@@ -296,7 +296,7 @@ func TestPreviewRegistryRejectsDuplicateID(t *testing.T) {
 func TestPreviewRegistryEvictsBehindARunningPreview(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	blocked := make(chan struct{})
 	started := make(chan struct{})
 
@@ -358,7 +358,7 @@ func TestPreviewRegistryEvictsBehindARunningPreview(t *testing.T) {
 func TestPreviewRegistryEvictsOldestFinished(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 
 	renders := retained + 5
 	done := make(chan struct{}, renders)
@@ -458,7 +458,7 @@ func awaitAllRendersDone(t *testing.T, registry *registry) {
 func TestPreviewRegistryKeepsInFlightDuringEviction(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	held := make(chan struct{})
 
 	registry.render(t.Context(), "in-flight", 4, func(ctx context.Context) error {
@@ -485,7 +485,7 @@ func TestPreviewRegistryKeepsInFlightDuringEviction(t *testing.T) {
 func TestPreviewRegistryConcurrentProgress(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	held := make(chan struct{})
 
 	registry.render(t.Context(), "p1", 4, func(ctx context.Context) error {

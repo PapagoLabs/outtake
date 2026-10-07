@@ -32,6 +32,23 @@ func ReturnPath(mediaID string) string {
 	return routes.PathClips
 }
 
+// RequestEdit translates a parsed request into the edit it describes, for a
+// clip of the given type.
+//
+// Parameters:
+//   - req: Parsed request carrying the marks and the encoding options.
+//   - kind: Normalized clip type.
+//
+// Returns:
+//   - edit: The change the request describes.
+func RequestEdit(req api.ClipRequest, kind clipdom.Type) clipdom.Edit {
+	edit := clipEdit(req)
+
+	edit.Type = kind
+
+	return edit
+}
+
 // clipEdit translates a parsed request into the edit it describes.
 //
 // Parameters:
@@ -73,6 +90,52 @@ func requestWindow(req api.ClipRequest) (start, duration time.Duration) {
 	return start, duration
 }
 
+// parseJSONRequest binds a JSON clip request and refuses negative marks.
+//
+// Parameters:
+//   - ctx: Request context.
+//
+// Returns:
+//   - req: The bound request.
+//   - err: Non-nil when the body cannot be read or a mark is negative.
+func parseJSONRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
+	var req api.ClipRequest
+
+	err := ctx.Bind().Body(&req)
+	if err != nil {
+		return api.ClipRequest{}, fmt.Errorf("bind json: %w", err)
+	}
+
+	err = checkMarks(req.StartTime, req.Duration)
+	if err != nil {
+		//nolint:wrapcheck // The error message names the mark the caller has to correct.
+		return api.ClipRequest{}, err
+	}
+
+	return req, nil
+}
+
+// checkMarks refuses marks a JSON caller sent below zero. Converting one to a
+// duration reads it as zero, which would quietly move the clip.
+//
+// Parameters:
+//   - start: Start mark in seconds.
+//   - length: Selection length in seconds.
+//
+// Returns:
+//   - err: Non-nil when either mark is negative.
+func checkMarks(start, length float64) error {
+	if start < 0 {
+		return fmt.Errorf("%w: the start must not be negative", clipdom.ErrRangeOutsideMedia)
+	}
+
+	if length < 0 {
+		return fmt.Errorf("%w: the length must not be negative", clipdom.ErrInvalidDuration)
+	}
+
+	return nil
+}
+
 // formDuration parses a timecode form field as a duration.
 //
 // Parameters:
@@ -109,14 +172,8 @@ func formDuration(ctx fiber.Ctx, name, label string) (time.Duration, error) {
 //   - err: Non-nil when the body or a mark field cannot be read.
 func ParseRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 	if strings.Contains(ctx.Get(fiber.HeaderContentType), "json") {
-		var req api.ClipRequest
-
-		err := ctx.Bind().Body(&req)
-		if err != nil {
-			return api.ClipRequest{}, fmt.Errorf("bind json: %w", err)
-		}
-
-		return req, nil
+		//nolint:wrapcheck // The error message names what the caller has to correct.
+		return parseJSONRequest(ctx)
 	}
 
 	start, err := formDuration(ctx, "startTime", "start")

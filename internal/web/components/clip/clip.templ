@@ -321,12 +321,13 @@ templ PreserveHDRField(checked bool) {
 	</label>
 }
 
-// WebSafeColorField renders the web-safe color checkbox.
+// WebSafeColorField renders the web-safe color checkbox, which tone maps an HDR
+// source for every export type.
 //
 // Parameters:
 //   - checked: The checkbox is checked.
 templ WebSafeColorField(checked bool) {
-	<label class="flex items-center gap-2 text-sm" data-export-for="clip">
+	<label class="flex items-center gap-2 text-sm" data-export-for="clip,gif,screenshot">
 		@checkbox.Checkbox(checkbox.Props{Name: "webSafeColor", Value: "1", Checked: checked, Class: "rounded border-input"})
 		Web-safe color
 	</label>

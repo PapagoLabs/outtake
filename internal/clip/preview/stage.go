@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"uuid"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
@@ -23,8 +22,8 @@ import (
 // Parameters:
 //   - ctx: Cancellation and deadline for the passes.
 //   - store: Destination for the finished preview.
-//   - paths: Local layout the staged render is written into.
-//   - ffmpeg: Runner used for detection and encoding.
+//   - ffmpeg: Runner used for detection and encoding. The encode stages its
+//     output and publishes it under the final name only when it succeeds.
 //   - source: Source media path.
 //   - output: Final path the preview is published under.
 //   - req: Parsed request carrying the marks and encoding options.
@@ -36,7 +35,6 @@ import (
 func Render(
 	ctx context.Context,
 	store blob.Blob,
-	paths blob.Paths,
 	runner *ffmpeg.ExecFFmpeg,
 	source, output string,
 	req clip.Request,
@@ -57,12 +55,10 @@ func Render(
 		rect = detected
 	}
 
-	staged := paths.PreviewPath(uuid.New().String())
-
 	err := runner.ExtractPreview(
 		ctx,
 		source,
-		staged,
+		output,
 		start,
 		length,
 		req.AudioIndex,
@@ -73,18 +69,9 @@ func Render(
 		},
 	)
 	if err != nil {
-		DiscardStaged(staged)
-
 		// media names the operation, so this only adds which output it was
 		// writing, which is what tells two concurrent previews apart.
 		return fmt.Errorf("preview %s: %w", filepath.Base(output), err)
-	}
-
-	err = os.Rename(staged, output)
-	if err != nil {
-		DiscardStaged(staged)
-
-		return fmt.Errorf("publish preview: %w", err)
 	}
 
 	err = store.Put(ctx, output)
@@ -92,7 +79,7 @@ func Render(
 		return nil
 	}
 
-	// The rename published the file locally, so it is now a cache hit for
+	// The encode published the file locally, so it is now a cache hit for
 	// every later request even though it never reached the bucket. That
 	// preview would vanish on restart or from another instance, so the
 	// upload failure is undone rather than left behind to look valid.
@@ -124,16 +111,4 @@ func DiscardPublished(store blob.Blob, output string) error {
 	}
 
 	return nil
-}
-
-// DiscardStaged removes a staged preview that never reached its final name, so
-// it cannot be served as a preview or mistaken for one.
-//
-// Parameters:
-//   - staged: Path of the staged file.
-func DiscardStaged(staged string) {
-	err := os.Remove(staged)
-	if err != nil && !os.IsNotExist(err) {
-		logging.Logger.Warn().Str("path", staged).Err(err).Msg("failed to remove staged preview")
-	}
 }

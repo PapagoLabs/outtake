@@ -59,6 +59,7 @@ func extractJob(
 			job.Width,
 			job.FPS,
 			detectJobCrop(ctx, runner, job),
+			clip.QualityPreset{WebSafeColor: job.WebSafeColor},
 		)
 		if err != nil {
 			return fmt.Errorf("extract gif: %w", err)
@@ -70,6 +71,7 @@ func extractJob(
 			job.OutputPath,
 			job.StartTime,
 			detectJobCrop(ctx, runner, job),
+			clip.QualityPreset{WebSafeColor: job.WebSafeColor},
 		)
 		if err != nil {
 			return fmt.Errorf("extract screenshot: %w", err)

@@ -6,8 +6,10 @@ package preview
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -502,7 +504,9 @@ func stubFFmpeg(t *testing.T) *ffmpeg.ExecFFmpeg {
 	const probeJSON = `{"format":{"duration":"120.0","bit_rate":"8000","format_name":"matroska"},` +
 		`"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":1920,` +
 		`"height":1080,"color_transfer":"bt709"},{"index":1,"codec_type":"audio",` +
-		`"codec_name":"aac","channels":2}]}` + "\n"
+		`"codec_name":"aac","channels":2},{"index":2,"codec_type":"audio",` +
+		`"codec_name":"aac","channels":2},{"index":3,"codec_type":"audio",` +
+		`"codec_name":"ac3","channels":6}]}` + "\n"
 
 	return ffmpeg.NewExecFFmpeg(
 		ffmpegtest.Install(t, ffmpegtest.Stub{Output: "encoded"}),
@@ -549,8 +553,9 @@ func previewHandler(
 	require.NoError(t, err)
 
 	cfg := &config.Config{MaxConcurrentPreviews: limit, Env: env}
-	service := clippreview.New(limit, store, store.Paths, stubFFmpeg(t))
-	sources := library.NewMediaSource(cfg, selected, nil)
+	runner := stubFFmpeg(t)
+	service := clippreview.New(limit, store, store.Paths, runner)
+	sources := library.NewMediaSource(cfg, selected, runner)
 
 	return New(service, cfg, sources), store
 }
@@ -914,7 +919,12 @@ func TestPreviewRejectsASourceItCannotRead(t *testing.T) {
 	unreadable := filepath.Join(t.TempDir(), "never-written.mkv")
 	handler := pmsPreviewHandler(t, 1, unreadable)
 
-	resp := postPreview(t, handler, "application/json", strings.NewReader(`{"mediaId":"7"}`))
+	resp := postPreview(
+		t,
+		handler,
+		"application/json",
+		strings.NewReader(`{"mediaId":"7","duration":10}`),
+	)
 
 	assert.Equal(t, fiber.StatusBadRequest, resp.status)
 
@@ -979,7 +989,12 @@ func TestPreviewRefusesWhenTheQueueIsFull(t *testing.T) {
 
 	fillPreviewQueue(t, handler, 1)
 
-	resp := postPreview(t, handler, "application/json", strings.NewReader(`{"mediaId":"7"}`))
+	resp := postPreview(
+		t,
+		handler,
+		"application/json",
+		strings.NewReader(`{"mediaId":"7","duration":10}`),
+	)
 
 	assert.Equal(t, fiber.StatusTooManyRequests, resp.status)
 
@@ -994,7 +1009,7 @@ func TestPreviewRedirectsAFormPostRefusedByAFullQueue(t *testing.T) {
 
 	fillPreviewQueue(t, handler, 1)
 
-	resp := postPreviewForm(t, handler, url.Values{"mediaId": []string{"7"}})
+	resp := postPreviewForm(t, handler, previewWindowForm("7", 0, 10))
 
 	path, query := resp.redirect(t)
 
@@ -1014,4 +1029,99 @@ func TestPreviewFileReportsAnAbsentPublishedPreview(t *testing.T) {
 		getPreviewFile(t, handler, id),
 		"a safe id whose preview was never published is reported as absent",
 	)
+}
+
+// TestPreviewRefusesASelectionAClipCouldNotHave covers the bounds a preview
+// shares with the clip it previews: the configured cap, the source's end, the
+// audio tracks it carries, and a start that is not negative.
+func TestPreviewRefusesASelectionAClipCouldNotHave(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		body   func(source string) string
+		reason string
+	}{
+		{
+			name:   "a window longer than the configured cap",
+			body:   func(source string) string { return previewBody(source, 0, 30, 0) },
+			reason: "must be between 0 and 20 seconds",
+		},
+		{
+			name:   "a window past the end of the source",
+			body:   func(source string) string { return previewBody(source, 115, 10, 0) },
+			reason: "the media is only",
+		},
+		{
+			name:   "an audio track the source does not carry",
+			body:   func(source string) string { return previewBody(source, 0, 10, 3) },
+			reason: "no such audio track",
+		},
+		{
+			name:   "a negative start",
+			body:   func(source string) string { return previewBody(source, -5, 10, 0) },
+			reason: "the start must not be negative",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler, store := e2ePreviewHandler(t, 1)
+
+			handler.cfg.MaxClipDur = 20 * time.Second
+
+			resp := postPreview(
+				t, handler, "application/json", strings.NewReader(test.body(sourceFile(t))),
+			)
+
+			assert.Equal(t, fiber.StatusBadRequest, resp.status)
+			assert.Contains(t, resp.failure.Message, test.reason)
+			assert.Empty(t, previewFiles(t, store), "nothing is rendered for a refused window")
+		})
+	}
+}
+
+// previewBody builds a JSON preview request.
+//
+// Parameters:
+//   - source: The media id, which names a local file in the e2e environment.
+//   - start: Start mark in seconds.
+//   - length: Window length in seconds.
+//   - audio: Audio track position.
+//
+// Returns:
+//   - body: The JSON request body.
+func previewBody(source string, start, length, audio int) string {
+	return fmt.Sprintf(
+		`{"mediaId":%q,"clipType":"clip","startTime":%d,"duration":%d,"audioIndex":%d}`,
+		source, start, length, audio,
+	)
+}
+
+// previewFiles lists the files in the preview directory.
+//
+// Parameters:
+//   - t: The test that is looking.
+//   - store: The storage previews are published into.
+//
+// Returns:
+//   - names: The file names, empty when the directory holds none.
+func previewFiles(t *testing.T, store *blob.Storage) []string {
+	t.Helper()
+
+	entries, err := os.ReadDir(store.PreviewsDir())
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+
+	require.NoError(t, err)
+
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+
+	return names
 }

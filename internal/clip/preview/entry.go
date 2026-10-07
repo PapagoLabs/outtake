@@ -6,6 +6,7 @@ package preview
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -41,6 +42,15 @@ type registry struct {
 	mu      sync.Mutex
 	entries map[string]*entry
 	order   []string
+	// evicted holds completed previews retention dropped, whose files are
+	// removed once the lock is released.
+	evicted []string
+	// onEvict removes the file of a completed preview retention dropped.
+	onEvict func(previewID string)
+	// running counts renders that have not finished.
+	running sync.WaitGroup
+	// closed refuses new renders once the service is shutting down.
+	closed bool
 }
 
 const (
@@ -50,6 +60,8 @@ const (
 	AdmittedExisting
 	// RefusedFull means the queue is at its limit and the id is new.
 	RefusedFull
+	// RefusedClosed means the service is shutting down.
+	RefusedClosed
 )
 
 const (
@@ -76,30 +88,37 @@ func (view View) Done() bool {
 
 // newRegistry returns an empty registry.
 //
+// Parameters:
+//   - onEvict: Removes the file of a completed preview retention dropped.
+//
 // Returns:
 //   - registry: The empty registry.
-func newRegistry() *registry {
-	return &registry{entries: map[string]*entry{}}
+func newRegistry(onEvict func(previewID string)) *registry {
+	return &registry{
+		mu:      sync.Mutex{},
+		entries: map[string]*entry{},
+		order:   nil,
+		evicted: nil,
+		onEvict: onEvict,
+		running: sync.WaitGroup{},
+		closed:  false,
+	}
 }
 
-// add registers a new entry.
+// add registers a new entry, unless the id is already registered and still
+// rendering.
 //
 // Parameters:
 //   - item: The entry to register.
-//
-// Returns:
-//   - added: False when the id is already registered and still rendering.
-func (registry *registry) add(item *entry) bool {
+func (registry *registry) add(item *entry) {
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
 
 	if registry.retireLocked(item.view.ID) {
-		return false
+		return
 	}
 
 	registry.trackLocked(item)
-
-	return true
 }
 
 // admit registers a render, or reports why it could not.
@@ -113,6 +132,10 @@ func (registry *registry) add(item *entry) bool {
 func (registry *registry) admit(item *entry, slots int) Admission {
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
+
+	if registry.closed {
+		return RefusedClosed
+	}
 
 	if registry.retireLocked(item.view.ID) {
 		return AdmittedExisting
@@ -131,6 +154,10 @@ func (registry *registry) admit(item *entry, slots int) Admission {
 	}
 
 	registry.trackLocked(item)
+
+	// Counted under the lock that also guards closed, so a close that has
+	// started waiting never sees a render added behind it.
+	registry.running.Add(1)
 
 	return AdmittedRender
 }
@@ -196,6 +223,11 @@ func (registry *registry) evictLocked() {
 
 	for _, previewID := range registry.order {
 		if !registry.retainLocked(previewID, &finished) {
+			job, ok := registry.entries[previewID]
+			if ok && job.view.Status == clip.StatusCompleted {
+				registry.evicted = append(registry.evicted, previewID)
+			}
+
 			delete(registry.entries, previewID)
 
 			continue
@@ -213,6 +245,8 @@ func (registry *registry) evictLocked() {
 //   - previewID: Preview id.
 //   - err: What the render returned, or nil on success.
 func (registry *registry) finish(previewID string, err error) {
+	defer registry.flushEvicted()
+
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
 
@@ -239,12 +273,29 @@ func (registry *registry) finish(previewID string, err error) {
 	registry.evictLocked()
 }
 
+// flushEvicted removes the files of the completed previews retention dropped.
+// It runs without the lock, because removing a file can wait on storage.
+func (registry *registry) flushEvicted() {
+	registry.mu.Lock()
+
+	evicted := registry.evicted
+
+	registry.evicted = nil
+	registry.mu.Unlock()
+
+	for _, previewID := range evicted {
+		registry.onEvict(previewID)
+	}
+}
+
 // remember records an id whose preview is already published, so a client
 // polling it finds a terminal status rather than an unknown one.
 //
 // Parameters:
 //   - previewID: Preview id that is already on disk.
 func (registry *registry) remember(previewID string) {
+	defer registry.flushEvicted()
+
 	registry.add(&entry{
 		view: View{
 			ID:       previewID,
@@ -329,6 +380,43 @@ func (registry *registry) retireLocked(previewID string) bool {
 	registry.dropLocked(previewID)
 
 	return false
+}
+
+// shutdown refuses new renders, cancels every running one, and waits for them to
+// finish or for ctx to end.
+//
+// Parameters:
+//   - ctx: Bounds how long the wait may take.
+//
+// Returns:
+//   - err: The context's error when renders were still running at its end.
+func (registry *registry) shutdown(ctx context.Context) error {
+	registry.mu.Lock()
+
+	registry.closed = true
+
+	for _, job := range registry.entries {
+		if !job.view.Done() {
+			job.canceled = true
+			job.cancel()
+		}
+	}
+
+	registry.mu.Unlock()
+
+	finished := make(chan struct{})
+
+	go func() {
+		registry.running.Wait()
+		close(finished)
+	}()
+
+	select {
+	case <-finished:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("previews still running: %w", ctx.Err())
+	}
 }
 
 // trackLocked registers an entry and prunes what retention no longer keeps.

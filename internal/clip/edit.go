@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -50,6 +51,17 @@ type EditRequest struct {
 	PreserveHDR   *bool    `json:"preserveHdr"`
 }
 
+// Source is what probing the file a clip is cut from turned up.
+type Source struct {
+	// Length is how long the source runs, zero when it could not be probed.
+	Length time.Duration
+	// AudioTracks is how many audio tracks the source carries.
+	AudioTracks int
+	// Probed reports whether the source could be probed, so AudioTracks is
+	// known.
+	Probed bool
+}
+
 // GIF encoder bounds, which only a GIF is held to.
 const (
 	// MinGIFWidth is the lowest GIF export width accepted.
@@ -70,6 +82,9 @@ var (
 		MaxGIFWidth,
 	)
 
+	// ErrNoSuchAudioTrack reports an audio track the source does not carry.
+	ErrNoSuchAudioTrack = errors.New("no such audio track")
+
 	// ErrInvalidGIFFPS reports a GIF frame rate outside the encoder bounds.
 	ErrInvalidGIFFPS = fmt.Errorf(
 		"gif fps must be between %d and %d",
@@ -82,16 +97,16 @@ var (
 //
 // Parameters:
 //   - kind: Normalized clip type.
-//   - sourceLength: How long the source runs, zero when it could not be probed.
+//   - source: What probing the source turned up.
 //   - limit: Longest clip the installation accepts.
 //
 // Returns:
 //   - err: Non-nil when a bound is violated.
-func (edit Edit) Validate(kind Type, sourceLength, limit time.Duration) error {
+func (edit Edit) Validate(kind Type, source Source, limit time.Duration) error {
 	selection := Selection{
 		Start:        edit.Start,
 		Length:       edit.Length,
-		SourceLength: sourceLength,
+		SourceLength: source.Length,
 	}
 
 	err := selection.Validate(kind, limit)
@@ -107,6 +122,11 @@ func (edit Edit) Validate(kind Type, sourceLength, limit time.Duration) error {
 	err = validateGIF(kind, edit.Width, edit.FPS)
 	if err != nil {
 		return fmt.Errorf("validate gif: %w", err)
+	}
+
+	err = validateAudio(kind, edit.AudioIndex, source)
+	if err != nil {
+		return fmt.Errorf("validate audio: %w", err)
 	}
 
 	return nil
@@ -211,6 +231,39 @@ func validateGIF(kind Type, width, fps int) error {
 
 	if fps != 0 && (fps < MinGIFFPS || fps > MaxGIFFPS) {
 		return ErrInvalidGIFFPS
+	}
+
+	return nil
+}
+
+// validateAudio checks that a video clip's audio track exists. The encode
+// maps the track as optional, so a track the source does not carry would
+// render a clip with no sound instead of failing. A GIF and a screenshot
+// carry no audio, and a source that could not be probed is not checked.
+//
+// Parameters:
+//   - kind: Normalized clip type.
+//   - index: Audio track position among the source's audio tracks.
+//   - source: What probing the source turned up.
+//
+// Returns:
+//   - err: Non-nil when the track cannot exist on the source.
+func validateAudio(kind Type, index int, source Source) error {
+	if index < 0 {
+		return fmt.Errorf("%w: the track must not be negative", ErrNoSuchAudioTrack)
+	}
+
+	if kind != TypeClip || !source.Probed || index == 0 {
+		return nil
+	}
+
+	if index >= source.AudioTracks {
+		return fmt.Errorf(
+			"%w: track %d was asked for, but the source carries %d",
+			ErrNoSuchAudioTrack,
+			index+1,
+			source.AudioTracks,
+		)
 	}
 
 	return nil

@@ -246,25 +246,74 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 	req.colorTags = plan.colorTags
 	req.pixFmt = plan.pixFmt
 
-	if plan.hdrKind == clip.TransferHLGAlias {
-		req.tonePeak = tonemap.DefaultWebSafePeak
+	if plan.toneMap {
+		req.tonePeak = execFFmpeg.tonePeak(ctx, req.input, plan.hdrKind, req.start, req.duration)
+	}
+}
+
+// webSafeToneMap returns the tone map chain that brings an HDR source down to
+// Rec.709, for an export that asked for web-safe color. An SDR source, or one
+// that could not be probed, needs none.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the probe and luma sampling.
+//   - input: Absolute source media path.
+//   - start: Seek offset into the source.
+//   - duration: Length of the export window.
+//
+// Returns:
+//   - filter: The tone map chain, ending in 8-bit yuv420p, or empty.
+func (execFFmpeg *ExecFFmpeg) webSafeToneMap(
+	ctx context.Context,
+	input string,
+	start, duration time.Duration,
+) string {
+	info, err := execFFmpeg.Probe(ctx, input)
+	if err != nil {
+		return ""
 	}
 
-	if !plan.needsPeak {
-		return
+	plan := decideColor(info.ColorTransfer, webSafeRemap)
+	if !plan.toneMap {
+		return ""
 	}
 
-	ymax, ok := execFFmpeg.signalstatsYMax(ctx, req.input, req.start, req.duration)
+	return tonemap.ToneMapFilter(
+		plan.hdrKind,
+		execFFmpeg.tonePeak(ctx, input, plan.hdrKind, start, duration),
+	)
+}
+
+// tonePeak returns the peak an HDR tone map scales against. HLG carries a
+// nominal peak, and PQ is sampled from the window.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for luma sampling.
+//   - input: Source media path.
+//   - hdrKind: Transfer alias the tone map expects.
+//   - start: Seek offset into the source.
+//   - duration: Length of the window.
+//
+// Returns:
+//   - peak: The tone map peak.
+func (execFFmpeg *ExecFFmpeg) tonePeak(
+	ctx context.Context,
+	input, hdrKind string,
+	start, duration time.Duration,
+) float64 {
+	if hdrKind != clip.TransferPQAlias {
+		return tonemap.DefaultWebSafePeak
+	}
+
+	ymax, ok := execFFmpeg.signalstatsYMax(ctx, input, start, duration)
 	if !ok {
 		// Tone map against the nominal peak rather than abandoning the map. The
-		// tags already say Rec.709, so leaving the source's HDR pixels in place
+		// output is tagged Rec.709, so leaving the source's HDR pixels in place
 		// would ship them mislabelled.
-		req.tonePeak = tonemap.DefaultWebSafePeak
-
-		return
+		return tonemap.DefaultWebSafePeak
 	}
 
-	req.tonePeak = tonemap.PeakFromNits(tonemap.NitsFromLimitedY(ymax))
+	return tonemap.PeakFromNits(tonemap.NitsFromLimitedY(ymax))
 }
 
 // signalstatsYMax samples luma on a short window of the clip.
@@ -277,7 +326,8 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 //
 // Returns:
 //   - ymax: Highest limited-range luma code observed.
-//   - ok: True when at least one YMAX value was parsed.
+//   - ok: True when the pass finished cleanly and at least one YMAX value was
+//     parsed.
 func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 	ctx context.Context,
 	input string,
@@ -307,14 +357,18 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 	}
 
 	stderr, runErr := execFFmpeg.runStderr(ctx, signalstatsPass, args...)
+	if runErr != nil {
+		// A pass that errored, a timeout most of all, can have emitted a YMAX
+		// from a partial sample, which would understate the peak and mis-scale
+		// the tone map. The caller falls back to the nominal peak instead.
+		return 0, false
+	}
 
 	ymax, ok := tonemap.ParseSignalstatsYMax(stderr)
 
-	// Only a clean pass is cached. A pass that produced no luma is not necessarily
-	// a source with no highlights, and a pass that errored — a timeout most of
-	// all — can have emitted a YMAX from a partial sample, which would understate
-	// the peak and mis-scale the tone map.
-	if ok && runErr == nil {
+	// A pass that produced no luma is not necessarily a source with no
+	// highlights, so only a parsed sample is cached.
+	if ok {
 		probe.StorePeak(cleanInput, key, start, window, ymax)
 	}
 

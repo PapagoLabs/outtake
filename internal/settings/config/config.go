@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -128,6 +129,23 @@ const (
 	defaultS3Region = "us-east-1"
 	// secondsBitSize is the bit size used when parsing a second count.
 	secondsBitSize = 64
+)
+
+const (
+	// slash separates the parts of a Windows path once its backslashes are
+	// replaced.
+	slash = "/"
+)
+
+var (
+	// windowsVolumePattern matches the start of a Windows path: a drive
+	// letter, or a UNC share as Windows writes it, with backslashes. A Linux
+	// path may start with two slashes, so a slashed share is not matched.
+	windowsVolumePattern = regexp.MustCompile(`^(?:[A-Za-z]:[\\/]|\\\\[^\\/]+\\[^\\/]+)`)
+
+	// slashedVolumePattern matches the volume of a Windows path that has had
+	// its backslashes turned into slashes.
+	slashedVolumePattern = regexp.MustCompile(`^(?:[A-Za-z]:|//[^/]+/[^/]+)`)
 )
 
 // ConfigPath returns the configuration file path.
@@ -430,14 +448,9 @@ func (cfg *Config) RemapMediaPath(plexPath string) string {
 		return plexPath
 	}
 
-	rel := plexPath
-	if cfg.PlexMediaRoot != "" {
-		rooted, ok := trimMediaRoot(plexPath, cfg.PlexMediaRoot)
-		if !ok {
-			return plexPath
-		}
-
-		rel = rooted
+	rel, ok := cfg.plexRelative(plexPath)
+	if !ok {
+		return plexPath
 	}
 
 	rel = strings.TrimPrefix(rel, string(filepath.Separator))
@@ -455,6 +468,90 @@ func (cfg *Config) RemapMediaPath(plexPath string) string {
 	}
 
 	return mapped
+}
+
+// plexRelative returns a Plex path relative to the configured Plex root. A
+// Windows path, one that starts with a drive letter or a UNC share, has its
+// backslashes turned into slashes, is matched against the root without regard
+// to case as Windows does, and without a root loses its volume, so it can sit
+// under the local mount.
+//
+// Parameters:
+//   - plexPath: Path as the Plex server reports it.
+//
+// Returns:
+//   - rel: The path relative to the Plex root, which may still contain ..
+//     segments.
+//   - ok: False when a root is configured and the path is not under it.
+func (cfg *Config) plexRelative(plexPath string) (string, bool) {
+	path, windows := windowsPath(plexPath)
+	if !windows {
+		if cfg.PlexMediaRoot == "" {
+			return plexPath, true
+		}
+
+		return trimMediaRoot(plexPath, cfg.PlexMediaRoot)
+	}
+
+	if cfg.PlexMediaRoot == "" {
+		return strings.TrimPrefix(path, windowsVolume(path)), true
+	}
+
+	return trimWindowsRoot(path, strings.ReplaceAll(cfg.PlexMediaRoot, `\`, slash))
+}
+
+// windowsPath reports whether a path is a Windows path, one starting with a
+// drive letter or a UNC share, and returns it with forward slashes.
+//
+// Parameters:
+//   - path: Path as the Plex server reports it.
+//
+// Returns:
+//   - slashed: The path with forward slashes, or path unchanged when it is
+//     not a Windows path.
+//   - windows: True for a drive letter or UNC path.
+func windowsPath(path string) (string, bool) {
+	if !windowsVolumePattern.MatchString(path) {
+		return path, false
+	}
+
+	return strings.ReplaceAll(path, `\`, slash), true
+}
+
+// windowsVolume returns the drive letter or UNC share a slashed Windows path
+// starts with.
+//
+// Parameters:
+//   - path: A Windows path with forward slashes.
+//
+// Returns:
+//   - volume: Such as "D:" or "//nas/share", empty when there is none.
+func windowsVolume(path string) string {
+	return slashedVolumePattern.FindString(path)
+}
+
+// trimWindowsRoot reports a slashed Windows path relative to root, matching
+// the root without regard to case and only on a directory boundary.
+//
+// Parameters:
+//   - path: A Windows path with forward slashes.
+//   - root: The Plex-side root with forward slashes.
+//
+// Returns:
+//   - rel: The remainder after root.
+//   - ok: True when path is root or a descendant of root.
+func trimWindowsRoot(path, root string) (string, bool) {
+	root = strings.TrimRight(root, slash)
+	if strings.EqualFold(path, root) {
+		return "", true
+	}
+
+	prefix := root + slash
+	if len(path) <= len(prefix) || !strings.EqualFold(path[:len(prefix)], prefix) {
+		return "", false
+	}
+
+	return path[len(prefix):], true
 }
 
 // trimMediaRoot reports the path relative to root when path is root or a child of it.

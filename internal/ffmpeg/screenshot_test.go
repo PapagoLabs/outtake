@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
@@ -27,6 +28,7 @@ func TestExecFFmpeg_ExtractScreenshot_MissingInput(t *testing.T) {
 		"/tmp/screenshot.jpg",
 		100,
 		crop.CropRect{},
+		clip.QualityPreset{},
 	)
 	assert.Error(t, err)
 }
@@ -38,7 +40,12 @@ func TestExecFFmpeg_ExtractScreenshot_Args(t *testing.T) {
 	ff := NewExecFFmpeg(ffmpegtest.Install(t, ffmpegtest.Stub{Output: "frame"}), "unused")
 
 	err := ff.ExtractScreenshot(
-		t.Context(), fixture.input, fixture.output, 2*time.Minute, crop.CropRect{},
+		t.Context(),
+		fixture.input,
+		fixture.output,
+		2*time.Minute,
+		crop.CropRect{},
+		clip.QualityPreset{},
 	)
 	require.NoError(t, err)
 
@@ -75,6 +82,7 @@ func TestExtractScreenshotResolvesRelativePaths(t *testing.T) {
 		output,
 		time.Second,
 		crop.CropRect{},
+		clip.QualityPreset{},
 	))
 
 	recorded, err := os.ReadFile(logPath)
@@ -92,7 +100,7 @@ func TestScreenshotEncodeArgsCropsBlackBars(t *testing.T) {
 	t.Parallel()
 
 	rect := crop.CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
-	args := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", 12*time.Second, rect)
+	args := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", 12*time.Second, rect, "")
 
 	assert.Contains(t, args, "-vf")
 	assert.Contains(t, args, rect.Filter())
@@ -101,7 +109,14 @@ func TestScreenshotEncodeArgsCropsBlackBars(t *testing.T) {
 func TestScreenshotEncodeArgsOmitsCropWhenEmpty(t *testing.T) {
 	t.Parallel()
 
-	args := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", 12*time.Second, crop.CropRect{})
+	args := screenshotEncodeArgs(
+		"ffmpeg",
+		"/in.mkv",
+		"/out.jpg",
+		12*time.Second,
+		crop.CropRect{},
+		"",
+	)
 
 	assert.NotContains(t, args, "-vf")
 	assert.NotContains(t, args, "crop=")

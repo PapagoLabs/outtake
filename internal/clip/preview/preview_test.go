@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -26,13 +27,13 @@ func newPendingJob(name string) *entry {
 	}
 }
 
-func newServiceFixture(t *testing.T, limit int) (*Service, *blob.Storage) {
+func newServiceFixture(t *testing.T) (*Service, *blob.Storage) {
 	t.Helper()
 
 	store, err := blob.NewStorage(blob.NewPaths(t.TempDir()))
 	require.NoError(t, err)
 
-	return New(limit, store, store.Paths, stagingFFmpeg(t, false)), store
+	return New(1, store, store.Paths, stagingFFmpeg(t, false)), store
 }
 
 func awaitTerminal(t *testing.T, registry *registry, previewID string) View {
@@ -63,7 +64,7 @@ func awaitTerminal(t *testing.T, registry *registry, previewID string) View {
 func TestPreviewRegistryAllowsRetryingAFailedRender(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 
 	require.Equal(
 		t,
@@ -154,7 +155,7 @@ func TestPreviewAdmissionRefusesWhenTheQueueIsFull(t *testing.T) {
 func TestPreviewRegistryRejectsARunningRender(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	release := make(chan struct{})
 
 	require.Equal(
@@ -184,7 +185,7 @@ func TestPreviewRegistryRejectsARunningRender(t *testing.T) {
 func TestPreviewRegistryRecordsCancellationWhenProcessIsKilled(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	started := make(chan struct{})
 	release := make(chan struct{})
 
@@ -211,7 +212,7 @@ func TestPreviewRegistryRecordsCancellationWhenProcessIsKilled(t *testing.T) {
 func TestPreviewRegistryKeepsRealFailures(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 
 	require.Equal(
 		t,
@@ -229,7 +230,7 @@ func TestPreviewRegistryKeepsRealFailures(t *testing.T) {
 func TestPreviewRegistryKeepsCompletionWhenCancelArrivesLate(t *testing.T) {
 	t.Parallel()
 
-	registry := newRegistry()
+	registry := newRegistry(func(string) {})
 	published := make(chan struct{})
 	release := make(chan struct{})
 
@@ -260,7 +261,7 @@ func TestPreviewRegistryKeepsCompletionWhenCancelArrivesLate(t *testing.T) {
 func TestServicePublishedTracksTheFinalFile(t *testing.T) {
 	t.Parallel()
 
-	service, store := newServiceFixture(t, 1)
+	service, store := newServiceFixture(t)
 
 	assert.False(t, service.Published("never-rendered"))
 
@@ -272,7 +273,7 @@ func TestServicePublishedTracksTheFinalFile(t *testing.T) {
 func TestServiceRenderIntoPublishesUnderThePreviewID(t *testing.T) {
 	t.Parallel()
 
-	service, _ := newServiceFixture(t, 1)
+	service, _ := newServiceFixture(t)
 
 	err := service.RenderInto(
 		t.Context(),
@@ -289,7 +290,7 @@ func TestServiceRenderIntoPublishesUnderThePreviewID(t *testing.T) {
 func TestServiceRenderIntoSkipsAPreviewThatExists(t *testing.T) {
 	t.Parallel()
 
-	service, store := newServiceFixture(t, 1)
+	service, store := newServiceFixture(t)
 	require.NoError(t, os.WriteFile(store.PreviewPath("p1"), []byte("earlier"), 0o600))
 
 	err := service.RenderInto(
@@ -307,4 +308,113 @@ func TestServiceRenderIntoSkipsAPreviewThatExists(t *testing.T) {
 	contents, readErr := os.ReadFile(store.PreviewPath("p1"))
 	require.NoError(t, readErr)
 	assert.Equal(t, "earlier", string(contents), "the published preview must not be overwritten")
+}
+
+// TestCloseCancelsRunningPreviewsAndWaitsForThem covers shutdown: a running
+// render is canceled, Close returns once it has finished, and nothing new is
+// admitted afterwards.
+func TestCloseCancelsRunningPreviewsAndWaitsForThem(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		service, _ := newServiceFixture(t)
+
+		entered := make(chan struct{})
+		finished := false
+
+		admitted := service.Submit(t.Context(), "running", func(ctx context.Context) error {
+			close(entered)
+			<-ctx.Done()
+
+			finished = true
+
+			return ctx.Err()
+		})
+		require.Equal(t, AdmittedRender, admitted)
+
+		<-entered
+
+		require.NoError(t, service.Close(t.Context()))
+		assert.True(t, finished, "Close returns only after the render has unwound")
+
+		view, ok := service.Status("running")
+		require.True(t, ok)
+		assert.Equal(t, clip.StatusCancelled, view.Status)
+
+		late := service.Submit(t.Context(), "late", func(context.Context) error { return nil })
+		assert.Equal(t, RefusedClosed, late, "a closing service starts nothing new")
+	})
+}
+
+// TestCloseGivesUpWhenItsContextEnds covers a render that ignores its
+// cancellation: Close stops waiting when its own context ends.
+func TestCloseGivesUpWhenItsContextEnds(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		service, _ := newServiceFixture(t)
+
+		release := make(chan struct{})
+		entered := make(chan struct{})
+
+		service.Submit(t.Context(), "stuck", func(context.Context) error {
+			close(entered)
+			<-release
+
+			return nil
+		})
+
+		<-entered
+
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+
+		require.ErrorIs(t, service.Close(ctx), context.DeadlineExceeded)
+
+		close(release)
+		synctest.Wait()
+	})
+}
+
+// TestEvictionRemovesOnlyCompletedPreviewFiles covers retention: a completed
+// preview that falls out of the registry loses its file, and a failed one,
+// which has no file, is not touched.
+func TestEvictionRemovesOnlyCompletedPreviewFiles(t *testing.T) {
+	t.Parallel()
+
+	var removed []string
+
+	registry := newRegistry(func(previewID string) { removed = append(removed, previewID) })
+
+	registry.add(&entry{
+		view:    View{ID: "failed", Status: clip.StatusFailed},
+		cancel:  func() {},
+		created: time.Now(),
+		updated: time.Now(),
+	})
+
+	for i := range retained + 1 {
+		registry.remember("done-" + strconv.Itoa(i))
+	}
+
+	assert.Equal(t, []string{"done-0"}, removed,
+		"the oldest completed preview is dropped with its file, the failed one without a file")
+	assert.Len(t, registry.entries, retained)
+}
+
+// TestDiscardRemovesThePreviewFile covers the service's eviction hook.
+func TestDiscardRemovesThePreviewFile(t *testing.T) {
+	t.Parallel()
+
+	service, store := newServiceFixture(t)
+
+	path := service.OutputPath("evicted")
+
+	require.NoError(t, os.MkdirAll(store.PreviewsDir(), 0o750))
+	require.NoError(t, os.WriteFile(path, []byte("preview"), 0o600))
+
+	service.discard("evicted")
+	assert.NoFileExists(t, path)
+
+	assert.NotPanics(t, func() { service.discard("evicted") }, "a missing file is not an error")
 }
