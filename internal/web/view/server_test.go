@@ -35,20 +35,21 @@ func TestServerItemsMapsEveryField(t *testing.T) {
 
 	require.Len(t, items, 2)
 	assert.Equal(t, ServerItem{
+		Key:      "local http://10.0.0.5:32400",
 		Name:     "local",
 		Address:  "10.0.0.5",
 		Port:     32400,
 		Scheme:   "http",
-		Token:    "tok-a",
 		Local:    true,
+		Relay:    false,
 		Selected: false,
 	}, items[0])
 	assert.Equal(t, ServerItem{
+		Key:     "remote https://10.0.0.9:443",
 		Name:    "remote",
 		Address: "10.0.0.9",
 		Port:    443,
 		Scheme:  "https",
-		Token:   "tok-b",
 	}, items[1])
 }
 

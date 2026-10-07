@@ -4,6 +4,8 @@
 package identity
 
 import (
+	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -132,6 +134,87 @@ func newAccountServer(t *testing.T, accounts map[string]string) *httptest.Server
 	t.Cleanup(server.Close)
 
 	return server
+}
+
+// reachablePlexTV stands in for plex.tv and for the one server it lists. The
+// server's remote connection points at a closed port and its local connection
+// at the stand-in itself, which answers /identity as machine-1.
+//
+// Parameters:
+//   - t: The test the stand-in belongs to.
+//
+// Returns:
+//   - origin: Where Plex requests are aimed.
+//   - bound: The connection binding should pick.
+//   - dead: The listed connection that does not answer.
+func reachablePlexTV(t *testing.T) (string, plex.Server, plex.Server) {
+	t.Helper()
+
+	closedPort := closedLoopbackPort(t)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v2/user", func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(userRoute().body))
+	})
+	mux.HandleFunc("/identity", func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(`{"MediaContainer":{"machineIdentifier":"machine-1"}}`))
+	})
+
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+
+	addr, ok := server.Listener.Addr().(*net.TCPAddr)
+	require.True(t, ok)
+
+	port := addr.Port
+
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = fmt.Fprintf(writer, `<MediaContainer>
+	<Device name="Attic" clientIdentifier="machine-1" provides="server" accessToken="discovered-token">
+		<Connection protocol="https" address="127.0.0.1" port="%d" local="0"/>
+		<Connection protocol="http" address="127.0.0.1" port="%d" local="1"/>
+	</Device>
+</MediaContainer>`, closedPort, port)
+	})
+
+	bound := plex.Server{
+		Name:      "Attic",
+		Address:   "127.0.0.1",
+		Port:      port,
+		Token:     "discovered-token",
+		Scheme:    "http",
+		Local:     true,
+		MachineID: "machine-1",
+		Relay:     false,
+	}
+
+	dead := bound
+
+	dead.Port = closedPort
+	dead.Scheme = "https"
+	dead.Local = false
+
+	return server.URL, bound, dead
+}
+
+// closedLoopbackPort returns a loopback port nothing listens on.
+//
+// Parameters:
+//   - t: The test that needs the port.
+//
+// Returns:
+//   - port: A port that refuses connections.
+func closedLoopbackPort(t *testing.T) int {
+	t.Helper()
+
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	require.True(t, ok)
+	require.NoError(t, listener.Close())
+
+	return addr.Port
 }
 
 // userRoute is the plex.tv answer that validates an access token.
@@ -803,26 +886,18 @@ func TestSignInReportsAFailedStore(t *testing.T) {
 func TestSignInBindsTheOnlyDiscoveredServer(t *testing.T) {
 	t.Parallel()
 
+	origin, reachable, _ := reachablePlexTV(t)
+
 	store := mocks.NewMockStore(t)
 	store.EXPECT().UserRole(mock.Anything, 42).Return("owner", true, nil).Once()
 	store.EXPECT().TouchLogin(mock.Anything, 42, "Nick").Return(nil).Once()
-	store.EXPECT().SaveSelectedServer(mock.Anything, testBoundServer).Return(nil).Once()
+	store.EXPECT().SaveSelectedServer(mock.Anything, reachable).Return(nil).Once()
 
 	bound := mocks.NewMockServerBinding(t)
 	bound.EXPECT().Get().Return(plex.EmptyServer(), false).Once()
-	bound.EXPECT().Set(testBoundServer).Once()
+	bound.EXPECT().Set(reachable).Once()
 
-	routes := map[string]plexRoute{
-		"/api/v2/user":   userRoute(),
-		"/api/resources": {status: http.StatusOK, body: testOneServerXML},
-	}
-
-	_, err := testAuth(
-		t,
-		newPlexServer(t, routes).URL,
-		store,
-		bound,
-	).SignIn(t.Context(), "access-token")
+	_, err := testAuth(t, origin, store, bound).SignIn(t.Context(), "access-token")
 
 	require.NoError(t, err)
 }
@@ -865,30 +940,42 @@ func TestForgetServerToleratesAbsentCollaborators(t *testing.T) {
 	require.NoError(t, auth.ForgetServer(t.Context()))
 }
 
-func TestBindServerBindsTheOnlyDiscoveredServer(t *testing.T) {
+func TestBindServerBindsTheReachableConnectionOfTheOnlyServer(t *testing.T) {
 	t.Parallel()
 
+	origin, reachable, _ := reachablePlexTV(t)
+
 	store := mocks.NewMockStore(t)
-	store.EXPECT().
-		SaveSelectedServer(mock.Anything, testBoundServer).
-		Return(nil).
-		Once()
+	store.EXPECT().SaveSelectedServer(mock.Anything, reachable).Return(nil).Once()
 
 	bound := mocks.NewMockServerBinding(t)
-	bound.EXPECT().
-		Get().
-		Return(plex.EmptyServer(), false).
-		Once()
-	bound.EXPECT().
-		Set(testBoundServer).
-		Once()
+	bound.EXPECT().Get().Return(plex.EmptyServer(), false).Once()
+	bound.EXPECT().Set(reachable).Once()
 
-	routes := map[string]plexRoute{
-		"/api/resources": {status: http.StatusOK, body: testOneServerXML},
-	}
+	testAuth(t, origin, store, bound).bindServer(t.Context(), "access-token")
+}
 
-	auth := testAuth(t, newPlexServer(t, routes).URL, store, bound)
-	auth.bindServer(t.Context(), "access-token")
+func TestBindServerSkipsAServerWithNoReachableConnection(t *testing.T) {
+	t.Parallel()
+
+	xml := fmt.Sprintf(`<MediaContainer>
+	<Device name="Attic" clientIdentifier="machine-1" provides="server" accessToken="discovered-token">
+		<Connection protocol="http" address="127.0.0.1" port="%d" local="1"/>
+	</Device>
+</MediaContainer>`, closedLoopbackPort(t))
+
+	// The binding only answers Get, so binding a dead connection fails the test.
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(plex.EmptyServer(), false).Once()
+
+	routes := map[string]plexRoute{"/api/resources": {status: http.StatusOK, body: xml}}
+
+	testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		mocks.NewMockStore(t),
+		bound,
+	).bindServer(t.Context(), "access-token")
 }
 
 func TestBindServerReportsAFailedDiscovery(t *testing.T) {
@@ -995,25 +1082,141 @@ func TestBindServerSkipsWithoutAStore(t *testing.T) {
 func TestBindServerReportsAFailedPersist(t *testing.T) {
 	t.Parallel()
 
+	origin, reachable, _ := reachablePlexTV(t)
+
 	store := mocks.NewMockStore(t)
-	store.EXPECT().
-		SaveSelectedServer(mock.Anything, testBoundServer).
-		Return(errStoreClosed).
-		Once()
+	store.EXPECT().SaveSelectedServer(mock.Anything, reachable).Return(errStoreClosed).Once()
 
 	bound := mocks.NewMockServerBinding(t)
-	bound.EXPECT().
-		Get().
-		Return(plex.EmptyServer(), false).
-		Once()
-	bound.EXPECT().
-		Set(testBoundServer).
-		Once()
+	bound.EXPECT().Get().Return(plex.EmptyServer(), false).Once()
+	bound.EXPECT().Set(reachable).Once()
 
-	routes := map[string]plexRoute{
-		"/api/resources": {status: http.StatusOK, body: testOneServerXML},
+	testAuth(t, origin, store, bound).bindServer(t.Context(), "access-token")
+}
+
+func TestChooseServerResolvesADiscoveredConnection(t *testing.T) {
+	t.Parallel()
+
+	origin, reachable, _ := reachablePlexTV(t)
+
+	server, err := testAuth(
+		t,
+		origin,
+		nil,
+		nil,
+	).ChooseServer(t.Context(), "access-token", plex.SelectionKey(reachable))
+
+	require.NoError(t, err)
+	assert.Equal(t, reachable, server, "the token comes from discovery")
+}
+
+func TestChooseServerRefusesAKeyNoDiscoveredServerHas(t *testing.T) {
+	t.Parallel()
+
+	origin, _, _ := reachablePlexTV(t)
+
+	_, err := testAuth(
+		t,
+		origin,
+		nil,
+		nil,
+	).ChooseServer(t.Context(), "access-token", "machine-1 http://evil.example:80")
+
+	require.ErrorIs(t, err, ErrServerNotFound)
+}
+
+func TestChooseServerRefusesAConnectionThatDoesNotAnswer(t *testing.T) {
+	t.Parallel()
+
+	origin, _, dead := reachablePlexTV(t)
+
+	_, err := testAuth(
+		t,
+		origin,
+		nil,
+		nil,
+	).ChooseServer(t.Context(), "access-token", plex.SelectionKey(dead))
+
+	require.ErrorIs(t, err, ErrServerUnreachable)
+}
+
+func TestChooseServerReportsAFailedDiscovery(t *testing.T) {
+	t.Parallel()
+
+	_, err := testAuth(
+		t,
+		newPlexServer(t, nil).URL,
+		nil,
+		nil,
+	).ChooseServer(t.Context(), "access-token", "any")
+
+	require.ErrorContains(t, err, "discover servers")
+}
+
+func TestChooseCustomURLUsesTheTokenOfTheMatchingServer(t *testing.T) {
+	t.Parallel()
+
+	origin, reachable, _ := reachablePlexTV(t)
+
+	server, err := testAuth(
+		t,
+		origin,
+		nil,
+		nil,
+	).ChooseCustomURL(t.Context(), "access-token", origin)
+
+	require.NoError(t, err)
+	assert.Equal(t, "discovered-token", server.Token)
+	assert.Equal(t, "machine-1", server.MachineID)
+	assert.Equal(t, reachable.Port, server.Port)
+	assert.Equal(t, "Attic", server.Name)
+}
+
+func TestChooseCustomURLSendsNoTokenToTheHostItChecks(t *testing.T) {
+	t.Parallel()
+
+	origin, _, _ := reachablePlexTV(t)
+
+	tokens := make(chan string, 1)
+
+	custom := httptest.NewServer(
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			tokens <- request.Header.Get("X-Plex-Token")
+
+			_, _ = writer.Write([]byte(`{"MediaContainer":{"machineIdentifier":"someone-else"}}`))
+		}),
+	)
+	t.Cleanup(custom.Close)
+
+	_, err := testAuth(t, origin, nil, nil).ChooseCustomURL(t.Context(), "access-token", custom.URL)
+
+	require.ErrorIs(
+		t,
+		err,
+		ErrServerNotFound,
+		"a host that is not one of the account's servers is refused",
+	)
+	assert.Empty(t, <-tokens, "no token reaches a host before it is verified")
+}
+
+func TestChooseCustomURLRefusesAURLThatIsNotHTTP(t *testing.T) {
+	t.Parallel()
+
+	for _, rawURL := range []string{"ftp://plex.example.com", "plex.example.com", "", "http://"} {
+		_, err := testAuth(t, "", nil, nil).ChooseCustomURL(t.Context(), "access-token", rawURL)
+
+		require.ErrorIs(t, err, ErrInvalidServerURL, rawURL)
 	}
+}
 
-	auth := testAuth(t, newPlexServer(t, routes).URL, store, bound)
-	auth.bindServer(t.Context(), "access-token")
+func TestChooseCustomURLRefusesAHostThatDoesNotAnswer(t *testing.T) {
+	t.Parallel()
+
+	origin, _, _ := reachablePlexTV(t)
+
+	_, err := testAuth(t, origin, nil, nil).ChooseCustomURL(
+		t.Context(), "access-token", fmt.Sprintf("http://127.0.0.1:%d", closedLoopbackPort(t)),
+	)
+
+	require.ErrorIs(t, err, ErrServerUnreachable)
 }

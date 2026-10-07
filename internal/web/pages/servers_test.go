@@ -30,7 +30,7 @@ func atticServer() view.ServerItem {
 		Address:  "10.0.0.2",
 		Port:     32400,
 		Scheme:   "http",
-		Token:    "attic-token",
+		Key:      "attic-id http://10.0.0.2:32400",
 		Local:    true,
 		Selected: true,
 	}
@@ -42,7 +42,7 @@ func basementServer() view.ServerItem {
 		Address: "10.0.0.3",
 		Port:    32400,
 		Scheme:  "http",
-		Token:   "basement-token",
+		Key:     "basement-id http://10.0.0.3:32400",
 	}
 }
 
@@ -88,14 +88,15 @@ func TestServersKeepsEveryRowSubmittable(t *testing.T) {
 	assert.Equal(t, 3, strings.Count(body, `<form action="/servers" method="POST"`),
 		"both rows and the custom URL section keep their own form")
 
+	assert.Equal(t, 2, strings.Count(body, `name="server"`), "each row posts its selection key")
+	assert.Contains(t, body, `value="attic-id http://10.0.0.2:32400"`)
+	assert.Contains(t, body, `value="basement-id http://10.0.0.3:32400"`)
+
 	for _, field := range []string{
 		`name="name"`, `name="address"`, `name="port"`, `name="scheme"`, `name="token"`,
 	} {
-		assert.Equal(t, 2, strings.Count(body, field), "row field %q survives", field)
+		assert.NotContains(t, body, field, "the page posts no %s", field)
 	}
-
-	assert.Contains(t, body, `value="attic-token"`)
-	assert.Contains(t, body, `value="basement-token"`)
 }
 
 func TestServersKeepsCustomURLSection(t *testing.T) {

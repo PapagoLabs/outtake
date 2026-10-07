@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -97,12 +98,25 @@ const ClientIDLength = 16
 // forwardPath is the route Plex redirects to once the user authorizes a PIN.
 const forwardPath = "/api/auth/callback"
 
+// identityTimeout bounds the identity check of a custom server URL.
+const identityTimeout = 5 * time.Second
+
 var (
 	// ErrInvalidToken reports a Plex token the server does not accept.
 	ErrInvalidToken = errors.New("plex token was rejected")
 
 	// ErrNotAllowed reports a Plex account this installation does not belong to.
 	ErrNotAllowed = errors.New("plex account may not use this installation")
+
+	// ErrServerNotFound reports a server choice that matches no server the
+	// account can reach through plex.tv.
+	ErrServerNotFound = errors.New("plex server is not on this account")
+
+	// ErrServerUnreachable reports a server this installation cannot connect to.
+	ErrServerUnreachable = errors.New("plex server cannot be reached")
+
+	// ErrInvalidServerURL reports a custom server URL that is not http or https.
+	ErrInvalidServerURL = errors.New("invalid plex server url")
 )
 
 // New creates the Plex authentication service.
@@ -191,6 +205,99 @@ func (auth *Auth) Bound() bool {
 	_, ok := auth.selected.Get()
 
 	return ok
+}
+
+// ChooseCustomURL resolves a server URL the owner typed. The URL is asked for
+// its identity without a token, and the server's token is used only when that
+// identity matches a server the account can see, so no token is sent to a
+// host that is not one of the account's servers.
+//
+// The URL need not be a connection plex.tv lists, because it exists for
+// addresses Plex does not know, such as a container name or a reverse proxy.
+// A machine identifier is not secret, so a host that relays the server's
+// identity passes the check. Only the signed-in owner can submit a URL, which
+// limits that to a host the owner typed.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - accessToken: Plex access token servers are discovered with.
+//   - rawURL: The URL the owner typed.
+//
+// Returns:
+//   - server: The connection the URL names, with its server's token.
+//   - err: ErrInvalidServerURL, ErrServerUnreachable, ErrServerNotFound, or the
+//     wrapped discovery failure.
+func (auth *Auth) ChooseCustomURL(
+	ctx context.Context,
+	accessToken, rawURL string,
+) (plex.Server, error) {
+	custom, ok := plex.ParseServerURL(rawURL)
+	if !ok {
+		return plex.EmptyServer(), ErrInvalidServerURL
+	}
+
+	identityCtx, cancel := context.WithTimeout(ctx, identityTimeout)
+	defer cancel()
+
+	identity, err := auth.clientFor(accessToken).GetServerIdentity(identityCtx, custom)
+	if err != nil || identity.MachineIdentifier == "" {
+		return plex.EmptyServer(), ErrServerUnreachable
+	}
+
+	servers, err := auth.Discover(ctx, accessToken)
+	if err != nil {
+		return plex.EmptyServer(), err
+	}
+
+	for _, server := range servers {
+		if server.MachineID != identity.MachineIdentifier {
+			continue
+		}
+
+		custom.Name = server.Name
+		custom.Token = server.Token
+		custom.MachineID = server.MachineID
+
+		return custom, nil
+	}
+
+	return plex.EmptyServer(), ErrServerNotFound
+}
+
+// ChooseServer resolves a discovered connection the owner picked by its
+// selection key. The servers are discovered again, so the token comes from
+// Plex rather than from the request.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - accessToken: Plex access token servers are discovered with.
+//   - key: The connection's plex.SelectionKey.
+//
+// Returns:
+//   - server: The chosen connection.
+//   - err: ErrServerNotFound, ErrServerUnreachable, or the wrapped discovery
+//     failure.
+func (auth *Auth) ChooseServer(ctx context.Context, accessToken, key string) (plex.Server, error) {
+	servers, err := auth.Discover(ctx, accessToken)
+	if err != nil {
+		return plex.EmptyServer(), err
+	}
+
+	client := auth.clientFor(accessToken)
+
+	for _, server := range servers {
+		if plex.SelectionKey(server) != key {
+			continue
+		}
+
+		if client.Ping(ctx, server) != nil {
+			return plex.EmptyServer(), ErrServerUnreachable
+		}
+
+		return server, nil
+	}
+
+	return plex.EmptyServer(), ErrServerNotFound
 }
 
 // Client builds a Plex client for the selected server.
@@ -388,7 +495,8 @@ func (auth *Auth) authorize(ctx context.Context, candidate User) (User, error) {
 	return candidate, nil
 }
 
-// bindServer selects the single discovered Plex server and persists the choice.
+// bindServer selects the single discovered Plex server, through its most
+// preferred connection that answers, and persists the choice.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -402,7 +510,9 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 		return
 	}
 
-	servers, err := auth.clientFor(accessToken).DiscoverServers(ctx)
+	client := auth.clientFor(accessToken)
+
+	servers, err := client.DiscoverServers(ctx)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to discover plex servers")
 
@@ -414,9 +524,18 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 		return
 	}
 
-	auth.selected.Set(unique[0])
+	reachable, ok := client.FirstReachable(ctx, plex.ConnectionsOf(servers, unique[0]))
+	if !ok {
+		log.Warn().
+			Str("server", unique[0].Name).
+			Msg("no connection to the only plex server answered")
 
-	saveErr := auth.store.SaveSelectedServer(ctx, unique[0])
+		return
+	}
+
+	auth.selected.Set(reachable)
+
+	saveErr := auth.store.SaveSelectedServer(ctx, reachable)
 	if saveErr != nil {
 		log.Warn().Err(saveErr).Msg("failed to persist selected server")
 	}
