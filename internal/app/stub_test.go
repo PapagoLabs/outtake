@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
@@ -38,6 +39,11 @@ func stubFFmpeg(t *testing.T, logPath string, stub ffmpegtest.Stub) string {
 
 	stub.ArgvFile = logPath
 	stub.ArgvSeparator = stubInvocationSeparator
+
+	// A render only publishes a file it wrote something to.
+	if stub.Output == "" {
+		stub.Output = "rendered"
+	}
 
 	return ffmpegtest.Install(t, stub)
 }
@@ -133,4 +139,26 @@ func stubOutputArg(argv []string) string {
 	}
 
 	return argv[len(argv)-1]
+}
+
+// assertStagedFor checks that a render wrote to a staging file beside output
+// and that the staging file was published to output.
+//
+// Parameters:
+//   - t: The test that is checking.
+//   - output: The clip's output path.
+//   - written: The path the render wrote to.
+func assertStagedFor(t *testing.T, output, written string) {
+	t.Helper()
+
+	assert.Equal(
+		t,
+		filepath.Dir(output),
+		filepath.Dir(written),
+		"the render writes beside the output",
+	)
+	assert.True(t, strings.HasPrefix(filepath.Base(written), ".staging-"), "to a staging file")
+	assert.Equal(t, filepath.Ext(output), filepath.Ext(written), "with the output's extension")
+	assert.FileExists(t, output, "which is published once the render succeeds")
+	assert.NoFileExists(t, written, "and moved, not copied")
 }

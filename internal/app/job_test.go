@@ -91,7 +91,7 @@ func TestExtractJobRendersAClip(t *testing.T) {
 
 	invocations := stubInvocations(t, logPath)
 	require.Len(t, invocations, 1, "a clip without crop trimming runs one pass")
-	assert.Equal(t, job.OutputPath, stubOutputArg(invocations[0]))
+	assertStagedFor(t, job.OutputPath, stubOutputArg(invocations[0]))
 	assert.Contains(t, invocations[0], "-crf", "the clip arm renders an H.264 stream")
 	assert.Contains(t, invocations[0], "libx264")
 }
@@ -134,7 +134,7 @@ func TestExtractJobRendersAClipWithADetectedCrop(t *testing.T) {
 	require.True(t, found)
 	assert.Equal(t, crop.CropRect{Width: 1920, Height: 800, X: 0, Y: 140}, rect)
 
-	assert.Equal(t, job.OutputPath, stubOutputArg(encodeArgv))
+	assertStagedFor(t, job.OutputPath, stubOutputArg(encodeArgv))
 }
 
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
@@ -178,10 +178,11 @@ func TestExtractJobRendersAGIF(t *testing.T) {
 	invocations := stubInvocations(t, logPath)
 	require.Len(t, invocations, 2, "a GIF runs a palette pass and an encode pass")
 
-	assert.Equal(t, job.OutputPath+".palette.png", stubOutputArg(invocations[0]))
+	assert.Equal(t, stubOutputArg(invocations[1])+".palette.png", stubOutputArg(invocations[0]),
+		"the palette sits beside the staging file it is used for")
 	assert.True(t, stubArgvContains(invocations[0], "palettegen=stats_mode=diff"))
 
-	assert.Equal(t, job.OutputPath, stubOutputArg(invocations[1]))
+	assertStagedFor(t, job.OutputPath, stubOutputArg(invocations[1]))
 	assert.True(t, stubArgvContains(invocations[1], "paletteuse=dither=bayer"))
 }
 
@@ -225,7 +226,7 @@ func TestExtractJobRendersAScreenshot(t *testing.T) {
 
 	invocations := stubInvocations(t, logPath)
 	require.Len(t, invocations, 1, "a screenshot needs no second pass")
-	assert.Equal(t, job.OutputPath, stubOutputArg(invocations[0]))
+	assertStagedFor(t, job.OutputPath, stubOutputArg(invocations[0]))
 	assert.Contains(t, invocations[0], "-frames:v", "the screenshot arm grabs a single frame")
 }
 
@@ -291,7 +292,7 @@ func TestProcessJobReportsAnUploadFailure(t *testing.T) {
 }
 
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
-func TestProcessJobSkipsTheUploadWithoutAnOutput(t *testing.T) {
+func TestProcessJobRefusesAJobWithoutAnOutput(t *testing.T) {
 	dir := t.TempDir()
 
 	job := testClipJob("no-output")
@@ -305,8 +306,10 @@ func TestProcessJobSkipsTheUploadWithoutAnOutput(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	require.NoError(t, processJob(t.Context(), job, execFFmpeg, nil, store),
-		"nothing was rendered to a path, so there is nothing to upload")
+	err := processJob(t.Context(), job, execFFmpeg, nil, store)
+	require.ErrorIs(t, err, ffmpeg.ErrNoOutputPath,
+		"a job with nowhere to write is refused before anything renders or uploads")
+	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
 }
 
 func TestProcessJobReportsAnExtractFailureBeforeUploading(t *testing.T) {

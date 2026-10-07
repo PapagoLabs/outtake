@@ -221,6 +221,7 @@ media only**, not the clip store, and not Kubernetes media NFS.
 | `OUTTAKE_PLEX_MEDIA_ROOT` | Prefix Plex reports for those files, replaced by `OUTTAKE_LOCAL_MEDIA_ROOT`. Source media only | unset |
 | `OUTTAKE_FFMPEG_PATH` | `ffmpeg` binary | `ffmpeg` (images use `/usr/bin/ffmpeg`) |
 | `OUTTAKE_FFPROBE_PATH` | `ffprobe` binary | `ffprobe` (images use `/usr/bin/ffprobe`) |
+| `OUTTAKE_FFMPEG_TIMEOUT_SEC` | Longest one ffmpeg run may take, in seconds. `0` allows 20 times the clip's length, and at least 30 minutes | `0` |
 | `OUTTAKE_MAX_CLIP_DUR` | Maximum clip duration in seconds | `600` |
 | `OUTTAKE_CROP_BLACK_BARS` | Default for **Trim black bars** | `false` |
 | `OUTTAKE_WEB_SAFE_COLOR` | Default for **Web-safe color** on video clips | `false` |

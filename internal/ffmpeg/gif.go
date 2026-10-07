@@ -102,6 +102,8 @@ func gifSeekArgs(ffmpegPath, input string, start, duration time.Duration) []stri
 	return []string{
 		ffmpegPath,
 		outputFlag,
+		abortOnFlag,
+		abortOnEmptyOutput,
 		ssFlag,
 		timecode.FromDuration(start).FormatSeconds(),
 		durationFlag,
@@ -197,7 +199,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 		return fmt.Errorf(encodeGIFErrFmt, err)
 	}
 
-	cleanOutput, err := mediaPath(output)
+	cleanOutput, err := outputPath(output)
 	if err != nil {
 		return fmt.Errorf(encodeGIFErrFmt, err)
 	}
@@ -209,17 +211,48 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 		fps = defaultFPS
 	}
 
-	palettePath := cleanOutput + ".palette.png"
+	err = publish(ctx, cleanOutput, func(staging string) error {
+		return execFFmpeg.renderGIF(ctx, cleanInput, staging, start, duration, width, fps, rect)
+	})
+	if err != nil {
+		return fmt.Errorf(encodeGIFErrFmt, err)
+	}
+
+	return nil
+}
+
+// renderGIF runs the palettegen and paletteuse passes into one file.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the passes.
+//   - input: Absolute source media path.
+//   - output: Absolute path the GIF is written to.
+//   - start: Seek offset into the source.
+//   - duration: Length of the GIF window.
+//   - width: Output width in pixels.
+//   - fps: Output frames per second.
+//   - rect: Optional black-bar crop.
+//
+// Returns:
+//   - err: Non-nil when either pass failed.
+func (execFFmpeg *ExecFFmpeg) renderGIF(
+	ctx context.Context,
+	input, output string,
+	start, duration time.Duration,
+	width, fps int,
+	rect crop.CropRect,
+) error {
+	palettePath := output + paletteSuffix
 	// palettegen can create the PNG and then fail. The remove has to be armed
 	// before that run, or the file is left next to the output.
-	defer osRemove(palettePath)
+	defer removeStaged(palettePath)
 
-	err = execFFmpeg.run(
+	err := execFFmpeg.run(
 		ctx,
 		duration,
 		gifPaletteArgs(
 			execFFmpeg.ffmpegPath,
-			cleanInput,
+			input,
 			palettePath,
 			start,
 			duration,
@@ -230,19 +263,17 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 		return fmt.Errorf("palettegen: %w", err)
 	}
 
-	gifArgs := gifEncodeArgs(
+	err = execFFmpeg.run(ctx, duration, gifEncodeArgs(
 		execFFmpeg.ffmpegPath,
-		cleanInput,
+		input,
 		palettePath,
-		cleanOutput,
+		output,
 		start,
 		duration,
 		gifEncodeFilter(width, fps, rect),
-	)
-
-	err = execFFmpeg.run(ctx, duration, gifArgs...)
+	)...)
 	if err != nil {
-		return fmt.Errorf(encodeGIFErrFmt, err)
+		return fmt.Errorf("paletteuse: %w", err)
 	}
 
 	return nil
