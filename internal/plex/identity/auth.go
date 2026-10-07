@@ -212,6 +212,12 @@ func (auth *Auth) Bound() bool {
 // identity matches a server the account can see, so no token is sent to a
 // host that is not one of the account's servers.
 //
+// The URL need not be a connection plex.tv lists, because it exists for
+// addresses Plex does not know, such as a container name or a reverse proxy.
+// A machine identifier is not secret, so a host that relays the server's
+// identity passes the check. Only the signed-in owner can submit a URL, which
+// limits that to a host the owner typed.
+//
 // Parameters:
 //   - ctx: Request context.
 //   - accessToken: Plex access token servers are discovered with.
