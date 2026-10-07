@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +39,7 @@ func newEncodeExec(t *testing.T, probeJSON string) *ExecFFmpeg {
 	t.Helper()
 
 	return NewExecFFmpeg(
-		ffmpegtest.Install(t, ffmpegtest.Stub{ArgvBesideOutput: true}),
+		ffmpegtest.Install(t, ffmpegtest.Stub{ArgvBesideOutput: true, Output: "rendered"}),
 		probeStub(t, probeJSON),
 	)
 }
@@ -106,8 +107,14 @@ func hdrEncodeExec(t *testing.T) *ExecFFmpeg {
 func readRecordedArgv(t *testing.T, output string) []string {
 	t.Helper()
 
-	data, err := os.ReadFile(output + ".argv")
-	require.NoError(t, err, "the stub records the argv it was invoked with")
+	// The render writes to a staging file beside output, and the stub records
+	// its argv beside that file.
+	recorded, err := filepath.Glob(filepath.Join(filepath.Dir(output), stagingPrefix+"*.argv"))
+	require.NoError(t, err)
+	require.Len(t, recorded, 1, "the stub records the argv it was invoked with")
+
+	data, err := os.ReadFile(recorded[0])
+	require.NoError(t, err)
 
 	return strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
 }
@@ -133,12 +140,22 @@ func TestExecFFmpeg_Run_CommandNotFound(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestExecFFmpeg_UsesDefaultTimeout(t *testing.T) {
+// TestExecFFmpeg_Run_ReportsItsOwnDeadline covers a run stopped by its
+// deadline: the error names the limit and the setting that raises it.
+func TestExecFFmpeg_Run_ReportsItsOwnDeadline(t *testing.T) {
 	t.Parallel()
 
-	execFFmpeg := NewExecFFmpeg("sleep", "sleep")
+	_, err := exec.LookPath("sleep")
+	if err != nil {
+		t.Skip("sleep not available")
+	}
 
-	assert.Equal(t, DefaultFFmpegTimeout(), execFFmpeg.timeout)
+	err = NewExecFFmpeg("sleep", "sleep").WithTimeout(50*time.Millisecond).
+		run(t.Context(), 0, "sleep", "10")
+
+	require.ErrorIs(t, err, ErrTimeout)
+	assert.Contains(t, err.Error(), "ffmpeg-timeout-sec")
+	assert.Contains(t, err.Error(), "50ms")
 }
 
 func TestExecFFmpeg_Run_StopsWithContext(t *testing.T) {

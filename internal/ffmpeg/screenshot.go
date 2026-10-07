@@ -38,6 +38,7 @@ func screenshotEncodeArgs(
 	args := []string{
 		ffmpegPath,
 		outputFlag,
+		abortOnFlag, abortOnEmptyOutput,
 		ssFlag, timecode.FromDuration(timestamp).FormatSeconds(),
 		inputFlag, input,
 		framesFlag, "1",
@@ -73,16 +74,18 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
-	cleanOutput, err := mediaPath(output)
+	cleanOutput, err := outputPath(output)
 	if err != nil {
 		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
-	err = execFFmpeg.run(
-		ctx,
-		0,
-		screenshotEncodeArgs(execFFmpeg.ffmpegPath, cleanInput, cleanOutput, timestamp, rect)...,
-	)
+	err = publish(cleanOutput, func(staging string) error {
+		return execFFmpeg.run(
+			ctx,
+			0,
+			screenshotEncodeArgs(execFFmpeg.ffmpegPath, cleanInput, staging, timestamp, rect)...,
+		)
+	})
 	if err != nil {
 		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}

@@ -4,6 +4,7 @@
 package ffmpeg
 
 import (
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/tonemap"
 )
 
@@ -87,13 +89,13 @@ func TestExecFFmpeg_ExtractClip_MissingInput(t *testing.T) {
 func TestExecFFmpeg_ExtractClip_Args(t *testing.T) {
 	t.Parallel()
 
-	ff := NewExecFFmpeg("echo", "echo")
-	ctx := t.Context()
+	fixture := newEncodeFixture(t, "output.mp4")
+	ff := NewExecFFmpeg(ffmpegtest.Install(t, ffmpegtest.Stub{Output: "rendered"}), "unused")
 
 	err := ff.ExtractClip(
-		ctx,
-		"/tmp/input.mp4",
-		"/tmp/output.mp4",
+		t.Context(),
+		fixture.input,
+		fixture.output,
 		10500*time.Millisecond,
 		30*time.Second,
 		clip.QualityPresets[clip.ClipQualityHigh],
@@ -101,6 +103,10 @@ func TestExecFFmpeg_ExtractClip_Args(t *testing.T) {
 		crop.CropRect{},
 	)
 	require.NoError(t, err)
+
+	published, err := os.ReadFile(fixture.output)
+	require.NoError(t, err, "the staged render is moved into place")
+	assert.Equal(t, "rendered", string(published))
 }
 
 func TestExtractClipEncodeArgs(t *testing.T) {

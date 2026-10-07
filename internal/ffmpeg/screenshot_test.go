@@ -34,13 +34,17 @@ func TestExecFFmpeg_ExtractScreenshot_MissingInput(t *testing.T) {
 func TestExecFFmpeg_ExtractScreenshot_Args(t *testing.T) {
 	t.Parallel()
 
-	ff := NewExecFFmpeg("echo", "echo")
-	ctx := t.Context()
+	fixture := newEncodeFixture(t, "screenshot.jpg")
+	ff := NewExecFFmpeg(ffmpegtest.Install(t, ffmpegtest.Stub{Output: "frame"}), "unused")
 
 	err := ff.ExtractScreenshot(
-		ctx, "/tmp/input.mp4", "/tmp/screenshot.jpg", 2*time.Minute, crop.CropRect{},
+		t.Context(), fixture.input, fixture.output, 2*time.Minute, crop.CropRect{},
 	)
 	require.NoError(t, err)
+
+	published, err := os.ReadFile(fixture.output)
+	require.NoError(t, err, "the staged still is moved into place")
+	assert.Equal(t, "frame", string(published))
 }
 
 func TestExtractScreenshotResolvesRelativePaths(t *testing.T) {
@@ -60,7 +64,10 @@ func TestExtractScreenshotResolvesRelativePaths(t *testing.T) {
 	require.NoError(t, os.WriteFile(input, []byte("source"), 0o600))
 
 	logPath := filepath.Join(dir, "argv")
-	runner := NewExecFFmpeg(ffmpegtest.Install(t, ffmpegtest.Stub{ArgvFile: logPath}), "unused")
+	runner := NewExecFFmpeg(
+		ffmpegtest.Install(t, ffmpegtest.Stub{ArgvFile: logPath, Output: "frame"}),
+		"unused",
+	)
 
 	require.NoError(t, runner.ExtractScreenshot(
 		t.Context(),
@@ -75,7 +82,10 @@ func TestExtractScreenshotResolvesRelativePaths(t *testing.T) {
 
 	args := strings.Split(strings.TrimSuffix(string(recorded), "\n"), "\n")
 	assert.Contains(t, args, filepath.Join(dir, "in.mkv"))
-	assert.Contains(t, args, filepath.Join(dir, "out.jpg"))
+
+	staged := args[len(args)-1]
+	assert.Equal(t, dir, filepath.Dir(staged), "the still is staged beside its absolute output")
+	assert.FileExists(t, filepath.Join(dir, "out.jpg"))
 }
 
 func TestScreenshotEncodeArgsCropsBlackBars(t *testing.T) {

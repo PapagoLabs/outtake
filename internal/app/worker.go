@@ -69,7 +69,8 @@ func persistStatus(ctx context.Context, db *database.DB) queue.StatusFunc {
 	}
 }
 
-// startQueue creates the worker queue and restores persisted jobs.
+// startQueue sweeps leftover render files, creates the worker queue, and
+// restores persisted jobs.
 //
 // Parameters:
 //   - ctx: The lifetime context the queue and its workers run under.
@@ -89,6 +90,8 @@ func startQueue(
 	store blob.Blob,
 	paths blob.Paths,
 ) *queue.Queue {
+	sweepRenders(paths)
+
 	var jobQueue *queue.Queue
 
 	jobQueue = queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *clip.Job) error {
@@ -138,6 +141,24 @@ func removeOtherOutputs(store blob.Blob, paths blob.Paths, job *clip.Job) {
 			log.Warn().Err(err).Str("job_id", job.ID).Str("path", stale).
 				Msg("failed to remove an output of another clip type")
 		}
+	}
+}
+
+// sweepRenders removes the staging files and GIF palettes an interrupted
+// render left in the output directories. It runs before any worker starts, so
+// it never removes a file a render is still writing.
+//
+// Parameters:
+//   - paths: Output layout naming the directories renders write to.
+func sweepRenders(paths blob.Paths) {
+	removed := ffmpeg.SweepStaged(
+		paths.ClipsDir(),
+		paths.GifsDir(),
+		paths.ScreenshotsDir(),
+		paths.PreviewsDir(),
+	)
+	if removed > 0 {
+		log.Info().Int("removed", removed).Msg("removed files left by interrupted renders")
 	}
 }
 

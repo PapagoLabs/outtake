@@ -88,24 +88,26 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		return fmt.Errorf(encodeClipErrFmt, err)
 	}
 
-	cleanOutput, err := mediaPath(output)
+	cleanOutput, err := outputPath(output)
 	if err != nil {
 		return fmt.Errorf(encodeClipErrFmt, err)
 	}
 
-	req := clipEncodeRequest(
-		execFFmpeg.ffmpegPath,
-		cleanInput,
-		cleanOutput,
-		start,
-		duration,
-		preset,
-		audioIndex,
-		rect,
-	)
-	execFFmpeg.resolveColor(ctx, &req)
+	err = publish(cleanOutput, func(staging string) error {
+		req := clipEncodeRequest(
+			execFFmpeg.ffmpegPath,
+			cleanInput,
+			staging,
+			start,
+			duration,
+			preset,
+			audioIndex,
+			rect,
+		)
+		execFFmpeg.resolveColor(ctx, &req)
 
-	err = execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
+		return execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
+	})
 	if err != nil {
 		return fmt.Errorf(encodeClipErrFmt, err)
 	}
@@ -231,26 +233,28 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 		return fmt.Errorf(encodePreviewErrFmt, err)
 	}
 
-	cleanOutput, err := mediaPath(output)
+	cleanOutput, err := outputPath(output)
 	if err != nil {
 		return fmt.Errorf(encodePreviewErrFmt, err)
 	}
 
 	duration = PreviewDuration(duration)
 
-	req := previewEncodeRequest(
-		execFFmpeg.ffmpegPath,
-		cleanInput,
-		cleanOutput,
-		start,
-		duration,
-		audioIndex,
-		rect,
-		preset,
-	)
-	execFFmpeg.resolveColor(ctx, &req)
+	runErr := publish(cleanOutput, func(staging string) error {
+		req := previewEncodeRequest(
+			execFFmpeg.ffmpegPath,
+			cleanInput,
+			staging,
+			start,
+			duration,
+			audioIndex,
+			rect,
+			preset,
+		)
+		execFFmpeg.resolveColor(ctx, &req)
 
-	runErr := execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
+		return execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
+	})
 	if runErr != nil {
 		return fmt.Errorf(encodePreviewErrFmt, runErr)
 	}
@@ -330,6 +334,7 @@ func h264EncodeArgs(req *h264EncodeRequest) []string {
 	args := []string{
 		req.ffmpegPath,
 		outputFlag,
+		abortOnFlag, abortOnEmptyOutput,
 		ssFlag, timecode.FromDuration(req.start).FormatSeconds(),
 		inputFlag, req.input,
 		durationFlag, timecode.FromDuration(req.duration).FormatSeconds(),
@@ -346,6 +351,10 @@ func h264EncodeArgs(req *h264EncodeRequest) []string {
 	}
 
 	args = append(args, req.colorTags...)
+
+	// The source's title, tags, and chapters describe the whole source, not
+	// the clip, so none of them is copied into it.
+	args = append(args, mapMetadataFlag, dropAll, mapChaptersFlag, dropAll)
 
 	return append(args, "-movflags", movFlags(req), req.output)
 }

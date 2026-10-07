@@ -53,6 +53,10 @@ type Config struct {
 	FFmpegPath string `mapstructure:"ffmpeg-path"`
 	// FFprobePath is the path to FFprobe.
 	FFprobePath string `mapstructure:"ffprobe-path"`
+	// FFmpegTimeout is how long one ffmpeg run may take, zero to scale the
+	// limit with the clip's length.
+	//nolint:tagliatelle // The key ends in -sec like session-poll-sec, since its value is a second count.
+	FFmpegTimeout time.Duration `mapstructure:"ffmpeg-timeout-sec"`
 	// LogLevel is the log level.
 	LogLevel string `mapstructure:"log-level"`
 	// Env is the environment.
@@ -220,6 +224,7 @@ func emptyConfig() *Config {
 		S3UsePathStyle:  false,
 		FFmpegPath:      "",
 		FFprobePath:     "",
+		FFmpegTimeout:   0,
 		LogLevel:        "",
 		Env:             "",
 		SessionPoll:     0,
@@ -257,6 +262,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("s3-use-path-style", true)
 	viperInstance.SetDefault("ffmpeg-path", defaultFFmpegPath)
 	viperInstance.SetDefault("ffprobe-path", defaultFFprobePath)
+	viperInstance.SetDefault("ffmpeg-timeout-sec", 0)
 	viperInstance.SetDefault("log-level", defaultLogLevel)
 	viperInstance.SetDefault("env", defaultEnv)
 	viperInstance.SetDefault("session-poll-sec", int(defaultSessionPoll.Seconds()))
@@ -352,6 +358,7 @@ func bindEnv(viperInstance *viper.Viper) error {
 		"s3-use-path-style",
 		"ffmpeg-path",
 		"ffprobe-path",
+		"ffmpeg-timeout-sec",
 		"log-level",
 		"env",
 		"session-poll-sec",

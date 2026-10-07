@@ -188,6 +188,8 @@ func storedClip(id, inputPath string, status clip.Status) *clip.Job {
 
 		CreatedAt: now,
 		UpdatedAt: now, InputPath: inputPath,
+		// Every clip the create route stores has a destination.
+		OutputPath: filepath.Join(filepath.Dir(inputPath), id+".mp4"),
 
 		Status: status,
 	}

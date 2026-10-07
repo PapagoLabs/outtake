@@ -318,7 +318,7 @@ func TestStartQueueRunsARestoredRender(t *testing.T) {
 		return rendered.Status == clip.StatusCompleted
 	}, 10*time.Second, 5*time.Millisecond, "the restored clip rendered and settled")
 
-	assert.Equal(t, job.OutputPath, stubOutputArg(stubInvocations(t, logPath)[0]))
+	assertStagedFor(t, job.OutputPath, stubOutputArg(stubInvocations(t, logPath)[0]))
 
 	stored, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err, "the status callback wrote the settled clip back")
@@ -550,4 +550,30 @@ func workerTestConfig(t *testing.T) *config.Config {
 	cfg.NumWorkers = 0
 
 	return cfg
+}
+
+// TestSweepRendersClearsEveryOutputDirectory covers the startup sweep: each
+// directory a render writes to loses its leftovers and keeps its outputs.
+func TestSweepRendersClearsEveryOutputDirectory(t *testing.T) {
+	t.Parallel()
+
+	paths := blob.NewPaths(t.TempDir())
+
+	dirs := []string{paths.ClipsDir(), paths.GifsDir(), paths.ScreenshotsDir(), paths.PreviewsDir()}
+
+	for _, dir := range dirs {
+		require.NoError(t, os.MkdirAll(dir, 0o750))
+		require.NoError(
+			t,
+			os.WriteFile(filepath.Join(dir, ".staging-left.tmp"), []byte("x"), 0o600),
+		)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "kept"), []byte("x"), 0o600))
+	}
+
+	sweepRenders(paths)
+
+	for _, dir := range dirs {
+		assert.NoFileExists(t, filepath.Join(dir, ".staging-left.tmp"), dir)
+		assert.FileExists(t, filepath.Join(dir, "kept"), dir)
+	}
 }

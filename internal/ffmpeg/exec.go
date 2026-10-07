@@ -6,8 +6,8 @@ package ffmpeg
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"time"
@@ -32,6 +32,17 @@ const (
 	videoFilterFlag = "-vf"
 	// anFlag disables audio decoding.
 	anFlag = "-an"
+	// abortOnFlag names the conditions that make ffmpeg fail instead of finish.
+	abortOnFlag = "-abort_on"
+	// abortOnEmptyOutput fails a run whose output stream received no packets,
+	// which would otherwise finish with an empty file.
+	abortOnEmptyOutput = "empty_output_stream"
+	// mapMetadataFlag selects where the output's global metadata comes from.
+	mapMetadataFlag = "-map_metadata"
+	// mapChaptersFlag selects where the output's chapters come from.
+	mapChaptersFlag = "-map_chapters"
+	// dropAll is the input index that copies nothing.
+	dropAll = "-1"
 	// commandDir is the working directory for ffmpeg child processes. It is the
 	// filesystem root so a child cannot read a relative path out of this
 	// process's directory. Media paths passed to a child have to be absolute,
@@ -77,13 +88,16 @@ func (execFFmpeg *ExecFFmpeg) run(
 		Strs("args", args).
 		Msg("running ffmpeg command")
 
-	runCtx, cancel := context.WithTimeout(ctx, execFFmpeg.timeout)
+	limit := execFFmpeg.deadline(duration)
+
+	runCtx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 
 	// #nosec G204 - args are controlled by the application
 	cmd := exec.CommandContext(runCtx, args[0], args[1:]...)
 
 	cmd.Dir = commandDir
+	cmd.WaitDelay = waitDelay
 
 	stderr := progress.NewWriter(duration, progress.From(ctx))
 
@@ -98,6 +112,14 @@ func (execFFmpeg *ExecFFmpeg) run(
 			Err(err).
 			Str("output", stderr.String()+stdout.String()).
 			Msg("ffmpeg command failed")
+
+		if timedOut(ctx, runCtx) {
+			return fmt.Errorf(
+				"%w of %s, raise ffmpeg-timeout-sec to allow longer renders",
+				ErrTimeout,
+				limit,
+			)
+		}
 
 		return fmt.Errorf("ffmpeg: %w", err)
 	}
@@ -128,13 +150,14 @@ func (execFFmpeg *ExecFFmpeg) runStderr(
 	label string,
 	args ...string,
 ) (string, error) {
-	runCtx, cancel := context.WithTimeout(ctx, execFFmpeg.timeout)
+	runCtx, cancel := context.WithTimeout(ctx, execFFmpeg.deadline(0))
 	defer cancel()
 
 	// #nosec G204 - args are controlled by the application
 	cmd := exec.CommandContext(runCtx, args[0], args[1:]...)
 
 	cmd.Dir = commandDir
+	cmd.WaitDelay = waitDelay
 
 	var stderr bytes.Buffer
 
@@ -146,6 +169,19 @@ func (execFFmpeg *ExecFFmpeg) runStderr(
 	}
 
 	return stderr.String(), runErr
+}
+
+// timedOut reports whether a run was stopped by its own deadline rather than
+// by its caller.
+//
+// Parameters:
+//   - caller: The context the run was started under.
+//   - run: The run's context, carrying its deadline.
+//
+// Returns:
+//   - timedOut: True when only the run's deadline had passed.
+func timedOut(caller, run context.Context) bool {
+	return caller.Err() == nil && errors.Is(run.Err(), context.DeadlineExceeded)
 }
 
 // prependCrop puts a valid crop filter in front of an ffmpeg filter chain.
@@ -162,15 +198,4 @@ func prependCrop(rect crop.CropRect, chain string) string {
 	}
 
 	return rect.Filter() + "," + chain
-}
-
-// osRemove removes a file and logs any errors.
-//
-// Parameters:
-//   - path: File to remove.
-func osRemove(path string) {
-	err := os.Remove(path)
-	if err != nil {
-		logging.Logger.Warn().Str("path", path).Err(err).Msg("failed to remove file")
-	}
 }

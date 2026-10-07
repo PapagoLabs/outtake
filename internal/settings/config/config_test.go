@@ -126,6 +126,23 @@ func TestLoad_RunsAtLeastOneWorker(t *testing.T) {
 	}
 }
 
+// TestLoad_FFmpegTimeoutIsSeconds covers OUTTAKE_FFMPEG_TIMEOUT_SEC, a second
+// count whose zero default scales the limit with each clip.
+func TestLoad_FFmpegTimeoutIsSeconds(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	cfg, err := Load("")
+	require.NoError(t, err)
+	assert.Zero(t, cfg.FFmpegTimeout, "the default leaves the limit to scale with the clip")
+
+	t.Setenv("OUTTAKE_FFMPEG_TIMEOUT_SEC", "5400")
+
+	cfg, err = Load("")
+	require.NoError(t, err)
+	assert.Equal(t, 90*time.Minute, cfg.FFmpegTimeout)
+}
+
 func TestLoad_DefaultMaxClipDur(t *testing.T) {
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
