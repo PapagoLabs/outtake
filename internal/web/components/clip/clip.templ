@@ -251,6 +251,9 @@ templ ClipCard(item view.ClipItem) {
 								}
 								@quality.AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
 							</div>
+						} else {
+							// Without probed tracks there is no select, so the stored track is posted back unchanged.
+							<input type="hidden" name="audioIndex" value={ strconv.Itoa(item.AudioIndex) }/>
 						}
 						<div class="flex flex-col gap-2" data-export-for="gif">
 							@label.Label(label.Props{For: "width-" + item.ID}) {
@@ -269,6 +272,10 @@ templ ClipCard(item view.ClipItem) {
 					</div>
 					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ timecode.FromDuration(item.Duration).Short() }</span> (max { timecode.FromDuration(item.MaxDur).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
 					@ColorFields(item.CropBlackBars, item.WebSafeColor, item.PreserveHDR, item.SourceHDR)
+					if !item.SourceHDR && item.PreserveHDR {
+						// The HDR box only shows for an HDR source, so the stored setting is posted back unchanged.
+						<input type="hidden" name="preserveHdr" value="1"/>
+					}
 				</form>
 			}
 		}

@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -325,7 +326,9 @@ func TestUpdateSwapsTheCardBackInAfterAnAcceptedEdit(t *testing.T) {
 	assert.Equal(t, string(clipdom.ClipQualityMedium), stored.Quality)
 }
 
-func TestQueueRegenerateAfterACancel(t *testing.T) {
+// TestUpdateRegeneratesACanceledClip covers the regenerate flag: a settled
+// clip is queued again with an output path for its type.
+func TestUpdateRegeneratesACanceledClip(t *testing.T) {
 	t.Parallel()
 
 	db := updateTestDB(t)
@@ -336,8 +339,13 @@ func TestQueueRegenerateAfterACancel(t *testing.T) {
 
 	stored.Status = clipdom.StatusCancelled
 	stored.OutputPath = ""
+	require.NoError(t, db.SaveClip(t.Context(), stored))
 
-	require.NoError(t, handler.queueRegenerate(stored))
+	form := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
+	form.Set("regenerate", "1")
+
+	answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
+	require.Equal(t, fiber.StatusOK, answer.status)
 
 	restored := handler.clipQueue.GetJob("stored")
 	require.NotNil(t, restored,
@@ -345,4 +353,103 @@ func TestQueueRegenerateAfterACancel(t *testing.T) {
 	assert.Equal(t, clipdom.StatusPending, restored.Status,
 		"it comes back queued, not completed")
 	assert.NotEmpty(t, restored.OutputPath, "the output path is rebuilt for the type")
+}
+
+// TestUpdateOfAPartialJSONBodyKeepsEveryOtherField covers a JSON caller that
+// sends only the field it changes.
+func TestUpdateOfAPartialJSONBodyKeepsEveryOtherField(t *testing.T) {
+	t.Parallel()
+
+	db := updateTestDB(t)
+
+	stored, err := db.GetClip(t.Context(), "stored")
+	require.NoError(t, err)
+
+	stored.AudioIndex = 2
+	stored.CropBlackBars = true
+	stored.WebSafeColor = true
+	stored.PreserveHDR = true
+	require.NoError(t, db.SaveClip(t.Context(), stored))
+
+	handler := updateTestHandler(t, db)
+
+	answer := postUpdate(t, handler, apiJSONRequest(t, `{"name":"Renamed"}`))
+	require.Equal(t, fiber.StatusSeeOther, answer.status, "an API caller is sent back to the clip")
+
+	saved, err := db.GetClip(t.Context(), "stored")
+	require.NoError(t, err)
+
+	assert.Equal(t, "Renamed", saved.Name)
+	assert.Equal(t, clipdom.TypeClip, saved.Type)
+	assert.InDelta(t, 30, saved.StartTime.Seconds(), 0.0005)
+	assert.InDelta(t, 20, saved.Duration.Seconds(), 0.0005)
+	assert.Equal(t, string(clipdom.ClipQualityMedium), saved.Quality)
+	assert.Equal(t, 2, saved.AudioIndex)
+	assert.True(t, saved.CropBlackBars)
+	assert.True(t, saved.WebSafeColor)
+	assert.True(t, saved.PreserveHDR)
+}
+
+// TestUpdateIsReadBackAtOnce covers a clip the queue holds: the list and the
+// status route show the edit without a restart.
+func TestUpdateIsReadBackAtOnce(t *testing.T) {
+	t.Parallel()
+
+	db := updateTestDB(t)
+	handler := updateTestHandler(t, db)
+
+	stored, err := db.GetClip(t.Context(), "stored")
+	require.NoError(t, err)
+
+	handler.clipQueue.Restore(stored)
+
+	answer := postUpdate(t, handler, apiJSONRequest(t, `{"name":"Renamed"}`))
+	require.Equal(t, fiber.StatusSeeOther, answer.status)
+
+	assert.Equal(t, "Renamed", handler.lookupJob(t.Context(), "stored").Name,
+		"a lookup reads the queue first, and the queue carries the edit")
+
+	listed := handler.listJobs(t.Context())
+	require.Len(t, listed, 1)
+	assert.Equal(t, "Renamed", listed[0].Name)
+}
+
+// TestUpdateOfARenderingClipOnlyAcceptsARename covers the edits a running
+// render can take without its file going stale.
+func TestUpdateOfARenderingClipOnlyAcceptsARename(t *testing.T) {
+	t.Parallel()
+
+	db := updateTestDB(t)
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	work := queue.NewQueue(1, func(context.Context, *clipdom.Job) error {
+		close(started)
+		<-release
+
+		return nil
+	})
+	work.Start(t.Context())
+	t.Cleanup(work.Stop)
+	t.Cleanup(func() { close(release) })
+
+	stored, err := db.GetClip(t.Context(), "stored")
+	require.NoError(t, err)
+	require.NoError(t, work.Submit(stored))
+
+	<-started
+
+	handler := updateTestHandler(t, db)
+
+	handler.clipQueue = work
+
+	answer := postUpdate(t, handler, apiJSONRequest(t, `{"startTime":40}`))
+	assert.Equal(t, fiber.StatusConflict, answer.status, "a new window would make the file stale")
+	assert.InDelta(t, 30, work.GetJob("stored").StartTime.Seconds(), 0.0005,
+		"and the refused edit changes nothing")
+
+	answer = postUpdate(t, handler, apiJSONRequest(t, `{"name":"Renamed"}`))
+	assert.Equal(t, fiber.StatusSeeOther, answer.status, "a rename leaves the file as it is")
+	assert.Equal(t, "Renamed", work.GetJob("stored").Name)
 }

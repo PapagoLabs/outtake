@@ -5,9 +5,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -25,9 +27,13 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
+
+// errStaleOutput is the failure a stale output's removal reports.
+var errStaleOutput = errors.New("stale output is locked")
 
 // testIdleQueue builds an unstarted queue that holds jobs without a worker to
 // run them.
@@ -255,6 +261,7 @@ func TestStartQueueRestoresPersistedJobs(t *testing.T) {
 		db,
 		ffmpeg.NewExecFFmpeg(missingBinary(t.TempDir()), missingBinary(t.TempDir())),
 		nil,
+		blob.Paths{},
 	)
 	t.Cleanup(jobQueue.Stop)
 
@@ -275,11 +282,21 @@ func TestStartQueueRunsARestoredRender(t *testing.T) {
 
 	db := testDatabase(t)
 
+	paths := blob.NewPaths(dir)
+
 	job := renderableJob(t, dir)
+
+	// The clip was a GIF before, so its rendered file is a video now and the
+	// GIF and screenshot files have to go.
+	job.OutputPath = paths.OutputPath(job.ID, clip.TypeClip)
+	require.NoError(t, os.MkdirAll(filepath.Dir(job.OutputPath), 0o750))
 	persistClip(t, db, job)
 
 	store := storagemocks.NewMockBlob(t)
 	store.EXPECT().Put(mock.Anything, job.OutputPath).Return(nil).Once()
+	store.EXPECT().DeleteFile(paths.OutputPath(job.ID, clip.TypeGIF)).Return(nil).Once()
+	store.EXPECT().DeleteFile(paths.OutputPath(job.ID, clip.TypeScreenshot)).
+		Return(errStaleOutput).Once()
 
 	cfg := workerTestConfig(t)
 
@@ -288,6 +305,7 @@ func TestStartQueueRunsARestoredRender(t *testing.T) {
 	jobQueue := startQueue(t.Context(), cfg, db,
 		ffmpeg.NewExecFFmpeg(stubFFmpeg(t, logPath, ffmpegtest.Stub{}), missingBinary(dir)),
 		store,
+		paths,
 	)
 	t.Cleanup(jobQueue.Stop)
 
@@ -304,7 +322,8 @@ func TestStartQueueRunsARestoredRender(t *testing.T) {
 
 	stored, err := db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err, "the status callback wrote the settled clip back")
-	assert.Equal(t, clip.StatusCompleted, stored.Status)
+	assert.Equal(t, clip.StatusCompleted, stored.Status,
+		"a file of another type that cannot be removed does not fail the render")
 }
 
 //nolint:paralleltest // The queue's submission log reads the process-global logger New rewrites.
@@ -315,6 +334,7 @@ func TestStartQueueReportsAStatusWriteFailure(t *testing.T) {
 		closedDatabase(t),
 		ffmpeg.NewExecFFmpeg(missingBinary(t.TempDir()), missingBinary(t.TempDir())),
 		nil,
+		blob.Paths{},
 	)
 	t.Cleanup(jobQueue.Stop)
 

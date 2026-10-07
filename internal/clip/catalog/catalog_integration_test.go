@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
@@ -461,4 +462,140 @@ func queueJobFixture(id string) *clip.Job {
 		UpdatedAt: catalogBase.Add(time.Hour), Status: clip.StatusCompleted,
 		Progress: 100,
 	}
+}
+
+// renamed returns an edit of a stored clip that changes only its name.
+//
+// Parameters:
+//   - job: The stored clip.
+//   - name: The new name.
+//
+// Returns:
+//   - edit: The change.
+func renamed(job *clip.Job, name string) clip.Edit {
+	return clip.Edit{
+		Type:          job.Type,
+		Name:          name,
+		Quality:       job.Quality,
+		Start:         job.StartTime,
+		Length:        job.Duration,
+		Width:         job.Width,
+		FPS:           job.FPS,
+		AudioIndex:    job.AudioIndex,
+		CropBlackBars: job.CropBlackBars,
+		WebSafeColor:  &job.WebSafeColor,
+		PreserveHDR:   &job.PreserveHDR,
+	}
+}
+
+// TestIntegration_UpdateChangesTheQueueAndTheDatabaseTogether covers the
+// stale reads an edit used to leave: both stores carry the edit at once.
+func TestIntegration_UpdateChangesTheQueueAndTheDatabaseTogether(t *testing.T) {
+	t.Parallel()
+
+	db := catalogDatabase(t)
+	work := queue.NewQueue(1, nil)
+
+	stored := queueJobFixture("live")
+	require.NoError(t, db.SaveClip(t.Context(), stored))
+	work.Restore(stored)
+
+	edited, err := catalog.Update(
+		t.Context(), work, db, blob.NewPaths(t.TempDir()), "live", renamed(stored, "Renamed"),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "Renamed", edited.Name)
+
+	assert.Equal(t, "Renamed", catalog.Job(t.Context(), work, db, "live").Name, "a lookup sees it")
+
+	row, err := db.GetClip(t.Context(), "live")
+	require.NoError(t, err)
+	assert.Equal(t, "Renamed", row.Name, "and so does the next start")
+	assert.Equal(t, clip.StatusCompleted, row.Status, "the status is left alone")
+}
+
+// TestIntegration_UpdateAdoptsAClipOnlyTheDatabaseHas covers a clip the queue
+// was never handed.
+func TestIntegration_UpdateAdoptsAClipOnlyTheDatabaseHas(t *testing.T) {
+	t.Parallel()
+
+	db := catalogDatabase(t)
+	work := queue.NewQueue(1, nil)
+
+	stored, err := db.GetClip(t.Context(), "b-intro")
+	require.NoError(t, err)
+
+	_, err = catalog.Update(
+		t.Context(), work, db, blob.NewPaths(t.TempDir()), "b-intro", renamed(stored, "Renamed"),
+	)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Renamed", work.GetJob("b-intro").Name)
+
+	_, err = catalog.Update(
+		t.Context(), work, db, blob.NewPaths(t.TempDir()), "absent", renamed(stored, "Renamed"),
+	)
+	require.ErrorIs(t, err, catalog.ErrClipNotFound)
+}
+
+// TestIntegration_ATypeChangeIsRenderedAgain covers a clip whose file no
+// longer matches its type: it is queued to render the new type's file.
+func TestIntegration_ATypeChangeIsRenderedAgain(t *testing.T) {
+	t.Parallel()
+
+	db := catalogDatabase(t)
+	work := queue.NewQueue(1, nil)
+	paths := blob.NewPaths(t.TempDir())
+
+	// The composition root persists every status the queue reports.
+	work.SetStatusFunc(func(job *clip.Job) {
+		assert.NoError(t, db.SaveClip(context.WithoutCancel(t.Context()), job))
+	})
+
+	stored := queueJobFixture("retyped")
+
+	stored.OutputPath = paths.OutputPath("retyped", clip.TypeClip)
+	require.NoError(t, db.SaveClip(t.Context(), stored))
+	work.Restore(stored)
+
+	edit := renamed(stored, stored.Name)
+
+	edit.Type = clip.TypeGIF
+
+	edited, err := catalog.Update(t.Context(), work, db, paths, "retyped", edit)
+	require.NoError(t, err)
+
+	assert.Equal(t, clip.StatusPending, edited.Status, "the clip is queued again")
+	assert.Equal(t, paths.OutputPath("retyped", clip.TypeGIF), edited.OutputPath)
+
+	row, err := db.GetClip(t.Context(), "retyped")
+	require.NoError(t, err)
+	assert.Equal(t, clip.TypeGIF, row.Type)
+	assert.Equal(t, clip.StatusPending, row.Status, "so the next start resumes it")
+}
+
+// TestIntegration_UpdateAndRegenerateQueuesTheClip covers the regenerate flag.
+func TestIntegration_UpdateAndRegenerateQueuesTheClip(t *testing.T) {
+	t.Parallel()
+
+	db := catalogDatabase(t)
+	work := queue.NewQueue(1, nil)
+	paths := blob.NewPaths(t.TempDir())
+
+	stored := queueJobFixture("again")
+	require.NoError(t, db.SaveClip(t.Context(), stored))
+	work.Restore(stored)
+
+	edited, err := catalog.UpdateAndRegenerate(
+		t.Context(), work, db, paths, "again", renamed(stored, stored.Name),
+	)
+	require.NoError(t, err)
+
+	assert.Equal(t, clip.StatusPending, edited.Status)
+	assert.Equal(t, paths.OutputPath("again", clip.TypeClip), edited.OutputPath)
+
+	_, err = catalog.UpdateAndRegenerate(
+		t.Context(), work, db, paths, "again", renamed(stored, stored.Name),
+	)
+	require.NoError(t, err, "a clip still waiting renders the edit when its turn comes")
 }

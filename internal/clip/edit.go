@@ -34,6 +34,22 @@ type Edit struct {
 	PreserveHDR *bool
 }
 
+// EditRequest is a clip update as a caller sends it. A field left out keeps
+// the value the clip already has, so a caller may send only what changes.
+type EditRequest struct {
+	Name          *string  `json:"name"`
+	ClipType      *string  `json:"clipType"`
+	StartTime     *float64 `json:"startTime"`
+	Duration      *float64 `json:"duration"`
+	Quality       *string  `json:"quality"`
+	Width         *int     `json:"width"`
+	FPS           *int     `json:"fps"`
+	AudioIndex    *int     `json:"audioIndex"`
+	CropBlackBars *bool    `json:"cropBlackBars"`
+	WebSafeColor  *bool    `json:"webSafeColor"`
+	PreserveHDR   *bool    `json:"preserveHdr"`
+}
+
 // GIF encoder bounds, which only a GIF is held to.
 const (
 	// MinGIFWidth is the lowest GIF export width accepted.
@@ -129,6 +145,50 @@ func (clip *Clip) Apply(edit Edit) {
 	}
 
 	clip.UpdatedAt = time.Now()
+}
+
+// RendersLike reports whether two clips produce the same file, so that a
+// change between them is only to how the clip is named or listed.
+//
+// Parameters:
+//   - other: The clip to compare against.
+//
+// Returns:
+//   - same: True when every field the render reads matches.
+func (clip *Clip) RendersLike(other *Clip) bool {
+	return clip.selectsLike(other) && clip.encodesLike(other)
+}
+
+// encodesLike reports whether two clips encode their frames the same way.
+//
+// Parameters:
+//   - other: The clip to compare against.
+//
+// Returns:
+//   - same: True when the profile, size, rate, audio, and color match.
+func (clip *Clip) encodesLike(other *Clip) bool {
+	return clip.Quality == other.Quality &&
+		clip.Width == other.Width &&
+		clip.FPS == other.FPS &&
+		clip.AudioIndex == other.AudioIndex &&
+		clip.CropBlackBars == other.CropBlackBars &&
+		clip.WebSafeColor == other.WebSafeColor &&
+		clip.PreserveHDR == other.PreserveHDR
+}
+
+// selectsLike reports whether two clips cut the same part of the same source
+// into the same kind of file.
+//
+// Parameters:
+//   - other: The clip to compare against.
+//
+// Returns:
+//   - same: True when the type, source, and window match.
+func (clip *Clip) selectsLike(other *Clip) bool {
+	return clip.Type == other.Type &&
+		clip.MediaID == other.MediaID &&
+		clip.StartTime == other.StartTime &&
+		clip.Duration == other.Duration
 }
 
 // validateGIF enforces the GIF width and frame rate bounds.

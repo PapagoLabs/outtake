@@ -448,3 +448,42 @@ func TestListToolbar(t *testing.T) {
 	assert.Contains(t, body, `value="intro"`)
 	assert.Contains(t, body, "Filter")
 }
+
+// TestClipCardPostsBackSettingsItDoesNotShow covers a card rendered without
+// probed audio tracks or an HDR source: saving it must keep the stored track
+// and HDR setting rather than resetting them.
+func TestClipCardPostsBackSettingsItDoesNotShow(t *testing.T) {
+	t.Parallel()
+
+	item := activeTestItem()
+	item.AudioTracks = nil
+	item.AudioIndex = 2
+	item.SourceHDR = false
+	item.PreserveHDR = true
+
+	var buf strings.Builder
+
+	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
+	body := buf.String()
+
+	assert.Contains(t, body, `<input type="hidden" name="audioIndex" value="2">`)
+	assert.Contains(t, body, `<input type="hidden" name="preserveHdr" value="1">`)
+
+	item.AudioTracks = []view.AudioTrackOption{{Index: 0, Label: "English"}}
+	item.SourceHDR = true
+
+	buf.Reset()
+	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
+	body = buf.String()
+
+	assert.NotContains(t, body, `type="hidden" name="audioIndex"`, "the select posts the track")
+	assert.NotContains(t, body, `type="hidden" name="preserveHdr"`, "the checkbox posts the setting")
+
+	item.SourceHDR = false
+	item.PreserveHDR = false
+
+	buf.Reset()
+	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
+
+	assert.NotContains(t, buf.String(), `name="preserveHdr"`, "an unset setting posts as absent")
+}

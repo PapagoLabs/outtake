@@ -195,3 +195,45 @@ func TestClipApplyPreservesAnOmittedKeepHDR(t *testing.T) {
 	stored.Apply(Edit{PreserveHDR: new(false)})
 	assert.False(t, stored.PreserveHDR, "an explicit off is honored against a stored on")
 }
+
+// TestRendersLike covers which fields decide the rendered file: a name or a
+// listing field leaves it the same, and every render field changes it.
+func TestRendersLike(t *testing.T) {
+	t.Parallel()
+
+	base := Clip{
+		ID: "x", Type: TypeClip, Name: "Intro", MediaID: "42", MediaTitle: "Movie",
+		StartTime: time.Second, Duration: 5 * time.Second, Quality: "medium",
+	}
+
+	tests := []struct {
+		name   string
+		change func(*Clip)
+		same   bool
+	}{
+		{"a new name", func(c *Clip) { c.Name = "Outro" }, true},
+		{"a new title", func(c *Clip) { c.MediaTitle = "Film" }, true},
+		{"a new update time", func(c *Clip) { c.UpdatedAt = time.Now() }, true},
+		{"a new type", func(c *Clip) { c.Type = TypeGIF }, false},
+		{"a new start", func(c *Clip) { c.StartTime = 2 * time.Second }, false},
+		{"a new length", func(c *Clip) { c.Duration = time.Second }, false},
+		{"a new profile", func(c *Clip) { c.Quality = "high" }, false},
+		{"a new width", func(c *Clip) { c.Width = 480 }, false},
+		{"a new frame rate", func(c *Clip) { c.FPS = 12 }, false},
+		{"a new audio track", func(c *Clip) { c.AudioIndex = 1 }, false},
+		{"black bars trimmed", func(c *Clip) { c.CropBlackBars = true }, false},
+		{"web-safe color", func(c *Clip) { c.WebSafeColor = true }, false},
+		{"HDR kept", func(c *Clip) { c.PreserveHDR = true }, false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			changed := base
+			test.change(&changed)
+
+			assert.Equal(t, test.same, changed.RendersLike(&base))
+		})
+	}
+}

@@ -77,6 +77,7 @@ func persistStatus(ctx context.Context, db *database.DB) queue.StatusFunc {
 //   - db: Database handle used to persist status and progress.
 //   - ffmpeg: The FFmpeg runner every job executes through.
 //   - store: The storage backend rendered output is uploaded to.
+//   - paths: Output layout, which names a clip's file for each type.
 //
 // Returns:
 //   - jobQueue: The started queue.
@@ -86,13 +87,22 @@ func startQueue(
 	db *database.DB,
 	runner *ffmpeg.ExecFFmpeg,
 	store blob.Blob,
+	paths blob.Paths,
 ) *queue.Queue {
 	var jobQueue *queue.Queue
 
 	jobQueue = queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *clip.Job) error {
 		progressCtx := progress.WithProgress(ctx, persistProgress(ctx, job, jobQueue))
 
-		return processJob(progressCtx, job, runner, db, store)
+		err := processJob(progressCtx, job, runner, db, store)
+		if err != nil {
+			//nolint:wrapcheck // The error already names the step that failed, and the clip shows it as it is.
+			return err
+		}
+
+		removeOtherOutputs(store, paths, job)
+
+		return nil
 	})
 
 	jobQueue.SetStatusFunc(persistStatus(ctx, db))
@@ -103,6 +113,32 @@ func startQueue(
 	restoreJobs(ctx, db, jobQueue)
 
 	return jobQueue
+}
+
+// removeOtherOutputs deletes a rendered clip's files for every other type, so
+// a clip whose type changed does not keep the file it rendered before.
+//
+// Parameters:
+//   - store: The storage backend outputs live in.
+//   - paths: Output layout, which names the clip's file for each type.
+//   - job: The clip that just rendered.
+func removeOtherOutputs(store blob.Blob, paths blob.Paths, job *clip.Job) {
+	if job.OutputPath == "" {
+		return
+	}
+
+	for _, kind := range clip.Types() {
+		stale := paths.OutputPath(job.ID, kind)
+		if stale == "" || stale == job.OutputPath {
+			continue
+		}
+
+		err := store.DeleteFile(stale)
+		if err != nil {
+			log.Warn().Err(err).Str("job_id", job.ID).Str("path", stale).
+				Msg("failed to remove an output of another clip type")
+		}
+	}
 }
 
 // restoreBinding loads the selected Plex server from config or the database.

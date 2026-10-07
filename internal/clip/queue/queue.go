@@ -55,6 +55,10 @@ type StatusFunc func(job *clip.Job)
 // outcome is how a job's processing ended.
 type outcome int
 
+// editMode is what an edit is for, which decides when a rendering job
+// refuses it and when the job has to be queued again.
+type editMode int
+
 const (
 	// outcomeRecorded means the job's final status was written.
 	outcomeRecorded outcome = iota
@@ -62,6 +66,14 @@ const (
 	outcomeCanceled
 	// outcomeDeleted means the job was deleted while running, so nothing is written back.
 	outcomeDeleted
+)
+
+const (
+	// editInPlace changes a job's record, rendering it again only when its
+	// type changed.
+	editInPlace editMode = iota
+	// editForRender changes a job that the caller is about to render again.
+	editForRender
 )
 
 const (
@@ -82,6 +94,9 @@ var ErrJobActive = errors.New("a job with this id is already active")
 
 // ErrQueueStopped is returned when a job is submitted to a stopped queue.
 var ErrQueueStopped = errors.New("queue is stopped")
+
+// ErrJobNotFound is returned when an edit names a job the queue does not have.
+var ErrJobNotFound = errors.New("job not found")
 
 // ErrJobPanicked is recorded against a job whose handler panicked.
 var ErrJobPanicked = errors.New("job handler panicked")
@@ -199,6 +214,68 @@ func (q *Queue) Delete(id string) {
 //   - done: Closed on teardown.
 func (q *Queue) Done() <-chan struct{} {
 	return q.done
+}
+
+// Edit applies a change to a job and saves it. A job being rendered only
+// accepts a change that leaves its file the same, such as a new name. A
+// waiting job is edited in place, so the worker that takes it renders the new
+// values. The save is ordered with the queue's status reports, and a failed
+// save leaves the job as it was.
+//
+// Parameters:
+//   - id: The job to change.
+//   - edit: The change to apply.
+//   - output: Where the job renders to once its type is edit.Type.
+//   - save: Writes the edited job. It runs without the queue lock.
+//
+// Returns:
+//   - job: A copy of the edited job.
+//   - rerender: True when the type changed on a job that is not waiting, so
+//     it has to be queued again to produce a file of the new type.
+//   - err: ErrJobNotFound, ErrJobActive when a rendering job would render
+//     differently, or the save's error.
+func (q *Queue) Edit(
+	id string,
+	edit clip.Edit,
+	output string,
+	save func(*clip.Job) error,
+) (*clip.Job, bool, error) {
+	job, rerender, err := q.applyEdit(id, edit, output, save, editInPlace)
+	if err != nil {
+		return nil, false, fmt.Errorf("edit %s: %w", id, err)
+	}
+
+	return job, rerender, nil
+}
+
+// EditAndRegenerate applies a change to a job that is about to be rendered
+// again, and saves it. It refuses a job being rendered, whatever the change,
+// and otherwise behaves as Edit.
+//
+// Parameters:
+//   - id: The job to change.
+//   - edit: The change to apply.
+//   - output: Where the job renders to once its type is edit.Type.
+//   - save: Writes the edited job. It runs without the queue lock.
+//
+// Returns:
+//   - job: A copy of the edited job.
+//   - rerender: True unless the job is already waiting, where the worker
+//     that takes it renders the new values anyway.
+//   - err: ErrJobNotFound, ErrJobActive when the job is rendering, or the
+//     save's error.
+func (q *Queue) EditAndRegenerate(
+	id string,
+	edit clip.Edit,
+	output string,
+	save func(*clip.Job) error,
+) (*clip.Job, bool, error) {
+	job, rerender, err := q.applyEdit(id, edit, output, save, editForRender)
+	if err != nil {
+		return nil, false, fmt.Errorf("edit %s for a render: %w", id, err)
+	}
+
+	return job, rerender, nil
 }
 
 // GetAllJobs returns every job, newest first.
@@ -463,6 +540,101 @@ func (q *Queue) admit(id string) (string, error) {
 	return "", nil
 }
 
+// applyEdit applies a change to a job and saves it, under the rules of mode.
+//
+// Parameters:
+//   - id: The job to change.
+//   - change: The change to apply.
+//   - output: Where the job renders to once its type is change.Type.
+//   - save: Writes the edited job. It runs without the queue lock.
+//   - mode: What the edit is for.
+//
+// Returns:
+//   - job: A copy of the edited job.
+//   - rerender: True when the job has to be queued again.
+//   - err: ErrJobNotFound, ErrJobActive, or the wrapped save error.
+func (q *Queue) applyEdit(
+	id string,
+	change clip.Edit,
+	output string,
+	save func(*clip.Job) error,
+	mode editMode,
+) (*clip.Job, bool, error) {
+	q.notifyMu.Lock()
+	defer q.notifyMu.Unlock()
+
+	q.mu.Lock()
+
+	entry, ok := q.jobs[id]
+	if !ok {
+		q.mu.Unlock()
+
+		return nil, false, ErrJobNotFound
+	}
+
+	previous, previousOutput := entry.Clip, entry.OutputPath
+
+	edited := entry.Clip
+	edited.Apply(change)
+
+	_, running := q.cancels[id]
+	_, waiting := q.waiting[id]
+
+	if running && !mode.allowsWhileRendering(&edited, &previous) {
+		q.mu.Unlock()
+
+		return nil, false, ErrJobActive
+	}
+
+	typeChanged := edited.Type != previous.Type
+
+	entry.Clip = edited
+
+	if typeChanged {
+		entry.OutputPath = output
+	}
+
+	snapshot := entry.Clone()
+
+	var saveErr error
+
+	q.deliver(id, snapshot, func(job *clip.Job) {
+		saveErr = save(job)
+	})
+
+	if saveErr != nil {
+		q.revertEdit(id, entry, previous, previousOutput)
+
+		return nil, false, fmt.Errorf("save: %w", saveErr)
+	}
+
+	return snapshot, !waiting && (mode == editForRender || typeChanged), nil
+}
+
+// deliver hands a snapshot of a job to a write with the queue lock released.
+// The job is marked in flight meanwhile, so a delete of it waits for the
+// write. The caller holds notifyMu and the queue lock, and deliver returns
+// with the queue lock released.
+//
+// Parameters:
+//   - id: The job being written.
+//   - snapshot: The copy to write.
+//   - write: Stores or reports the copy.
+func (q *Queue) deliver(id string, snapshot *clip.Job, write func(*clip.Job)) {
+	q.inFlight = id
+	q.mu.Unlock()
+
+	defer func() {
+		q.mu.Lock()
+
+		q.inFlight = ""
+		q.reported.Broadcast()
+		q.mu.Unlock()
+	}()
+
+	write(snapshot)
+}
+
 // enqueue stores a copy of a job and puts its id at the back of the line. The
 // caller holds the lock.
 //
@@ -530,20 +702,7 @@ func (q *Queue) notify(id string) {
 		return
 	}
 
-	report, snapshot := q.statusFn, job.Clone()
-
-	q.inFlight = id
-	q.mu.Unlock()
-
-	defer func() {
-		q.mu.Lock()
-
-		q.inFlight = ""
-		q.reported.Broadcast()
-		q.mu.Unlock()
-	}()
-
-	report(snapshot)
+	q.deliver(id, job.Clone(), q.statusFn)
 }
 
 // processJob runs the next waiting job, if there is one.
@@ -596,6 +755,27 @@ func (q *Queue) processJob(ctx context.Context) bool {
 	}
 
 	return true
+}
+
+// revertEdit puts back the fields an edit wrote after its save failed. A
+// status a worker recorded meanwhile is kept, and an entry a delete or a new
+// submit replaced is left alone.
+//
+// Parameters:
+//   - id: The job that was edited.
+//   - entry: The entry the edit wrote to.
+//   - previous: The record before the edit.
+//   - previousOutput: The output path before the edit.
+func (q *Queue) revertEdit(id string, entry *clip.Job, previous clip.Clip, previousOutput string) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.jobs[id] != entry {
+		return
+	}
+
+	entry.Clip = previous
+	entry.OutputPath = previousOutput
 }
 
 // runHandler invokes the job handler, turning a panic into an error.
@@ -750,4 +930,18 @@ func (q *Queue) worker(ctx context.Context) {
 		case <-q.wake:
 		}
 	}
+}
+
+// allowsWhileRendering reports whether a job being rendered may take an edit.
+// Only a change that leaves the file the same is allowed, and never when the
+// caller is about to render the job again.
+//
+// Parameters:
+//   - edited: The job's record after the edit.
+//   - previous: The job's record before it.
+//
+// Returns:
+//   - allowed: True when the edit may be applied.
+func (mode editMode) allowsWhileRendering(edited, previous *clip.Clip) bool {
+	return mode == editInPlace && edited.RendersLike(previous)
 }
