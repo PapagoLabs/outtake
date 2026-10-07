@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Validate selections everywhere and tone map HDR stills and GIFs by @nicholas-fedor in [#347](https://github.com/PapagoLabs/outtake/pull/347)
 - Stage renders and publish them only on success by @nicholas-fedor in [#345](https://github.com/PapagoLabs/outtake/pull/345)
 - Keep clip edits consistent across the queue and database by @nicholas-fedor in [#343](https://github.com/PapagoLabs/outtake/pull/343)
 - Own job copies and never block on submit by @nicholas-fedor in [#339](https://github.com/PapagoLabs/outtake/pull/339)
