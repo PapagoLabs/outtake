@@ -1660,12 +1660,22 @@ func TestEditOfTheTypeMovesTheOutput(t *testing.T) {
 
 	edit.Type = clip.TypeGIF
 
-	edited, rerender, err := q.Edit("retyped", edit, "/out/retyped.gif", discardSave)
+	var saved *clip.Job
+
+	edited, queued, err := q.Edit("retyped", edit, "/out/retyped.gif", func(job *clip.Job) error {
+		saved = job
+
+		return nil
+	})
 	require.NoError(t, err)
 
-	assert.True(t, rerender, "a file of the old type does not match the clip any more")
+	assert.True(t, queued, "a file of the old type does not match the clip any more")
 	assert.Equal(t, "/out/retyped.gif", edited.OutputPath)
 	assert.Equal(t, clip.TypeGIF, q.GetJob("retyped").Type)
+	assert.Equal(t, clip.StatusPending, edited.Status)
+	assert.Equal(t, clip.StatusPending, saved.Status,
+		"the save records the clip as queued, in the same step as the edit")
+	assert.Equal(t, []string{"retyped"}, q.line, "and it is in the line once the save succeeded")
 }
 
 // TestAFailedEditSaveLeavesTheJobAsItWas covers a save the store refuses.
@@ -1735,4 +1745,133 @@ func TestADeleteWaitsForAnEditSave(t *testing.T) {
 
 	close(release)
 	<-deleted
+}
+
+// TestAFailedSaveOfAQueuingEditTakesTheJobBackOut covers an edit that would
+// have queued the job: a refused save leaves nothing queued and nothing
+// changed.
+func TestAFailedSaveOfAQueuingEditTakesTheJobBackOut(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+
+	job := testJob("refused", clip.StatusCompleted)
+
+	job.Progress = 100
+	job.OutputPath = "/out/refused.mp4"
+	q.Restore(job)
+
+	edit := editOf(job)
+
+	edit.Type = clip.TypeGIF
+
+	_, _, err := q.Edit("refused", edit, "/out/refused.gif", func(*clip.Job) error {
+		return assert.AnError
+	})
+	require.ErrorIs(t, err, assert.AnError)
+
+	kept := q.GetJob("refused")
+	assert.Equal(t, clip.StatusCompleted, kept.Status)
+	assert.Equal(t, 100, kept.Progress)
+	assert.Equal(t, clip.TypeClip, kept.Type)
+	assert.Equal(t, "/out/refused.mp4", kept.OutputPath)
+	assert.Empty(t, q.line, "a worker never renders an edit the store refused")
+	assert.Empty(t, q.heldReason("refused"), "and the id is free to queue")
+}
+
+// TestAStoppedQueueRefusesAQueuingEdit covers an edit that would have to queue
+// the job on a queue that can no longer run it.
+func TestAStoppedQueueRefusesAQueuingEdit(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Start(t.Context())
+	q.Stop()
+
+	job := testJob("stopped", clip.StatusCompleted)
+	q.Restore(job)
+
+	edit := editOf(job)
+
+	edit.Type = clip.TypeGIF
+
+	_, _, err := q.Edit("stopped", edit, "/out/stopped.gif", func(*clip.Job) error {
+		t.Error("nothing is saved for an edit the queue refused")
+
+		return nil
+	})
+	require.ErrorIs(t, err, ErrQueueStopped)
+
+	assert.Equal(t, clip.TypeClip, q.GetJob("stopped").Type, "and nothing changed")
+
+	renamed := editOf(job)
+
+	renamed.Name = "Renamed"
+
+	_, _, err = q.Edit("stopped", renamed, "", discardSave)
+	require.NoError(t, err, "an edit that queues nothing still works")
+}
+
+// TestACancelDuringAQueuingEditStands covers a cancel that lands while the
+// edit is being saved: the job does not join the line afterwards.
+func TestACancelDuringAQueuingEditStands(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+
+	job := testJob("canceled", clip.StatusCompleted)
+	q.Restore(job)
+
+	canceled := make(chan bool, 1)
+
+	_, _, err := q.EditAndRegenerate(
+		"canceled",
+		editOf(job),
+		"/out/canceled.mp4",
+		func(*clip.Job) error {
+			// The cancel finishes its own write once this save is done, so it runs
+			// beside the save and the save waits only for its status change.
+			go func() { canceled <- q.Cancel("canceled") }()
+
+			require.Eventually(t, func() bool {
+				return q.GetJob("canceled").Status == clip.StatusCancelled
+			}, time.Second, time.Millisecond)
+
+			return nil
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, <-canceled)
+
+	assert.Equal(t, clip.StatusCancelled, q.GetJob("canceled").Status)
+	assert.Empty(t, q.line, "a job canceled before it joined the line stays out of it")
+	assert.Empty(t, q.heldReason("canceled"))
+}
+
+// TestAdoptKeepsAnEntryTheQueueHolds covers a stored record arriving after
+// another caller changed the queue's entry.
+func TestAdoptKeepsAnEntryTheQueueHolds(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+
+	edited := testJob("adopted", clip.StatusCompleted)
+
+	edited.Name = "Edited"
+	q.Restore(edited)
+
+	stale := testJob("adopted", clip.StatusCompleted)
+
+	stale.Name = "Stored"
+	q.Adopt(stale)
+
+	assert.Equal(
+		t,
+		"Edited",
+		q.GetJob("adopted").Name,
+		"the stored record does not replace the edit",
+	)
+
+	q.Adopt(testJob("new", clip.StatusCompleted))
+	assert.NotNil(t, q.GetJob("new"), "a record the queue lacks is taken")
 }

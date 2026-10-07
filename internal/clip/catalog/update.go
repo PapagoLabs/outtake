@@ -41,7 +41,8 @@ var ErrClipNotFound = errors.New("clip not found")
 // Returns:
 //   - job: The edited clip.
 //   - err: ErrClipNotFound, queue.ErrJobActive when the clip is rendering and
-//     the edit would change its file, or the wrapped save or queue failure.
+//     the edit would change its file, queue.ErrQueueStopped when a changed
+//     type cannot be queued, or the wrapped save failure.
 func Update(
 	ctx context.Context,
 	work *queue.Queue,
@@ -71,8 +72,8 @@ func Update(
 //
 // Returns:
 //   - job: The edited clip, queued to render.
-//   - err: ErrClipNotFound, queue.ErrJobActive when the clip is rendering, or
-//     the wrapped save or queue failure.
+//   - err: ErrClipNotFound, queue.ErrJobActive when the clip is rendering,
+//     queue.ErrQueueStopped, or the wrapped save failure.
 func UpdateAndRegenerate(
 	ctx context.Context,
 	work *queue.Queue,
@@ -89,8 +90,8 @@ func UpdateAndRegenerate(
 	return job, nil
 }
 
-// applyUpdate applies an edit through the queue, saves it, and queues the clip
-// again when the queue says it has to render anew.
+// applyUpdate applies an edit through the queue, which saves it and queues
+// the clip again in the same step when it has to render anew.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -127,24 +128,13 @@ func applyUpdate(
 		return nil
 	}
 
-	job, rerender, err := apply(id, edit, paths.OutputPath(id, edit.Type), save)
+	job, _, err := apply(id, edit, paths.OutputPath(id, edit.Type), save)
 	if errors.Is(err, queue.ErrJobNotFound) {
 		return nil, fmt.Errorf("edit: %w", ErrClipNotFound)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("edit: %w", err)
-	}
-
-	if !rerender {
-		return job, nil
-	}
-
-	job.OutputPath = paths.OutputPath(job.ID, job.Type)
-
-	err = work.Requeue(job)
-	if err != nil {
-		return nil, fmt.Errorf("requeue: %w", err)
 	}
 
 	return job, nil
@@ -176,7 +166,7 @@ func adopt(ctx context.Context, work *queue.Queue, store *database.DB, id string
 		return fmt.Errorf("get clip: %w", err)
 	}
 
-	work.Restore(stored)
+	work.Adopt(stored)
 
 	return nil
 }
