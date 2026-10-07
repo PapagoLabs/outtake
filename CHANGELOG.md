@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep clip edits consistent across the queue and database by @nicholas-fedor in [#343](https://github.com/PapagoLabs/outtake/pull/343)
 - Own job copies and never block on submit by @nicholas-fedor in [#339](https://github.com/PapagoLabs/outtake/pull/339)
 - Keep tokens server-side and bind a reachable connection by @nicholas-fedor in [#335](https://github.com/PapagoLabs/outtake/pull/335)
 - Confine the thumbnail proxy and share plex connections by @nicholas-fedor in [#333](https://github.com/PapagoLabs/outtake/pull/333)
