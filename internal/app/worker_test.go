@@ -561,11 +561,18 @@ func TestSweepRendersClearsEveryOutputDirectory(t *testing.T) {
 
 	dirs := []string{paths.ClipsDir(), paths.GifsDir(), paths.ScreenshotsDir(), paths.PreviewsDir()}
 
+	abandoned := time.Now().Add(-2 * staleRenderAge)
+
 	for _, dir := range dirs {
 		require.NoError(t, os.MkdirAll(dir, 0o750))
+
+		left := filepath.Join(dir, ".staging-left.tmp")
+		require.NoError(t, os.WriteFile(left, []byte("x"), 0o600))
+		require.NoError(t, os.Chtimes(left, abandoned, abandoned))
+
 		require.NoError(
 			t,
-			os.WriteFile(filepath.Join(dir, ".staging-left.tmp"), []byte("x"), 0o600),
+			os.WriteFile(filepath.Join(dir, ".staging-live.tmp"), []byte("x"), 0o600),
 		)
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "kept"), []byte("x"), 0o600))
 	}
@@ -574,6 +581,8 @@ func TestSweepRendersClearsEveryOutputDirectory(t *testing.T) {
 
 	for _, dir := range dirs {
 		assert.NoFileExists(t, filepath.Join(dir, ".staging-left.tmp"), dir)
+		assert.FileExists(t, filepath.Join(dir, ".staging-live.tmp"),
+			"a render another process sharing the storage is running keeps its file")
 		assert.FileExists(t, filepath.Join(dir, "kept"), dir)
 	}
 }

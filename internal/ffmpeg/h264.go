@@ -93,7 +93,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		return fmt.Errorf(encodeClipErrFmt, err)
 	}
 
-	err = publish(cleanOutput, func(staging string) error {
+	err = publish(ctx, cleanOutput, func(staging string) error {
 		req := clipEncodeRequest(
 			execFFmpeg.ffmpegPath,
 			cleanInput,
@@ -240,7 +240,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 
 	duration = PreviewDuration(duration)
 
-	runErr := publish(cleanOutput, func(staging string) error {
+	runErr := publish(ctx, cleanOutput, func(staging string) error {
 		req := previewEncodeRequest(
 			execFFmpeg.ffmpegPath,
 			cleanInput,

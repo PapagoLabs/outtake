@@ -211,7 +211,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 		fps = defaultFPS
 	}
 
-	err = publish(cleanOutput, func(staging string) error {
+	err = publish(ctx, cleanOutput, func(staging string) error {
 		return execFFmpeg.renderGIF(ctx, cleanInput, staging, start, duration, width, fps, rect)
 	})
 	if err != nil {

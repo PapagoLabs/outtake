@@ -79,7 +79,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
-	err = publish(cleanOutput, func(staging string) error {
+	err = publish(ctx, cleanOutput, func(staging string) error {
 		return execFFmpeg.run(
 			ctx,
 			0,

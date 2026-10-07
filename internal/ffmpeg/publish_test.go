@@ -4,7 +4,9 @@
 package ffmpeg
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -121,7 +123,7 @@ func TestAnEmptyStagedFileFails(t *testing.T) {
 
 	output := filepath.Join(t.TempDir(), "clip.mp4")
 
-	err := publish(output, func(staging string) error {
+	err := publish(t.Context(), output, func(staging string) error {
 		return os.WriteFile(staging, nil, 0o600)
 	})
 	require.ErrorIs(t, err, ErrEmptyOutput)
@@ -168,6 +170,8 @@ func TestSweepStagedRemovesOnlyLeftovers(t *testing.T) {
 
 	dir := t.TempDir()
 
+	old := time.Now().Add(-2 * time.Hour)
+
 	for _, name := range []string{
 		".staging-a.mp4",
 		".staging-b.gif.palette.png",
@@ -175,14 +179,22 @@ func TestSweepStagedRemovesOnlyLeftovers(t *testing.T) {
 		"kept.mp4",
 		"kept.palette.png",
 	} {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o600))
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte("x"), 0o600))
+		require.NoError(t, os.Chtimes(path, old, old))
 	}
+
+	// Another process sharing the directory is still writing this one.
+	live := filepath.Join(dir, ".staging-live.mp4")
+	require.NoError(t, os.WriteFile(live, []byte("x"), 0o600))
 
 	require.NoError(t, os.Mkdir(filepath.Join(dir, ".staging-dir"), 0o750))
 
-	removed := SweepStaged(dir, filepath.Join(dir, "missing"))
+	removed := SweepStaged(time.Now().Add(-time.Hour), dir, filepath.Join(dir, "missing"))
 
 	assert.Equal(t, 3, removed)
+	assert.FileExists(t, live, "a staging file written since the cutoff belongs to a live render")
+	require.NoError(t, os.Remove(live))
 	assert.FileExists(t, filepath.Join(dir, "kept.mp4"))
 	assert.FileExists(t, filepath.Join(dir, "kept.palette.png"),
 		"a PNG is only a leftover palette when it was written beside a GIF")
@@ -257,4 +269,82 @@ func indexOf(args []string, value string) int {
 	}
 
 	return -1
+}
+
+// TestACanceledRenderIsNotPublished covers a cancel that lands after ffmpeg
+// finished: the staged file is discarded and the existing output is kept.
+func TestACanceledRenderIsNotPublished(t *testing.T) {
+	t.Parallel()
+
+	output := filepath.Join(t.TempDir(), "clip.mp4")
+	require.NoError(t, os.WriteFile(output, []byte("good"), 0o600))
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	err := publish(ctx, output, func(staging string) error {
+		cancel()
+
+		return os.WriteFile(staging, []byte("fresh"), 0o600)
+	})
+	require.ErrorIs(t, err, context.Canceled)
+
+	kept, readErr := os.ReadFile(output)
+	require.NoError(t, readErr)
+	assert.Equal(t, "good", string(kept))
+	assert.Empty(t, stagedFiles(t, filepath.Dir(output)))
+}
+
+// TestAClipCarriesNoSourceMetadata encodes a tagged source with the real
+// ffmpeg and checks that neither its global nor its per-stream tags reach the
+// clip.
+func TestAClipCarriesNoSourceMetadata(t *testing.T) {
+	t.Parallel()
+
+	ffmpegPath, ffmpegErr := exec.LookPath("ffmpeg")
+	ffprobePath, ffprobeErr := exec.LookPath("ffprobe")
+
+	if ffmpegErr != nil || ffprobeErr != nil {
+		t.Skip("ffmpeg and ffprobe are not available")
+	}
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.mkv")
+
+	makeSource := exec.CommandContext(
+		t.Context(),
+		ffmpegPath,
+		"-y",
+		"-f", "lavfi", "-i", "testsrc=size=320x240:rate=24:duration=1",
+		"-f", "lavfi", "-i", "sine=duration=1",
+		"-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+		"-c:a", "aac",
+		"-metadata", "title=SourceTitle",
+		"-metadata:s:v:0", "title=VideoTag",
+		"-metadata:s:a:0", "title=AudioTag",
+		"-metadata:s:a:0", "language=fre",
+		src,
+	)
+	require.NoError(t, makeSource.Run())
+
+	out := filepath.Join(dir, "clip.mp4")
+
+	err := NewExecFFmpeg(ffmpegPath, ffprobePath).ExtractClip(
+		t.Context(), src, out, 0, 500*time.Millisecond,
+		clip.QualityPresets[clip.ClipQualityLow], 0, crop.CropRect{},
+	)
+	require.NoError(t, err)
+
+	tags, err := exec.CommandContext(
+		t.Context(),
+		ffprobePath,
+		"-v", "error",
+		"-show_entries", "format_tags:stream_tags",
+		"-of", "compact",
+		out,
+	).Output()
+	require.NoError(t, err)
+
+	for _, tag := range []string{"SourceTitle", "VideoTag", "AudioTag", "language=fre"} {
+		assert.NotContains(t, string(tags), tag)
+	}
 }

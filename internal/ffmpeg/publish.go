@@ -4,12 +4,14 @@
 package ffmpeg
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"uuid"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
@@ -38,36 +40,40 @@ var (
 )
 
 // SweepStaged removes the staging files and GIF palettes a render left behind
-// in each directory, as an interrupted process does. A missing directory is
-// skipped.
+// in each directory, as an interrupted process does. Only files last written
+// before cutoff are removed, because ffmpeg keeps writing a staging file while
+// it renders, so a file another process sharing the directory is still
+// rendering is left alone. A missing directory is skipped.
 //
 // Parameters:
+//   - cutoff: Files written at or after this time are kept.
 //   - dirs: Directories renders write to.
 //
 // Returns:
 //   - removed: How many files were removed.
-func SweepStaged(dirs ...string) int {
+func SweepStaged(cutoff time.Time, dirs ...string) int {
 	removed := 0
 
 	for _, dir := range dirs {
-		removed += sweepDir(dir)
+		removed += sweepDir(dir, cutoff)
 	}
 
 	return removed
 }
 
-// sweepDir removes the staging files and GIF palettes in one directory.
+// sweepDir removes the stale staging files and GIF palettes in one directory.
 //
 // Parameters:
 //   - dir: Directory a render writes to.
+//   - cutoff: Files written at or after this time are kept.
 //
 // Returns:
 //   - removed: How many files were removed.
-func sweepDir(dir string) int {
+func sweepDir(dir string, cutoff time.Time) int {
 	removed := 0
 
 	for _, entry := range readRenderDir(dir) {
-		if entry.IsDir() || !isLeftover(entry.Name()) {
+		if !isStaleLeftover(entry, cutoff) {
 			continue
 		}
 
@@ -77,6 +83,25 @@ func sweepDir(dir string) int {
 	}
 
 	return removed
+}
+
+// isStaleLeftover reports whether a directory entry is a leftover file last
+// written before cutoff.
+//
+// Parameters:
+//   - entry: The directory entry.
+//   - cutoff: Files written at or after this time are not stale.
+//
+// Returns:
+//   - stale: True for a leftover file nothing has written since cutoff.
+func isStaleLeftover(entry os.DirEntry, cutoff time.Time) bool {
+	if entry.IsDir() || !isLeftover(entry.Name()) {
+		return false
+	}
+
+	info, err := entry.Info()
+
+	return err == nil && info.ModTime().Before(cutoff)
 }
 
 // readRenderDir lists a render directory, treating a missing one as empty.
@@ -132,16 +157,19 @@ func outputPath(path string) (string, error) {
 
 // publish renders into a staging file beside output and moves it into place
 // once the render succeeds, so a failed or canceled render leaves the file
-// already at output untouched.
+// already at output untouched. A render canceled after ffmpeg finished is not
+// published either.
 //
 // Parameters:
+//   - ctx: The render's context.
 //   - output: Absolute destination path.
 //   - render: Writes the file to the staging path it is given.
 //
 // Returns:
-//   - err: The render's error, ErrEmptyOutput when it wrote nothing, or the
-//     wrapped stat or rename failure.
-func publish(output string, render func(staging string) error) error {
+//   - err: The render's error, ErrEmptyOutput when it wrote nothing, the
+//     context's error when it was canceled, or the wrapped stat or rename
+//     failure.
+func publish(ctx context.Context, output string, render func(staging string) error) error {
 	staging := stagingPath(output)
 	defer removeStaged(staging)
 
@@ -162,6 +190,11 @@ func publish(output string, render func(staging string) error) error {
 
 	if info.Size() == 0 {
 		return ErrEmptyOutput
+	}
+
+	err = ctx.Err()
+	if err != nil {
+		return fmt.Errorf("publish output: %w", err)
 	}
 
 	err = os.Rename(staging, output)

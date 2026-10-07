@@ -6,6 +6,7 @@ package app
 import (
 	"context"
 	"slices"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -19,6 +20,11 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
+
+// staleRenderAge is how long a staging file has to go unwritten before the
+// startup sweep treats it as left by an interrupted render. ffmpeg writes its
+// output continuously, so a live render's file is never this old.
+const staleRenderAge = time.Hour
 
 // persistProgress returns the callback that records a render's progress.
 //
@@ -145,13 +151,15 @@ func removeOtherOutputs(store blob.Blob, paths blob.Paths, job *clip.Job) {
 }
 
 // sweepRenders removes the staging files and GIF palettes an interrupted
-// render left in the output directories. It runs before any worker starts, so
-// it never removes a file a render is still writing.
+// render left in the output directories. It runs before this process starts a
+// worker, and it only removes files nothing has written for staleRenderAge, so
+// it spares a render another process sharing the storage path is running.
 //
 // Parameters:
 //   - paths: Output layout naming the directories renders write to.
 func sweepRenders(paths blob.Paths) {
 	removed := ffmpeg.SweepStaged(
+		time.Now().Add(-staleRenderAge),
 		paths.ClipsDir(),
 		paths.GifsDir(),
 		paths.ScreenshotsDir(),
