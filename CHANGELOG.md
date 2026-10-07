@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/smithy-go to v1.28.4 by @renovate[bot] in [#341](https://github.com/PapagoLabs/outtake/pull/341)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#337](https://github.com/PapagoLabs/outtake/pull/337)
 - Update module github.com/fxamacker/cbor/v2 to v2.9.6 by @renovate[bot] in [#330](https://github.com/PapagoLabs/outtake/pull/330)
 - Update module github.com/aws/smithy-go to v1.28.3 by @renovate[bot] in [#329](https://github.com/PapagoLabs/outtake/pull/329)
