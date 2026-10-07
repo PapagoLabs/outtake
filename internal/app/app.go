@@ -102,7 +102,7 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("init plex identity: %w", err)
 	}
 
-	jobQueue := startQueue(ctx, cfg, db, runner, store.blob)
+	jobQueue := startQueue(ctx, cfg, db, runner, store.blob, store.paths)
 
 	previews, sources := renderServices(cfg, store, bind, runner)
 

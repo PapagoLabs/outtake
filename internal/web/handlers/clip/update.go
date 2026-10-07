@@ -4,7 +4,7 @@
 package clip
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -12,6 +12,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
@@ -46,7 +47,7 @@ func (handler *Handler) Update(ctx fiber.Ctx) error {
 	return handler.respondWithClipCard(ctx, job)
 }
 
-// stageClipUpdate runs every check, applies the edit, and saves it.
+// stageClipUpdate runs every check, then applies and saves the edit.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -55,45 +56,71 @@ func (handler *Handler) Update(ctx fiber.Ctx) error {
 //   - job: The saved clip, or nil when the edit was rejected.
 //   - failure: Why the edit was rejected, or nil when it was saved.
 func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejection) {
-	job := handler.lookupJob(ctx.Context(), ctx.Params(routes.ParamID))
+	id := ctx.Params(routes.ParamID)
+
+	job := handler.lookupJob(ctx.Context(), id)
 	if job == nil {
 		return nil, newRejection(fiber.StatusNotFound, api.NotFound, respond.NotFoundMessage)
 	}
 
-	req, err := ParseRequest(ctx)
+	req, err := parseEdit(ctx)
 	if err != nil {
 		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, err.Error())
 	}
 
-	err = handler.applyRequestQuality(ctx.Context(), &req)
+	quality, err := handler.resolveEditQuality(ctx.Context(), req.Quality, job.Quality)
 	if err != nil {
 		return nil, newRejection(fiber.StatusBadRequest, api.InvalidQuality, err.Error())
 	}
 
-	jobType, err := clipdom.ResolveType(req.ClipType, job.Type)
+	jobType, err := clipdom.ResolveType(valueOr(req.ClipType, ""), job.Type)
 	if err != nil {
 		return nil, newRejection(fiber.StatusBadRequest, api.InvalidClipType, err.Error())
 	}
 
-	edit := clipEdit(req)
-
-	edit.Type = jobType
+	edit := mergeEdit(job, req, jobType, quality)
 
 	err = handler.validateEdit(ctx.Context(), job.InputPath, edit, jobType)
 	if err != nil {
 		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, err.Error())
 	}
 
-	job.Apply(edit)
-
-	err = handler.db.SaveClip(ctx.Context(), job)
-	if err != nil {
-		return nil, newRejection(fiber.StatusInternalServerError, api.PersistFailed, err.Error())
+	saved, err := handler.saveEdit(ctx, id, edit)
+	if errors.Is(err, catalog.ErrClipNotFound) {
+		return nil, newRejection(fiber.StatusNotFound, api.NotFound, respond.NotFoundMessage)
 	}
 
-	err = handler.maybeRegenerate(ctx, job)
 	if err != nil {
 		return nil, submitFailure(err)
+	}
+
+	return saved, nil
+}
+
+// saveEdit applies an edit through the catalog, rendering the clip again when
+// the form asked for it.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - id: Clip to change.
+//   - edit: The validated change.
+//
+// Returns:
+//   - job: The saved clip.
+//   - err: The catalog's failure.
+func (handler *Handler) saveEdit(
+	ctx fiber.Ctx,
+	id string,
+	edit clipdom.Edit,
+) (*clipdom.Job, error) {
+	update := catalog.Update
+	if ctx.FormValue("regenerate") == "1" {
+		update = catalog.UpdateAndRegenerate
+	}
+
+	job, err := update(ctx.Context(), handler.clipQueue, handler.db, handler.clipPaths, id, edit)
+	if err != nil {
+		return nil, fmt.Errorf("save edit: %w", err)
 	}
 
 	return job, nil
@@ -166,69 +193,4 @@ func (handler *Handler) respondWithClipCard(ctx fiber.Ctx, job *clipdom.Job) err
 
 		return clipcard.ClipCard(item).Render(ctx.Context(), writer)
 	})
-}
-
-// applyRequestQuality resolves a non-empty quality field onto a profile id.
-//
-// Parameters:
-//   - ctx: Request context.
-//   - req: Parsed request, updated with the resolved quality.
-//
-// Returns:
-//   - err: Non-nil when the named profile is not recognized.
-func (handler *Handler) applyRequestQuality(
-	ctx context.Context,
-	req *api.ClipRequest,
-) error {
-	if req.Quality == "" {
-		return nil
-	}
-
-	quality, err := profile.ResolveProfile(ctx, handler.db, req.Quality)
-	if err != nil {
-		return fmt.Errorf("apply quality: %w", err)
-	}
-
-	req.Quality = quality
-
-	return nil
-}
-
-// maybeRegenerate re-queues a clip when the regenerate form flag is set.
-//
-// Parameters:
-//   - ctx: Request context.
-//   - job: The clip just saved.
-//
-// Returns:
-//   - err: Non-nil when the queue would not take the clip again.
-func (handler *Handler) maybeRegenerate(ctx fiber.Ctx, job *clipdom.Job) error {
-	if ctx.FormValue("regenerate") != "1" {
-		return nil
-	}
-
-	err := handler.queueRegenerate(job)
-	if err != nil {
-		return fmt.Errorf("regenerate: %w", err)
-	}
-
-	return nil
-}
-
-// queueRegenerate re-queues a clip after metadata changes.
-//
-// Parameters:
-//   - job: The clip to run again.
-//
-// Returns:
-//   - err: ErrJobActive when the clip is already rendering or queued.
-func (handler *Handler) queueRegenerate(job *clipdom.Job) error {
-	job.OutputPath = handler.clipPaths.OutputPath(job.ID, job.Type)
-
-	err := handler.clipQueue.Requeue(job)
-	if err != nil {
-		return fmt.Errorf("requeue: %w", err)
-	}
-
-	return nil
 }

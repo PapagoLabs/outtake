@@ -50,6 +50,14 @@ const DefaultMediaType = "movie"
 // ErrUnknownType reports a requested clip type this app does not produce.
 var ErrUnknownType = errors.New("clip type must be one of: clip, video, screenshot, gif")
 
+// Types lists every clip type this app produces.
+//
+// Returns:
+//   - types: Each type once.
+func Types() []Type {
+	return []Type{TypeClip, TypeGIF, TypeScreenshot}
+}
+
 // ParseType resolves a requested clip type.
 //
 // Parameters:
