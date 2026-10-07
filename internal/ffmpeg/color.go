@@ -326,7 +326,8 @@ func (execFFmpeg *ExecFFmpeg) tonePeak(
 //
 // Returns:
 //   - ymax: Highest limited-range luma code observed.
-//   - ok: True when at least one YMAX value was parsed.
+//   - ok: True when the pass finished cleanly and at least one YMAX value was
+//     parsed.
 func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 	ctx context.Context,
 	input string,
@@ -356,14 +357,18 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 	}
 
 	stderr, runErr := execFFmpeg.runStderr(ctx, signalstatsPass, args...)
+	if runErr != nil {
+		// A pass that errored, a timeout most of all, can have emitted a YMAX
+		// from a partial sample, which would understate the peak and mis-scale
+		// the tone map. The caller falls back to the nominal peak instead.
+		return 0, false
+	}
 
 	ymax, ok := tonemap.ParseSignalstatsYMax(stderr)
 
-	// Only a clean pass is cached. A pass that produced no luma is not necessarily
-	// a source with no highlights, and a pass that errored — a timeout most of
-	// all — can have emitted a YMAX from a partial sample, which would understate
-	// the peak and mis-scale the tone map.
-	if ok && runErr == nil {
+	// A pass that produced no luma is not necessarily a source with no
+	// highlights, so only a parsed sample is cached.
+	if ok {
 		probe.StorePeak(cleanInput, key, start, window, ymax)
 	}
 

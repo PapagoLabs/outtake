@@ -281,14 +281,31 @@ func TestSignalstatsDoesNotCacheFailedRun(t *testing.T) {
 	path, identity := newPassSource(t)
 	execFFmpeg := NewExecFFmpeg(failingPassStub(t, signalstatsLog), "unused")
 
-	peak, ok := execFFmpeg.signalstatsYMax(t.Context(), path, 10*time.Second, 30*time.Second)
-	require.True(t, ok, "the stubbed luma is still parsed and returned")
-	assert.InDelta(t, 158.0, peak, 0.001)
+	_, ok := execFFmpeg.signalstatsYMax(t.Context(), path, 10*time.Second, 30*time.Second)
+	assert.False(
+		t,
+		ok,
+		"a luma value from a pass that errored may be a partial sample, so none is used",
+	)
 
 	assert.False(
 		t,
 		peakCached(identity),
 		"a pass that errored must not be cached",
+	)
+
+	assert.InDelta(
+		t,
+		tonemap.DefaultWebSafePeak,
+		execFFmpeg.tonePeak(
+			t.Context(),
+			path,
+			clip.TransferPQAlias,
+			10*time.Second,
+			30*time.Second,
+		),
+		0.0001,
+		"the tone map falls back to the nominal peak",
 	)
 }
 
