@@ -74,7 +74,7 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 	}
 
 	// The export form falls back to the media title, so it is resolved last.
-	props.Export = exportform.MediaItemForm(ctx, handler.cfg, props.Title)
+	props.Export = exportform.MediaItemForm(ctx, handler.cfg, props.Title, props.Profiles)
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.MediaItemPage(props).Render(ctx.Context(), writer)

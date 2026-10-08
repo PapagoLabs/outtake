@@ -73,10 +73,6 @@ type Config struct {
 	MaxClipDur time.Duration `mapstructure:"max-clip-dur"`
 	// CropBlackBars is the default for trimming letterbox/pillarbox bars.
 	CropBlackBars bool `mapstructure:"crop-black-bars"`
-	// WebSafeColor is the default for HDR tone-mapping on saved clips.
-	WebSafeColor bool `mapstructure:"web-safe-color"`
-	// PreserveHDR keeps an HDR source as it is instead of tone mapping it to Rec.709.
-	PreserveHDR bool `mapstructure:"preserve-hdr"`
 	// PlexServerURL is the Plex server URL.
 	PlexServerURL string `mapstructure:"plex-server-url"`
 	// PlexToken is the Plex token.
@@ -249,8 +245,6 @@ func emptyConfig() *Config {
 		NumWorkers:      0,
 		MaxClipDur:      0,
 		CropBlackBars:   false,
-		WebSafeColor:    false,
-		PreserveHDR:     false,
 		PlexServerURL:   "",
 		PlexToken:       "",
 		PlexClientID:    "",
@@ -288,8 +282,6 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("max-concurrent-previews", defaultMaxConcurrentPreviews)
 	viperInstance.SetDefault("max-clip-dur", int(clip.MaxDuration.Seconds()))
 	viperInstance.SetDefault("crop-black-bars", false)
-	viperInstance.SetDefault("preserve-hdr", false)
-	viperInstance.SetDefault("web-safe-color", false)
 	viperInstance.SetDefault("allowed-hosts", "")
 	viperInstance.SetDefault("plex-media-root", "")
 	viperInstance.SetDefault("local-media-root", "")
@@ -384,7 +376,6 @@ func bindEnv(viperInstance *viper.Viper) error {
 		"max-concurrent-previews",
 		"max-clip-dur",
 		"crop-black-bars",
-		"web-safe-color",
 		"plex-server-url",
 		"plex-token",
 		"plex-client-id",

@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
@@ -28,7 +27,6 @@ func TestExecFFmpeg_ExtractScreenshot_MissingInput(t *testing.T) {
 		"/tmp/screenshot.jpg",
 		100,
 		crop.CropRect{},
-		clip.QualityPreset{},
 	)
 	assert.Error(t, err)
 }
@@ -45,7 +43,6 @@ func TestExecFFmpeg_ExtractScreenshot_Args(t *testing.T) {
 		fixture.output,
 		2*time.Minute,
 		crop.CropRect{},
-		clip.QualityPreset{},
 	)
 	require.NoError(t, err)
 
@@ -82,7 +79,6 @@ func TestExtractScreenshotResolvesRelativePaths(t *testing.T) {
 		output,
 		time.Second,
 		crop.CropRect{},
-		clip.QualityPreset{},
 	))
 
 	recorded, err := os.ReadFile(logPath)
@@ -120,4 +116,15 @@ func TestScreenshotEncodeArgsOmitsCropWhenEmpty(t *testing.T) {
 
 	assert.NotContains(t, args, "-vf")
 	assert.NotContains(t, args, "crop=")
+}
+
+// TestScreenshotEncodeArgsWriteOneImage covers the image muxer flag: a still
+// is one file, so ffmpeg is told not to expect a numbered sequence.
+func TestScreenshotEncodeArgsWriteOneImage(t *testing.T) {
+	t.Parallel()
+
+	args := screenshotEncodeArgs("ffmpeg", "/in.mkv", "/out.jpg", time.Second, crop.CropRect{}, "")
+
+	assert.Equal(t, "/out.jpg", args[len(args)-1])
+	assert.Contains(t, strings.Join(args, " "), updateFlag+" 1")
 }

@@ -1413,7 +1413,7 @@ func ClipCard(item view.ClipItem) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = ColorFields(item.CropBlackBars, item.WebSafeColor, item.PreserveHDR, item.SourceHDR).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = ColorFields(item.CropBlackBars, item.PreserveHDR, item.SourceHDR).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1447,14 +1447,13 @@ func ClipCard(item view.ClipItem) templ.Component {
 	})
 }
 
-// ColorFields renders the export checkboxes that apply to every clip type.
+// ColorFields renders the crop and color checkboxes of an export form.
 //
 // Parameters:
 //   - cropBlackBars: Trim black bars is checked.
-//   - webSafeColor: Tone-map to web-safe color is checked.
-//   - preserveHDR: Keep the source HDR transfer is checked.
-//   - sourceHDR: The source carries an HDR transfer.
-func ColorFields(cropBlackBars, webSafeColor, preserveHDR, sourceHDR bool) templ.Component {
+//   - preserveHDR: Keep HDR is checked.
+//   - sourceHDR: The source carries an HDR transfer, so Keep HDR is offered.
+func ColorFields(cropBlackBars, preserveHDR, sourceHDR bool) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -1480,10 +1479,6 @@ func ColorFields(cropBlackBars, webSafeColor, preserveHDR, sourceHDR bool) templ
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = CropBlackBarsField(cropBlackBars).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = WebSafeColorField(webSafeColor).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1542,7 +1537,10 @@ func CropBlackBarsField(checked bool) templ.Component {
 	})
 }
 
-// PreserveHDRField renders the keep-HDR checkbox.
+// PreserveHDRField renders the Keep HDR checkbox of a video clip. Unchecked,
+// the clip is tone mapped to SDR. GIFs and screenshots are always SDR, so the
+// box shows only for video. On the new export form, the form script sets it
+// from the chosen profile. A saved clip keeps its own choice.
 //
 // Parameters:
 //   - checked: The checkbox is checked.
@@ -1571,53 +1569,11 @@ func PreserveHDRField(checked bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = checkbox.Checkbox(checkbox.Props{Name: "preserveHdr", Value: "1", Checked: checked, Class: "rounded border-input"}).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = checkbox.Checkbox(checkbox.Props{Name: "preserveHdr", Value: "1", Checked: checked, Class: "rounded border-input", Attributes: templ.Attributes{"data-keep-hdr-box": ""}}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, " HDR</label>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		return nil
-	})
-}
-
-// WebSafeColorField renders the web-safe color checkbox, which tone maps an HDR
-// source for every export type.
-//
-// Parameters:
-//   - checked: The checkbox is checked.
-func WebSafeColorField(checked bool) templ.Component {
-	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
-		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
-		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
-			return templ_7745c5c3_CtxErr
-		}
-		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
-		if !templ_7745c5c3_IsBuffer {
-			defer func() {
-				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err == nil {
-					templ_7745c5c3_Err = templ_7745c5c3_BufErr
-				}
-			}()
-		}
-		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var81 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var81 == nil {
-			templ_7745c5c3_Var81 = templ.NopComponent
-		}
-		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 119, "<label class=\"flex items-center gap-2 text-sm\" data-export-for=\"clip,gif,screenshot\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = checkbox.Checkbox(checkbox.Props{Name: "webSafeColor", Value: "1", Checked: checked, Class: "rounded border-input"}).Render(ctx, templ_7745c5c3_Buffer)
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 120, " Web-safe color</label>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 118, " Keep HDR</label>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -64,8 +64,7 @@ func Render(
 		req.AudioIndex,
 		rect,
 		clip.QualityPreset{
-			WebSafeColor: clip.Flag(req.WebSafeColor),
-			PreserveHDR:  preserveHDR,
+			PreserveHDR: preserveHDR,
 		},
 	)
 	if err != nil {

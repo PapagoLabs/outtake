@@ -78,18 +78,20 @@ func TestPreviewRedirectCarriesAnAbsentMark(t *testing.T) {
 	assert.Equal(t, "0.000", parsed.Get(routes.QueryEnd))
 }
 
-func TestPreviewRedirectCarriesTheWebSafeColorToggle(t *testing.T) {
+// TestPreviewRedirectCarriesTheKeepHDRToggle covers the redirect back to the
+// form: the Keep HDR box comes back as the preview was asked for.
+func TestPreviewRedirectCarriesTheKeepHDRToggle(t *testing.T) {
 	t.Parallel()
 
 	_, checked := previewRedirectParts(
-		t, previewRedirect(queryPreview(0, 0, "webSafeColor=1"), "preview-1"),
+		t, previewRedirect(queryPreview(0, 0, "preserveHdr=1"), "preview-1"),
 	)
 
-	assert.Equal(t, routes.FormChecked, checked.Get(routes.QueryWebSafeColor))
+	assert.Equal(t, routes.FormChecked, checked.Get(routes.QueryPreserveHDR))
 
 	_, absent := previewRedirectParts(t, previewRedirect(queryPreview(0, 0), "preview-1"))
 
-	assert.Equal(t, routes.FormUnchecked, absent.Get(routes.QueryWebSafeColor),
+	assert.Equal(t, routes.FormUnchecked, absent.Get(routes.QueryPreserveHDR),
 		"an absent setting is carried as an unchecked box, so the page does not fall back")
 }
 
@@ -134,7 +136,7 @@ func queryPreview(start, end float64, extra ...string) api.ClipRequest {
 		fields.Set(name, value)
 	}
 
-	req.WebSafeColor = new(fields.Get(routes.QueryWebSafeColor) == routes.FormChecked)
+	req.PreserveHDR = new(fields.Get(routes.QueryPreserveHDR) == routes.FormChecked)
 
 	return req
 }

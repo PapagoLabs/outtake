@@ -50,6 +50,22 @@ templ AudioSelect(id string, tracks []view.AudioTrackOption, selected int) {
 	}
 }
 
+// keepHDRAttr renders a profile's keep-HDR default for the export form script,
+// which sets the Keep HDR checkbox from the chosen profile.
+//
+// Parameters:
+//   - profile: The offered profile.
+//
+// Returns:
+//   - value: "1" when the profile keeps HDR, otherwise "0".
+func keepHDRAttr(profile profile.ProfileOption) string {
+	if profile.KeepHDR {
+		return "1"
+	}
+
+	return "0"
+}
+
 // QualitySelect renders the clip profile select.
 //
 // Parameters:
@@ -60,9 +76,9 @@ templ QualitySelect(id string, profiles []profile.ProfileOption, selected string
 	<select id={ id } name="quality" class={ utils.ControlClass }>
 		for _, profile := range profiles {
 			if qualityOptionSelected(profile, selected) {
-				<option value={ profile.ID } selected>{ profile.Name }</option>
+				<option value={ profile.ID } data-keep-hdr={ keepHDRAttr(profile) } selected>{ profile.Name }</option>
 			} else {
-				<option value={ profile.ID }>{ profile.Name }</option>
+				<option value={ profile.ID } data-keep-hdr={ keepHDRAttr(profile) }>{ profile.Name }</option>
 			}
 		}
 	</select>

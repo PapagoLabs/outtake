@@ -34,7 +34,6 @@ type ClipItem struct {
 	AudioIndex    int
 	AudioTracks   []AudioTrackOption
 	CropBlackBars bool
-	WebSafeColor  bool
 	PreserveHDR   bool
 	SourceHDR     bool
 	MediaDuration time.Duration

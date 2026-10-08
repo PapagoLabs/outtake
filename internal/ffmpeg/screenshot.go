@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
@@ -50,6 +49,7 @@ func screenshotEncodeArgs(
 		inputFlag, input,
 		framesFlag, "1",
 		qualityFlag, "2",
+		updateFlag, "1",
 	}
 	if filter := screenshotFilter(rect, toneMap); filter != "" {
 		args = append(args, videoFilterFlag, filter)
@@ -86,8 +86,9 @@ func screenshotFilter(rect crop.CropRect, toneMap string) string {
 //   - output: Destination image path.
 //   - timestamp: Offset into the source to grab the frame from.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only WebSafeColor is read, which tone maps an
-//     HDR source to Rec.709.
+//
+// An HDR source is always tone mapped to SDR, because a JPEG cannot carry HDR
+// and its untouched pixels would look washed out.
 //
 // Returns:
 //   - err: Non-nil when the still could not be written.
@@ -96,7 +97,6 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 	input, output string,
 	timestamp time.Duration,
 	rect crop.CropRect,
-	preset clip.QualityPreset,
 ) error {
 	// Build and run the screenshot ffmpeg command.
 	cleanInput, err := mediaPath(input)
@@ -109,10 +109,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractScreenshot(
 		return fmt.Errorf(encodeScreenshotErrFmt, err)
 	}
 
-	toneMap := ""
-	if preset.WebSafeColor {
-		toneMap = execFFmpeg.webSafeToneMap(ctx, cleanInput, timestamp, stillPeakWindow)
-	}
+	toneMap := execFFmpeg.sdrToneMap(ctx, cleanInput, timestamp, stillPeakWindow)
 
 	err = publish(ctx, cleanOutput, func(staging string) error {
 		return execFFmpeg.run(

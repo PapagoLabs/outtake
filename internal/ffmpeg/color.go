@@ -14,14 +14,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
 
-// hdrInputs are the settings that decide how an HDR source is handled.
-type hdrInputs struct {
-	// webSafe reports that web-safe color is enabled for the request.
-	webSafe bool
-	// preserve reports that the preset asked to keep the source's HDR transfer.
-	preserve bool
-}
-
 // remapDecision is how an encode treats an HDR source.
 type remapDecision int
 
@@ -40,17 +32,17 @@ type colorPlan struct {
 }
 
 const (
-	// preserveHDR keeps a source's HDR transfer as it is.
-	preserveHDR remapDecision = iota
-	// webSafeRemap tone maps an HDR source down to Rec.709.
-	webSafeRemap
+	// keepHDR keeps a source's HDR transfer as it is.
+	keepHDR remapDecision = iota
+	// toneMapSDR tone maps an HDR source down to Rec.709.
+	toneMapSDR
 )
 
 const (
-	// webSafeMovFlags adds a colr atom so browsers agree on Rec.709.
-	webSafeMovFlags = "+faststart+write_colr"
-	// webSafePeak caps how long a luma-peak pass may sample.
-	webSafePeak = 8 * time.Second
+	// toneMappedMovFlags adds a colr atom so browsers agree on Rec.709.
+	toneMappedMovFlags = "+faststart+write_colr"
+	// peakSampleCap caps how long a luma-peak pass may sample.
+	peakSampleCap = 8 * time.Second
 	// signalstatsFilter prints lavfi.signalstats.YMAX to stderr for peak detect.
 	// The 8-bit conversion comes first: NitsFromLimitedY reads an 8-bit limited
 	// code, and a 10-bit YMAX above 235 would clamp to the full 10000-nit PQ peak.
@@ -95,23 +87,19 @@ const (
 	x264MatrixPrefix = ":colormatrix="
 )
 
-// remapDecisionFor maps an encode request onto the HDR handling it needs.
+// remapDecisionFor maps an encode preset onto the HDR handling it needs.
 //
 // Parameters:
-//   - in: The request's HDR-relevant settings.
+//   - preset: The encode settings, whose PreserveHDR is the clip's choice.
 //
 // Returns:
-//   - decision: Whether the encode tone maps an HDR source.
-func remapDecisionFor(in hdrInputs) remapDecision {
-	// Web-safe color is the only request that tone-maps. Leaving it off keeps
-	// the source transfer, including when preserve is also off, so a file the
-	// user will grade is not graded here. An explicit web-safe request still
-	// wins when both flags are set.
-	if in.webSafe {
-		return webSafeRemap
+//   - decision: keepHDR when the clip keeps HDR, otherwise toneMapSDR.
+func remapDecisionFor(preset clip.QualityPreset) remapDecision {
+	if preset.PreserveHDR {
+		return keepHDR
 	}
 
-	return preserveHDR
+	return toneMapSDR
 }
 
 // hdrColorArgs tags an encode with the HDR transfer it actually carries.
@@ -137,11 +125,11 @@ func hdrColorArgs(kind string) []string {
 	}
 }
 
-// webSafeColorArgs tags the encode as Rec.709 / sRGB limited range.
+// toneMappedColorArgs tags the encode as Rec.709 / sRGB limited range.
 //
 // Returns:
 //   - args: ffmpeg color and x264-params flags.
-func webSafeColorArgs() []string {
+func toneMappedColorArgs() []string {
 	return []string{
 		flagColorPrimaries, nameBT709,
 		flagColorTransfer, tonemap.TransferSRGB,
@@ -197,11 +185,11 @@ func decideColor(transfer string, remap remapDecision) colorPlan {
 	// A remapped encode outputs Rec.709 whatever it was given, so it is tagged
 	// Rec.709. A PQ peak still has to be sampled to scale the tone map; HLG
 	// carries a nominal peak and needs no sample.
-	if remap == webSafeRemap {
+	if remap == toneMapSDR {
 		return colorPlan{
 			hdrKind:   kind,
 			toneMap:   true,
-			colorTags: webSafeColorArgs(),
+			colorTags: toneMappedColorArgs(),
 			needsPeak: kind == clip.TransferPQAlias,
 			pixFmt:    pixelFormatYUV420P,
 		}
@@ -236,10 +224,7 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 		transfer = info.ColorTransfer
 	}
 
-	plan := decideColor(transfer, remapDecisionFor(hdrInputs{
-		webSafe:  req.webSafeColor,
-		preserve: req.preset.PreserveHDR,
-	}))
+	plan := decideColor(transfer, remapDecisionFor(req.preset))
 
 	req.hdrKind = plan.hdrKind
 	req.toneMap = plan.toneMap
@@ -251,8 +236,8 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 	}
 }
 
-// webSafeToneMap returns the tone map chain that brings an HDR source down to
-// Rec.709, for an export that asked for web-safe color. An SDR source, or one
+// sdrToneMap returns the tone map chain that brings an HDR source down to
+// Rec.709, for stills and GIFs, which cannot carry HDR. An SDR source, or one
 // that could not be probed, needs none.
 //
 // Parameters:
@@ -263,7 +248,7 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 //
 // Returns:
 //   - filter: The tone map chain, ending in 8-bit yuv420p, or empty.
-func (execFFmpeg *ExecFFmpeg) webSafeToneMap(
+func (execFFmpeg *ExecFFmpeg) sdrToneMap(
 	ctx context.Context,
 	input string,
 	start, duration time.Duration,
@@ -273,7 +258,7 @@ func (execFFmpeg *ExecFFmpeg) webSafeToneMap(
 		return ""
 	}
 
-	plan := decideColor(info.ColorTransfer, webSafeRemap)
+	plan := decideColor(info.ColorTransfer, toneMapSDR)
 	if !plan.toneMap {
 		return ""
 	}
@@ -322,7 +307,7 @@ func (execFFmpeg *ExecFFmpeg) tonePeak(
 //   - ctx: Cancellation and deadline for the ffmpeg pass.
 //   - input: Source media path.
 //   - start: Seek offset into the source.
-//   - duration: Length of the clip; capped at webSafePeak.
+//   - duration: Length of the clip; capped at peakSampleCap.
 //
 // Returns:
 //   - ymax: Highest limited-range luma code observed.
@@ -381,10 +366,10 @@ func (execFFmpeg *ExecFFmpeg) signalstatsYMax(
 //   - duration: Requested clip duration.
 //
 // Returns:
-//   - capped: The sampling window, capped at webSafePeak.
+//   - capped: The sampling window, capped at peakSampleCap.
 func peakSampleSeconds(duration time.Duration) time.Duration {
-	if duration <= 0 || duration > webSafePeak {
-		return webSafePeak
+	if duration <= 0 || duration > peakSampleCap {
+		return peakSampleCap
 	}
 
 	return duration

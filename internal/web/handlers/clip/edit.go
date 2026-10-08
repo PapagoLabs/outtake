@@ -59,8 +59,7 @@ func parseEdit(ctx fiber.Ctx) (clipdom.EditRequest, error) {
 		FPS:           &form.FPS,
 		AudioIndex:    &form.AudioIndex,
 		CropBlackBars: &form.CropBlackBars,
-		WebSafeColor:  form.WebSafeColor,
-		PreserveHDR:   form.PreserveHDR,
+		PreserveHDR:   form.KeepHDR(),
 	}, nil
 }
 
@@ -101,8 +100,7 @@ func mergeEdit(
 		FPS:           valueOr(req.FPS, job.FPS),
 		AudioIndex:    valueOr(req.AudioIndex, job.AudioIndex),
 		CropBlackBars: valueOr(req.CropBlackBars, job.CropBlackBars),
-		WebSafeColor:  new(valueOr(req.WebSafeColor, job.WebSafeColor)),
-		PreserveHDR:   new(valueOr(req.PreserveHDR, job.PreserveHDR)),
+		PreserveHDR:   new(valueOr(req.KeepHDR(), job.PreserveHDR)),
 	}
 }
 

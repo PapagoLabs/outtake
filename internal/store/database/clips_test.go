@@ -56,17 +56,14 @@ func TestClipPersistence(t *testing.T) {
 	assert.Equal(t, "Intro", got.Name)
 	assert.Equal(t, 1, got.AudioIndex)
 	assert.True(t, got.CropBlackBars)
-	assert.False(t, got.WebSafeColor)
 	assert.False(t, got.PreserveHDR,
 		"a clip saved before the column existed must tone map, as it always did")
 
-	job.WebSafeColor = true
 	job.PreserveHDR = true
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
 	got, err = db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
-	assert.True(t, got.WebSafeColor)
 	assert.True(t, got.PreserveHDR)
 
 	job.PreserveHDR = false
@@ -74,7 +71,6 @@ func TestClipPersistence(t *testing.T) {
 
 	got, err = db.GetClip(t.Context(), job.ID)
 	require.NoError(t, err)
-	assert.True(t, got.WebSafeColor)
 	assert.False(t, got.PreserveHDR)
 
 	byMedia, err := db.ListClipsForMedia(t.Context(), "100")
@@ -328,7 +324,6 @@ func TestScanJobReadsEveryColumn(t *testing.T) {
 		FPS:           24,
 		AudioIndex:    2,
 		CropBlackBars: true,
-		WebSafeColor:  true,
 		PreserveHDR:   true,
 
 		CreatedAt: stamp,
@@ -451,4 +446,78 @@ func seedLegacyToken(t *testing.T, db *DB, clientID, token string) {
 		VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 	`), clientID, token)
 	require.NoError(t, err)
+}
+
+// TestMigrationKeepHDRCarriesEachClipsChoice covers the upgrade that made
+// keep-HDR the only switch. A clip whose web-safe color was off kept HDR, so it
+// keeps HDR after the upgrade, and one with it on still tone maps. The High
+// profile is the only seeded one that keeps HDR.
+func TestMigrationKeepHDRCarriesEachClipsChoice(t *testing.T) {
+	t.Parallel()
+
+	path := t.TempDir() + "/upgrade.db"
+	stamp := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
+
+	db, err := New(path)
+	require.NoError(t, err)
+
+	require.NoError(t, db.SaveClip(t.Context(), testStoredClip("kept", "1", stamp)))
+	require.NoError(t, db.SaveClip(t.Context(), testStoredClip("mapped", "1", stamp)))
+
+	// Put the database back as it stood before the migration: the old
+	// columns hold the choice, and the profile column does not exist yet.
+	for _, statement := range []string{
+		`UPDATE clips SET web_safe_color = 0, preserve_hdr = 0 WHERE id = 'kept'`,
+		`UPDATE clips SET web_safe_color = 1, preserve_hdr = 1 WHERE id = 'mapped'`,
+		`ALTER TABLE clip_profiles DROP COLUMN keep_hdr`,
+		`DELETE FROM schema_migrations WHERE name = '006_keep_hdr.sql'`,
+	} {
+		_, err = db.Conn().ExecContext(t.Context(), statement)
+		require.NoError(t, err, statement)
+	}
+
+	require.NoError(t, db.Close())
+
+	db, err = New(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	kept, err := db.GetClip(t.Context(), "kept")
+	require.NoError(t, err)
+	assert.True(t, kept.PreserveHDR, "web-safe off kept HDR, so the clip still does")
+
+	mapped, err := db.GetClip(t.Context(), "mapped")
+	require.NoError(t, err)
+	assert.False(t, mapped.PreserveHDR, "web-safe on tone mapped, so the clip still does")
+
+	for id, want := range map[string]bool{"low": false, "medium": false, "high": true} {
+		profile, getErr := db.GetClipProfile(t.Context(), id)
+		require.NoError(t, getErr)
+		assert.Equal(t, want, profile.KeepHDR, id)
+	}
+}
+
+// TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse covers the column no
+// build reads any more: it is kept as the inverse of keep-HDR, so an older
+// build reading it renders the clip the same way.
+func TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/legacy.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testStoredClip("legacy", "1", time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC))
+
+	for _, keep := range []bool{true, false} {
+		job.PreserveHDR = keep
+		require.NoError(t, db.SaveClip(t.Context(), job))
+
+		var webSafe int
+
+		require.NoError(t, db.Conn().QueryRowContext(t.Context(),
+			`SELECT web_safe_color FROM clips WHERE id = 'legacy'`).Scan(&webSafe))
+
+		assert.Equal(t, keep, webSafe == 0)
+	}
 }

@@ -36,6 +36,9 @@ func TestClipProfilesSeeded(t *testing.T) {
 	high, err := db.GetClipProfile(t.Context(), "high")
 	require.NoError(t, err)
 	assert.Equal(t, clip.OutputWidth2160p, high.MaxWidth)
+	assert.True(t, high.KeepHDR, "High keeps HDR for editing projects")
+	assert.True(t, high.QualityPreset().PreserveHDR, "and passes it on to its preset")
+	assert.False(t, def.KeepHDR, "Medium converts HDR to SDR for social posts")
 }
 
 func TestClipProfileCRUD(t *testing.T) {
@@ -54,6 +57,7 @@ func TestClipProfileCRUD(t *testing.T) {
 		AudioKbps: 320,
 		MaxWidth:  clip.OutputWidth2160p,
 		IsDefault: true,
+		KeepHDR:   true,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -63,6 +67,7 @@ func TestClipProfileCRUD(t *testing.T) {
 	got, err := db.GetClipProfile(t.Context(), custom.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Archive", got.Name)
+	assert.True(t, got.KeepHDR)
 	assert.Equal(t, 320, got.AudioKbps)
 	assert.Equal(t, clip.OutputWidth2160p, got.MaxWidth)
 	assert.True(t, got.IsDefault)

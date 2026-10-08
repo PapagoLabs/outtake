@@ -330,6 +330,8 @@ func TestClipProfilesRendersTheStoredProfiles(t *testing.T) {
 	assert.Contains(t, answer.body, "Default", "the default profile says so")
 	assert.Contains(t, answer.body, `name="preset"`, "the form offers the encoder presets")
 	assert.Contains(t, answer.body, "4K", "the form offers every export resolution")
+	assert.Contains(t, answer.body, `name="keepHdr"`, "the form offers the Keep HDR default")
+	assert.Contains(t, answer.body, "Keep HDR by default")
 }
 
 func TestClipProfilesRendersTheBuiltInProfiles(t *testing.T) {
@@ -445,6 +447,7 @@ func TestUpdateClipProfileSavesOverAnExistingProfile(t *testing.T) {
 			"preset":    {"fast"},
 			"audioKbps": {"192"},
 			"maxWidth":  {"1920"},
+			"keepHdr":   {"1"},
 		}.Encode(),
 	)
 
@@ -460,6 +463,7 @@ func TestUpdateClipProfileSavesOverAnExistingProfile(t *testing.T) {
 	assert.Equal(t, "fast", updated.Preset)
 	assert.Equal(t, 192, updated.AudioKbps)
 	assert.Equal(t, 1920, updated.MaxWidth)
+	assert.True(t, updated.KeepHDR, "the edit saved the Keep HDR default")
 }
 
 func TestUpdateClipProfileCarriesTheDefaultOverTheForm(t *testing.T) {

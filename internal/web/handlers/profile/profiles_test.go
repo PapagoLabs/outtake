@@ -57,7 +57,7 @@ func TestProfileFieldsDecodeTheForm(t *testing.T) {
 
 	fields := postedProfileFields(
 		t,
-		"name=Archive&crf=18&preset=slow&audioKbps=320&maxWidth=3840&isDefault=1",
+		"name=Archive&crf=18&preset=slow&audioKbps=320&maxWidth=3840&isDefault=1&keepHdr=1",
 	)
 
 	assert.Equal(t, "Archive", fields.Name)
@@ -66,6 +66,7 @@ func TestProfileFieldsDecodeTheForm(t *testing.T) {
 	assert.Equal(t, "320", fields.AudioKbps)
 	assert.Equal(t, "3840", fields.MaxWidth)
 	assert.True(t, fields.IsDefault)
+	assert.True(t, fields.KeepHDR)
 }
 
 func TestProfileFieldsReadAnUncheckedDefaultAsOff(t *testing.T) {
@@ -77,6 +78,7 @@ func TestProfileFieldsReadAnUncheckedDefaultAsOff(t *testing.T) {
 	)
 
 	assert.False(t, fields.IsDefault)
+	assert.False(t, fields.KeepHDR, "an unchecked Keep HDR box converts to SDR")
 }
 
 // closeBody closes a response body and fails the test when it cannot.

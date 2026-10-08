@@ -22,8 +22,18 @@ type ServerSelection interface {
 	Client() (*plex.Client, plex.Server, bool)
 }
 
-// ErrNoServer is returned when no Plex server is selected.
-var ErrNoServer = errors.New("no plex server selected")
+var (
+	// ErrNoServer is returned when no Plex server is selected.
+	ErrNoServer = errors.New("no plex server selected")
+
+	// ErrDolbyVisionBaseLayer is returned for a Dolby Vision source, such as
+	// profile 5, whose base layer only shows correct colors after Dolby's
+	// reshaping, which ffmpeg does not apply.
+	ErrDolbyVisionBaseLayer = errors.New(
+		"this Dolby Vision source has no HDR10 or SDR base layer, so it cannot " +
+			"be exported with correct colors: use a copy with an HDR10 base layer",
+	)
+)
 
 // ResolveMediaPath maps a media id onto a local filesystem path.
 //

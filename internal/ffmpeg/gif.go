@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
@@ -199,20 +198,18 @@ func gifEncodeArgs(
 //   - width: Output width in pixels, or 0 for the default.
 //   - fps: Output frames per second, or 0 for the default.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only WebSafeColor is read, which tone maps an
-//     HDR source to Rec.709 before the palette is built.
+//
+// An HDR source is always tone mapped to SDR before the palette is built,
+// because a GIF cannot carry HDR and its untouched pixels would look washed out.
 //
 // Returns:
 //   - err: Non-nil when either pass failed.
-//
-//nolint:revive // argument-limit: each argument is a distinct render setting, as on ExtractClip.
 func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 	ctx context.Context,
 	input, output string,
 	start, duration time.Duration,
 	width, fps int,
 	rect crop.CropRect,
-	preset clip.QualityPreset,
 ) error {
 	// Build and run the two-pass GIF ffmpeg command.
 	cleanInput, err := mediaPath(input)
@@ -238,11 +235,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractGIF(
 		width:    width,
 		fps:      fps,
 		rect:     rect,
-		toneMap:  "",
-	}
-
-	if preset.WebSafeColor {
-		frames.toneMap = execFFmpeg.webSafeToneMap(ctx, cleanInput, start, duration)
+		toneMap:  execFFmpeg.sdrToneMap(ctx, cleanInput, start, duration),
 	}
 
 	err = publish(ctx, cleanOutput, func(staging string) error {

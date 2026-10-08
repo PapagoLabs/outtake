@@ -16,6 +16,8 @@ type ClipProfileItem struct {
 	AudioKbps int
 	MaxWidth  int
 	IsDefault bool
+	// KeepHDR is the profile's keep-HDR default for new video clips.
+	KeepHDR bool
 }
 
 // ClipProfileItems maps stored clip profiles onto the settings page models.
@@ -37,6 +39,7 @@ func ClipProfileItems(stored []profile.Profile) []ClipProfileItem {
 			AudioKbps: stored[index].AudioKbps,
 			MaxWidth:  stored[index].MaxWidth,
 			IsDefault: stored[index].IsDefault,
+			KeepHDR:   stored[index].KeepHDR,
 		})
 	}
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
@@ -45,8 +46,7 @@ func FromRequest(req api.ClipRequest) view.ExportForm {
 		Width:         req.Width,
 		FPS:           req.FPS,
 		CropBlackBars: req.CropBlackBars,
-		WebSafeColor:  api.Flag(req.WebSafeColor),
-		PreserveHDR:   api.Flag(req.PreserveHDR),
+		PreserveHDR:   api.Flag(req.KeepHDR()),
 	}
 }
 
@@ -55,7 +55,7 @@ func FromRequest(req api.ClipRequest) view.ExportForm {
 // Parameters:
 //   - ctx: Incoming page request.
 //   - defaultCrop: Configured crop-black-bars default.
-//   - defaultPreserve: Configured keep-HDR default.
+//   - defaultPreserve: Keep-HDR default of the selected profile.
 //   - title: Media title, used when the request carries no clip name.
 //
 // Returns:
@@ -97,22 +97,22 @@ func FromQuery(
 //
 // Parameters:
 //   - ctx: Incoming page request.
-//   - cfg: Configuration supplying the form defaults.
+//   - cfg: Configuration supplying the crop default.
 //   - title: Resolved media title, used when the query carries no clip name.
+//   - profiles: Profiles the form offers. The selected one, or the default,
+//     supplies the Keep HDR default.
 //
 // Returns:
 //   - form: The export form state to render.
-func MediaItemForm(ctx fiber.Ctx, cfg *config.Config, title string) view.ExportForm {
-	form := FromQuery(ctx, cfg.CropBlackBars, cfg.PreserveHDR, title)
+func MediaItemForm(
+	ctx fiber.Ctx,
+	cfg *config.Config,
+	title string,
+	profiles []profile.ProfileOption,
+) view.ExportForm {
+	keepHDR := profile.KeepsHDR(ctx.Query(routes.QueryQuality), profiles)
 
-	raw := ctx.Query(routes.QueryWebSafeColor)
-	if raw != "" {
-		form.WebSafeColor = routes.IsFormChecked(raw)
-	} else {
-		form.WebSafeColor = cfg.WebSafeColor
-	}
-
-	return form
+	return FromQuery(ctx, cfg.CropBlackBars, keepHDR, title)
 }
 
 // ClipWindow reads the start and end marks of the New export form.

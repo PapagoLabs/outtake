@@ -145,12 +145,14 @@ func TestExtractClipEncodeArgsCropsBlackBars(t *testing.T) {
 		rect.Filter()+","+scaleFilter(clip.OutputWidth2160p, scaleFlagsLanczos))
 }
 
-func TestExtractClipEncodeArgsWebSafeColor(t *testing.T) {
+// TestExtractClipEncodeArgsToneMapWithoutKeepHDR covers a video clip of an
+// HDR source that does not keep HDR: it is tone mapped to Rec.709.
+func TestExtractClipEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {
 	t.Parallel()
 
 	preset := clip.QualityPresets[clip.ClipQualityHigh]
 
-	preset.WebSafeColor = true
+	preset.PreserveHDR = false
 
 	args := recordClipEncode(t, hdrEncodeExec(t), preset, crop.CropRect{})
 	joined := strings.Join(args, " ")
@@ -164,7 +166,7 @@ func TestExtractClipEncodeArgsWebSafeColor(t *testing.T) {
 	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
 	assert.Contains(t, args, "iec61966-2-1")
-	assert.Contains(t, args, webSafeMovFlags)
+	assert.Contains(t, args, toneMappedMovFlags)
 	assert.NotContains(t, joined, "libplacebo")
 	assert.NotContains(t, args, "-init_hw_device")
 }
@@ -186,13 +188,15 @@ func TestExtractPreviewEncodeArgs(t *testing.T) {
 	assert.NotContains(t, strings.Join(args, " "), "tonemap=tonemap=hable")
 }
 
-func TestExtractPreviewEncodeArgsWebSafeColor(t *testing.T) {
+// TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR covers a preview of a
+// clip that does not keep HDR: it is tone mapped like the clip.
+func TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {
 	t.Parallel()
 
 	args := recordPreviewEncode(
 		t,
 		hdrEncodeExec(t),
-		clip.QualityPreset{WebSafeColor: true},
+		clip.QualityPreset{PreserveHDR: false},
 		crop.CropRect{},
 	)
 	joined := strings.Join(args, " ")
@@ -205,7 +209,7 @@ func TestExtractPreviewEncodeArgsWebSafeColor(t *testing.T) {
 	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
 	assert.Contains(t, args, "iec61966-2-1")
-	assert.Contains(t, args, webSafeMovFlags)
+	assert.Contains(t, args, toneMappedMovFlags)
 	assert.Contains(t, joined, scaleFilter(previewMaxWidth, scaleFlagsFast))
 	assert.NotContains(t, joined, "libplacebo")
 }

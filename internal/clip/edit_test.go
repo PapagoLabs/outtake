@@ -119,7 +119,7 @@ func TestClipApplyWritesEveryEditableField(t *testing.T) {
 		FPS:           12,
 		AudioIndex:    3,
 		CropBlackBars: true,
-		WebSafeColor:  new(true),
+		PreserveHDR:   new(true),
 	})
 
 	assert.Equal(t, TypeClip, stored.Type)
@@ -131,7 +131,7 @@ func TestClipApplyWritesEveryEditableField(t *testing.T) {
 	assert.Equal(t, 12, stored.FPS)
 	assert.Equal(t, 3, stored.AudioIndex)
 	assert.True(t, stored.CropBlackBars)
-	assert.True(t, stored.WebSafeColor)
+	assert.True(t, stored.PreserveHDR)
 	assert.False(t, stamp.IsZero() && stored.UpdatedAt.IsZero(),
 		"an applied edit stamps the clip as changed")
 }
@@ -182,18 +182,6 @@ func TestClipApplyKeepsOmittedFields(t *testing.T) {
 	}
 }
 
-func TestClipApplyPreservesAnOmittedWebSafeColor(t *testing.T) {
-	t.Parallel()
-
-	stored := &Clip{WebSafeColor: true}
-
-	stored.Apply(Edit{Start: time.Second, Length: 5 * time.Second})
-	assert.True(t, stored.WebSafeColor, "an edit that carried no setting leaves the stored one")
-
-	stored.Apply(Edit{WebSafeColor: new(false)})
-	assert.False(t, stored.WebSafeColor, "an explicit off is honored against a stored on")
-}
-
 func TestClipApplyPreservesAnOmittedKeepHDR(t *testing.T) {
 	t.Parallel()
 
@@ -232,7 +220,6 @@ func TestRendersLike(t *testing.T) {
 		{"a new frame rate", func(c *Clip) { c.FPS = 12 }, false},
 		{"a new audio track", func(c *Clip) { c.AudioIndex = 1 }, false},
 		{"black bars trimmed", func(c *Clip) { c.CropBlackBars = true }, false},
-		{"web-safe color", func(c *Clip) { c.WebSafeColor = true }, false},
 		{"HDR kept", func(c *Clip) { c.PreserveHDR = true }, false},
 	}
 

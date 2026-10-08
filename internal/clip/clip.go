@@ -27,7 +27,6 @@ type Clip struct {
 	FPS           int
 	AudioIndex    int
 	CropBlackBars bool
-	WebSafeColor  bool
 	PreserveHDR   bool
 	CreatedAt     time.Time
 	UpdatedAt     time.Time

@@ -27,9 +27,7 @@ type ExportForm struct {
 	FPS int
 	// CropBlackBars is the trim-black-bars toggle.
 	CropBlackBars bool
-	// WebSafeColor is the HDR tone-map toggle.
-	WebSafeColor bool
-	// PreserveHDR is the keep-HDR-as-is toggle.
+	// PreserveHDR is the keep-HDR toggle. Off tone maps an HDR source to SDR.
 	PreserveHDR bool
 }
 
@@ -62,6 +60,5 @@ func (form ExportForm) ApplyToQuery(values url.Values) {
 	}
 
 	values.Set(routes.QueryCropBlackBars, routes.CheckedValue(form.CropBlackBars))
-	values.Set(routes.QueryWebSafeColor, routes.CheckedValue(form.WebSafeColor))
 	values.Set(routes.QueryPreserveHDR, routes.CheckedValue(form.PreserveHDR))
 }

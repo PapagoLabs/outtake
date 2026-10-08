@@ -22,6 +22,8 @@ type Profile struct {
 	AudioKbps int
 	MaxWidth  int
 	IsDefault bool
+	// KeepHDR is the keep-HDR default for new video clips under this profile.
+	KeepHDR   bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -40,6 +42,8 @@ type ProfileFields struct {
 	MaxWidth string
 	// IsDefault reports whether the form asked for this profile to be default.
 	IsDefault bool
+	// KeepHDR reports whether new video clips from HDR sources keep HDR.
+	KeepHDR bool
 }
 
 // Service stores and edits the clip profiles a user manages.
@@ -207,6 +211,7 @@ func (profile Profile) record() database.ClipProfile {
 		AudioKbps: profile.AudioKbps,
 		MaxWidth:  profile.MaxWidth,
 		IsDefault: profile.IsDefault,
+		KeepHDR:   profile.KeepHDR,
 		CreatedAt: profile.CreatedAt,
 		UpdatedAt: profile.UpdatedAt,
 	}
@@ -228,6 +233,7 @@ func profileFrom(record database.ClipProfile) Profile {
 		AudioKbps: record.AudioKbps,
 		MaxWidth:  record.MaxWidth,
 		IsDefault: record.IsDefault,
+		KeepHDR:   record.KeepHDR,
 		CreatedAt: record.CreatedAt,
 		UpdatedAt: record.UpdatedAt,
 	}

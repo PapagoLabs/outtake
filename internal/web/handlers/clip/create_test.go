@@ -18,6 +18,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
 func TestBuildJobStampsAPendingRecord(t *testing.T) {
@@ -112,4 +113,45 @@ func bodyText(t *testing.T, resp *http.Response) string {
 	require.NoError(t, err)
 
 	return string(body)
+}
+
+// TestKeepHDRDefaultsToTheChosenProfile covers a new clip whose request made
+// no choice: it takes its profile's default, so High keeps HDR and Medium
+// converts. A choice in the request, current or legacy, wins.
+func TestKeepHDRDefaultsToTheChosenProfile(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/keep.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	handler := &Handler{db: db}
+
+	tests := []struct {
+		name string
+		req  api.ClipRequest
+		want bool
+	}{
+		{name: "High keeps HDR", req: api.ClipRequest{Quality: "high"}, want: true},
+		{name: "Medium converts", req: api.ClipRequest{Quality: "medium"}, want: false},
+		{name: "the default profile converts", req: api.ClipRequest{}, want: false},
+		{
+			name: "a request that keeps HDR wins",
+			req:  api.ClipRequest{Quality: "medium", PreserveHDR: new(true)},
+			want: true,
+		},
+		{
+			name: "a legacy web-safe request converts",
+			req:  api.ClipRequest{Quality: "high", WebSafeColor: new(true)},
+			want: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, handler.keepHDR(t.Context(), &test.req))
+		})
+	}
 }
