@@ -1,0 +1,8 @@
+rules:
+  # actionlint rejects the self-repository `uses: $/...` form
+  # (https://github.com/rhysd/actionlint/issues/711), so these workflows call
+  # their reusable workflows with the workspace-relative `./` form.
+  self-repository:
+    ignore:
+      - release-nightly.yaml
+      - release-stable.yaml
