@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Tone-map with mobius to BT.709 and show HDR previews in SDR on SDR screens by @nicholas-fedor in [#368](https://github.com/PapagoLabs/outtake/pull/368)
 - Refresh the bound plex server's token on sign-in by @nicholas-fedor in [#364](https://github.com/PapagoLabs/outtake/pull/364)
 - Make keep HDR the only HDR switch and tone-map every still by @nicholas-fedor in [#360](https://github.com/PapagoLabs/outtake/pull/360)
 - Play regenerated clips at once and cache pages and plex calls by @nicholas-fedor in [#358](https://github.com/PapagoLabs/outtake/pull/358)
