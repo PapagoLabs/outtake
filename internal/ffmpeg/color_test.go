@@ -103,7 +103,7 @@ func TestDecideColor(t *testing.T) {
 			remap:         toneMapSDR,
 			wantHDRKind:   clip.TransferPQAlias,
 			wantToneMap:   true,
-			wantTags:      tonemap.TransferSRGB,
+			wantTags:      tonemap.TransferBT709,
 			wantNeedsPeak: true,
 			wantPixFmt:    pixelFormatYUV420P,
 		},
@@ -121,7 +121,7 @@ func TestDecideColor(t *testing.T) {
 			remap:       toneMapSDR,
 			wantHDRKind: clip.TransferHLGAlias,
 			wantToneMap: true,
-			wantTags:    tonemap.TransferSRGB,
+			wantTags:    tonemap.TransferBT709,
 			wantPixFmt:  pixelFormatYUV420P,
 		},
 		{
@@ -177,7 +177,7 @@ func TestPreservedHDRIsTaggedForItsTransfer(t *testing.T) {
 
 	assert.Contains(t, args, primariesBT2020)
 	assert.Contains(t, args, clip.TransferPQ)
-	assert.NotContains(t, joined, "tonemap=tonemap=hable",
+	assert.NotContains(t, joined, "tonemap=tonemap=mobius",
 		"a preserved source must not be remapped")
 	assert.NotContains(t, joined, "zscale=tin=smpte2084")
 	assert.Contains(t, args, pixelFormatYUV420P10LE,
@@ -431,7 +431,7 @@ func TestStillsAndGIFsAlwaysToneMapHDR(t *testing.T) {
 					assert.Contains(
 						t,
 						string(recorded),
-						"tonemap=hable",
+						"tonemap=mobius",
 						"the HDR frames are mapped to Rec.709",
 					)
 
@@ -455,7 +455,7 @@ func TestToneMapSitsBetweenCropAndScale(t *testing.T) {
 	t.Parallel()
 
 	rect := crop.CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
-	toneMap := tonemap.ToneMapFilter(clip.TransferHLGAlias, 0)
+	toneMap := tonemap.ToneMapFilter(clip.TransferHLGAlias, 0, tonemap.TransferSRGB)
 
 	gif := gifPaletteFilter(gifFrames{width: 480, fps: 10, rect: rect, toneMap: toneMap})
 	assert.True(t, strings.HasPrefix(gif, rect.Filter()+","+toneMap+",fps=10"), gif)
@@ -467,8 +467,8 @@ func TestToneMapSitsBetweenCropAndScale(t *testing.T) {
 }
 
 // TestAScreenshotSamplesItsPeakNearTheStill covers the PQ peak of a
-// screenshot of an HDR source: it is sampled from a short window starting at the
-// still, not the longer window a clip uses.
+// screenshot of an HDR source with no HDR10 light levels: it is sampled from a
+// short window starting at the still, not the longer window a clip uses.
 func TestAScreenshotSamplesItsPeakNearTheStill(t *testing.T) {
 	t.Parallel()
 
@@ -498,4 +498,69 @@ func TestAScreenshotSamplesItsPeakNearTheStill(t *testing.T) {
 	require.Contains(t, sample, signalstatsFilter, "the first pass samples luma")
 	assert.Equal(t, "90.000", sample[indexOf(sample, ssFlag)+1], "it starts at the still")
 	assert.Equal(t, "1.000", sample[indexOf(sample, durationFlag)+1], "and covers one second")
+}
+
+// pqProbeWithLevels is an ffprobe answer for a PQ source whose stream carries
+// HDR10 light levels.
+//
+// Parameters:
+//   - sideData: The stream's side_data_list JSON.
+//
+// Returns:
+//   - payload: The ffprobe JSON.
+func pqProbeWithLevels(sideData string) string {
+	return `{"format":{"duration":"60.0","bit_rate":"8000","format_name":"matroska"},` +
+		`"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","width":3840,` +
+		`"height":2160,"color_transfer":"smpte2084","side_data_list":` + sideData + `}]}`
+}
+
+// TestTonePeakReadsTheSourcesHDR10Metadata covers the PQ peak: MaxCLL wins,
+// the mastering display's peak follows, and the luma sample is the fallback
+// for a source that carries neither, so clips of one title share exposure.
+func TestTonePeakReadsTheSourcesHDR10Metadata(t *testing.T) {
+	t.Parallel()
+
+	sampled := tonemap.PeakFromNits(tonemap.NitsFromLimitedY(158))
+
+	tests := []struct {
+		name     string
+		sideData string
+		want     float64
+	}{
+		{
+			name: "MaxCLL",
+			sideData: `[{"side_data_type":"Content light level metadata","max_content":1000,"max_average":400},` +
+				`{"side_data_type":"Mastering display metadata","max_luminance":"4000/1"}]`,
+			want: 10,
+		},
+		{
+			name: "mastering peak when MaxCLL is unknown",
+			sideData: `[{"side_data_type":"Content light level metadata","max_content":0,"max_average":0},` +
+				`{"side_data_type":"Mastering display metadata","max_luminance":"10000000/10000"}]`,
+			want: 10,
+		},
+		{name: "sampled without metadata", sideData: `[]`, want: sampled},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			fixture := newEncodeFixture(t, "peak.mp4")
+			runner := NewExecFFmpeg(
+				passStub(t, signalstatsLog),
+				probeStub(t, pqProbeWithLevels(test.sideData)),
+			)
+
+			peak := runner.tonePeak(
+				t.Context(),
+				fixture.input,
+				clip.TransferPQAlias,
+				0,
+				time.Second,
+			)
+
+			assert.InDelta(t, test.want, peak, 0.0001)
+		})
+	}
 }

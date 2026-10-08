@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -347,4 +349,106 @@ func TestAClipCarriesNoSourceMetadata(t *testing.T) {
 	for _, tag := range []string{"SourceTitle", "VideoTag", "AudioTag", "language=fre"} {
 		assert.NotContains(t, string(tags), tag)
 	}
+}
+
+// toneMapFFmpeg returns the real ffmpeg and ffprobe for the tone map test,
+// skipping the test when either is missing, when ffmpeg has no libx265 to
+// build the HDR10 source with, or when ffmpeg is older than 8.0, which copies
+// a source's container HDR10 metadata into every output.
+//
+// Parameters:
+//   - t: The test that needs the tools.
+//
+// Returns:
+//   - ffmpegPath: The ffmpeg binary.
+//   - ffprobePath: The ffprobe binary.
+func toneMapFFmpeg(t *testing.T) (string, string) {
+	t.Helper()
+
+	ffmpegPath, ffmpegErr := exec.LookPath("ffmpeg")
+	ffprobePath, ffprobeErr := exec.LookPath("ffprobe")
+
+	if ffmpegErr != nil || ffprobeErr != nil {
+		t.Skip("ffmpeg and ffprobe are not available")
+	}
+
+	encoders, err := exec.CommandContext(t.Context(), ffmpegPath, "-hide_banner", "-encoders").
+		Output()
+	if err != nil || !strings.Contains(string(encoders), "libx265") {
+		t.Skip("ffmpeg has no libx265")
+	}
+
+	version, err := exec.CommandContext(t.Context(), ffmpegPath, "-version").Output()
+	require.NoError(t, err)
+
+	match := regexp.MustCompile(`version n?(\d+)\.`).FindStringSubmatch(string(version))
+	if len(match) < 2 {
+		t.Skip("the ffmpeg version cannot be read")
+	}
+
+	major, err := strconv.Atoi(match[1])
+	if err != nil || major < 8 {
+		t.Skip("ffmpeg before 8.0 copies container HDR10 metadata into every output")
+	}
+
+	return ffmpegPath, ffprobePath
+}
+
+// TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata encodes a PQ source
+// whose container carries HDR10 light levels and checks that the tone mapped
+// clip is tagged BT.709 and carries no mastering display or light level data,
+// which would mislabel an SDR file as HDR.
+func TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata(t *testing.T) {
+	t.Parallel()
+
+	ffmpegPath, ffprobePath := toneMapFFmpeg(t)
+
+	dir := t.TempDir()
+	seiOnly := filepath.Join(dir, "sei.mkv")
+	src := filepath.Join(dir, "src.mkv")
+
+	makeSEI := exec.CommandContext(t.Context(), ffmpegPath, "-y",
+		"-f", "lavfi", "-i", "testsrc2=size=320x180:rate=24:duration=1",
+		"-vf", "format=gbrp,zscale=tin=iec61966-2-1:pin=bt709:rin=full:"+
+			"t=smpte2084:p=bt2020:m=bt2020nc:r=tv:npl=203,format=yuv420p10le",
+		"-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le",
+		"-color_primaries", "bt2020", "-color_trc", "smpte2084", "-colorspace", "bt2020nc",
+		"-x265-params", "log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:"+
+			"master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):"+
+			"max-cll=1000,400",
+		seiOnly,
+	)
+	require.NoError(t, makeSEI.Run())
+
+	// A second pass moves the light levels into the container as well, as
+	// FFmpeg does for a source whose frames carry them.
+	makeSource := exec.CommandContext(t.Context(), ffmpegPath, "-y", "-i", seiOnly,
+		"-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le",
+		"-x265-params", "log-level=error", src)
+	require.NoError(t, makeSource.Run())
+
+	sourceInfo, err := exec.CommandContext(t.Context(), ffprobePath, "-v", "error",
+		"-show_streams", "-of", "json", src).Output()
+	require.NoError(t, err)
+	require.Contains(t, string(sourceInfo), "Content light level metadata",
+		"the source must carry the light levels in its container for this test to mean anything")
+
+	out := filepath.Join(dir, "clip.mp4")
+
+	err = NewExecFFmpeg(ffmpegPath, ffprobePath).ExtractClip(
+		t.Context(), src, out, 0, 500*time.Millisecond,
+		clip.QualityPresets[clip.ClipQualityLow], 0, crop.CropRect{},
+	)
+	require.NoError(t, err)
+
+	streams, err := exec.CommandContext(t.Context(), ffprobePath, "-v", "error",
+		"-select_streams", "v:0", "-show_streams", "-show_frames", "-read_intervals", "%+#1",
+		"-of", "json", out).Output()
+	require.NoError(t, err)
+
+	body := string(streams)
+	assert.Contains(t, body, `"color_transfer": "bt709"`)
+	assert.Contains(t, body, `"color_primaries": "bt709"`)
+	assert.NotContains(t, body, "Mastering display metadata")
+	assert.NotContains(t, body, "Content light level metadata")
 }

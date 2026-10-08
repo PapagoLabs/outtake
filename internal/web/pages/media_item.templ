@@ -67,7 +67,10 @@ type MediaItemPageProps struct {
 	AudioTracks []view.AudioTrackOption
 	Error       string
 	PreviewID   string
-	StartTime   time.Duration
+	// PreviewShownSDR marks a preview of an HDR clip tone mapped for an SDR
+	// screen, which the page labels.
+	PreviewShownSDR bool
+	StartTime       time.Duration
 	EndTime     time.Duration
 	Export      view.ExportForm
 	Crumbs      []view.Crumb
@@ -167,6 +170,11 @@ templ MediaItemPage(props MediaItemPageProps) {
 				<p id="preview-status" class="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
 					Rendering preview…
 				</p>
+				if props.PreviewShownSDR {
+					<p class="mt-1 text-sm text-muted-foreground" data-preview-sdr>
+						Shown in SDR, because this screen does not show HDR. The saved clip keeps HDR.
+					</p>
+				}
 			}
 			@card.Card() {
 				@card.Header() {
@@ -181,6 +189,9 @@ templ MediaItemPage(props MediaItemPageProps) {
 					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-keep-hdr-follows-profile data-max-dur={ strconv.FormatInt(int64(props.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(props.Duration).FormatSeconds() }>
 						@csrf.Field()
 						<input type="hidden" name="mediaId" value={ props.ID }/>
+						// The form script marks an HDR screen, so a preview is tone mapped
+						// only where HDR cannot be shown.
+						<input type="hidden" name="screenHdr" value="0" data-screen-hdr/>
 						<input type="hidden" name="mediaTitle" value={ props.Title }/>
 						<input type="hidden" name="mediaType" value={ props.Type }/>
 						<div class="flex flex-col gap-2">

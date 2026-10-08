@@ -14,8 +14,12 @@ import (
 const (
 	// DefaultWebSafePeak is 400 nits relative to a 100-nit SDR white.
 	DefaultWebSafePeak = 4.0
-	// TransferSRGB is the sRGB transfer function.
+	// TransferSRGB is the sRGB transfer function, which GIFs and JPEGs are
+	// encoded with because neither format can say otherwise.
 	TransferSRGB = "iec61966-2-1"
+	// TransferBT709 is the BT.709 transfer function, which SDR video is
+	// encoded and tagged with.
+	TransferBT709 = "bt709"
 	// webSafeNPL is the zscale nominal peak luminance for SDR white in nits.
 	webSafeNPL = 100.0
 	// limitedRangeOffset is the TV-range luma black (code 16).
@@ -117,16 +121,20 @@ func ParseSignalstatsYMax(log string) (float64, bool) {
 	return maxY, found
 }
 
-// ToneMapFilter is a CPU HDR to SDR filter chain.
+// ToneMapFilter is a CPU HDR to SDR filter chain. It maps highlights with
+// mobius, which keeps in-range colors and contrast and rolls off only what
+// lies above SDR white.
 //
 // Parameters:
 //   - hdrKind: clip.TransferPQAlias or clip.TransferHLGAlias.
 //   - peak: Relative peak for tonemap=peak (npl=100). Values below 1 use
 //     DefaultWebSafePeak.
+//   - transfer: Output transfer, TransferBT709 for video or TransferSRGB for
+//     GIFs and stills.
 //
 // Returns:
 //   - filter: An ffmpeg -vf fragment ending in sidedata=mode=delete.
-func ToneMapFilter(hdrKind string, peak float64) string {
+func ToneMapFilter(hdrKind string, peak float64, transfer string) string {
 	if peak < 1 {
 		peak = DefaultWebSafePeak
 	}
@@ -138,7 +146,7 @@ func ToneMapFilter(hdrKind string, peak float64) string {
 
 	return "zscale=tin=" + tin +
 		":min=bt2020nc:pin=bt2020:rin=tv:t=linear:npl=100,format=gbrpf32le,zscale=p=bt709," +
-		"tonemap=tonemap=hable:desat=0:peak=" +
+		"tonemap=tonemap=mobius:desat=0:peak=" +
 		strconv.FormatFloat(peak, 'f', peakFormatPrec, floatBitSize) +
-		",zscale=t=iec61966-2-1:m=bt709:p=bt709:r=tv,format=yuv420p,sidedata=mode=delete"
+		",zscale=t=" + transfer + ":m=bt709:p=bt709:r=tv,format=yuv420p,sidedata=mode=delete"
 }

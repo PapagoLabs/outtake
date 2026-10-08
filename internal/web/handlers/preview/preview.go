@@ -105,18 +105,22 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		return respond.WriteError(ctx, fiber.StatusBadRequest, code, err.Error())
 	}
 
-	// Resolved before the id is derived, because the id has to reflect the
-	// setting the render will actually use, not only what the form sent.
-	preserveHDR := api.FlagOrDefault(
-		req.KeepHDR(),
-		clipprofile.Preset(ctx.Context(), handler.db, req.Quality).PreserveHDR,
-	)
+	// The id is derived from what the render does, so an SDR screen never
+	// gets an HDR preview.
+	req.PreserveHDR = new(handler.keepHDR(ctx, req))
 
-	req.PreserveHDR = new(preserveHDR)
+	sourceHDR := handler.sources.DescribePath(ctx.Context(), inputPath).HDR
+	render, shownSDR := previewRender(req, sourceHDR, screenShowsHDR(ctx))
+	renderKeepsHDR := api.Flag(render.PreserveHDR)
 
-	previewID, err := clippreview.RequestID(req, inputPath)
+	previewID, err := clippreview.RequestID(render, inputPath)
 	if err != nil {
 		return respond.WriteError(ctx, fiber.StatusBadRequest, api.MediaPathUnresolved, err.Error())
+	}
+
+	location := previewRedirect(req, previewID)
+	if shownSDR {
+		location = shownInSDR(location)
 	}
 
 	// A preview already rendered for these exact parameters is returned without
@@ -126,7 +130,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	if handler.previews.Published(ctx.Context(), previewID) {
 		handler.previews.Remember(previewID)
 
-		return respond.RedirectTo(ctx, previewRedirect(req, previewID))
+		return respond.RedirectTo(ctx, location)
 	}
 
 	// The render detaches from this request, so the values it needs are captured
@@ -140,7 +144,13 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		ctx.Context(),
 		previewID,
 		func(renderCtx context.Context) error {
-			return handler.previews.RenderInto(renderCtx, previewID, inputPath, req, preserveHDR)
+			return handler.previews.RenderInto(
+				renderCtx,
+				previewID,
+				inputPath,
+				render,
+				renderKeepsHDR,
+			)
 		},
 	)
 	// A service that is closing refuses like a full one, and the client can
@@ -154,7 +164,50 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		)
 	}
 
-	return respond.RedirectTo(ctx, previewRedirect(req, previewID))
+	return respond.RedirectTo(ctx, location)
+}
+
+// previewRender decides what a preview renders. An HDR clip that keeps HDR is
+// tone mapped for an SDR screen, because an HDR preview there renders black or
+// washed out in some browsers. An SDR source has no HDR to show, so its
+// preview is never marked as shown in SDR. The request keeps the clip's own
+// choice.
+//
+// Parameters:
+//   - req: Parsed request whose PreserveHDR holds the clip's resolved choice.
+//   - sourceHDR: The source carries an HDR transfer.
+//   - screenHDR: The browser's screen shows HDR.
+//
+// Returns:
+//   - render: The request the preview renders, a copy of req.
+//   - shownSDR: The clip keeps HDR but its preview is tone mapped.
+func previewRender(req api.ClipRequest, sourceHDR, screenHDR bool) (api.ClipRequest, bool) {
+	keep := api.Flag(req.PreserveHDR)
+	shownSDR := keep && sourceHDR && !screenHDR
+
+	render := req
+
+	render.PreserveHDR = new(keep && !shownSDR)
+
+	return render, shownSDR
+}
+
+// screenShowsHDR reports whether the browser said its screen shows HDR. The
+// export form's script sets the field. Without it, as for an API caller or a
+// browser that cannot tell, the screen is taken to be SDR.
+//
+// Parameters:
+//   - ctx: Preview request carrying the form field or query parameter.
+//
+// Returns:
+//   - hdr: True when the request marked the screen as HDR.
+func screenShowsHDR(ctx fiber.Ctx) bool {
+	value := ctx.FormValue(routes.QueryScreenHDR)
+	if value == "" {
+		value = ctx.Query(routes.QueryScreenHDR)
+	}
+
+	return routes.IsFormChecked(value)
 }
 
 // PreviewFile serves a generated segment preview.
@@ -214,6 +267,23 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	}
 
 	return respond.WriteJSON(ctx, fiber.StatusOK, payload)
+}
+
+// keepHDR resolves whether the clip keeps HDR: the request's choice, or its
+// profile's default. This is the clip's choice, which travels back to the
+// form unchanged whatever the preview is shown as.
+//
+// Parameters:
+//   - ctx: Preview request.
+//   - req: Parsed request whose quality names the profile.
+//
+// Returns:
+//   - keep: True when the clip keeps HDR.
+func (handler *Handler) keepHDR(ctx fiber.Ctx, req api.ClipRequest) bool {
+	return api.FlagOrDefault(
+		req.KeepHDR(),
+		clipprofile.Preset(ctx.Context(), handler.db, req.Quality).PreserveHDR,
+	)
 }
 
 // resolveSelection resolves a preview's source and checks its window. A

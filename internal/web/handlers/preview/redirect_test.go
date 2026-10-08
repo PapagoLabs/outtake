@@ -4,6 +4,8 @@
 package preview
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"strings"
@@ -11,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/timecode"
@@ -139,4 +143,140 @@ func queryPreview(start, end float64, extra ...string) api.ClipRequest {
 	req.PreserveHDR = new(fields.Get(routes.QueryPreserveHDR) == routes.FormChecked)
 
 	return req
+}
+
+// TestPreviewRedirectMarksAPreviewShownInSDR covers a preview of an HDR clip
+// tone mapped for an SDR screen: the page is told, so it can say so, and the
+// clip's own Keep HDR choice comes back unchanged for the next save.
+func TestPreviewRedirectMarksAPreviewShownInSDR(t *testing.T) {
+	t.Parallel()
+
+	_, shown := previewRedirectParts(
+		t, shownInSDR(previewRedirect(queryPreview(0, 0, "preserveHdr=1"), "preview-1")),
+	)
+
+	assert.Equal(t, routes.FormChecked, shown.Get(routes.QueryPreviewSDR))
+	assert.Equal(t, routes.FormChecked, shown.Get(routes.QueryPreserveHDR),
+		"the form keeps HDR, whatever the preview was shown as")
+
+	_, plain := previewRedirectParts(t, previewRedirect(queryPreview(0, 0), "preview-1"))
+
+	assert.Empty(t, plain.Get(routes.QueryPreviewSDR))
+}
+
+// TestScreenShowsHDRReadsTheFormOrTheQuery covers the screen flag: the export
+// form posts it, an API caller may pass it in the query, and without it the
+// screen is taken to be SDR.
+func TestScreenShowsHDRReadsTheFormOrTheQuery(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		target string
+		form   string
+		want   bool
+	}{
+		{name: "form field", target: "/x", form: "screenHdr=1", want: true},
+		{name: "query", target: "/x?screenHdr=1", form: "", want: true},
+		{name: "marked SDR", target: "/x", form: "screenHdr=0", want: false},
+		{name: "absent", target: "/x", form: "", want: false},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got bool
+
+			app := fiber.New()
+			app.Post("/x", func(ctx fiber.Ctx) error {
+				got = screenShowsHDR(ctx)
+
+				return nil
+			})
+
+			req := httptest.NewRequestWithContext(
+				t.Context(), http.MethodPost, test.target, strings.NewReader(test.form),
+			)
+			req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationForm)
+
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+
+			assert.Equal(t, test.want, got)
+		})
+	}
+}
+
+// TestPreviewRenderToneMapsHDRForAnSDRScreen covers what a preview renders:
+// an HDR clip that keeps HDR is tone mapped for an SDR screen and kept for an
+// HDR one, a clip that converts is always converted, an SDR source is never
+// marked as shown in SDR, and the request keeps the clip's own choice.
+func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		keep      bool
+		sourceHDR bool
+		screenHDR bool
+		renders   bool
+		shownSDR  bool
+	}{
+		{
+			name:      "HDR clip on an SDR screen",
+			keep:      true,
+			sourceHDR: true,
+			screenHDR: false,
+			renders:   false,
+			shownSDR:  true,
+		},
+		{
+			name:      "HDR clip on an HDR screen",
+			keep:      true,
+			sourceHDR: true,
+			screenHDR: true,
+			renders:   true,
+			shownSDR:  false,
+		},
+		{
+			name:      "converted clip on an HDR screen",
+			keep:      false,
+			sourceHDR: true,
+			screenHDR: true,
+			renders:   false,
+			shownSDR:  false,
+		},
+		{
+			name:      "converted clip on an SDR screen",
+			keep:      false,
+			sourceHDR: true,
+			screenHDR: false,
+			renders:   false,
+			shownSDR:  false,
+		},
+		{
+			name:      "SDR source under a keep-HDR profile",
+			keep:      true,
+			sourceHDR: false,
+			screenHDR: false,
+			renders:   true,
+			shownSDR:  false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := api.ClipRequest{MediaID: "42", PreserveHDR: new(test.keep)}
+
+			render, shownSDR := previewRender(req, test.sourceHDR, test.screenHDR)
+
+			assert.Equal(t, test.renders, *render.PreserveHDR)
+			assert.Equal(t, test.shownSDR, shownSDR)
+			assert.Equal(t, test.keep, *req.PreserveHDR, "the clip's choice is untouched")
+		})
+	}
 }

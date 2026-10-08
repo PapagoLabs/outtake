@@ -438,3 +438,36 @@ func TestMediaItemPageShowsAShortDuration(t *testing.T) {
 	assert.Contains(t, body, "2hr2min5s")
 	assert.NotContains(t, body, "02:02:05")
 }
+
+// TestMediaItemPageLabelsAPreviewShownInSDR covers the preview of an HDR clip
+// on an SDR screen: the page says it is shown in SDR and that the saved clip
+// keeps HDR, and says nothing for any other preview.
+func TestMediaItemPageLabelsAPreviewShownInSDR(t *testing.T) {
+	t.Parallel()
+
+	for _, shownSDR := range []bool{true, false} {
+		var buf strings.Builder
+
+		err := MediaItemPage(MediaItemPageProps{
+			ID:              "42",
+			Title:           "Movie",
+			MaxDur:          600 * time.Second,
+			PreviewID:       "preview-1",
+			PreviewShownSDR: shownSDR,
+		}).Render(t.Context(), &buf)
+		require.NoError(t, err)
+
+		body := buf.String()
+		assert.Contains(t, body, `name="screenHdr" value="0" data-screen-hdr`,
+			"the form carries a field the script marks on an HDR screen")
+
+		if shownSDR {
+			assert.Contains(t, body, "data-preview-sdr")
+			assert.Contains(t, body, "The saved clip keeps HDR.")
+
+			continue
+		}
+
+		assert.NotContains(t, body, "data-preview-sdr")
+	}
+}

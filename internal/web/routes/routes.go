@@ -79,6 +79,14 @@ const (
 	// QueryPreserveHDR carries the keep-HDR toggle across the preview redirect.
 	QueryPreserveHDR = "preserveHdr"
 
+	// QueryPreviewSDR marks a preview of an HDR clip that was tone mapped for
+	// an SDR screen.
+	QueryPreviewSDR = "previewSdr"
+
+	// QueryScreenHDR is the form field and query parameter that says the
+	// browser's screen shows HDR.
+	QueryScreenHDR = "screenHdr"
+
 	// QueryQuality carries the New export profile across a preview redirect.
 	QueryQuality = "quality"
 

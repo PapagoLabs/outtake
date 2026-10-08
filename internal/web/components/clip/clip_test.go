@@ -549,3 +549,20 @@ func TestClipCardKeepsItsOwnKeepHDRWhenTheProfileChanges(t *testing.T) {
 	assert.Contains(t, body, "data-export-form")
 	assert.NotContains(t, body, "data-keep-hdr-follows-profile")
 }
+
+// TestClipCardMarksItsPlayerForPlaybackErrors covers the clip card's player:
+// the page script finds it by its marker to explain a clip the browser cannot
+// decode.
+func TestClipCardMarksItsPlayerForPlaybackErrors(t *testing.T) {
+	t.Parallel()
+
+	item := activeTestItem()
+	item.Status = domainclip.StatusCompleted
+	item.Progress = 100
+	item.FileExists = true
+
+	var buf strings.Builder
+
+	require.NoError(t, ClipStatus(item).Render(t.Context(), &buf))
+	assert.Contains(t, buf.String(), "data-clip-video")
+}
