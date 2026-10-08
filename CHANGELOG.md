@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Parse progress incrementally and stop downloading to check files by @nicholas-fedor in [#351](https://github.com/PapagoLabs/outtake/pull/351)
 - Persist sessions and csrf tokens in the database by @nicholas-fedor in [#326](https://github.com/PapagoLabs/outtake/pull/326)
 
 ### Chores
