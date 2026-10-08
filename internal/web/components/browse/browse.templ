@@ -35,6 +35,25 @@ func thumbAspect(mediaType string) aspectratio.Props {
 	}
 }
 
+// posterSize gives a poster its intrinsic width and height, in the shape its
+// card draws it, so the grid reserves the space before the image loads.
+//
+// Parameters:
+//   - mediaType: Outtake media type of the item.
+//
+// Returns:
+//   - attrs: The width and height attributes.
+func posterSize(mediaType string) templ.Attributes {
+	switch mediaType {
+	case "episode", "track":
+		return templ.Attributes{"width": "320", "height": "180"}
+	case "artist", "album":
+		return templ.Attributes{"width": "300", "height": "300"}
+	default:
+		return templ.Attributes{"width": "200", "height": "300"}
+	}
+}
+
 // emptyMediaMessage returns the message shown when a browse returns nothing.
 //
 // Parameters:
@@ -344,7 +363,7 @@ templ mediaCard(item view.MediaItem, sort string) {
 				<a href={ itemURL(item) } class="block rounded-md focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none">
 					if item.ThumbPath != "" {
 						@aspectratio.AspectRatio(thumbAspect(item.Type)) {
-							<img src={ item.ThumbPath } alt={ item.Title } class="size-full rounded-md object-cover bg-muted transition-opacity hover:opacity-90"/>
+							<img src={ item.ThumbPath } alt={ item.Title } { posterSize(item.Type)... } loading="lazy" decoding="async" class="size-full rounded-md object-cover bg-muted transition-opacity hover:opacity-90"/>
 						}
 					} else {
 						@aspectratio.AspectRatio(thumbAspect(item.Type)) {
@@ -391,7 +410,7 @@ templ libraryCard(lib view.LibraryItem) {
 		class="flex items-center gap-4 self-start rounded-lg border bg-card p-4 text-card-foreground shadow-xs transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
 	>
 		if lib.ThumbPath != "" {
-			<img src={ lib.ThumbPath } alt="" class="size-16 shrink-0 rounded-md object-cover bg-muted"/>
+			<img src={ lib.ThumbPath } alt="" width="64" height="64" loading="lazy" decoding="async" class="size-16 shrink-0 rounded-md object-cover bg-muted"/>
 		} else {
 			<div class="flex size-16 shrink-0 items-center justify-center rounded-md bg-muted text-lg font-semibold text-muted-foreground">
 				{ libraryInitial(lib.Title) }

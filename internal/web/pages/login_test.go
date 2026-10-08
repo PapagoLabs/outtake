@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 )
 
 // renderLogin renders the login page with the context it is handed.
@@ -41,7 +42,7 @@ func TestLoginOffersBothWaysIn(t *testing.T) {
 		"a manual token can still be posted")
 	assert.Contains(t, body, `name="token"`)
 	assert.Contains(t, body, "Plex Token")
-	assert.Contains(t, body, `src="/assets/js/login.js"`)
+	assert.Contains(t, body, `src="`+assets.URL("js/login.js")+`"`)
 }
 
 func TestLoginShowsTheSignInError(t *testing.T) {

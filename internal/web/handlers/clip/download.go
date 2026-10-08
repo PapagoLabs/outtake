@@ -56,7 +56,7 @@ func (handler *Handler) Download(ctx fiber.Ctx) error {
 
 	ctx.Attachment(job.Filename())
 
-	err := ctx.SendFile(job.OutputPath)
+	err := respond.SendRangedFile(ctx, job.OutputPath)
 	if err != nil {
 		return fmt.Errorf("send file: %w", err)
 	}

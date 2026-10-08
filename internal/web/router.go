@@ -90,6 +90,17 @@ const routeAPI = "/api"
 // by IP address or service name, so the host guard lets it through.
 const routeHealth = "/healthz"
 
+// routeAssets is the path the static files are served under.
+const routeAssets = "/assets"
+
+// Cache-Control values for static files.
+const (
+	// cacheForever lets a browser keep an asset whose URL names its contents.
+	cacheForever = "public, max-age=31536000, immutable"
+	// cacheRevalidate makes a browser check back before reusing an asset.
+	cacheRevalidate = "no-cache"
+)
+
 // New constructs the Fiber application and registers routes.
 //
 // Parameters:
@@ -211,7 +222,7 @@ func useEdgeMiddleware(app *fiber.App, cfg *config.Config) {
 //   - app: The Fiber application to register on.
 //   - built: Every handler the route table mounts.
 func mountSessionless(app *fiber.App, built routerHandlers) {
-	app.Use("/assets", static.New("assets", staticConfig()))
+	app.Use(routeAssets, static.New(".", staticConfig()))
 	app.Get(routeAPI+routeHealth, built.health.Health)
 }
 

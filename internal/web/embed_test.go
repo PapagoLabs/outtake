@@ -6,18 +6,21 @@ package web
 import (
 	"io/fs"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
+
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 )
 
 func TestAssetsEmbedsTheStaticTree(t *testing.T) {
 	t.Parallel()
 
-	entries, err := fs.ReadDir(Assets, "assets")
+	entries, err := fs.ReadDir(assets.FS, ".")
 	require.NoError(t, err)
 	require.NotEmpty(t, entries, "the embed directive matched a directory")
 
@@ -34,8 +37,8 @@ func TestAssetsEmbedsTheStaticTree(t *testing.T) {
 func TestAssetsEmbedsFilesInEveryAssetDirectory(t *testing.T) {
 	t.Parallel()
 
-	for _, dir := range []string{"assets/brand", "assets/css", "assets/js"} {
-		entries, err := fs.ReadDir(Assets, dir)
+	for _, dir := range []string{"brand", "css", "js"} {
+		entries, err := fs.ReadDir(assets.FS, dir)
 		require.NoError(t, err, dir)
 		assert.NotEmpty(t, entries, dir)
 	}
@@ -46,16 +49,16 @@ func TestStaticConfigServesTheEmbeddedAssets(t *testing.T) {
 
 	cfg := staticConfig()
 
-	assert.Equal(t, Assets, cfg.FS)
+	assert.Equal(t, assets.FS, cfg.FS)
 
 	for _, asset := range []string{
-		"assets/brand/favicon.ico",
-		"assets/brand/mascot-128.png",
-		"assets/js/htmx.min.js",
-		"assets/css/palettes.css",
-		"assets/css/input.css",
-		"assets/css/output.css",
-		"assets/js/theme.js",
+		"brand/favicon.ico",
+		"brand/mascot-128.png",
+		"js/htmx.min.js",
+		"css/palettes.css",
+		"css/input.css",
+		"css/output.css",
+		"js/theme.js",
 	} {
 		info, err := fs.Stat(cfg.FS, asset)
 
@@ -67,7 +70,7 @@ func TestStaticConfigServesTheEmbeddedAssets(t *testing.T) {
 func TestStaticConfigHasNoEntryAtAnUnbuiltAssetPath(t *testing.T) {
 	t.Parallel()
 
-	_, err := fs.Stat(staticConfig().FS, "assets/css/not-built.css")
+	_, err := fs.Stat(staticConfig().FS, "css/not-built.css")
 
 	require.Error(t, err, "a path nothing was embedded at must not resolve")
 }
@@ -85,7 +88,7 @@ func TestStaticConfigServesTheCompiledStylesheetThroughTheRouter(t *testing.T) {
 func TestAssetsEmbedsTheStylesheetTheTailwindTaskBuilds(t *testing.T) {
 	t.Parallel()
 
-	body := readAsset(t, "assets/css/output.css")
+	body := readAsset(t, "css/output.css")
 
 	assert.Contains(t, body, "@layer",
 		"the compiled stylesheet is the Tailwind output, not the entry file")
@@ -104,8 +107,68 @@ func TestAssetsEmbedsTheStylesheetTheTailwindTaskBuilds(t *testing.T) {
 func readAsset(t *testing.T, asset string) string {
 	t.Helper()
 
-	body, err := fs.ReadFile(Assets, asset)
+	body, err := fs.ReadFile(assets.FS, asset)
 	require.NoError(t, err)
 
 	return string(body)
+}
+
+// assetResponse fetches one asset through the router with the headers a
+// browser sends.
+//
+// Parameters:
+//   - t: The test that fetches the asset.
+//   - target: Request path and query.
+//
+// Returns:
+//   - status: The response status.
+//   - header: The response headers.
+func assetResponse(t *testing.T, target string) (int, http.Header) {
+	t.Helper()
+
+	app := New(testRouterDeps(t, testRouterDatabase(t)))
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, target, nil)
+
+	req.Host = routerHost
+	req.Header.Set(fiber.HeaderAcceptEncoding, "gzip")
+
+	resp, err := app.Test(req, browserTestConfig())
+	require.NoError(t, err)
+
+	defer resp.Body.Close()
+
+	return resp.StatusCode, resp.Header
+}
+
+// TestAnAssetNamedByItsContentsIsCachedForGood covers the hashed URL every
+// page renders: it is cached for a year, and a stale or missing version makes
+// the browser check back instead.
+func TestAnAssetNamedByItsContentsIsCachedForGood(t *testing.T) {
+	t.Parallel()
+
+	status, header := assetResponse(t, assets.URL("css/output.css"))
+	require.Equal(t, fiber.StatusOK, status)
+	assert.Equal(t, cacheForever, header.Get(fiber.HeaderCacheControl))
+
+	for _, target := range []string{
+		"/assets/css/output.css",
+		"/assets/css/output.css?v=0000000000000000",
+	} {
+		status, header := assetResponse(t, target)
+		require.Equal(t, fiber.StatusOK, status, target)
+		assert.Equal(t, cacheRevalidate, header.Get(fiber.HeaderCacheControl), target)
+	}
+}
+
+// TestTextAssetsAreCompressed covers compression of the stylesheet and scripts.
+func TestTextAssetsAreCompressed(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"css/output.css", "js/htmx.min.js"} {
+		status, header := assetResponse(t, assets.URL(name))
+
+		require.Equal(t, fiber.StatusOK, status, name)
+		assert.Equal(t, "gzip", header.Get(fiber.HeaderContentEncoding), name)
+	}
 }

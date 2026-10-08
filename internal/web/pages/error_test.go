@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 )
 
 func renderErrorPage(t *testing.T, props ErrorPageProps) string {
@@ -55,7 +57,7 @@ func TestErrorPageOffersTheWayBack(t *testing.T) {
 
 	assert.Contains(t, body, `<a href="/"`)
 	assert.Contains(t, body, "Back to Outtake")
-	assert.Contains(t, body, `src="/assets/brand/mascot-128.png"`)
+	assert.Contains(t, body, `src="`+assets.URL("brand/mascot-128.png")+`"`)
 }
 
 func TestErrorPageEscapesTheSuppliedCopy(t *testing.T) {

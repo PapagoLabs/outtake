@@ -107,3 +107,60 @@ func (_c *MockMediaDescriber_Describe_Call) RunAndReturn(run func(ctx context.Co
 	_c.Call.Return(run)
 	return _c
 }
+
+// DescribePath provides a mock function for the type MockMediaDescriber
+func (_mock *MockMediaDescriber) DescribePath(ctx context.Context, path string) library.SourceInfo {
+	ret := _mock.Called(ctx, path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DescribePath")
+	}
+
+	var r0 library.SourceInfo
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) library.SourceInfo); ok {
+		r0 = returnFunc(ctx, path)
+	} else {
+		r0 = ret.Get(0).(library.SourceInfo)
+	}
+	return r0
+}
+
+// MockMediaDescriber_DescribePath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DescribePath'
+type MockMediaDescriber_DescribePath_Call struct {
+	*mock.Call
+}
+
+// DescribePath is a helper method to define mock.On call
+//   - ctx context.Context
+//   - path string
+func (_e *MockMediaDescriber_Expecter) DescribePath(ctx any, path any) *MockMediaDescriber_DescribePath_Call {
+	return &MockMediaDescriber_DescribePath_Call{Call: _e.mock.On("DescribePath", ctx, path)}
+}
+
+func (_c *MockMediaDescriber_DescribePath_Call) Run(run func(ctx context.Context, path string)) *MockMediaDescriber_DescribePath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMediaDescriber_DescribePath_Call) Return(sourceInfo library.SourceInfo) *MockMediaDescriber_DescribePath_Call {
+	_c.Call.Return(sourceInfo)
+	return _c
+}
+
+func (_c *MockMediaDescriber_DescribePath_Call) RunAndReturn(run func(ctx context.Context, path string) library.SourceInfo) *MockMediaDescriber_DescribePath_Call {
+	_c.Call.Return(run)
+	return _c
+}

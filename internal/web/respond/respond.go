@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	fiber "github.com/gofiber/fiber/v3"
 
@@ -30,6 +31,12 @@ const (
 
 	// formFieldMediaID is the form field naming the source a clip is cut from.
 	formFieldMediaID = "mediaId"
+
+	// cacheRevalidate makes a browser check a media file before reusing it.
+	cacheRevalidate = "no-cache"
+
+	// skipFileCache turns off Fiber's cache of open file handles.
+	skipFileCache = -1 * time.Nanosecond
 )
 
 // NotFoundMessage is the copy shown for a resource nothing is registered under.
@@ -53,7 +60,10 @@ func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 	return nil
 }
 
-// SendRangedFile serves a media file with HTTP byte-range support.
+// SendRangedFile serves a media file with HTTP byte-range support. A render
+// moves a new file into place under the same path, so the file is opened for
+// every request rather than through Fiber's handle cache, and the browser is
+// told to revalidate against its modification time before reusing a copy.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -62,12 +72,14 @@ func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 // Returns:
 //   - err: Wrapped send error, or nil on success.
 func SendRangedFile(ctx fiber.Ctx, path string) error {
+	ctx.Set(fiber.HeaderCacheControl, cacheRevalidate)
+
 	err := ctx.SendFile(path, fiber.SendFile{
 		FS:            nil,
 		Compress:      false,
 		ByteRange:     true,
 		Download:      false,
-		CacheDuration: 0,
+		CacheDuration: skipFileCache,
 		MaxAge:        0,
 	})
 	if err != nil {

@@ -83,7 +83,14 @@ func TestBrowseListsTheLibraryChooser(t *testing.T) {
 		"/library/sections/all": librariesJSON,
 	})
 
-	browsed, err := Browse(t.Context(), client, server, Query{}, Window{Size: PageSize})
+	browsed, err := Browse(
+		t.Context(),
+		&LibraryCache{},
+		client,
+		server,
+		Query{},
+		Window{Size: PageSize},
+	)
 	require.NoError(t, err)
 
 	require.Len(t, browsed.Libraries, 1)
@@ -119,7 +126,7 @@ func TestBrowseListsALibrarySectionWindow(t *testing.T) {
 	query := NormalizeQuery(Query{LibraryID: "1"})
 	window := query.Window(nil)
 
-	browsed, err := Browse(t.Context(), client, server, query, window)
+	browsed, err := Browse(t.Context(), &LibraryCache{}, client, server, query, window)
 	require.NoError(t, err)
 
 	require.Len(t, browsed.Items, 1)
@@ -149,7 +156,7 @@ func TestBrowseListsContainerChildren(t *testing.T) {
 	query := NormalizeQuery(Query{LibraryID: "1", ParentID: "9"})
 	window := query.Window(nil)
 
-	browsed, err := Browse(t.Context(), client, server, query, window)
+	browsed, err := Browse(t.Context(), &LibraryCache{}, client, server, query, window)
 	require.NoError(t, err)
 
 	require.Len(t, browsed.Items, 1)
@@ -179,7 +186,7 @@ func TestBrowseSearchesInsteadOfListing(t *testing.T) {
 
 	query := NormalizeQuery(Query{Query: "hit", LibraryID: "1"})
 
-	browsed, err := Browse(t.Context(), client, server, query, query.Window(nil))
+	browsed, err := Browse(t.Context(), &LibraryCache{}, client, server, query, query.Window(nil))
 	require.NoError(t, err)
 
 	require.Len(t, browsed.Items, 1)
@@ -194,7 +201,7 @@ func TestBrowseReportsALibraryLookupFailure(t *testing.T) {
 		"/library/sections/all": "not json",
 	})
 
-	_, err := Browse(t.Context(), client, server, Query{}, Window{Size: PageSize})
+	_, err := Browse(t.Context(), &LibraryCache{}, client, server, Query{}, Window{Size: PageSize})
 	require.ErrorContains(t, err, "list libraries")
 }
 
@@ -213,7 +220,7 @@ func TestBrowseKeepsLibrariesWhenTheWindowFails(t *testing.T) {
 
 	query := NormalizeQuery(Query{LibraryID: "1"})
 
-	browsed, err := Browse(t.Context(), client, server, query, query.Window(nil))
+	browsed, err := Browse(t.Context(), &LibraryCache{}, client, server, query, query.Window(nil))
 	require.ErrorContains(t, err, "list section")
 	assert.Len(t, browsed.Libraries, 1, "the sidebar survives a failed listing")
 	assert.Empty(t, browsed.Items)
@@ -318,7 +325,7 @@ func TestBrowseReportsASearchFailure(t *testing.T) {
 
 	query := NormalizeQuery(Query{Query: "hit", LibraryID: "1"})
 
-	_, err := Browse(t.Context(), client, server, query, query.Window(nil))
+	_, err := Browse(t.Context(), &LibraryCache{}, client, server, query, query.Window(nil))
 	require.ErrorContains(t, err, "search media")
 }
 
@@ -362,7 +369,14 @@ func TestBrowseAsksForTheWindowItWasGiven(t *testing.T) {
 
 	query := NormalizeQuery(Query{LibraryID: "1"})
 
-	_, err = Browse(t.Context(), client, server, query, Window{Start: 96, Size: PageSize})
+	_, err = Browse(
+		t.Context(),
+		&LibraryCache{},
+		client,
+		server,
+		query,
+		Window{Start: 96, Size: PageSize},
+	)
 	require.NoError(t, err)
 
 	assert.Contains(t, asked, "X-Plex-Container-Start=96")

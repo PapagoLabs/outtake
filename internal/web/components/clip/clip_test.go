@@ -498,3 +498,30 @@ func TestWebSafeColorIsOfferedForEveryExportType(t *testing.T) {
 	require.NoError(t, WebSafeColorField(false).Render(t.Context(), &buf))
 	assert.Contains(t, buf.String(), `data-export-for="clip,gif,screenshot"`)
 }
+
+// TestClipStatusVersionsTheFileURLByRender covers a clip rendered again:
+// the card swapped in afterwards names a new file URL, so the browser loads
+// the new render instead of the media it kept for the old URL.
+func TestClipStatusVersionsTheFileURLByRender(t *testing.T) {
+	t.Parallel()
+
+	render := func(version string) string {
+		item := activeTestItem()
+		item.Status = domainclip.StatusCompleted
+		item.Progress = 100
+		item.FileExists = true
+		item.FileVersion = version
+
+		var body strings.Builder
+
+		require.NoError(t, ClipStatus(item).Render(t.Context(), &body))
+
+		return body.String()
+	}
+
+	first := render("1000")
+	second := render("2000")
+
+	assert.Contains(t, first, `src="/clips/c1/file?v=1000"`)
+	assert.Contains(t, second, `src="/clips/c1/file?v=2000"`)
+}

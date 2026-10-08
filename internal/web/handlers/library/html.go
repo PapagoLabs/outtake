@@ -39,6 +39,9 @@ type MediaDescriber interface {
 	// Describe resolves a Plex media item and reports what the file behind it
 	// holds.
 	Describe(ctx context.Context, mediaID string) library.SourceInfo
+
+	// DescribePath reports what a local media file holds.
+	DescribePath(ctx context.Context, path string) library.SourceInfo
 }
 
 // OutputStore reports whether a rendered clip is stored.
@@ -58,6 +61,9 @@ type Handler struct {
 	// addedAt caches the jump-rail buckets the media page collects, and starts
 	// empty, so it needs no wiring.
 	addedAt library.AddedAtCache
+	// libraries caches each server's library list for the sidebar and every
+	// browse fragment, and starts empty.
+	libraries library.LibraryCache
 }
 
 // New creates a new HTML handler.
@@ -113,7 +119,7 @@ func (handler *Handler) sidebarLibraries(ctx fiber.Ctx) []view.LibraryItem {
 		return nil
 	}
 
-	libs, err := plexClient.GetLibraries(ctx.Context(), server)
+	libs, err := handler.libraries.Libraries(ctx.Context(), plexClient, server)
 	if err != nil {
 		return nil
 	}

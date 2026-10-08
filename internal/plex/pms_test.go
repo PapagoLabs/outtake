@@ -185,7 +185,8 @@ func TestGetMediaItem(t *testing.T) {
 	const testItemBody = `{"MediaContainer":{"Metadata":[
 		{"ratingKey":"100","key":"/library/metadata/100","title":"Test Movie",
 		 "type":"movie","duration":7200000,"thumb":"/library/metadata/100/thumb/1",
-		 "year":1999,"librarySectionID":"1"}
+		 "year":1999,"librarySectionID":"1",
+		 "Media":[{"Part":[{"file":""},{"file":"/data/movies/Test Movie.mkv"}]}]}
 	]}}`
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -210,6 +211,8 @@ func TestGetMediaItem(t *testing.T) {
 	assert.Equal(t, 1999, item.Year)
 	assert.Equal(t, "1", item.LibraryID)
 	assert.Equal(t, "Test Movie (1999)", item.DisplayTitle())
+	assert.Equal(t, "/data/movies/Test Movie.mkv", item.FilePath,
+		"the first part with a file is the one a clip is cut from")
 }
 
 func TestGetMediaItemKeysByRequestedID(t *testing.T) {
@@ -232,6 +235,7 @@ func TestGetMediaItemKeysByRequestedID(t *testing.T) {
 	require.NotNil(t, item)
 	assert.Equal(t, "555", item.ID)
 	assert.Equal(t, "Named Only", item.Title)
+	assert.Empty(t, item.FilePath, "an item with no media part names no file")
 }
 
 func TestGetMediaItem_EmptyContainer(t *testing.T) {

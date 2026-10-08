@@ -4,6 +4,7 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"strconv"
 	"time"
 
@@ -313,7 +314,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 		</div>
 		<div id="clip-form-config" data-max-dur={ strconv.FormatInt(int64(props.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(props.Duration).FormatSeconds() } class="hidden"></div>
 		@progress.Script()
-		<script src="/assets/js/media-item.js"></script>
+		<script src={ assets.URL("js/media-item.js") }></script>
 	}
 }
 

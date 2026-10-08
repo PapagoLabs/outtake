@@ -386,7 +386,14 @@ func TestIntegration_BrowseReadsTheLibraryChooserAndASectionPage(t *testing.T) {
 	server, requested := fakeServer(t)
 	client, pms := boundServer(server.URL)
 
-	chooser, err := library.Browse(t.Context(), client, pms, library.Query{}, library.Window{})
+	chooser, err := library.Browse(
+		t.Context(),
+		&library.LibraryCache{},
+		client,
+		pms,
+		library.Query{},
+		library.Window{},
+	)
 	require.NoError(t, err)
 	require.Len(t, chooser.Libraries, 2)
 	assert.Equal(t, "Movies", chooser.Libraries[0].Title)
@@ -394,7 +401,7 @@ func TestIntegration_BrowseReadsTheLibraryChooserAndASectionPage(t *testing.T) {
 	assert.Zero(t, chooser.Total)
 
 	section, err := library.Browse(
-		t.Context(),
+		t.Context(), &library.LibraryCache{},
 		client,
 		pms,
 		library.NormalizeQuery(library.Query{LibraryID: "1", Sort: library.SortYearDesc}),
@@ -407,7 +414,7 @@ func TestIntegration_BrowseReadsTheLibraryChooserAndASectionPage(t *testing.T) {
 	assert.InDelta(t, 6900.0, section.Items[0].Duration, 0.01)
 
 	search, err := library.Browse(
-		t.Context(),
+		t.Context(), &library.LibraryCache{},
 		client,
 		pms,
 		library.NormalizeQuery(library.Query{Query: "alien", LibraryID: "1"}),
@@ -429,7 +436,7 @@ func TestIntegration_BrowseReadsContainerChildren(t *testing.T) {
 	client, pms := boundServer(server.URL)
 
 	children, err := library.Browse(
-		t.Context(),
+		t.Context(), &library.LibraryCache{},
 		client,
 		pms,
 		library.NormalizeQuery(library.Query{LibraryID: "1", ParentID: "10"}),

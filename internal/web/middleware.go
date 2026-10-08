@@ -18,6 +18,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 )
 
 // contentSecurityPolicy is the helmet CSP for vendored HTMX and same-origin media.
@@ -188,18 +189,40 @@ func csrfError(_ fiber.Ctx, _ error) error {
 //   - config: Static asset middleware configuration.
 func staticConfig() static.Config {
 	return static.Config{
-		FS:              Assets,
+		FS:              assets.FS,
 		Next:            nil,
-		ModifyResponse:  nil,
+		ModifyResponse:  assetCacheControl,
 		NotFoundHandler: assetNotFound,
 		IndexNames:      []string{"index.html"},
 		CacheDuration:   0,
 		MaxAge:          0,
-		Compress:        false,
+		Compress:        true,
 		ByteRange:       false,
 		Browse:          false,
 		Download:        false,
 	}
+}
+
+// assetCacheControl lets a browser keep an asset for good when the request
+// named its current contents, and makes it check back otherwise. Every asset
+// link the pages render carries that hash, so an upgrade changes the link and
+// the stale copy is never used.
+//
+// Parameters:
+//   - ctx: Request context of a served asset.
+//
+// Returns:
+//   - err: Always nil.
+func assetCacheControl(ctx fiber.Ctx) error {
+	name := strings.TrimPrefix(ctx.Path(), routeAssets+"/")
+
+	if assets.Current(name, ctx.Query(assets.VersionQuery)) {
+		ctx.Set(fiber.HeaderCacheControl, cacheForever)
+	} else {
+		ctx.Set(fiber.HeaderCacheControl, cacheRevalidate)
+	}
+
+	return nil
 }
 
 // assetNotFound answers a missing asset with 404, so the request stops before
