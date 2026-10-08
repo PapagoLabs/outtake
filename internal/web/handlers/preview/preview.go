@@ -168,15 +168,16 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 }
 
 // previewRender decides what a preview renders. An HDR clip that keeps HDR is
-// tone mapped for an SDR screen, because an HDR preview there renders black or
-// washed out in some browsers. An SDR source has no HDR to show, so its
+// tone mapped unless the browser can show an HDR preview, because an HDR
+// preview renders black or washed out on an SDR screen in some browsers, and
+// a browser without an HEVC decoder cannot play it at all. An SDR source has no HDR to show, so its
 // preview is never marked as shown in SDR. The request keeps the clip's own
 // choice.
 //
 // Parameters:
 //   - req: Parsed request whose PreserveHDR holds the clip's resolved choice.
 //   - sourceHDR: The source carries an HDR transfer.
-//   - screenHDR: The browser's screen shows HDR.
+//   - screenHDR: The browser can show an HDR preview.
 //
 // Returns:
 //   - render: The request the preview renders, a copy of req.
@@ -192,15 +193,16 @@ func previewRender(req api.ClipRequest, sourceHDR, screenHDR bool) (api.ClipRequ
 	return render, shownSDR
 }
 
-// screenShowsHDR reports whether the browser said its screen shows HDR. The
-// export form's script sets the field. Without it, as for an API caller or a
+// screenShowsHDR reports whether the browser said it can show an HDR preview:
+// its screen shows HDR and it decodes HEVC Main 10. The export form's script
+// sets the field. Without it, as for an API caller or a
 // browser that cannot tell, the screen is taken to be SDR.
 //
 // Parameters:
 //   - ctx: Preview request carrying the form field or query parameter.
 //
 // Returns:
-//   - hdr: True when the request marked the screen as HDR.
+//   - hdr: True when the request marked the browser as able to show HDR.
 func screenShowsHDR(ctx fiber.Ctx) bool {
 	value := ctx.FormValue(routes.QueryScreenHDR)
 	if value == "" {

@@ -39,13 +39,14 @@ const sdrProbe = `{"format":{"duration":"60.0","bit_rate":"8000","format_name":"
 // signalstatsLog is the stderr a stubbed luma pass writes.
 const signalstatsLog = "lavfi.signalstats.YMAX=143.0\nlavfi.signalstats.YMAX=158.0\n"
 
-func applyColorPlan(req *h264EncodeRequest, transfer string, remap remapDecision) {
+func applyColorPlan(req *videoEncodeRequest, transfer string, remap remapDecision) {
 	plan := decideColor(transfer, remap)
 
 	req.hdrKind = plan.hdrKind
 	req.toneMap = plan.toneMap
 	req.colorTags = plan.colorTags
 	req.pixFmt = plan.pixFmt
+	req.encoder = plan.encoder
 	if req.hdrKind == clip.TransferHLGAlias {
 		req.tonePeak = tonemap.DefaultWebSafePeak
 	}
@@ -72,6 +73,7 @@ func TestDecideColor(t *testing.T) {
 		wantTags      string
 		wantNeedsPeak bool
 		wantPixFmt    string
+		wantEncoder   string
 	}{
 		{
 			name:        "an sdr source keeps the transfer it was probed with",
@@ -80,6 +82,7 @@ func TestDecideColor(t *testing.T) {
 			wantHDRKind: "",
 			wantTags:    nameBT709,
 			wantPixFmt:  pixelFormatYUV420P,
+			wantEncoder: videoCodecH264,
 		},
 		{
 			name:        "an sdr source with an unreported transfer is left untagged",
@@ -88,6 +91,7 @@ func TestDecideColor(t *testing.T) {
 			wantHDRKind: "",
 			wantTags:    "",
 			wantPixFmt:  pixelFormatYUV420P,
+			wantEncoder: videoCodecH264,
 		},
 		{
 			name:        "a pal sdr source is not claimed as srgb",
@@ -96,6 +100,7 @@ func TestDecideColor(t *testing.T) {
 			wantHDRKind: "",
 			wantTags:    "bt470bg",
 			wantPixFmt:  pixelFormatYUV420P,
+			wantEncoder: videoCodecH264,
 		},
 		{
 			name:          "pq is remapped by default and tagged rec709",
@@ -106,6 +111,7 @@ func TestDecideColor(t *testing.T) {
 			wantTags:      tonemap.TransferBT709,
 			wantNeedsPeak: true,
 			wantPixFmt:    pixelFormatYUV420P,
+			wantEncoder:   videoCodecH264,
 		},
 		{
 			name:        "pq is preserved, tagged, and kept 10-bit",
@@ -114,6 +120,7 @@ func TestDecideColor(t *testing.T) {
 			wantHDRKind: clip.TransferPQAlias,
 			wantTags:    clip.TransferPQ,
 			wantPixFmt:  pixelFormatYUV420P10LE,
+			wantEncoder: videoCodecHEVC,
 		},
 		{
 			name:        "hlg is remapped, tagged rec709, and needs no peak sample",
@@ -123,6 +130,7 @@ func TestDecideColor(t *testing.T) {
 			wantToneMap: true,
 			wantTags:    tonemap.TransferBT709,
 			wantPixFmt:  pixelFormatYUV420P,
+			wantEncoder: videoCodecH264,
 		},
 		{
 			name:        "hlg is preserved, tagged, and kept 10-bit",
@@ -131,6 +139,7 @@ func TestDecideColor(t *testing.T) {
 			wantHDRKind: clip.TransferHLGAlias,
 			wantTags:    clip.TransferHLG,
 			wantPixFmt:  pixelFormatYUV420P10LE,
+			wantEncoder: videoCodecHEVC,
 		},
 	}
 
@@ -144,6 +153,8 @@ func TestDecideColor(t *testing.T) {
 			assert.Equal(t, test.wantToneMap, plan.toneMap)
 			assert.Equal(t, test.wantNeedsPeak, plan.needsPeak)
 			assert.Equal(t, test.wantPixFmt, plan.pixFmt)
+			assert.Equal(t, test.wantEncoder, plan.encoder,
+				"kept HDR is HEVC, and everything else stays H.264")
 
 			if test.wantTags == "" {
 				assert.Empty(t, plan.colorTags,
@@ -172,7 +183,7 @@ func TestPreservedHDRIsTaggedForItsTransfer(t *testing.T) {
 	)
 	applyColorPlan(&req, clip.TransferPQ, keepHDR)
 
-	args := h264EncodeArgs(&req)
+	args := videoEncodeArgs(&req)
 	joined := strings.Join(args, " ")
 
 	assert.Contains(t, args, primariesBT2020)
@@ -182,6 +193,9 @@ func TestPreservedHDRIsTaggedForItsTransfer(t *testing.T) {
 	assert.NotContains(t, joined, "zscale=tin=smpte2084")
 	assert.Contains(t, args, pixelFormatYUV420P10LE,
 		"a preserved PQ source needs 10-bit, because 8-bit PQ bands")
+	assert.Contains(t, args, videoCodecHEVC)
+	assert.Contains(t, args, hevcTag)
+	assert.NotContains(t, args, flagX264Params, "an HEVC encode takes no x264 options")
 }
 
 func TestPreservedHDRStaysTenBit(t *testing.T) {

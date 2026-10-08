@@ -29,6 +29,8 @@ type colorPlan struct {
 	needsPeak bool
 	// pixFmt is the pixel format the output should carry.
 	pixFmt string
+	// encoder is the video encoder, libx265 for kept HDR and libx264 otherwise.
+	encoder string
 }
 
 const (
@@ -76,14 +78,25 @@ const (
 	flagColorRange = "-color_range"
 	// flagX264Params carries the same values in x264's own spelling.
 	flagX264Params = "-x264-params"
+	// flagX265Params carries the same values in x265's own spelling. FFmpeg
+	// does not pass the output color flags on to libx265 for an untagged
+	// input, so x265 is told directly.
+	flagX265Params = "-x265-params"
+	// x265LimitedRange is x265's spelling of the limited range.
+	x265LimitedRange = ":range=limited"
+	// x265HDR10Opt turns on x265's HDR10 quantization, which suits PQ only.
+	x265HDR10Opt = ":hdr10-opt=1"
+	// x265QuietLog keeps x265's own info lines out of ffmpeg's stderr.
+	x265QuietLog = ":log-level=error"
 	// flagRangeTV is the limited range every tag here describes.
 	flagRangeTV = "tv"
 
-	// x264PrimariesPrefix spells the primaries field with its own prefix.
+	// x264PrimariesPrefix spells the primaries field, which x264 and x265
+	// both call colorprim.
 	x264PrimariesPrefix = "colorprim="
-	// x264TransferPrefix is the x264-params transfer prefix.
+	// x264TransferPrefix is the transfer prefix x264 and x265 share.
 	x264TransferPrefix = ":transfer="
-	// x264MatrixPrefix is the x264-params matrix prefix.
+	// x264MatrixPrefix is the matrix prefix x264 and x265 share.
 	x264MatrixPrefix = ":colormatrix="
 )
 
@@ -102,26 +115,33 @@ func remapDecisionFor(preset clip.QualityPreset) remapDecision {
 	return toneMapSDR
 }
 
-// hdrColorArgs tags an encode with the HDR transfer it actually carries.
+// hdrColorArgs tags an HEVC encode with the HDR transfer it actually carries.
+// PQ also gets x265's HDR10 quantization. HLG gets none, because it carries no
+// HDR10 metadata.
 //
 // Parameters:
 //   - kind: Transfer alias, clip.TransferPQAlias or clip.TransferHLGAlias.
 //
 // Returns:
-//   - args: ffmpeg color and x264-params flags.
+//   - args: ffmpeg color and x265-params flags.
 func hdrColorArgs(kind string) []string {
 	transfer := clip.TransferPQ
+	hdr10Opt := x265HDR10Opt
+
 	if kind == clip.TransferHLGAlias {
 		transfer = clip.TransferHLG
+		hdr10Opt = ""
 	}
 
 	return []string{
 		flagColorPrimaries, primariesBT2020,
 		flagColorTransfer, transfer,
 		flagColorSpace, matrixBT2020NC,
-		flagColorRange, "tv",
-		flagX264Params, "colorprim=" + primariesBT2020 + ":transfer=" + transfer +
-			":colormatrix=" + matrixBT2020NC,
+		flagColorRange, flagRangeTV,
+		flagX265Params, x264PrimariesPrefix + primariesBT2020 +
+			x264TransferPrefix + transfer +
+			x264MatrixPrefix + matrixBT2020NC +
+			x265LimitedRange + hdr10Opt + x265QuietLog,
 	}
 }
 
@@ -165,7 +185,10 @@ func sdrColorArgs(transfer string) []string {
 	}
 }
 
-// decideColor maps a source's transfer onto an encode's color handling.
+// decideColor maps a source's transfer onto an encode's color handling and
+// the encoder that carries it. Kept HDR is encoded as HEVC Main 10, which
+// browsers, editors, and upload sites take as HDR. Everything else stays
+// 8-bit H.264.
 //
 // Parameters:
 //   - transfer: ffprobe's color transfer, empty for SDR.
@@ -175,7 +198,11 @@ func sdrColorArgs(transfer string) []string {
 //   - plan: What the encode should do.
 func decideColor(transfer string, remap remapDecision) colorPlan {
 	if !clip.IsHDRTransfer(transfer) {
-		return colorPlan{colorTags: sdrColorArgs(transfer), pixFmt: pixelFormatYUV420P}
+		return colorPlan{
+			colorTags: sdrColorArgs(transfer),
+			pixFmt:    pixelFormatYUV420P,
+			encoder:   videoCodecH264,
+		}
 	}
 
 	kind := clip.TransferPQAlias
@@ -193,6 +220,7 @@ func decideColor(transfer string, remap remapDecision) colorPlan {
 			colorTags: toneMappedColorArgs(),
 			needsPeak: kind == clip.TransferPQAlias,
 			pixFmt:    pixelFormatYUV420P,
+			encoder:   videoCodecH264,
 		}
 	}
 
@@ -200,6 +228,7 @@ func decideColor(transfer string, remap remapDecision) colorPlan {
 		hdrKind:   kind,
 		colorTags: hdrColorArgs(kind),
 		pixFmt:    pixelFormatYUV420P10LE,
+		encoder:   videoCodecHEVC,
 	}
 }
 
@@ -208,15 +237,16 @@ func decideColor(transfer string, remap remapDecision) colorPlan {
 // Parameters:
 //   - ctx: Cancellation and deadline for probe and luma sampling.
 //   - req: Encode request to update in place.
-func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeRequest) {
+func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *videoEncodeRequest) {
 	req.hdrKind = ""
 	req.toneMap = false
 	req.colorTags = nil
 	req.tonePeak = 0
+	req.encoder = ""
 
 	info, err := execFFmpeg.Probe(ctx, req.input)
 	if err != nil {
-		// Untagged, as before. That beats tagging a source we could not identify.
+		// An untagged H.264 encode beats tagging a source we could not identify.
 		return
 	}
 
@@ -231,6 +261,7 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *h264EncodeR
 	req.toneMap = plan.toneMap
 	req.colorTags = plan.colorTags
 	req.pixFmt = plan.pixFmt
+	req.encoder = plan.encoder
 
 	if plan.toneMap {
 		req.tonePeak = execFFmpeg.tonePeak(ctx, req.input, plan.hdrKind, req.start, req.duration)

@@ -84,7 +84,8 @@ const (
 	QueryPreviewSDR = "previewSdr"
 
 	// QueryScreenHDR is the form field and query parameter that says the
-	// browser's screen shows HDR.
+	// browser can show an HDR preview: its screen shows HDR and it decodes
+	// HEVC Main 10.
 	QueryScreenHDR = "screenHdr"
 
 	// QueryQuality carries the New export profile across a preview redirect.

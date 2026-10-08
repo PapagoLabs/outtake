@@ -34,7 +34,7 @@ type ProfileFields struct {
 	Name string
 	// CRF is the constant rate factor as typed.
 	CRF string
-	// Preset is the libx264 encoder preset as typed.
+	// Preset is the libx264 and libx265 encoder preset as typed.
 	Preset string
 	// AudioKbps is the audio bitrate as typed.
 	AudioKbps string

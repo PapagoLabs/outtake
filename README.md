@@ -50,7 +50,9 @@ The server listens on port 8080 by default.
   into Docker).
 - **Docker images** ship static `ffmpeg` and `ffprobe`.
 - A **host binary** needs `ffmpeg` and `ffprobe` on `PATH` (or set
-  `OUTTAKE_FFMPEG_PATH` and `OUTTAKE_FFPROBE_PATH`).
+  `OUTTAKE_FFMPEG_PATH` and `OUTTAKE_FFPROBE_PATH`). Use FFmpeg 8 or
+  later, built with libx264, libx265, and zimg. Earlier versions copy HDR
+  metadata into SDR clips and write HEVC files some players refuse.
 
 ## Install
 
@@ -287,12 +289,13 @@ without owners, only the account that signed in last can claim Outtake.
 4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or
    **Screenshot**, pick a **Profile**, and optionally **Trim black bars**.
    For a video clip from an HDR source, **Keep HDR** keeps the source's
-   HDR. Leave it off to tone-map the clip to SDR, which most social sites
+   HDR in a 10-bit HEVC file, which phones, Apple devices, and YouTube take
+   as HDR. Leave it off to tone-map the clip to SDR, which most social sites
    need. The box starts from the profile: the built-in High keeps HDR, and
    Low and Medium convert. Set the default per profile under **Clip
    Profiles**. GIFs and screenshots are always SDR. When your screen does
-   not show HDR, the preview of an HDR clip is shown in SDR and says so,
-   while the saved clip keeps HDR.
+   not show HDR, or your browser cannot play HEVC, the preview of an HDR
+   clip is shown in SDR and says so, while the saved clip keeps HDR.
 5. Choose **Preview** to check the segment, then **Save clip**.
 
 If something is already playing, the dashboard **Live Sessions** list
@@ -336,11 +339,13 @@ is higher quality.
   postgres. On the example chart, enable at most one blob backend
   (`backends.seaweedfs` or `backends.rustfs`) and one database backend
   (`backends.cockroach` or `backends.cnpg`).
-- **HDR clips play black in Brave or Chrome on Linux.** Chromium 151 and
-  later draw 10-bit video black on NVIDIA under Wayland. The file is fine.
-  Start the browser with `--ozone-platform=x11`, use Firefox, or turn off
-  **Keep HDR** for that clip. Previews are not affected, because on an SDR
-  screen they are shown in SDR.
+- **"This browser cannot play this clip".** Clips that keep HDR are HEVC,
+  which Brave and Chrome on Linux decode only with hardware video
+  decoding. The file is fine: download it, use Firefox, or turn off
+  **Keep HDR** for that clip. Previews are not affected, because a browser
+  without HEVC gets an SDR preview. Where Chromium does decode HEVC,
+  versions 151 and later draw 10-bit video black on NVIDIA under Wayland,
+  and `--ozone-platform=x11` avoids that.
 - **"This Dolby Vision source has no HDR10 or SDR base layer".** Dolby
   Vision profile 5, and any other source without a displayable base layer,
   cannot be exported by ffmpeg with correct colors. Use a copy of the title
