@@ -161,57 +161,45 @@ func (store *S3) DeleteFile(path string) error {
 	return nil
 }
 
-// FileExists reports whether the object exists, hydrating the local copy when needed.
+// Ensure makes the object available on the local scratch path, downloading it
+// only when no local copy exists.
 //
 // Parameters:
+//   - ctx: Request scope for the download.
+//   - path: The scratch path to fill.
+//
+// Returns:
+//   - err: Non-nil when the object is not local and cannot be fetched.
+func (store *S3) Ensure(ctx context.Context, path string) error {
+	if store.fs.Exists(ctx, path) {
+		return nil
+	}
+
+	err := store.fetch(ctx, path)
+	if err != nil {
+		return fmt.Errorf("ensure object: %w", err)
+	}
+
+	return nil
+}
+
+// Exists reports whether the object exists locally or on S3, asking S3 only
+// for its headers.
+//
+// Parameters:
+//   - ctx: Request scope for the lookup.
 //   - path: The scratch path to check.
 //
 // Returns:
 //   - exists: True when the object is present locally or on S3.
-func (store *S3) FileExists(path string) bool {
-	if store.fs.FileExists(path) {
+func (store *S3) Exists(ctx context.Context, path string) bool {
+	if store.fs.Exists(ctx, path) {
 		return true
 	}
 
-	exists, err := store.head(context.Background(), path)
-	if err != nil || !exists {
-		return false
-	}
+	exists, err := store.head(ctx, path)
 
-	getErr := store.Get(context.Background(), path)
-
-	return getErr == nil
-}
-
-// Get downloads the object from S3 onto the local scratch path.
-//
-// Parameters:
-//   - ctx: Request scope for the download.
-//   - path: The scratch path to write.
-//
-// Returns:
-//   - err: Non-nil when the object cannot be fetched or written.
-func (store *S3) Get(ctx context.Context, path string) error {
-	key, err := store.objectKey(path)
-	if err != nil {
-		return fmt.Errorf(getObjectErrFmt, err)
-	}
-
-	output, err := store.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(store.bucket),
-		Key:    aws.String(key),
-	})
-	if err != nil {
-		return fmt.Errorf(getObjectErrFmt, err)
-	}
-	defer output.Body.Close()
-
-	err = writeObjectFile(path, output.Body)
-	if err != nil {
-		return fmt.Errorf(getObjectErrFmt, err)
-	}
-
-	return nil
+	return err == nil && exists
 }
 
 // Paths returns the local layout the backend scratches against.
@@ -271,6 +259,37 @@ func (store *S3) WriteThumbnail(id string, data []byte) error {
 	err = store.Put(context.Background(), store.fs.ThumbnailPath(id))
 	if err != nil {
 		return fmt.Errorf("upload thumbnail: %w", err)
+	}
+
+	return nil
+}
+
+// fetch downloads the object from S3 onto the local scratch path.
+//
+// Parameters:
+//   - ctx: Request scope for the download.
+//   - path: The scratch path to write.
+//
+// Returns:
+//   - err: Non-nil when the object cannot be fetched or written.
+func (store *S3) fetch(ctx context.Context, path string) error {
+	key, err := store.objectKey(path)
+	if err != nil {
+		return fmt.Errorf(getObjectErrFmt, err)
+	}
+
+	output, err := store.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(store.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return fmt.Errorf(getObjectErrFmt, err)
+	}
+	defer output.Body.Close()
+
+	err = writeObjectFile(path, output.Body)
+	if err != nil {
+		return fmt.Errorf(getObjectErrFmt, err)
 	}
 
 	return nil

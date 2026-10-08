@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -585,4 +586,35 @@ func TestSweepRendersClearsEveryOutputDirectory(t *testing.T) {
 			"a render another process sharing the storage is running keeps its file")
 		assert.FileExists(t, filepath.Join(dir, "kept"), dir)
 	}
+}
+
+// TestPersistProgressRecordsAtMostOnceASecond covers the progress throttle: the
+// first change is recorded at once, later ones only a second apart.
+func TestPersistProgressRecordsAtMostOnceASecond(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		job := testClipJob("throttled")
+
+		var recorded []int
+
+		jobQueue := testIdleQueue(t)
+		jobQueue.Restore(job)
+		jobQueue.SetStatusFunc(func(changed *clip.Job) {
+			recorded = append(recorded, changed.Progress)
+		})
+
+		report := persistProgress(t.Context(), job, jobQueue)
+
+		report(10)
+		report(11)
+		report(12)
+
+		time.Sleep(progressInterval)
+
+		report(40)
+		report(41)
+
+		assert.Equal(t, []int{10, 40}, recorded)
+	})
 }

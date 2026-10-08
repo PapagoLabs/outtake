@@ -63,7 +63,7 @@ func clipPageHandler(t *testing.T) (*Handler, *database.DB) {
 
 	return New(
 		queueForTest(t),
-		nil,
+		&blob.Storage{},
 		blob.Paths{},
 		db,
 		&config.Config{MaxClipDur: 15 * time.Minute},

@@ -77,10 +77,11 @@ func newSourceHandler(
 	t.Cleanup(jobQueue.Stop)
 
 	return &Handler{
-		db:        db,
-		cfg:       &config.Config{MaxClipDur: 15 * time.Minute},
-		clipQueue: jobQueue,
-		clipPaths: blob.NewPaths(t.TempDir()),
+		db:          db,
+		cfg:         &config.Config{MaxClipDur: 15 * time.Minute},
+		clipQueue:   jobQueue,
+		clipPaths:   blob.NewPaths(t.TempDir()),
+		clipStorage: &blob.Storage{},
 		sources: library.NewMediaSource(
 			sourceCfg, selected, &stubProber{duration: duration},
 		),

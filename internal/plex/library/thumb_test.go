@@ -9,33 +9,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCacheID(t *testing.T) {
+// TestCacheIDIsStableAndKeyedByServer covers the cache key: the same server
+// and path always name the same file, and another server or path never does.
+func TestCacheIDIsStableAndKeyedByServer(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(
+	first := CacheID("machine-1", "/thumb/a")
+
+	assert.Equal(t, first, CacheID("machine-1", "/thumb/a"))
+	assert.Regexp(t, `^[0-9a-f]{64}$`, first)
+	assert.NotEqual(t, first, CacheID("machine-1", "/thumb/b"), "another path")
+	assert.NotEqual(
 		t,
-		"e7e69e4a12e8585ff807d0cd0bd8e30d1f76bd696d62d8d90d4ec111d8f64bf4",
-		CacheID("/library/metadata/12345/thumb/54321"),
-	)
-}
-
-func TestCacheIDIsStablePerPath(t *testing.T) {
-	t.Parallel()
-
-	first := CacheID("/thumb/a")
-	second := CacheID("/thumb/a")
-
-	assert.Equal(
-		t,
-		"8fa2164104e1729142925cd3cbc68e854ef34d57d97c34763b455bd63eb311d0",
 		first,
+		CacheID("machine-2", "/thumb/a"),
+		"another server's poster at the same path",
 	)
-	assert.Regexp(t, `^[0-9a-f]{64}$`, second)
-	assert.NotEqual(t, first, CacheID("/thumb/b"))
+	assert.NotEqual(
+		t,
+		CacheID("ab", "c"),
+		CacheID("a", "bc"),
+		"the server and path cannot run together",
+	)
 }
 
 func TestCacheControl(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "public, max-age=604800, immutable", CacheControl)
+	assert.Equal(t, "private, max-age=604800, immutable", CacheControl,
+		"a signed-in user's thumbnail is not kept by a shared cache")
 }

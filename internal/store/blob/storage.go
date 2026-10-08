@@ -5,8 +5,10 @@
 package blob
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -65,29 +67,41 @@ func (*Storage) DeleteFile(path string) error {
 	return nil
 }
 
-// FileExists reports whether a file exists.
-//
-// Parameters:
-//   - path: The file to stat.
-//
-// Returns:
-//   - exists: True when the path names an existing file.
-func (*Storage) FileExists(path string) bool {
-	_, err := os.Stat(path)
-
-	return err == nil
-}
-
-// Get is a no-op on the filesystem backend because objects already live on disk.
+// Ensure reports whether the file is on disk, which is where the filesystem
+// backend keeps every object.
 //
 // Parameters:
 //   - ctx: Request scope, which the filesystem backend ignores.
-//   - path: Object path, which the filesystem backend ignores.
+//   - path: The file to check.
 //
 // Returns:
-//   - err: Always nil.
-func (*Storage) Get(_ context.Context, _ string) error {
+//   - err: Non-nil, wrapping [fs.ErrNotExist] for a missing file or a
+//     directory, when the file cannot be served.
+func (*Storage) Ensure(_ context.Context, path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("ensure file: %w", err)
+	}
+
+	if info.IsDir() {
+		return fmt.Errorf("ensure file: %s is a directory: %w", path, fs.ErrNotExist)
+	}
+
 	return nil
+}
+
+// Exists reports whether a regular file exists.
+//
+// Parameters:
+//   - ctx: Request scope, which the filesystem backend ignores.
+//   - path: The file to stat.
+//
+// Returns:
+//   - exists: True when the path names an existing file, not a directory.
+func (*Storage) Exists(_ context.Context, path string) bool {
+	info, err := os.Stat(path)
+
+	return err == nil && !info.IsDir()
 }
 
 // Put is a no-op on the filesystem backend because objects already live on disk.
@@ -111,7 +125,9 @@ func (*Storage) Put(_ context.Context, _ string) error {
 // Returns:
 //   - err: Non-nil when the file cannot be written.
 func (store *Storage) WriteThumbnail(id string, data []byte) error {
-	err := os.WriteFile(store.ThumbnailPath(id), data, filePermissions)
+	// Written beside the cache entry and renamed into place, so a concurrent
+	// request never serves half a thumbnail.
+	err := writeObjectFile(store.ThumbnailPath(id), bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("write thumbnail: %w", err)
 	}

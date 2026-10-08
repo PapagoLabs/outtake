@@ -22,6 +22,8 @@ import (
 type fakeS3Server struct {
 	mu      sync.Mutex
 	objects map[string][]byte
+	// gets counts object downloads, so a test can tell a lookup from a fetch.
+	gets int
 }
 
 func TestS3_PutGetDelete(t *testing.T) {
@@ -47,16 +49,21 @@ func TestS3_PutGetDelete(t *testing.T) {
 	require.NoError(t, store.Put(t.Context(), path))
 
 	require.NoError(t, os.Remove(path))
-	assert.False(t, store.fs.FileExists(path))
-	assert.True(t, store.FileExists(path))
-	assert.True(t, store.fs.FileExists(path))
+	assert.True(t, store.Exists(t.Context(), path), "the object is found on S3")
+	assert.False(t, store.fs.Exists(t.Context(), path), "without being downloaded")
+	assert.Zero(t, server.downloads())
+
+	require.NoError(t, store.Ensure(t.Context(), path))
+	require.NoError(t, store.Ensure(t.Context(), path))
+	assert.Equal(t, 1, server.downloads(), "a local copy is fetched once and then reused")
 
 	got, err := os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, []byte("video"), got)
 
 	require.NoError(t, store.DeleteFile(path))
-	assert.False(t, store.FileExists(path))
+	assert.False(t, store.Exists(t.Context(), path))
+	require.Error(t, store.Ensure(t.Context(), path), "an object that is gone cannot be served")
 }
 
 func TestS3_SkipWithoutEndpoint(t *testing.T) {
@@ -107,7 +114,7 @@ func TestS3_WriteThumbnail(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, store.WriteThumbnail("abc", []byte("jpeg")))
-	assert.True(t, store.FileExists(store.Paths().ThumbnailPath("abc")))
+	assert.True(t, store.Exists(t.Context(), store.Paths().ThumbnailPath("abc")))
 }
 
 func TestS3_SharesTheScratchLayout(t *testing.T) {
@@ -158,6 +165,7 @@ func newFakeS3Server() *fakeS3Server {
 	return &fakeS3Server{
 		mu:      sync.Mutex{},
 		objects: map[string][]byte{},
+		gets:    0,
 	}
 }
 
@@ -184,8 +192,21 @@ func (server *fakeS3Server) deleteObject(writer http.ResponseWriter, key string)
 	writer.WriteHeader(http.StatusNoContent)
 }
 
+// downloads reports how many objects were downloaded.
+//
+// Returns:
+//   - count: Object GET requests served.
+func (server *fakeS3Server) downloads() int {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+
+	return server.gets
+}
+
 func (server *fakeS3Server) getObject(writer http.ResponseWriter, key string) {
 	server.mu.Lock()
+
+	server.gets++
 
 	data, ok := server.objects[key]
 

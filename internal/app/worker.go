@@ -21,12 +21,18 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
+// progressInterval is the shortest gap between two recorded progress changes
+// of one render.
+const progressInterval = time.Second
+
 // staleRenderAge is how long a staging file has to go unwritten before the
 // startup sweep treats it as left by an interrupted render. ffmpeg writes its
 // output continuously, so a live render's file is never this old.
 const staleRenderAge = time.Hour
 
-// persistProgress returns the callback that records a render's progress.
+// persistProgress returns the callback that records a render's progress. It
+// records at most one change per progressInterval, since each one is a
+// database write, and the settled status records the final value anyway.
 //
 // Parameters:
 //   - ctx: The job's context, canceled when the job is canceled or deleted.
@@ -34,9 +40,19 @@ const staleRenderAge = time.Hour
 //   - jobQueue: The queue that owns the job.
 //
 // Returns:
-//   - report: Callback for progress.WithProgress.
+//   - report: Callback for progress.WithProgress. ffmpeg's standard error is
+//     read by one goroutine, so it is never called concurrently.
 func persistProgress(ctx context.Context, job *clip.Job, jobQueue *queue.Queue) func(int) {
+	var last time.Time
+
 	return func(percent int) {
+		now := time.Now()
+		if !last.IsZero() && now.Sub(last) < progressInterval {
+			return
+		}
+
+		last = now
+
 		saveProgress(ctx, job, jobQueue, percent)
 	}
 }

@@ -114,15 +114,17 @@ func (service *Service) OutputPath(previewID string) string {
 	return service.paths.PreviewPath(previewID)
 }
 
-// Published reports whether a preview's file is on disk.
+// Published reports whether a preview's file is ready to serve, fetching a
+// preview another instance published when this one has no local copy.
 //
 // Parameters:
+//   - ctx: Request scope for a fetch from storage.
 //   - previewID: Preview id.
 //
 // Returns:
-//   - published: True when the published preview file exists.
-func (service *Service) Published(previewID string) bool {
-	return service.store.FileExists(service.OutputPath(previewID))
+//   - published: True when the published preview file is on local disk.
+func (service *Service) Published(ctx context.Context, previewID string) bool {
+	return service.store.Ensure(ctx, service.OutputPath(previewID)) == nil
 }
 
 // Remember records an id whose preview is already published, so a client
@@ -158,7 +160,7 @@ func (service *Service) RenderInto(
 
 	defer release()
 
-	if service.Published(previewID) {
+	if service.Published(ctx, previewID) {
 		return nil
 	}
 

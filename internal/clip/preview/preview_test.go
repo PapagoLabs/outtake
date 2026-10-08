@@ -263,11 +263,11 @@ func TestServicePublishedTracksTheFinalFile(t *testing.T) {
 
 	service, store := newServiceFixture(t)
 
-	assert.False(t, service.Published("never-rendered"))
+	assert.False(t, service.Published(t.Context(), "never-rendered"))
 
 	require.NoError(t, os.WriteFile(store.PreviewPath("p1"), []byte("preview"), 0o600))
 
-	assert.True(t, service.Published("p1"))
+	assert.True(t, service.Published(t.Context(), "p1"))
 }
 
 func TestServiceRenderIntoPublishesUnderThePreviewID(t *testing.T) {
@@ -284,7 +284,11 @@ func TestServiceRenderIntoPublishesUnderThePreviewID(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	assert.True(t, service.Published("p1"), "the preview must be published under its id")
+	assert.True(
+		t,
+		service.Published(t.Context(), "p1"),
+		"the preview must be published under its id",
+	)
 }
 
 func TestServiceRenderIntoSkipsAPreviewThatExists(t *testing.T) {

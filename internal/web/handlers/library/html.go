@@ -41,9 +41,16 @@ type MediaDescriber interface {
 	Describe(ctx context.Context, mediaID string) library.SourceInfo
 }
 
+// OutputStore reports whether a rendered clip is stored.
+type OutputStore interface {
+	// Exists reports whether the object at path exists, without downloading it.
+	Exists(ctx context.Context, path string) bool
+}
+
 // Handler handles HTML page requests.
 type Handler struct {
 	queue   *queue.Queue
+	outputs OutputStore
 	db      *database.DB
 	auth    PlexAuth
 	cfg     *config.Config
@@ -61,6 +68,7 @@ type Handler struct {
 //   - auth: Plex authentication, which owns the selected server.
 //   - cfg: Application configuration.
 //   - sources: Describer for the media a page renders.
+//   - outputs: Storage the media page checks clip files against.
 //
 // Returns:
 //   - handler: A ready-to-use HTML page handler.
@@ -70,9 +78,11 @@ func New(
 	auth PlexAuth,
 	cfg *config.Config,
 	sources MediaDescriber,
+	outputs OutputStore,
 ) *Handler {
 	return &Handler{
 		queue:   jobQueue,
+		outputs: outputs,
 		db:      db,
 		auth:    auth,
 		cfg:     cfg,

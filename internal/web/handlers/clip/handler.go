@@ -85,6 +85,21 @@ func (handler *Handler) lookupJob(ctx context.Context, id string) *clipdom.Job {
 	return catalog.Job(ctx, handler.clipQueue, handler.db, id)
 }
 
+// outputExists returns the check a clip card makes for its rendered file. It
+// asks the configured storage, so a clip rendered elsewhere or before a
+// restart still shows as present, without downloading it.
+//
+// Parameters:
+//   - ctx: Request scope for a storage lookup.
+//
+// Returns:
+//   - exists: Reports whether a rendered file is stored at a path.
+func (handler *Handler) outputExists(ctx context.Context) func(path string) bool {
+	return func(path string) bool {
+		return path != "" && handler.clipStorage.Exists(ctx, path)
+	}
+}
+
 // resolveInput maps a media id onto a local filesystem path.
 //
 // Parameters:

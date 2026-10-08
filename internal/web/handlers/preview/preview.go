@@ -113,7 +113,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	// touching ffmpeg, so repeating the same selection costs nothing. It is
 	// recorded as finished so the page it redirects to can poll a status rather
 	// than an unknown id.
-	if handler.previews.Published(previewID) {
+	if handler.previews.Published(ctx.Context(), previewID) {
 		handler.previews.Remember(previewID)
 
 		return respond.RedirectTo(ctx, previewRedirect(req, previewID))
@@ -189,7 +189,7 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 
 	// The file is only served once it is published, so the URL is withheld until
 	// then rather than pointing at something that is not there.
-	if view.Status == clip.StatusCompleted && handler.previews.Published(view.ID) {
+	if view.Status == clip.StatusCompleted && handler.previews.Published(ctx.Context(), view.ID) {
 		payload["url"] = routes.PathPreviewPrefix + view.ID
 	}
 

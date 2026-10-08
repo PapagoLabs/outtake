@@ -6,7 +6,6 @@ package progress
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -17,11 +16,22 @@ import (
 // key is the context key for a progress callback.
 type key struct{}
 
-// Writer parses ffmpeg stderr and reports percent complete.
+// Writer parses ffmpeg stderr and reports percent complete. It keeps only the
+// tail of what it was written, for error logs, and parses each write once, so a
+// long encode costs the same per write as a short one.
 type Writer struct {
+	// duration is the clip length percent is computed against.
 	duration time.Duration
-	on       func(int)
-	buf      bytes.Buffer
+	// on receives each new percent.
+	on func(int)
+	// tail holds the last TailSize bytes written.
+	tail []byte
+	// partial holds the unfinished line the last write ended with.
+	partial []byte
+	// written counts every byte written.
+	written int
+	// last is the percent most recently reported, -1 before the first.
+	last int
 }
 
 const (
@@ -33,6 +43,17 @@ const (
 
 	// hmsSeparator rejoins an ffmpeg time= match into a parseable timestamp.
 	hmsSeparator = ":"
+
+	// TailSize is how much of ffmpeg's standard error a Writer keeps.
+	TailSize = 64 << 10
+
+	// maxPartial bounds the unfinished line carried between writes. A progress
+	// line is far shorter, so a longer run without a line break holds no
+	// time= worth waiting for.
+	maxPartial = 256
+
+	// noReport marks a writer that has reported nothing yet.
+	noReport = -1
 )
 
 // timePattern matches ffmpeg time=HH:MM:SS.ss progress lines.
@@ -79,66 +100,138 @@ func NewWriter(duration time.Duration, on func(int)) *Writer {
 	return &Writer{
 		duration: duration,
 		on:       on,
-		buf:      bytes.Buffer{},
+		tail:     nil,
+		partial:  nil,
+		written:  0,
+		last:     noReport,
 	}
 }
 
-// Len returns the number of captured stderr bytes.
+// Len returns how many bytes were written, including any no longer kept.
 //
 // Returns:
-//   - n: The captured buffer length.
+//   - n: The total written.
 func (writer *Writer) Len() int {
-	return writer.buf.Len()
+	return writer.written
 }
 
-// String returns the captured stderr text.
+// String returns the kept tail of standard error.
 //
 // Returns:
-//   - text: Bytes written so far as a string.
+//   - text: The last TailSize bytes written.
 func (writer *Writer) String() string {
-	return writer.buf.String()
+	return string(writer.tail)
 }
 
 // Write implements [io.Writer] and reports ffmpeg time= progress.
 //
 // Parameters:
-//   - p: Chunk of ffmpeg standard error.
+//   - chunk: Chunk of ffmpeg standard error.
 //
 // Returns:
-//   - written: Bytes captured into the buffer.
-//   - err: Non-nil when the buffer write failed.
-func (writer *Writer) Write(p []byte) (int, error) {
-	written, err := writer.buf.Write(p)
-	if err != nil {
-		return written, fmt.Errorf("progress write: %w", err)
-	}
+//   - written: Always len(chunk).
+//   - err: Always nil.
+func (writer *Writer) Write(chunk []byte) (int, error) {
+	writer.written += len(chunk)
+	writer.keepTail(chunk)
+	writer.report(chunk)
 
-	writer.report()
-
-	return written, nil
+	return len(chunk), nil
 }
 
-// report publishes the latest parsed percent to the callback.
-func (writer *Writer) report() {
-	if writer.on == nil || writer.duration <= 0 {
+// carry keeps the unfinished end of a chunk for the next write, up to
+// maxPartial bytes.
+//
+// Parameters:
+//   - rest: Bytes after the last line break.
+func (writer *Writer) carry(rest []byte) {
+	if len(rest) > maxPartial {
+		rest = rest[len(rest)-maxPartial:]
+	}
+
+	writer.partial = append(writer.partial[:0:0], rest...)
+}
+
+// keepTail appends a chunk to the tail, dropping the oldest bytes past
+// TailSize.
+//
+// Parameters:
+//   - chunk: Chunk of ffmpeg standard error.
+func (writer *Writer) keepTail(chunk []byte) {
+	if len(chunk) >= TailSize {
+		writer.tail = append(writer.tail[:0], chunk[len(chunk)-TailSize:]...)
+
 		return
 	}
 
-	matches := timePattern.FindAllStringSubmatch(writer.buf.String(), -1)
+	writer.tail = append(writer.tail, chunk...)
+
+	if over := len(writer.tail) - TailSize; over > 0 {
+		kept := copy(writer.tail, writer.tail[over:])
+
+		writer.tail = writer.tail[:kept]
+	}
+}
+
+// percent reads the last time= in complete lines as percent of the clip.
+//
+// Parameters:
+//   - lines: Complete lines of ffmpeg standard error.
+//
+// Returns:
+//   - percent: Percent complete, capped below completion.
+//   - ok: False when the lines carry no readable time=.
+func (writer *Writer) percent(lines []byte) (int, bool) {
+	matches := timePattern.FindAllSubmatch(lines, -1)
 	if len(matches) == 0 {
-		return
+		return 0, false
 	}
 
 	last := matches[len(matches)-1]
 
-	elapsed, err := timecode.Parse(strings.Join(last[1:], hmsSeparator))
+	parts := make([]string, 0, len(last)-1)
+	for _, part := range last[1:] {
+		parts = append(parts, string(part))
+	}
+
+	elapsed, err := timecode.Parse(strings.Join(parts, hmsSeparator))
 	if err != nil {
-		return
+		return 0, false
 	}
 
 	percent := int(elapsed.Duration().Seconds() / writer.duration.Seconds() * percentScale)
 
-	percent = min(max(percent, 0), maxReportedPercent)
+	return min(max(percent, 0), maxReportedPercent), true
+}
 
+// report parses the lines a chunk completes and publishes a changed percent.
+// ffmpeg ends a progress line with a carriage return and other lines with a
+// newline, so either one completes a line.
+//
+// Parameters:
+//   - chunk: Chunk of ffmpeg standard error.
+func (writer *Writer) report(chunk []byte) {
+	if writer.on == nil || writer.duration <= 0 {
+		return
+	}
+
+	text := make([]byte, 0, len(writer.partial)+len(chunk))
+
+	text = append(text, writer.partial...)
+	text = append(text, chunk...)
+
+	end := bytes.LastIndexAny(text, "\r\n")
+	writer.carry(text[end+1:])
+
+	if end < 0 {
+		return
+	}
+
+	percent, ok := writer.percent(text[:end+1])
+	if !ok || percent == writer.last {
+		return
+	}
+
+	writer.last = percent
 	writer.on(percent)
 }

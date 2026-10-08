@@ -57,50 +57,23 @@ func New(
 //   - ctx: Request context carrying the path query parameter.
 //
 // Returns:
-//   - err: Wrapped fetch error, or nil on success.
+//   - err: Wrapped send error, or nil on success.
 func (handler *Handler) Get(ctx fiber.Ctx) error {
 	thumbPath := ctx.Query("path")
 	if !plex.ValidThumbPath(thumbPath) {
 		return respond.SendStatusCode(ctx, fiber.StatusBadRequest)
 	}
 
-	cacheID := library.CacheID(thumbPath)
-	cached := handler.paths.ThumbnailPath(cacheID)
-	if handler.store.FileExists(cached) {
-		err := handler.store.Get(ctx.Context(), cached)
-		if err != nil {
-			return fmt.Errorf("get cached thumb: %w", err)
-		}
-
-		return sendCachedThumb(ctx, cached)
-	}
-
-	err := handler.fetchAndCache(ctx, thumbPath, cacheID, cached)
-	if err != nil {
-		return fmt.Errorf("fetch thumb: %w", err)
-	}
-
-	return nil
-}
-
-// fetchAndCache downloads a thumbnail from Plex and stores it on disk.
-//
-// Parameters:
-//   - ctx: Request context.
-//   - thumbPath: Plex thumbnail path to fetch.
-//   - cacheID: Cache identity derived from thumbPath.
-//   - cached: Local path the thumbnail is stored at.
-//
-// Returns:
-//   - err: Response write error, or nil on success.
-func (handler *Handler) fetchAndCache(
-	ctx fiber.Ctx,
-	thumbPath, cacheID, cached string,
-) error {
-	// Resolve the bound server before fetching the thumbnail.
 	client, server, ok := handler.selected.Client()
 	if !ok {
 		return respond.SendStatusCode(ctx, fiber.StatusBadRequest)
+	}
+
+	cacheID := library.CacheID(plex.SelectionKey(server), thumbPath)
+	cached := handler.paths.ThumbnailPath(cacheID)
+
+	if handler.store.Ensure(ctx.Context(), cached) == nil {
+		return sendCachedThumb(ctx, cached)
 	}
 
 	body, contentType, err := client.GetThumb(ctx.Context(), server, thumbPath)
@@ -108,13 +81,9 @@ func (handler *Handler) fetchAndCache(
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
-	writeErr := handler.store.WriteThumbnail(cacheID, body)
-	if writeErr != nil {
-		return sendThumbBytes(ctx, body, contentType)
-	}
-
-	err = handler.store.Get(ctx.Context(), cached)
-	if err != nil {
+	// The cache write leaves the thumbnail on local disk, so it is served from
+	// there. A thumbnail the cache could not take is still sent.
+	if handler.store.WriteThumbnail(cacheID, body) != nil {
 		return sendThumbBytes(ctx, body, contentType)
 	}
 

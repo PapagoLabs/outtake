@@ -12,10 +12,12 @@ import (
 type Blob interface {
 	// DeleteFile deletes the object identified by path.
 	DeleteFile(path string) error
-	// FileExists reports whether the object identified by path exists.
-	FileExists(path string) bool
-	// Get downloads the object to the local path for ffmpeg or HTTP serving.
-	Get(ctx context.Context, path string) error
+	// Ensure makes the object available at its local path for ffmpeg or HTTP
+	// serving, downloading it only when no local copy exists.
+	Ensure(ctx context.Context, path string) error
+	// Exists reports whether the object identified by path exists, without
+	// downloading it.
+	Exists(ctx context.Context, path string) bool
 	// Put uploads the local path after ffmpeg writes it.
 	Put(ctx context.Context, path string) error
 	// WriteThumbnail stores thumbnail bytes under the given id.

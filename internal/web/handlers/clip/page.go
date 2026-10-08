@@ -13,7 +13,7 @@ import (
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
-	"github.com/PapagoLabs/outtake/internal/plex/library"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
@@ -43,11 +43,12 @@ func (handler *Handler) ClipFile(ctx fiber.Ctx) error {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
-	if !library.FileExists(job.OutputPath) {
+	err := handler.clipStorage.Ensure(ctx.Context(), job.OutputPath)
+	if err != nil {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
-	err := respond.SendRangedFile(ctx, job.OutputPath)
+	err = respond.SendRangedFile(ctx, job.OutputPath)
 	if err != nil {
 		return fmt.Errorf("send clip file: %w", err)
 	}
@@ -73,7 +74,7 @@ func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
 			job,
 			profile.SelectableProfiles(ctx.Context(), handler.db),
 			clipdom.DurationCap(handler.cfg.MaxClipDur),
-			library.FileExists(job.OutputPath),
+			handler.outputExists(ctx.Context())(job.OutputPath),
 		)
 
 		return clipcard.ClipStatus(item).Render(ctx.Context(), writer)
@@ -89,12 +90,18 @@ func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Clips(ctx fiber.Ctx) error {
 	query := parseClipListQuery(ctx)
+	jobs := catalog.Apply(catalog.Jobs(ctx.Context(), handler.clipQueue, handler.db), query)
 	props := pages.ClipsProps{
 		Items: view.NewClipItems(
-			catalog.Apply(catalog.Jobs(ctx.Context(), handler.clipQueue, handler.db), query),
+			jobs,
 			profile.SelectableProfiles(ctx.Context(), handler.db),
 			clipdom.DurationCap(handler.cfg.MaxClipDur),
-			library.FileExists,
+			blob.ExistsEach(
+				ctx.Context(),
+				handler.clipStorage.Exists,
+				clipdom.OutputPaths(jobs),
+				blob.ExistsLimit,
+			),
 		),
 		Status: query.Status,
 		Type:   query.Type,

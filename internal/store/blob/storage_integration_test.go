@@ -113,23 +113,23 @@ func TestIntegration_FilesystemBackendRoundTripsAFile(t *testing.T) {
 
 	target := store.ClipPath("clip-1")
 
-	assert.False(t, store.FileExists(target))
+	assert.False(t, store.Exists(t.Context(), target))
 
 	writeFile(t, target, "rendered clip")
 
-	assert.True(t, store.FileExists(target))
+	assert.True(t, store.Exists(t.Context(), target))
 
 	// The filesystem backend owns the bytes already, so a transfer is a no-op
 	// that must leave the file exactly where it is.
 	require.NoError(t, store.Put(t.Context(), target))
-	require.NoError(t, store.Get(t.Context(), target))
+	require.NoError(t, store.Ensure(t.Context(), target))
 
 	body, err := os.ReadFile(target)
 	require.NoError(t, err)
 	assert.Equal(t, "rendered clip", string(body))
 
 	require.NoError(t, store.DeleteFile(target))
-	assert.False(t, store.FileExists(target))
+	assert.False(t, store.Exists(t.Context(), target))
 
 	require.NoError(t, store.DeleteFile(target), "removing an absent file is not an error")
 }
@@ -154,7 +154,7 @@ func TestIntegration_ThumbnailIsWrittenUnderItsOwnDirectory(t *testing.T) {
 	assert.Equal(t, "replaced", string(body), "a rewritten thumbnail replaces the first")
 
 	require.NoError(t, store.DeleteFile(store.ThumbnailPath("clip-1")))
-	assert.False(t, store.FileExists(store.ThumbnailPath("clip-1")))
+	assert.False(t, store.Exists(t.Context(), store.ThumbnailPath("clip-1")))
 }
 
 func TestIntegration_OutputPathLaysEachClipTypeOut(t *testing.T) {
@@ -193,7 +193,7 @@ func TestIntegration_S3RejectsPathsOutsideTheScratchDirectory(t *testing.T) {
 	base := store.Paths().BasePath()
 
 	outside := filepath.Join(filepath.Dir(base), "escape.mp4")
-	err := store.Get(t.Context(), outside)
+	err := store.Ensure(t.Context(), outside)
 	require.ErrorContains(t, err, "path is outside storage scratch directory")
 
 	err = store.Put(t.Context(), outside)
@@ -202,7 +202,7 @@ func TestIntegration_S3RejectsPathsOutsideTheScratchDirectory(t *testing.T) {
 	err = store.DeleteFile(outside)
 	require.ErrorContains(t, err, "path is outside storage scratch directory")
 
-	err = store.Get(t.Context(), base)
+	err = store.Ensure(t.Context(), base)
 	require.ErrorContains(
 		t,
 		err,
@@ -210,7 +210,7 @@ func TestIntegration_S3RejectsPathsOutsideTheScratchDirectory(t *testing.T) {
 		"the scratch root itself is not a key",
 	)
 
-	err = store.Get(t.Context(), filepath.Join(base, "clips", "..", "..", "escape.mp4"))
+	err = store.Ensure(t.Context(), filepath.Join(base, "clips", "..", "..", "escape.mp4"))
 	require.ErrorContains(
 		t,
 		err,
@@ -218,7 +218,7 @@ func TestIntegration_S3RejectsPathsOutsideTheScratchDirectory(t *testing.T) {
 		"a path that cleans back out is refused",
 	)
 
-	assert.False(t, store.FileExists(outside))
+	assert.False(t, store.Exists(t.Context(), outside))
 	assert.False(t, reached, "a refused path never reaches the endpoint")
 }
 
@@ -272,17 +272,22 @@ func TestIntegration_S3UploadsDownloadsAndDeletesThroughTheEndpoint(t *testing.T
 	require.NoError(t, store.Put(t.Context(), target))
 
 	require.NoError(t, os.Remove(target))
-	assert.True(t, store.FileExists(target),
-		"an object held only by the endpoint is hydrated so the local copy exists again")
+	assert.True(t, store.Exists(t.Context(), target),
+		"an object held only by the endpoint is found there")
+	assert.NoFileExists(t, target, "without being downloaded")
 
-	require.NoError(t, store.Get(t.Context(), target))
+	require.NoError(t, store.Ensure(t.Context(), target))
 
 	body, err := os.ReadFile(target)
 	require.NoError(t, err)
 	assert.Equal(t, objectBody, string(body), "the download landed on the scratch path")
 
 	require.NoError(t, store.DeleteFile(target))
-	assert.False(t, store.FileExists(target), "the remote copy and the local one both went")
+	assert.False(
+		t,
+		store.Exists(t.Context(), target),
+		"the remote copy and the local one both went",
+	)
 }
 
 func TestIntegration_S3ReportsAnObjectTheEndpointDoesNotHold(t *testing.T) {
@@ -294,9 +299,9 @@ func TestIntegration_S3ReportsAnObjectTheEndpointDoesNotHold(t *testing.T) {
 
 	missing := store.Paths().ClipPath("absent")
 
-	assert.False(t, store.FileExists(missing))
+	assert.False(t, store.Exists(t.Context(), missing))
 
-	err := store.Get(t.Context(), missing)
+	err := store.Ensure(t.Context(), missing)
 	require.Error(t, err, "a download of an absent object fails")
 
 	require.NoError(t, store.DeleteFile(missing), "deleting an absent object is tolerated")

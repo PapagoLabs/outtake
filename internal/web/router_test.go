@@ -23,6 +23,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
@@ -846,6 +847,7 @@ func testRouterDeps(t *testing.T, db *database.DB) Deps {
 		Cfg:      cfg,
 		DB:       db,
 		Queue:    queue.NewQueue(1, nil),
+		Blob:     &blob.Storage{},
 		Sessions: database.NewSessionStore(db),
 		Auth: identity.New(
 			"outtake", "test-client", "http://localhost", db, nil,

@@ -47,17 +47,17 @@ func TestStorage_WriteThumbnail(t *testing.T) {
 	store, err := NewStorage(NewPaths(t.TempDir()))
 	require.NoError(t, err)
 	require.NoError(t, store.WriteThumbnail("abc", []byte("jpeg")))
-	assert.True(t, store.FileExists(store.ThumbnailPath("abc")))
+	assert.True(t, store.Exists(t.Context(), store.ThumbnailPath("abc")))
 }
 
-func TestStorage_FileExists(t *testing.T) {
+func TestStorage_Exists(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
 	s, err := NewStorage(NewPaths(dir))
 	require.NoError(t, err)
 
-	assert.False(t, s.FileExists(filepath.Join(dir, "nonexistent")))
+	assert.False(t, s.Exists(t.Context(), filepath.Join(dir, "nonexistent")))
 }
 
 func TestStorage_DeleteFile(t *testing.T) {

@@ -36,6 +36,20 @@ const (
 	migrateTimeout = 30 * time.Second
 )
 
+// SQLite connection settings.
+const (
+	// sqliteOptions configure every pooled connection. WAL lets readers run
+	// beside the one writer, busy_timeout makes a writer wait for the lock
+	// rather than fail, synchronous=NORMAL is durable enough under WAL, and an
+	// immediate transaction takes the write lock up front, so two writers
+	// never deadlock upgrading a read lock.
+	sqliteOptions = "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)" +
+		"&_pragma=synchronous(NORMAL)&_txlock=immediate"
+
+	// sqliteConns is how many connections the pool keeps open.
+	sqliteConns = 4
+)
+
 var (
 	// errUnknownDatabaseBackend rejects an unrecognized database backend.
 	errUnknownDatabaseBackend = errors.New("unknown database backend")
@@ -57,14 +71,20 @@ var migrationsFS embed.FS
 //   - db: A migrated database handle.
 //   - err: Non-nil when the database cannot be opened or migrated.
 func New(dbPath string) (*DB, error) {
-	dsn := "file:" + filepath.Clean(dbPath)
-	conn, err := sql.Open("libsql", dsn)
+	conn, err := sql.Open("libsql", "file:"+filepath.Clean(dbPath)+sqliteOptions)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	conn.SetMaxOpenConns(1)
-	conn.SetMaxIdleConns(1)
+	// Each connection to an in-memory database opens a database of its own, so
+	// one held open is the only way every query sees the same tables.
+	conns := sqliteConns
+	if strings.Contains(dbPath, ":memory:") || strings.Contains(dbPath, "mode=memory") {
+		conns = 1
+	}
+
+	conn.SetMaxOpenConns(conns)
+	conn.SetMaxIdleConns(conns)
 
 	db, err := finishOpen(conn, dialectSQLite)
 	if err != nil {
