@@ -172,3 +172,18 @@ func TestTextAssetsAreCompressed(t *testing.T) {
 		assert.Equal(t, "gzip", header.Get(fiber.HeaderContentEncoding), name)
 	}
 }
+
+// TestTheStylesheetThemesNativeControls covers the list a <select> opens: the
+// page declares its color scheme per theme, so the browser draws native
+// controls to match, and options take the theme's popover colors instead of
+// light text on a light list.
+func TestTheStylesheetThemesNativeControls(t *testing.T) {
+	t.Parallel()
+
+	body := readAsset(t, "css/output.css")
+
+	assert.Contains(t, body, "color-scheme: light")
+	assert.Contains(t, body, "color-scheme: dark")
+	assert.Regexp(t, `option, optgroup \{\s*background-color: var\(--color-popover\);\s*`+
+		`color: var\(--color-popover-foreground\);`, body)
+}

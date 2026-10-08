@@ -63,6 +63,23 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Native controls, such as the list a <select> opens, follow the theme
+     only when the page declares its color scheme. */
+  :root {
+    color-scheme: light;
+  }
+  .dark {
+    color-scheme: dark;
+  }
+
+  /* Chromium draws the open list from the options' own colors, so they are
+     set from the theme rather than inherited from the closed control. */
+  option,
+  optgroup {
+    background-color: var(--color-popover);
+    color: var(--color-popover-foreground);
+  }
 }
 
 @layer components {
