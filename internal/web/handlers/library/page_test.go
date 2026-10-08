@@ -23,6 +23,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/mocks"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -126,6 +127,7 @@ func pageHandler(
 		auth,
 		&config.Config{MaxClipDur: 15 * time.Minute},
 		sources,
+		&blob.Storage{},
 	), db
 }
 

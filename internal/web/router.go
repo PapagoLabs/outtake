@@ -167,6 +167,7 @@ func newRouterHandlers(deps Deps) routerHandlers {
 			plexAuth,
 			deps.Cfg,
 			deps.Sources,
+			deps.Blob,
 		),
 		server: server.New(
 			deps.Queue,

@@ -363,13 +363,13 @@ func TestIntegration_RenderIntoSkipsAPreviewThatIsAlreadyPublished(t *testing.T)
 
 	service, store := previewService(t)
 
-	assert.False(t, service.Published("preview-1"))
+	assert.False(t, service.Published(t.Context(), "preview-1"))
 
 	output := service.OutputPath("preview-1")
 	require.Equal(t, store.PreviewPath("preview-1"), output)
 
 	require.NoError(t, os.WriteFile(output, []byte("already rendered"), 0o644))
-	assert.True(t, store.FileExists(output))
+	assert.True(t, store.Exists(t.Context(), output))
 
 	require.NoError(
 		t,
@@ -382,7 +382,7 @@ func TestIntegration_RenderIntoSkipsAPreviewThatIsAlreadyPublished(t *testing.T)
 		),
 	)
 
-	assert.True(t, store.FileExists(output), "the cached preview was left alone")
+	assert.True(t, store.Exists(t.Context(), output), "the cached preview was left alone")
 }
 
 func TestIntegration_DiscardedRendersLeaveNothingBehind(t *testing.T) {
@@ -394,7 +394,7 @@ func TestIntegration_DiscardedRendersLeaveNothingBehind(t *testing.T) {
 	require.NoError(t, os.WriteFile(published, []byte("upload failed"), 0o644))
 
 	require.NoError(t, preview.DiscardPublished(store, published))
-	assert.False(t, store.FileExists(published))
+	assert.False(t, store.Exists(t.Context(), published))
 
 	require.NoError(t, preview.DiscardPublished(store, published))
 }

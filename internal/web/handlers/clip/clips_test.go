@@ -19,6 +19,7 @@ import (
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
@@ -38,9 +39,10 @@ func clipRowTestHandler(t *testing.T, jobs ...*clipdom.Job) *Handler {
 	t.Cleanup(func() { _ = db.Close() })
 
 	return &Handler{
-		clipQueue: queueForTest(t, jobs...),
-		db:        db,
-		cfg:       &config.Config{MaxClipDur: 15 * time.Minute},
+		clipQueue:   queueForTest(t, jobs...),
+		clipStorage: &blob.Storage{},
+		db:          db,
+		cfg:         &config.Config{MaxClipDur: 15 * time.Minute},
 	}
 }
 

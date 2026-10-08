@@ -45,7 +45,7 @@ func (handler *Handler) Download(ctx fiber.Ctx) error {
 		)
 	}
 
-	if !handler.clipStorage.FileExists(job.OutputPath) {
+	if handler.clipStorage.Ensure(ctx.Context(), job.OutputPath) != nil {
 		return respond.WriteError(
 			ctx,
 			fiber.StatusNotFound,

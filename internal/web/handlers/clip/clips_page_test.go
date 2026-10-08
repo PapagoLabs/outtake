@@ -4,18 +4,24 @@
 package clip
 
 import (
+	"context"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
 
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
+	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -292,4 +298,76 @@ func TestParseClipListQueryNormalizesAnEmptyForm(t *testing.T) {
 	assert.Empty(t, query.Query)
 	assert.Empty(t, query.Status)
 	assert.Equal(t, catalog.SortCreatedDesc, query.Sort)
+}
+
+// storedOnlyRemotely stores a finished clip whose file the configured storage
+// holds but this host does not, as on S3 after a restart.
+//
+// Parameters:
+//   - t: The test the clip belongs to.
+//
+// Returns:
+//   - handler: A clips handler over a mocked store.
+//   - store: The mocked store.
+//   - output: Where the clip's file lands once fetched.
+func storedOnlyRemotely(t *testing.T) (*Handler, *storagemocks.MockBlob, string) {
+	t.Helper()
+
+	handler, db := clipPageHandler(t)
+
+	store := storagemocks.NewMockBlob(t)
+
+	handler.clipStorage = store
+
+	output := filepath.Join(t.TempDir(), "remote.mp4")
+
+	job := testClipJob("remote", clipdom.TypeClip)
+
+	job.OutputPath = output
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	return handler, store, output
+}
+
+// TestClipFileFetchesAFileOnlyTheStoreHolds covers inline playback on S3: the
+// file is fetched to local disk and streamed.
+func TestClipFileFetchesAFileOnlyTheStoreHolds(t *testing.T) {
+	t.Parallel()
+
+	handler, store, output := storedOnlyRemotely(t)
+
+	store.EXPECT().Ensure(mock.Anything, output).RunAndReturn(func(context.Context, string) error {
+		return os.WriteFile(output, []byte("video"), 0o600)
+	}).Once()
+
+	answer := getClips(t, handler, "/clips/remote/file", "")
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.Equal(t, "video", answer.body)
+}
+
+// TestClipFileRejectsAFileTheStoreCannotFetch covers a file gone from storage.
+func TestClipFileRejectsAFileTheStoreCannotFetch(t *testing.T) {
+	t.Parallel()
+
+	handler, store, output := storedOnlyRemotely(t)
+
+	store.EXPECT().Ensure(mock.Anything, output).Return(fs.ErrNotExist).Once()
+
+	assert.Equal(t, fiber.StatusNotFound, getClips(t, handler, "/clips/remote/file", "").status)
+}
+
+// TestClipsAsksTheStoreWhetherAFileExists covers the card badge on S3: a file
+// the store holds is not reported missing, and nothing is downloaded to say so.
+func TestClipsAsksTheStoreWhetherAFileExists(t *testing.T) {
+	t.Parallel()
+
+	handler, store, output := storedOnlyRemotely(t)
+
+	store.EXPECT().Exists(mock.Anything, output).Return(true)
+
+	answer := getClips(t, handler, routes.PathClips, "")
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.NotContains(t, answer.body, "Missing file")
 }

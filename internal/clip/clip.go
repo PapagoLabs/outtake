@@ -58,6 +58,22 @@ func Types() []Type {
 	return []Type{TypeClip, TypeGIF, TypeScreenshot}
 }
 
+// OutputPaths lists the rendered file of each job, in order.
+//
+// Parameters:
+//   - jobs: The jobs to read.
+//
+// Returns:
+//   - paths: Each job's output path, empty for a job with none.
+func OutputPaths(jobs []*Job) []string {
+	paths := make([]string, 0, len(jobs))
+	for _, job := range jobs {
+		paths = append(paths, job.OutputPath)
+	}
+
+	return paths
+}
+
 // ParseType resolves a requested clip type.
 //
 // Parameters:

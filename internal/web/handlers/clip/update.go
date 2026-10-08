@@ -14,7 +14,6 @@ import (
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
-	"github.com/PapagoLabs/outtake/internal/plex/library"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
@@ -188,7 +187,7 @@ func (handler *Handler) respondWithClipCard(ctx fiber.Ctx, job *clipdom.Job) err
 			job,
 			profile.SelectableProfiles(ctx.Context(), handler.db),
 			clipdom.DurationCap(handler.cfg.MaxClipDur),
-			library.FileExists(job.OutputPath),
+			handler.outputExists(ctx.Context())(job.OutputPath),
 		)
 
 		return clipcard.ClipCard(item).Render(ctx.Context(), writer)

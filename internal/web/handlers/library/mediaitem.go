@@ -16,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 	"github.com/PapagoLabs/outtake/internal/web/exportform"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
@@ -139,11 +140,17 @@ func (handler *Handler) clipsForMedia(
 	source library.SourceInfo,
 	query catalog.ClipListQuery,
 ) []view.ClipItem {
+	jobs := catalog.Apply(catalog.ForMedia(ctx.Context(), handler.db, mediaID), query)
 	clips := view.NewClipItems(
-		catalog.Apply(catalog.ForMedia(ctx.Context(), handler.db, mediaID), query),
+		jobs,
 		profile.SelectableProfiles(ctx.Context(), handler.db),
 		clip.DurationCap(handler.cfg.MaxClipDur),
-		library.FileExists,
+		blob.ExistsEach(
+			ctx.Context(),
+			handler.outputs.Exists,
+			clip.OutputPaths(jobs),
+			blob.ExistsLimit,
+		),
 	)
 
 	for index := range clips {

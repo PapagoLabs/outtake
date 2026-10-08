@@ -4,6 +4,7 @@
 package blob
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -25,10 +26,12 @@ func TestBlob_FilesystemRoundTrip(t *testing.T) {
 	path := paths.ClipPath("clip-1")
 	require.NoError(t, os.WriteFile(path, []byte("mp4"), filePermissions))
 	require.NoError(t, blob.Put(t.Context(), path))
-	require.NoError(t, blob.Get(t.Context(), path))
-	assert.True(t, blob.FileExists(path))
+	require.NoError(t, blob.Ensure(t.Context(), path))
+	assert.True(t, blob.Exists(t.Context(), path))
 	require.NoError(t, blob.DeleteFile(path))
-	assert.False(t, blob.FileExists(path))
+	assert.False(t, blob.Exists(t.Context(), path))
+	require.ErrorIs(t, blob.Ensure(t.Context(), path), fs.ErrNotExist,
+		"a file that is gone cannot be served")
 }
 
 func TestNewStorage_RejectsUnwritableBase(t *testing.T) {

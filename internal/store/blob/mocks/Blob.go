@@ -100,63 +100,12 @@ func (_c *MockBlob_DeleteFile_Call) RunAndReturn(run func(path string) error) *M
 	return _c
 }
 
-// FileExists provides a mock function for the type MockBlob
-func (_mock *MockBlob) FileExists(path string) bool {
-	ret := _mock.Called(path)
-
-	if len(ret) == 0 {
-		panic("no return value specified for FileExists")
-	}
-
-	var r0 bool
-	if returnFunc, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = returnFunc(path)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-	return r0
-}
-
-// MockBlob_FileExists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FileExists'
-type MockBlob_FileExists_Call struct {
-	*mock.Call
-}
-
-// FileExists is a helper method to define mock.On call
-//   - path string
-func (_e *MockBlob_Expecter) FileExists(path any) *MockBlob_FileExists_Call {
-	return &MockBlob_FileExists_Call{Call: _e.mock.On("FileExists", path)}
-}
-
-func (_c *MockBlob_FileExists_Call) Run(run func(path string)) *MockBlob_FileExists_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockBlob_FileExists_Call) Return(b bool) *MockBlob_FileExists_Call {
-	_c.Call.Return(b)
-	return _c
-}
-
-func (_c *MockBlob_FileExists_Call) RunAndReturn(run func(path string) bool) *MockBlob_FileExists_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Get provides a mock function for the type MockBlob
-func (_mock *MockBlob) Get(ctx context.Context, path string) error {
+// Ensure provides a mock function for the type MockBlob
+func (_mock *MockBlob) Ensure(ctx context.Context, path string) error {
 	ret := _mock.Called(ctx, path)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Get")
+		panic("no return value specified for Ensure")
 	}
 
 	var r0 error
@@ -168,19 +117,19 @@ func (_mock *MockBlob) Get(ctx context.Context, path string) error {
 	return r0
 }
 
-// MockBlob_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
-type MockBlob_Get_Call struct {
+// MockBlob_Ensure_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Ensure'
+type MockBlob_Ensure_Call struct {
 	*mock.Call
 }
 
-// Get is a helper method to define mock.On call
+// Ensure is a helper method to define mock.On call
 //   - ctx context.Context
 //   - path string
-func (_e *MockBlob_Expecter) Get(ctx any, path any) *MockBlob_Get_Call {
-	return &MockBlob_Get_Call{Call: _e.mock.On("Get", ctx, path)}
+func (_e *MockBlob_Expecter) Ensure(ctx any, path any) *MockBlob_Ensure_Call {
+	return &MockBlob_Ensure_Call{Call: _e.mock.On("Ensure", ctx, path)}
 }
 
-func (_c *MockBlob_Get_Call) Run(run func(ctx context.Context, path string)) *MockBlob_Get_Call {
+func (_c *MockBlob_Ensure_Call) Run(run func(ctx context.Context, path string)) *MockBlob_Ensure_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -198,12 +147,69 @@ func (_c *MockBlob_Get_Call) Run(run func(ctx context.Context, path string)) *Mo
 	return _c
 }
 
-func (_c *MockBlob_Get_Call) Return(err error) *MockBlob_Get_Call {
+func (_c *MockBlob_Ensure_Call) Return(err error) *MockBlob_Ensure_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockBlob_Get_Call) RunAndReturn(run func(ctx context.Context, path string) error) *MockBlob_Get_Call {
+func (_c *MockBlob_Ensure_Call) RunAndReturn(run func(ctx context.Context, path string) error) *MockBlob_Ensure_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Exists provides a mock function for the type MockBlob
+func (_mock *MockBlob) Exists(ctx context.Context, path string) bool {
+	ret := _mock.Called(ctx, path)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Exists")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) bool); ok {
+		r0 = returnFunc(ctx, path)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockBlob_Exists_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Exists'
+type MockBlob_Exists_Call struct {
+	*mock.Call
+}
+
+// Exists is a helper method to define mock.On call
+//   - ctx context.Context
+//   - path string
+func (_e *MockBlob_Expecter) Exists(ctx any, path any) *MockBlob_Exists_Call {
+	return &MockBlob_Exists_Call{Call: _e.mock.On("Exists", ctx, path)}
+}
+
+func (_c *MockBlob_Exists_Call) Run(run func(ctx context.Context, path string)) *MockBlob_Exists_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockBlob_Exists_Call) Return(b bool) *MockBlob_Exists_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockBlob_Exists_Call) RunAndReturn(run func(ctx context.Context, path string) bool) *MockBlob_Exists_Call {
 	_c.Call.Return(run)
 	return _c
 }

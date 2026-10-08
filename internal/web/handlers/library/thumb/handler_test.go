@@ -6,6 +6,7 @@ package thumb
 import (
 	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -37,27 +38,48 @@ type thumbAnswer struct {
 	ctype    string
 }
 
+// testThumbPath is the Plex thumbnail path the tests request.
+const testThumbPath = "/library/metadata/100/thumb/1"
+
 // errStoreClosed reports a blob store that cannot be written to.
 var errStoreClosed = errors.New("object store is closed")
 
 // thumbAnswer is what one served thumbnail request produced.
 
-// seedThumbPath writes a cached thumbnail file the handler can serve.
+// cacheIDFor returns the cache id a server's testThumbPath is filed under.
 //
 // Parameters:
-//   - t: The test the thumbnail belongs to.
-//   - paths: Path layout the handler reads the cache through.
-//   - thumbPath: Plex thumbnail path the cache entry stands in for.
+//   - server: The Plex server the thumbnail comes from.
 //
 // Returns:
-//   - cached: The local path that was written.
-func seedThumbPath(t *testing.T, paths blob.Paths, thumbPath string) string {
+//   - id: The cache id.
+func cacheIDFor(server plex.Server) string {
+	return library.CacheID(plex.SelectionKey(server), testThumbPath)
+}
+
+// boundServer returns a selection bound to a server no request reaches.
+//
+// Parameters:
+//   - t: The test the selection belongs to.
+//
+// Returns:
+//   - selected: A selection answering with the server.
+//   - server: The bound server.
+func boundServer(t *testing.T) (*mocks.MockServerSelection, plex.Server) {
 	t.Helper()
 
-	cached := paths.ThumbnailPath(library.CacheID(thumbPath))
-	seedCacheFile(t, cached, "cached-bytes")
+	server := plex.Server{
+		Name:      "Attic",
+		Address:   "127.0.0.1",
+		Port:      1,
+		Scheme:    "http",
+		MachineID: "machine-1",
+	}
 
-	return cached
+	selected := mocks.NewMockServerSelection(t)
+	selected.EXPECT().Client().Return(plex.NewClient(plex.ClientConfig{}), server, true)
+
+	return selected, server
 }
 
 // seedCacheFile writes a cache file the handler can send.
@@ -239,37 +261,44 @@ func TestGetRejectsAnEmptyPathParameter(t *testing.T) {
 func TestGetServesTheCachedThumbnail(t *testing.T) {
 	t.Parallel()
 
+	selected, server := boundServer(t)
+
 	paths := blob.NewPaths(t.TempDir())
-	cached := seedThumbPath(t, paths, "/library/metadata/100/thumb/1")
+	cached := paths.ThumbnailPath(cacheIDFor(server))
+	seedCacheFile(t, cached, "cached-bytes")
 
 	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(true)
-	store.EXPECT().Get(mock.Anything, cached).Return(nil)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(nil)
 
-	got := getThumb(t, New(store, paths, mocks.NewMockServerSelection(t)),
-		thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
 	require.Equal(t, fiber.StatusOK, got.status)
 	assert.Equal(t, "cached-bytes", got.body)
 	assert.Equal(t, library.CacheControl, got.cacheCtl,
-		"a cached thumbnail is safe to hold for a week")
+		"a cached thumbnail is safe for the browser to hold for a week")
 }
 
-func TestGetReportsACacheReadFailure(t *testing.T) {
+func TestGetKeepsEachServersThumbnailsApart(t *testing.T) {
 	t.Parallel()
 
+	selected, server := boundServer(t)
+
+	other := server
+
+	other.MachineID = "machine-2"
+
 	paths := blob.NewPaths(t.TempDir())
-	cached := seedThumbPath(t, paths, "/library/metadata/100/thumb/1")
+	seedCacheFile(t, paths.ThumbnailPath(cacheIDFor(other)), "other-server")
+
+	cached := paths.ThumbnailPath(cacheIDFor(server))
+	seedCacheFile(t, cached, "this-server")
 
 	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(true)
-	store.EXPECT().Get(mock.Anything, cached).Return(errStoreClosed)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(nil)
 
-	got := getThumb(t, New(store, paths, mocks.NewMockServerSelection(t)),
-		thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
-	assert.Equal(t, fiber.StatusInternalServerError, got.status,
-		"a cache entry that cannot be downloaded is a server failure, not a miss")
+	assert.Equal(t, "this-server", got.body, "a poster cached for another server is not served")
 }
 
 func TestGetFetchesAndCachesTheThumbnail(t *testing.T) {
@@ -279,23 +308,49 @@ func TestGetFetchesAndCachesTheThumbnail(t *testing.T) {
 	client, server := pmsFor(t, ts)
 
 	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/library/metadata/100/thumb/1"))
-	seedCacheFile(t, cached, "fetched-bytes")
+	cached := paths.ThumbnailPath(cacheIDFor(server))
 
 	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(false)
-	store.EXPECT().WriteThumbnail(library.CacheID("/library/metadata/100/thumb/1"),
-		[]byte("thumb-bytes")).Return(nil)
-	store.EXPECT().Get(mock.Anything, cached).Return(nil)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(fs.ErrNotExist)
+	store.EXPECT().WriteThumbnail(cacheIDFor(server), []byte("thumb-bytes")).
+		RunAndReturn(func(string, []byte) error {
+			seedCacheFile(t, cached, "fetched-bytes")
+
+			return nil
+		})
 
 	selected := mocks.NewMockServerSelection(t)
 	selected.EXPECT().Client().Return(client, server, true)
 
-	got := getThumb(t, New(store, paths, selected), thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
 	require.Equal(t, fiber.StatusOK, got.status)
-	assert.Equal(t, "fetched-bytes", got.body, "the freshly cached file is what is served")
+	assert.Equal(t, "fetched-bytes", got.body,
+		"the file the cache wrote is served, without fetching it back from storage")
 	assert.Equal(t, library.CacheControl, got.cacheCtl)
+}
+
+func TestGetFetchesWhenTheCacheCannotBeRead(t *testing.T) {
+	t.Parallel()
+
+	ts := thumbServer(t, http.StatusOK, "image/png", "thumb-bytes")
+	client, server := pmsFor(t, ts)
+
+	paths := blob.NewPaths(t.TempDir())
+	cached := paths.ThumbnailPath(cacheIDFor(server))
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(errStoreClosed)
+	store.EXPECT().WriteThumbnail(cacheIDFor(server), []byte("thumb-bytes")).
+		Return(errStoreClosed)
+
+	selected := mocks.NewMockServerSelection(t)
+	selected.EXPECT().Client().Return(client, server, true)
+
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
+
+	require.Equal(t, fiber.StatusOK, got.status, "an unreadable cache is a miss, not a failure")
+	assert.Equal(t, "thumb-bytes", got.body)
 }
 
 func TestGetFallsBackToTheFetchedBytesWhenTheCacheCannotBeWritten(t *testing.T) {
@@ -305,17 +360,17 @@ func TestGetFallsBackToTheFetchedBytesWhenTheCacheCannotBeWritten(t *testing.T) 
 	client, server := pmsFor(t, ts)
 
 	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/library/metadata/100/thumb/1"))
+	cached := paths.ThumbnailPath(cacheIDFor(server))
 
 	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(false)
-	store.EXPECT().WriteThumbnail(library.CacheID("/library/metadata/100/thumb/1"),
-		[]byte("thumb-bytes")).Return(errStoreClosed)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(fs.ErrNotExist)
+	store.EXPECT().WriteThumbnail(cacheIDFor(server), []byte("thumb-bytes")).
+		Return(errStoreClosed)
 
 	selected := mocks.NewMockServerSelection(t)
 	selected.EXPECT().Client().Return(client, server, true)
 
-	got := getThumb(t, New(store, paths, selected), thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
 	require.Equal(t, fiber.StatusOK, got.status,
 		"the poster still renders even though nothing was cached")
@@ -325,47 +380,17 @@ func TestGetFallsBackToTheFetchedBytesWhenTheCacheCannotBeWritten(t *testing.T) 
 		"the browser cache header is set on the direct send too")
 }
 
-func TestGetFallsBackToTheFetchedBytesWhenTheCacheCannotBeRead(t *testing.T) {
+func TestGetRejectsARequestWithNoServerBound(t *testing.T) {
 	t.Parallel()
-
-	ts := thumbServer(t, http.StatusOK, "image/png", "thumb-bytes")
-	client, server := pmsFor(t, ts)
-
-	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/library/metadata/100/thumb/1"))
-
-	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(false)
-	store.EXPECT().WriteThumbnail(library.CacheID("/library/metadata/100/thumb/1"),
-		[]byte("thumb-bytes")).Return(nil)
-	store.EXPECT().Get(mock.Anything, cached).Return(errStoreClosed)
-
-	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(client, server, true)
-
-	got := getThumb(t, New(store, paths, selected), thumbQuery("/library/metadata/100/thumb/1"))
-
-	require.Equal(t, fiber.StatusOK, got.status)
-	assert.Equal(t, "thumb-bytes", got.body)
-	assert.Equal(t, "image/png", got.ctype)
-	assert.Equal(t, library.CacheControl, got.cacheCtl)
-}
-
-func TestGetRejectsAFetchWithNoServerBound(t *testing.T) {
-	t.Parallel()
-
-	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/library/metadata/100/thumb/1"))
-
-	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(false)
 
 	selected := mocks.NewMockServerSelection(t)
 	selected.EXPECT().Client().Return(nil, plex.EmptyServer(), false)
 
-	got := getThumb(t, New(store, paths, selected), thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(storagemocks.NewMockBlob(t), blob.NewPaths(t.TempDir()), selected),
+		thumbQuery(testThumbPath))
 
-	assert.Equal(t, fiber.StatusBadRequest, got.status)
+	assert.Equal(t, fiber.StatusBadRequest, got.status,
+		"the cache is keyed by server, so nothing is looked up without one")
 }
 
 func TestGetReportsAMissingThumbnailOnTheServer(t *testing.T) {
@@ -375,15 +400,15 @@ func TestGetReportsAMissingThumbnailOnTheServer(t *testing.T) {
 	client, server := pmsFor(t, ts)
 
 	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/library/metadata/100/thumb/1"))
+	cached := paths.ThumbnailPath(cacheIDFor(server))
 
 	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(false)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(fs.ErrNotExist)
 
 	selected := mocks.NewMockServerSelection(t)
 	selected.EXPECT().Client().Return(client, server, true)
 
-	got := getThumb(t, New(store, paths, selected), thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
 	assert.Equal(t, fiber.StatusNotFound, got.status,
 		"an asset the server does not have is not found")
@@ -392,40 +417,40 @@ func TestGetReportsAMissingThumbnailOnTheServer(t *testing.T) {
 func TestGetReportsACachedFileThatVanished(t *testing.T) {
 	t.Parallel()
 
+	selected, server := boundServer(t)
+
 	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/library/metadata/100/thumb/1"))
+	cached := paths.ThumbnailPath(cacheIDFor(server))
 
 	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(true)
-	store.EXPECT().Get(mock.Anything, cached).Return(nil)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(nil)
 
-	got := getThumb(t, New(store, paths, mocks.NewMockServerSelection(t)),
-		thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
 	assert.Equal(t, fiber.StatusNotFound, got.status,
 		"the store promised a file it cannot send, so the send fails rather than "+
 			"silently answering with something else")
 }
 
-func TestGetReportsAFetchedThumbnailTheStoreCouldNotWrite(t *testing.T) {
+func TestGetReportsAFetchedThumbnailTheStoreDidNotLeaveOnDisk(t *testing.T) {
 	t.Parallel()
 
 	ts := thumbServer(t, http.StatusOK, "image/png", "thumb-bytes")
 	client, server := pmsFor(t, ts)
 
 	paths := blob.NewPaths(t.TempDir())
-	cached := paths.ThumbnailPath(library.CacheID("/library/metadata/100/thumb/1"))
+	cached := paths.ThumbnailPath(cacheIDFor(server))
 
 	store := storagemocks.NewMockBlob(t)
-	store.EXPECT().FileExists(cached).Return(false)
-	store.EXPECT().WriteThumbnail(library.CacheID("/library/metadata/100/thumb/1"),
-		[]byte("thumb-bytes")).Return(nil)
-	store.EXPECT().Get(mock.Anything, cached).Return(nil)
+	store.EXPECT().Ensure(mock.Anything, cached).Return(fs.ErrNotExist)
+	store.EXPECT().
+		WriteThumbnail(cacheIDFor(server), []byte("thumb-bytes")).
+		Return(nil)
 
 	selected := mocks.NewMockServerSelection(t)
 	selected.EXPECT().Client().Return(client, server, true)
 
-	got := getThumb(t, New(store, paths, selected), thumbQuery("/library/metadata/100/thumb/1"))
+	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
 	assert.Equal(t, fiber.StatusNotFound, got.status,
 		"a fetch that cannot be written or sent is reported, not silently dropped")
