@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang docker tag to v1.27.2 by @renovate[bot] in [#373](https://github.com/PapagoLabs/outtake/pull/373)
+- Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#372](https://github.com/PapagoLabs/outtake/pull/372)
 - Update go module directive to v1.27.2 by @renovate[bot] in [#366](https://github.com/PapagoLabs/outtake/pull/366)
 - Update github/codeql-action action to v4.38.3 by @renovate[bot] in [#362](https://github.com/PapagoLabs/outtake/pull/362)
 - Update step-security/harden-runner action to v2.22.1 by @renovate[bot] in [#353](https://github.com/PapagoLabs/outtake/pull/353)
