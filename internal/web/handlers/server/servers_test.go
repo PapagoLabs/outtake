@@ -183,6 +183,7 @@ func discoveredAuth(t *testing.T, err error) *mocks.MockPlexAuth {
 	})
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().Client().Return(stub.client, stub.server, true).Maybe()
 	auth.EXPECT().Selected().Return(plex.EmptyServer(), false).Maybe()
 
@@ -267,6 +268,7 @@ func TestServersOffersToForgetTheServerInUse(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().Selected().Return(plex.Server{Name: "Attic"}, true).Maybe()
 
 	answer := getServers(t, pageHandler(t, auth, silentSources(t)))
@@ -292,6 +294,7 @@ func TestForgetServerReturnsToTheServerPicker(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().ForgetServer(mock.Anything).Return(nil).Once()
 
 	app := fiber.New()
@@ -309,6 +312,7 @@ func TestForgetServerReportsAServerItCouldNotForget(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().ForgetServer(mock.Anything).Return(errSelectFailed).Once()
 
 	app := fiber.New()
@@ -325,6 +329,7 @@ func TestSelectServerBindsTheChosenConnection(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().ChooseServer(mock.Anything, mock.Anything, "machine-1 http://10.0.0.9:32400").
 		Return(boundServer, nil).Once()
 	auth.EXPECT().Select(mock.Anything, boundServer).Return(nil).Once()
@@ -341,6 +346,7 @@ func TestSelectServerBindsAVerifiedCustomURL(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().ChooseCustomURL(mock.Anything, mock.Anything, "https://plex.example.com").
 		Return(boundServer, nil).Once()
 	auth.EXPECT().Select(mock.Anything, boundServer).Return(nil).Once()
@@ -356,6 +362,7 @@ func TestSelectServerDiscoversWithTheSessionTokenAndIgnoresAPostedOne(t *testing
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().ChooseCustomURL(mock.Anything, "session-token", "https://plex.example.com").
 		Return(boundServer, nil).Once()
 	auth.EXPECT().Select(mock.Anything, boundServer).Return(nil).Once()
@@ -392,6 +399,7 @@ func TestSelectServerExplainsARefusedChoice(t *testing.T) {
 
 			// Select has no expectation, so a refused choice that binds fails the test.
 			auth := mocks.NewMockPlexAuth(t)
+			auth.EXPECT().TokenRejected().Return(false).Maybe()
 			auth.EXPECT().ChooseCustomURL(mock.Anything, mock.Anything, mock.Anything).
 				Return(plex.EmptyServer(), test.err).Once()
 
@@ -409,6 +417,7 @@ func TestSelectServerStillLandsOnTheDashboardWhenTheChoiceCannotBeSaved(t *testi
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().
 		ChooseServer(mock.Anything, mock.Anything, mock.Anything).
 		Return(boundServer, nil).
@@ -481,4 +490,30 @@ func discoverWithCookies(
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&servers))
 
 	return servers
+}
+
+// TestServersExplainsARefusedToken covers a bound server that refuses its
+// stored token: the page says so and how to recover, and says nothing while
+// the token works.
+func TestServersExplainsARefusedToken(t *testing.T) {
+	t.Parallel()
+
+	for _, rejected := range []bool{true, false} {
+		auth := mocks.NewMockPlexAuth(t)
+		auth.EXPECT().TokenRejected().Return(rejected).Maybe()
+		auth.EXPECT().Selected().Return(plex.Server{Name: "Attic"}, true).Maybe()
+
+		answer := getServers(t, pageHandler(t, auth, silentSources(t)))
+
+		require.Equal(t, fiber.StatusOK, answer.status)
+
+		if rejected {
+			assertBodyContains(t, answer.body, "data-token-rejected",
+				"a refused token is explained on the page that fixes it")
+
+			continue
+		}
+
+		assertBodyOmits(t, answer.body, "data-token-rejected", "a working token needs no notice")
+	}
 }

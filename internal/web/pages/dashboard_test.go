@@ -61,7 +61,7 @@ func TestLiveSessionsEmptyState(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := LiveSessions(nil).Render(t.Context(), &buf)
+	err := LiveSessions(nil, false).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
@@ -79,7 +79,7 @@ func TestLiveSessionsOmitsClipNowWithoutAMediaItem(t *testing.T) {
 		ID:    "sess-3",
 		Parts: []view.Crumb{{Title: "Movie"}},
 		Year:  1995,
-	}}).Render(t.Context(), &buf)
+	}}, false).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
@@ -156,7 +156,7 @@ func TestLiveSessions(t *testing.T) {
 
 			var buf strings.Builder
 
-			err := LiveSessions(test.give).Render(t.Context(), &buf)
+			err := LiveSessions(test.give, false).Render(t.Context(), &buf)
 			require.NoError(t, err)
 
 			body := buf.String()

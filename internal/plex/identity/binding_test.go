@@ -110,3 +110,11 @@ func TestBindingClearWithoutAMonitor(t *testing.T) {
 	_, ok := bind.Get()
 	assert.False(t, ok, "a binding that never monitored has nothing to stop")
 }
+
+// TestBindingReportsNoRefusedTokenWithoutAServer covers an unbound
+// installation: with no server there is no poll, so no token was refused.
+func TestBindingReportsNoRefusedTokenWithoutAServer(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, NewBinding("outtake", "test", time.Second).TokenRejected())
+}

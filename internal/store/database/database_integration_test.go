@@ -407,12 +407,13 @@ func TestIntegration_SelectedServerIsASingleRow(t *testing.T) {
 	assert.Equal(t, plex.EmptyServer(), server)
 
 	require.NoError(t, db.SaveSelectedServer(t.Context(), plex.Server{
-		Name:    "Test Server",
-		Address: "127.0.0.1",
-		Port:    32400,
-		Token:   "server-token",
-		Scheme:  "http",
-		Local:   true,
+		Name:      "Test Server",
+		Address:   "127.0.0.1",
+		Port:      32400,
+		Token:     "server-token",
+		Scheme:    "http",
+		Local:     true,
+		MachineID: "machine-1",
 	}))
 
 	server, found, err = db.SelectedServer(t.Context())
@@ -420,6 +421,7 @@ func TestIntegration_SelectedServerIsASingleRow(t *testing.T) {
 	require.True(t, found)
 	assert.Equal(t, "Test Server", server.Name)
 	assert.Equal(t, "server-token", server.Token)
+	assert.Equal(t, "machine-1", server.MachineID, "the machine id lets sign-in refresh the token")
 
 	require.NoError(t, db.SaveSelectedServer(t.Context(), plex.Server{
 		Name:    "Replacement",

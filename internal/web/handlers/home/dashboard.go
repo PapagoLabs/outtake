@@ -26,11 +26,12 @@ func (handler *Handler) Dashboard(ctx fiber.Ctx) error {
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Dashboard(pages.DashboardProps{
-			TotalClips:   stats.Total,
-			PendingClips: stats.Pending,
-			Completed:    stats.Completed,
-			Failed:       stats.Failed,
-			Sessions:     view.SessionItems(handler.auth.Sessions()),
+			TotalClips:    stats.Total,
+			PendingClips:  stats.Pending,
+			Completed:     stats.Completed,
+			Failed:        stats.Failed,
+			Sessions:      view.SessionItems(handler.auth.Sessions()),
+			TokenRejected: handler.auth.TokenRejected(),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -44,7 +45,9 @@ func (handler *Handler) Dashboard(ctx fiber.Ctx) error {
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) DashboardSessions(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.LiveSessions(view.SessionItems(handler.auth.Sessions())).
-			Render(ctx.Context(), writer)
+		return pages.LiveSessions(
+			view.SessionItems(handler.auth.Sessions()),
+			handler.auth.TokenRejected(),
+		).Render(ctx.Context(), writer)
 	})
 }

@@ -73,6 +73,7 @@ func playbackAuth(t *testing.T, sessions []plex.Session) *mocks.MockPlexAuth {
 	t.Helper()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().Sessions().Return(sessions)
 
 	return auth

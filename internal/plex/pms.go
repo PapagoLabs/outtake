@@ -48,7 +48,8 @@ func serverBaseURL(server Server) string {
 //
 // Returns:
 //   - resp: The PMS response.
-//   - err: ErrServerReturnedError for a failure status, or a request error.
+//   - err: ErrServerReturnedError for a failure status, also wrapping
+//     ErrUnauthorized when the server rejected the token, or a request error.
 func (client *Client) getPMS(
 	ctx context.Context,
 	server Server,
@@ -73,11 +74,14 @@ func (client *Client) getPMS(
 		return nil, fmt.Errorf("pms request: %w", err)
 	}
 
-	if resp.StatusCode() >= http.StatusBadRequest {
-		return nil, fmt.Errorf("%w %d", ErrServerReturnedError, resp.StatusCode())
+	switch status := resp.StatusCode(); {
+	case status == http.StatusUnauthorized:
+		return nil, fmt.Errorf("%w %d: %w", ErrServerReturnedError, status, ErrUnauthorized)
+	case status >= http.StatusBadRequest:
+		return nil, fmt.Errorf("%w %d", ErrServerReturnedError, status)
+	default:
+		return resp, nil
 	}
-
-	return resp, nil
 }
 
 // ValidThumbPath reports whether path is a Plex artwork path. Anything else,

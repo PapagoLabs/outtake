@@ -120,6 +120,7 @@ func offlineAuth(t *testing.T) *mocks.MockPlexAuth {
 	t.Helper()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().Client().Return(nil, plex.EmptyServer(), false).Maybe()
 	auth.EXPECT().Sessions().Return(nil).Maybe()
 	auth.EXPECT().Selected().Return(plex.EmptyServer(), false).Maybe()

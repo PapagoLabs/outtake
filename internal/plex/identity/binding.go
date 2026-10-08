@@ -143,3 +143,17 @@ func (bind *Binding) Set(selected plex.Server) {
 func (bind *Binding) Stop() {
 	bind.Clear()
 }
+
+// TokenRejected reports whether the selected server refused the stored token on
+// its last session poll.
+//
+// Returns:
+//   - rejected: True until a poll succeeds again, false with no server bound.
+func (bind *Binding) TokenRejected() bool {
+	bind.mu.RLock()
+
+	mon := bind.monitor
+	bind.mu.RUnlock()
+
+	return mon != nil && mon.Unauthorized()
+}

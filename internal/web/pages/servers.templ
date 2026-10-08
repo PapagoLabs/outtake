@@ -22,6 +22,8 @@ type ServersProps struct {
 	Error   string
 	// Bound is true when a server is in use, which offers to forget it.
 	Bound bool
+	// TokenRejected reports that the bound server refuses its stored token.
+	TokenRejected bool
 }
 
 // serverSelectedClass is the treatment the server already in use carries.
@@ -97,6 +99,9 @@ templ Servers(props ServersProps) {
 				<p class="text-muted-foreground">Choose the Media Server that holds the files you want to clip.</p>
 			</div>
 			@flash.Banner(props.Error)
+			if props.Bound && props.TokenRejected {
+				@TokenRejectedNotice()
+			}
 			if len(props.Servers) == 0 {
 				@card.Card() {
 					@card.Content() {

@@ -5,8 +5,10 @@ package session
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
@@ -26,6 +28,12 @@ type Monitor struct {
 	stop   chan struct{}
 	once   sync.Once
 	cancel context.CancelFunc
+
+	// failure is the last poll error that was logged, empty after a success.
+	// Only the poll goroutine reads or writes it.
+	failure string
+	// unauthorized reports that the last poll was refused for its token.
+	unauthorized atomic.Bool
 }
 
 // NewMonitor creates a session monitor that polls client at interval.
@@ -48,6 +56,7 @@ func NewMonitor(client *plex.Client, server plex.Server, interval time.Duration)
 		stop:     make(chan struct{}),
 		once:     sync.Once{},
 		cancel:   func() {},
+		failure:  "",
 	}
 }
 
@@ -86,6 +95,14 @@ func (mon *Monitor) Stop() {
 	mon.wg.Wait()
 }
 
+// Unauthorized reports whether the server refused the last poll's token.
+//
+// Returns:
+//   - refused: True until a poll succeeds again.
+func (mon *Monitor) Unauthorized() bool {
+	return mon.unauthorized.Load()
+}
+
 // poll polls for session updates until the monitor is stopped.
 //
 // Parameters:
@@ -116,13 +133,12 @@ func (mon *Monitor) refresh(ctx context.Context) {
 
 	sessions, err := mon.client.GetSessionsOnServer(ctx, mon.server)
 	if err != nil {
-		logging.Logger.Warn().
-			Err(err).
-			Str("server", mon.server.Name).
-			Msg("failed to fetch sessions")
+		mon.reportFailure(err)
 
 		return
 	}
+
+	mon.reportRecovery()
 
 	mon.mu.Lock()
 
@@ -133,4 +149,46 @@ func (mon *Monitor) refresh(ctx context.Context) {
 		Str("server", mon.server.Name).
 		Int("count", len(sessions)).
 		Msg("refreshed sessions")
+}
+
+// reportFailure records a failed poll. A failure is logged as a warning once,
+// and repeats of the same failure are logged at debug, so a server that keeps
+// refusing does not fill the log every poll.
+//
+// Parameters:
+//   - err: Why the poll failed.
+func (mon *Monitor) reportFailure(err error) {
+	mon.unauthorized.Store(errors.Is(err, plex.ErrUnauthorized))
+
+	message := err.Error()
+	if message == mon.failure {
+		logging.Logger.Debug().
+			Err(err).
+			Str("server", mon.server.Name).
+			Msg("still failing to fetch sessions")
+
+		return
+	}
+
+	mon.failure = message
+
+	logging.Logger.Warn().
+		Err(err).
+		Str("server", mon.server.Name).
+		Msg("failed to fetch sessions")
+}
+
+// reportRecovery records a successful poll, noting when it ends a failure.
+func (mon *Monitor) reportRecovery() {
+	mon.unauthorized.Store(false)
+
+	if mon.failure == "" {
+		return
+	}
+
+	mon.failure = ""
+
+	logging.Logger.Info().
+		Str("server", mon.server.Name).
+		Msg("fetching sessions works again")
 }

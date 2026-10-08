@@ -136,6 +136,7 @@ func TestDashboardSessionsServesThePollFragment(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().Sessions().Return([]plex.Session{{
 		ID:         "session-42",
 		MediaItem:  plex.MediaItem{ID: "42", Title: "Movie", Type: "movie"},
@@ -160,6 +161,7 @@ func TestDashboardSessionsIsEmptyWithNothingPlaying(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().Sessions().Return(nil)
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
@@ -175,6 +177,7 @@ func TestDashboardSessionsNeedsNoServerBound(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
 	auth.EXPECT().Sessions().Return(nil)
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
@@ -183,4 +186,23 @@ func TestDashboardSessionsNeedsNoServerBound(t *testing.T) {
 
 	require.Equal(t, fiber.StatusOK, answer.status,
 		"the dashboard polls every few seconds, so an unbound install still renders")
+}
+
+// TestDashboardSessionsExplainsARefusedToken covers the live sessions panel
+// while the bound server refuses its token: it says why no sessions show.
+func TestDashboardSessionsExplainsARefusedToken(t *testing.T) {
+	t.Parallel()
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(true)
+	auth.EXPECT().Sessions().Return(nil)
+
+	handler, _ := pageHandler(t, auth, silentSources(t))
+
+	answer := getDashboardSessions(t, handler)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, "data-token-rejected",
+		"the panel explains a refused token instead of showing nothing")
+	assertBodyContains(t, answer.body, `href="/servers"`, "and links to where it is fixed")
 }
