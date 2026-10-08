@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Play regenerated clips at once and cache pages and plex calls by @nicholas-fedor in [#358](https://github.com/PapagoLabs/outtake/pull/358)
 - Fill every clip card from its source so HDR clips offer the HDR choice by @nicholas-fedor in [#356](https://github.com/PapagoLabs/outtake/pull/356)
 - Validate selections everywhere and tone map HDR stills and GIFs by @nicholas-fedor in [#347](https://github.com/PapagoLabs/outtake/pull/347)
 - Stage renders and publish them only on success by @nicholas-fedor in [#345](https://github.com/PapagoLabs/outtake/pull/345)
