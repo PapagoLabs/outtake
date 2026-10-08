@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Ship static ffmpeg 9.0.2 from a digest-pinned image by @nicholas-fedor in [#376](https://github.com/PapagoLabs/outtake/pull/376)
 - Parse progress incrementally and stop downloading to check files by @nicholas-fedor in [#351](https://github.com/PapagoLabs/outtake/pull/351)
 - Persist sessions and csrf tokens in the database by @nicholas-fedor in [#326](https://github.com/PapagoLabs/outtake/pull/326)
 
 ### Chores
 
+- Update golang docker tag to v1.27.2 by @renovate[bot] in [#373](https://github.com/PapagoLabs/outtake/pull/373)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#372](https://github.com/PapagoLabs/outtake/pull/372)
 - Update go module directive to v1.27.2 by @renovate[bot] in [#366](https://github.com/PapagoLabs/outtake/pull/366)
 - Update github/codeql-action action to v4.38.3 by @renovate[bot] in [#362](https://github.com/PapagoLabs/outtake/pull/362)
