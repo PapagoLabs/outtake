@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Production Dockerfile for outtake.
-# Expects a GoReleaser dockers_v2 context with the pre-built binary and
-# static ffmpeg/ffprobe at ${TARGETPLATFORM}/.
+# Expects a GoReleaser dockers_v2 context with the pre-built binary at
+# ${TARGETPLATFORM}/. ffmpeg and ffprobe are static binaries copied from a
+# pinned image for the target platform.
 
 ARG BUILDPLATFORM
 ARG TARGETPLATFORM
 ARG BASE_IMAGE=alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+ARG FFMPEG_IMAGE=mwader/static-ffmpeg:9.0.2@sha256:7d9bdaaf887f7e6ce6151f67325c344074b5ff1fb75316011c3376503e449a7b
+
+# Pulled for the target platform, so an arm64 image gets arm64 binaries.
+FROM ${FFMPEG_IMAGE} AS ffmpeg
 
 FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} AS builder
 
@@ -29,8 +34,8 @@ COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /etc/passwd /etc/passwd
 COPY --from=builder /etc/group /etc/group
 
-COPY --chmod=0755 ${TARGETPLATFORM}/ffmpeg /usr/bin/ffmpeg
-COPY --chmod=0755 ${TARGETPLATFORM}/ffprobe /usr/bin/ffprobe
+COPY --from=ffmpeg --chmod=0755 /ffmpeg /usr/bin/ffmpeg
+COPY --from=ffmpeg --chmod=0755 /ffprobe /usr/bin/ffprobe
 COPY --chmod=0755 ${TARGETPLATFORM}/outtake /outtake
 
 EXPOSE 8080

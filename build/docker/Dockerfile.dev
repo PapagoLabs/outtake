@@ -2,18 +2,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Development Dockerfile for outtake.
-# Builds the binary from source and bundles static ffmpeg/ffprobe.
+# Builds the binary from source and bundles the same static ffmpeg/ffprobe as
+# the production image.
 
 ARG BASE_IMAGE=golang:1.27.2-alpine@sha256:85dc1069ac644ea3c527b177303a406eb3358192816cd7f9e5848eb658851673
+ARG FFMPEG_IMAGE=mwader/static-ffmpeg:9.0.2@sha256:7d9bdaaf887f7e6ce6151f67325c344074b5ff1fb75316011c3376503e449a7b
+
+FROM ${FFMPEG_IMAGE} AS ffmpeg
 
 FROM ${BASE_IMAGE} AS builder
 
 RUN apk add --no-cache git ca-certificates tzdata
 
 WORKDIR /build
-
-COPY scripts/download-ffmpeg ./scripts/download-ffmpeg
-RUN cd ./scripts/download-ffmpeg && go mod download && go run .
 
 COPY go.mod go.sum ./
 RUN go mod download
@@ -27,8 +28,8 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=builder /build/outtake /outtake
-COPY --from=builder /build/ffmpeg /usr/bin/ffmpeg
-COPY --from=builder /build/ffprobe /usr/bin/ffprobe
+COPY --from=ffmpeg /ffmpeg /usr/bin/ffmpeg
+COPY --from=ffmpeg /ffprobe /usr/bin/ffprobe
 
 EXPOSE 8080
 

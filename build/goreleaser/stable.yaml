@@ -140,20 +140,6 @@ dockers_v2:
     platforms:
       - linux/amd64
       - linux/arm64
-    hooks:
-      pre:
-        - cmd: go run .
-          dir: scripts/download-ffmpeg
-          env:
-            - FFMPEG_ARCH=amd64
-            - FFMPEG_DEST={{ .ContextDir }}/linux/amd64
-          output: true
-        - cmd: go run .
-          dir: scripts/download-ffmpeg
-          env:
-            - FFMPEG_ARCH=arm64
-            - FFMPEG_DEST={{ .ContextDir }}/linux/arm64
-          output: true
     labels:
       org.opencontainers.image.name: "outtake"
       org.opencontainers.image.created: "{{ .Date }}"
@@ -180,14 +166,6 @@ dockers_v2:
     dockerfile: build/docker/Dockerfile
     platforms:
       - linux/amd64
-    hooks:
-      pre:
-        - cmd: go run .
-          dir: scripts/download-ffmpeg
-          env:
-            - FFMPEG_ARCH=amd64
-            - FFMPEG_DEST={{ .ContextDir }}/linux/amd64
-          output: true
     labels:
       org.opencontainers.image.name: "outtake"
       org.opencontainers.image.created: "{{ .Date }}"
@@ -211,14 +189,6 @@ dockers_v2:
     dockerfile: build/docker/Dockerfile
     platforms:
       - linux/arm64
-    hooks:
-      pre:
-        - cmd: go run .
-          dir: scripts/download-ffmpeg
-          env:
-            - FFMPEG_ARCH=arm64
-            - FFMPEG_DEST={{ .ContextDir }}/linux/arm64
-          output: true
     labels:
       org.opencontainers.image.name: "outtake"
       org.opencontainers.image.created: "{{ .Date }}"

@@ -44,16 +44,14 @@ Three tiers. Keep a test in the lowest tier that can prove the thing.
 
 `.github/workflows/test.yaml` measures coverage one package at a time and aggregates; a single merged `-coverprofile` across `./...` cannot be summed. The gate reads only the **hand-written** bucket and excludes `**/mocks/**` and `*_templ.go`, which are scaffolding. Raise the floor as coverage improves; never lower it. It also runs the suite under `-race`.
 
-## Nested module and e2e
-
-`scripts/download-ffmpeg` is its own module (`outtake-scripts`). Test it with `go test -v` in that directory. Security CI scans it separately.
+## E2E
 
 There is no `testing/integration` tree. `task test-e2e` runs the e2e suite.
 
 ## Release
 
-- Dockerfiles: `build/docker/Dockerfile` (GoReleaser image context) and `Dockerfile.dev` (source build used by compose).
-- GoReleaser: `build/goreleaser/stable.yaml` (git tag `vX.Y.Z`) and `nightly.yaml`. Docker `hooks.pre` runs `scripts/download-ffmpeg` into the image context. Ship ffmpeg/ffprobe binaries, not the downloader script.
+- Dockerfiles: `build/docker/Dockerfile` (GoReleaser image context) and `Dockerfile.dev` (source build used by compose). Both copy static `ffmpeg` and `ffprobe` from `mwader/static-ffmpeg`, pinned by its multi-arch digest in the `FFMPEG_IMAGE` build arg, which Renovate updates. The stage is pulled for the target platform, never `$BUILDPLATFORM`, so an arm64 image gets arm64 binaries. Development and production run the same FFmpeg.
+- GoReleaser: `build/goreleaser/stable.yaml` (git tag `vX.Y.Z`) and `nightly.yaml`. The image context holds only the outtake binary.
 - Images: `papagolabs/outtake` and `ghcr.io/papagolabs/outtake`.
 - Migrations are `001_initial.sql`, `002_web_safe_color.sql`, `003_preserve_hdr.sql`, `004_users.sql`, `005_sessions.sql`, `006_keep_hdr.sql`, and `007_server_machine_id.sql`. SQLite reads `internal/store/database/migrations/`. Postgres reads `internal/store/database/migrations/postgres/`. The names match. Each connection records the files it has applied.
 - IDs: Go stdlib `uuid`, not `github.com/google/uuid`.
