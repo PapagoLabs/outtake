@@ -266,10 +266,9 @@ func TestClipCard(t *testing.T) {
 				`hx-disable="this"`,
 				`name="endTime"`,
 				`name="cropBlackBars"`,
-				`name="webSafeColor"`,
 				`data-max-dur=`,
 			},
-			notContains: []string{"<details open", "On disk"},
+			notContains: []string{"<details open", "On disk", `name="webSafeColor"`},
 		},
 		{
 			name: "falls back to media title",
@@ -488,15 +487,21 @@ func TestClipCardPostsBackSettingsItDoesNotShow(t *testing.T) {
 	assert.NotContains(t, buf.String(), `name="preserveHdr"`, "an unset setting posts as absent")
 }
 
-// TestWebSafeColorIsOfferedForEveryExportType covers the toggle's visibility:
-// it tone maps a GIF and a screenshot as well as a video clip.
-func TestWebSafeColorIsOfferedForEveryExportType(t *testing.T) {
+// TestKeepHDRIsOfferedForVideoOnly covers the Keep HDR box: GIFs and
+// screenshots are always SDR, so only a video clip shows it. The form script
+// finds it by its marker to set it from the chosen profile.
+func TestKeepHDRIsOfferedForVideoOnly(t *testing.T) {
 	t.Parallel()
 
 	var buf strings.Builder
 
-	require.NoError(t, WebSafeColorField(false).Render(t.Context(), &buf))
-	assert.Contains(t, buf.String(), `data-export-for="clip,gif,screenshot"`)
+	require.NoError(t, PreserveHDRField(true).Render(t.Context(), &buf))
+
+	body := buf.String()
+	assert.Contains(t, body, `data-export-for="clip"`)
+	assert.Contains(t, body, "Keep HDR")
+	assert.Contains(t, body, "data-keep-hdr-box")
+	assert.Contains(t, body, "checked")
 }
 
 // TestClipStatusVersionsTheFileURLByRender covers a clip rendered again:

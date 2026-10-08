@@ -25,7 +25,6 @@ func TestClipResponse(t *testing.T) {
 
 		AudioIndex:    2,
 		CropBlackBars: true,
-		WebSafeColor:  true,
 		PreserveHDR:   true,
 		CreatedAt: time.Date(
 			2026,
@@ -55,7 +54,6 @@ func TestClipResponse(t *testing.T) {
 	assert.Equal(t, 100, response.Progress)
 	assert.Equal(t, 2, response.AudioIndex)
 	assert.True(t, response.CropBlackBars)
-	assert.True(t, response.WebSafeColor)
 	assert.True(t, response.PreserveHDR)
 	assert.Equal(t, job.CreatedAt, response.CreatedAt)
 	assert.Empty(t, response.InputPath, "the source path is not part of the public payload")

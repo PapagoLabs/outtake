@@ -29,9 +29,8 @@ type Edit struct {
 	AudioIndex int
 	// CropBlackBars reports whether black bars are trimmed.
 	CropBlackBars bool
-	// WebSafeColor is the tone-map setting, nil when the edit carried none.
-	WebSafeColor *bool
-	// PreserveHDR keeps the source HDR transfer, nil when the edit carried none.
+	// PreserveHDR keeps an HDR source's transfer instead of tone mapping it,
+	// nil when the edit carried none.
 	PreserveHDR *bool
 }
 
@@ -47,8 +46,10 @@ type EditRequest struct {
 	FPS           *int     `json:"fps"`
 	AudioIndex    *int     `json:"audioIndex"`
 	CropBlackBars *bool    `json:"cropBlackBars"`
-	WebSafeColor  *bool    `json:"webSafeColor"`
 	PreserveHDR   *bool    `json:"preserveHdr"`
+	// WebSafeColor is the inverse of PreserveHDR, accepted from callers that
+	// still send it. PreserveHDR wins when both are present.
+	WebSafeColor *bool `json:"webSafeColor"`
 }
 
 // Source is what probing the file a clip is cut from turned up.
@@ -156,10 +157,6 @@ func (clip *Clip) Apply(edit Edit) {
 	clip.AudioIndex = edit.AudioIndex
 	clip.CropBlackBars = edit.CropBlackBars
 
-	if edit.WebSafeColor != nil {
-		clip.WebSafeColor = *edit.WebSafeColor
-	}
-
 	if edit.PreserveHDR != nil {
 		clip.PreserveHDR = *edit.PreserveHDR
 	}
@@ -192,7 +189,6 @@ func (clip *Clip) encodesLike(other *Clip) bool {
 		clip.FPS == other.FPS &&
 		clip.AudioIndex == other.AudioIndex &&
 		clip.CropBlackBars == other.CropBlackBars &&
-		clip.WebSafeColor == other.WebSafeColor &&
 		clip.PreserveHDR == other.PreserveHDR
 }
 

@@ -17,6 +17,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -84,15 +85,15 @@ func fromQueryOf(
 // Parameters:
 //   - t: The test the request belongs to.
 //   - target: Request target, including any query string.
-//   - cfg: Configuration supplying the form defaults.
+//   - cfg: Configuration supplying the crop default.
 //
 // Returns:
-//   - form: The export form the target carries.
+//   - form: The export form the target carries, offering the built-in profiles.
 func mediaItemFormOf(t *testing.T, target string, cfg *config.Config) view.ExportForm {
 	t.Helper()
 
 	form, ok := queryForm(t, target, func(ctx fiber.Ctx) any {
-		return MediaItemForm(ctx, cfg, "The Movie")
+		return MediaItemForm(ctx, cfg, "The Movie", profile.BuiltinProfiles())
 	}).(view.ExportForm)
 	require.True(t, ok)
 
@@ -157,9 +158,8 @@ func TestFromRequestCarriesEveryExportField(t *testing.T) {
 		Width:         480,
 		FPS:           15,
 		CropBlackBars: true,
-		WebSafeColor:  true,
 		PreserveHDR:   true,
-	}, form)
+	}, form, "preserveHdr wins over the legacy webSafeColor")
 }
 
 func TestFromRequestReadsAnAbsentFlagAsOff(t *testing.T) {
@@ -167,8 +167,6 @@ func TestFromRequestReadsAnAbsentFlagAsOff(t *testing.T) {
 
 	form := FromRequest(api.ClipRequest{MediaID: "42"})
 
-	assert.False(t, form.WebSafeColor,
-		"a request that omitted the field did not ask for the tone map")
 	assert.False(t, form.PreserveHDR,
 		"a request that omitted the field did not ask to keep HDR as is")
 	assert.Zero(t, form.AudioIndex)
@@ -340,26 +338,34 @@ func TestFromQueryLeavesTheTogglesAloneWhenTheQueryIsSilent(t *testing.T) {
 	assert.True(t, form.PreserveHDR)
 }
 
-func TestMediaItemFormReadsTheToneMapToggle(t *testing.T) {
+// TestMediaItemFormDefaultsKeepHDRFromTheProfile covers the Keep HDR box on a
+// fresh form: it starts from the selected profile, or the default profile,
+// and a carried box overrides it.
+func TestMediaItemFormDefaultsKeepHDRFromTheProfile(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{}
-
 	tests := []struct {
-		name        string
-		give        string
-		wantForm    bool
-		wantDefault bool
+		name  string
+		query string
+		want  bool
 	}{
+		{name: "the default profile converts", query: "", want: false},
+		{name: "High keeps HDR", query: values(routes.QueryQuality, "high"), want: true},
+		{name: "Low converts", query: values(routes.QueryQuality, "low"), want: false},
 		{
-			name:     "a checked query tone maps",
-			give:     routes.FormChecked,
-			wantForm: true,
+			name:  "a carried box wins",
+			query: values(routes.QueryQuality, "low", routes.QueryPreserveHDR, routes.FormChecked),
+			want:  true,
 		},
 		{
-			name:     "an unchecked query tone maps",
-			give:     routes.FormUnchecked,
-			wantForm: false,
+			name: "a carried empty box wins",
+			query: values(
+				routes.QueryQuality,
+				"high",
+				routes.QueryPreserveHDR,
+				routes.FormUnchecked,
+			),
+			want: false,
 		},
 	}
 
@@ -367,34 +373,9 @@ func TestMediaItemFormReadsTheToneMapToggle(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			target := routes.PathMedia + "?" + values(routes.QueryWebSafeColor, test.give)
+			form := mediaItemFormOf(t, routes.PathMedia+"?"+test.query, &config.Config{})
 
-			assert.Equal(t, test.wantForm, mediaItemFormOf(t, target, cfg).WebSafeColor)
-		})
-	}
-}
-
-func TestMediaItemFormFallsBackToTheConfiguredToneMap(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name       string
-		cfgDefault bool
-	}{
-		{name: "tone mapping on by default", cfgDefault: true},
-		{name: "tone mapping off by default", cfgDefault: false},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			form := mediaItemFormOf(
-				t, routes.PathMedia, &config.Config{WebSafeColor: test.cfgDefault},
-			)
-
-			assert.Equal(t, test.cfgDefault, form.WebSafeColor,
-				"an unvisited form shows the configured default")
+			assert.Equal(t, test.want, form.PreserveHDR)
 		})
 	}
 }
@@ -402,11 +383,16 @@ func TestMediaItemFormFallsBackToTheConfiguredToneMap(t *testing.T) {
 func TestMediaItemFormKeepsTheCarriedNameOverTheConfiguredTitle(t *testing.T) {
 	t.Parallel()
 
-	target := routes.PathMedia + "?" + values(routes.QueryExportName, "")
+	target := routes.PathMedia + "?" + values(
+		routes.QueryExportName,
+		"",
+		routes.QueryQuality,
+		"high",
+	)
 
-	form := mediaItemFormOf(t, target, &config.Config{CropBlackBars: true, PreserveHDR: true})
+	form := mediaItemFormOf(t, target, &config.Config{CropBlackBars: true})
 
-	assert.Empty(t, form.Name, "the carried empty name survives the tone-map default")
+	assert.Empty(t, form.Name, "the carried empty name survives the defaults")
 	assert.True(t, form.CropBlackBars)
 	assert.True(t, form.PreserveHDR)
 }

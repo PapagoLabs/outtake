@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
@@ -178,4 +179,59 @@ func TestDescribePathsProbesEachSourceOnce(t *testing.T) {
 	assert.True(t, infos["/m/a.mkv"].HDR)
 	assert.Equal(t, time.Hour, infos["/m/b.mkv"].Duration)
 	assert.Len(t, infos["/m/b.mkv"].AudioStreams, 1)
+}
+
+// TestCheckEditRefusesADolbyVisionSourceWithoutABaseLayer covers Dolby Vision
+// profile 5: every export of it would come out green and magenta, so it is
+// refused with a reason, while a profile 8 source with an HDR10 base layer is
+// rendered as HDR10.
+func TestCheckEditRefusesADolbyVisionSourceWithoutABaseLayer(t *testing.T) {
+	t.Parallel()
+
+	edit := clip.Edit{Type: clip.TypeClip, Start: time.Second, Length: 5 * time.Second}
+	tracks := []probe.Track{{Index: 0, Codec: "aac", Language: "", Title: "", Channels: 2}}
+
+	tests := []struct {
+		name   string
+		vision probe.DolbyVision
+		refuse bool
+	}{
+		{
+			name:   "profile 5",
+			vision: probe.DolbyVision{Present: true, Profile: 5, BaseLayerCompatibility: 0},
+			refuse: true,
+		},
+		{
+			name:   "profile 8.1",
+			vision: probe.DolbyVision{Present: true, Profile: 8, BaseLayerCompatibility: 1},
+			refuse: false,
+		},
+		{
+			name:   "no Dolby Vision",
+			vision: probe.DolbyVision{Present: false, Profile: 0, BaseLayerCompatibility: 0},
+			refuse: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			source := newSourceUnderTest(&stubProber{info: probe.Info{
+				Duration:    time.Minute,
+				AudioTracks: tracks,
+				DolbyVision: test.vision,
+			}})
+
+			err := source.CheckEdit(t.Context(), "/media/movie.mkv", edit, time.Minute)
+
+			if test.refuse {
+				require.ErrorIs(t, err, ErrDolbyVisionBaseLayer)
+
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
 }

@@ -38,8 +38,8 @@
 - Mark start and end from live Plex playback, or type the times yourself.
 - Export a video clip, GIF, or screenshot, then preview and download it.
 - Manage named clip profiles (CRF, encoder preset, audio bitrate, max
-  resolution) and optionally **Trim black bars** or **Web-safe color**
-  on each export.
+  resolution, and whether HDR is kept), and optionally **Trim black bars**
+  or **Keep HDR** on each export.
 
 The server listens on port 8080 by default.
 
@@ -224,7 +224,6 @@ media only**, not the clip store, and not Kubernetes media NFS.
 | `OUTTAKE_FFMPEG_TIMEOUT_SEC` | Longest one ffmpeg run may take, in seconds. `0` allows 20 times the clip's length, and at least 30 minutes | `0` |
 | `OUTTAKE_MAX_CLIP_DUR` | Maximum clip duration in seconds | `600` |
 | `OUTTAKE_CROP_BLACK_BARS` | Default for **Trim black bars** | `false` |
-| `OUTTAKE_WEB_SAFE_COLOR` | Default for **Web-safe color** on video clips | `false` |
 | `OUTTAKE_SESSION_POLL_SEC` | How often to poll live Plex playback | `10` |
 | `OUTTAKE_NUM_WORKERS` | Background clip workers | `2` |
 | `OUTTAKE_LOG_LEVEL` | `debug`, `info`, `warn`, or `error` | `info` |
@@ -287,9 +286,11 @@ without owners, only the account that signed in last can claim Outtake.
    Plex**. You can also type **Start** and **End** yourself.
 4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or
    **Screenshot**, pick a **Profile**, and optionally **Trim black bars**.
-   For video clips, **Web-safe color** tone-maps HDR on the CPU so the
-   file looks consistent in browsers. Leave it off if you will grade the
-   clip yourself.
+   For a video clip from an HDR source, **Keep HDR** keeps the source's
+   HDR. Leave it off to tone-map the clip to SDR, which most social sites
+   need. The box starts from the profile: the built-in High keeps HDR, and
+   Low and Medium convert. Set the default per profile under **Clip
+   Profiles**. GIFs and screenshots are always SDR.
 5. Choose **Preview** to check the segment, then **Save clip**.
 
 If something is already playing, the dashboard **Live Sessions** list
@@ -333,6 +334,13 @@ is higher quality.
   postgres. On the example chart, enable at most one blob backend
   (`backends.seaweedfs` or `backends.rustfs`) and one database backend
   (`backends.cockroach` or `backends.cnpg`).
+- **HDR clips play black in Brave or Chrome on Linux.** Chromium 151 and
+  later draw 10-bit video black on NVIDIA under Wayland. The file is fine.
+  Start the browser with `--ozone-platform=x11`, use Firefox, or turn off
+  **Keep HDR** for that clip.
+- **"This source is Dolby Vision profile 5".** Profile 5 has no HDR10 base
+  layer, so ffmpeg cannot export it with correct colors. Use a copy of the
+  title with an HDR10 base layer.
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and
   keep them on `PATH`, or set the path variables above. Docker images
   already include them.

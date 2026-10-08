@@ -22,13 +22,16 @@ type ClipProfile struct {
 	AudioKbps int
 	MaxWidth  int
 	IsDefault bool
+	// KeepHDR is the keep-HDR default for new video clips under this profile.
+	KeepHDR   bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
 
 const (
 	// clipProfileSelectCols is the clip_profiles projection shared by every read query.
-	clipProfileSelectCols = `id, name, crf, preset, audio_kbps, max_width, is_default, created_at, updated_at`
+	clipProfileSelectCols = `id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr,
+		created_at, updated_at`
 )
 
 var (
@@ -53,10 +56,16 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 		isDefault = 1
 	}
 
+	keepHDR := 0
+	if profile.KeepHDR {
+		keepHDR = 1
+	}
+
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO clip_profiles (
-			id, name, crf, preset, audio_kbps, max_width, is_default, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr,
+			created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			crf = excluded.crf,
@@ -64,6 +73,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 			audio_kbps = excluded.audio_kbps,
 			max_width = excluded.max_width,
 			is_default = excluded.is_default,
+			keep_hdr = excluded.keep_hdr,
 			updated_at = excluded.updated_at
 	`),
 		profile.ID,
@@ -73,6 +83,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 		profile.AudioKbps,
 		profile.MaxWidth,
 		isDefault,
+		keepHDR,
 		profile.CreatedAt,
 		profile.UpdatedAt,
 	)
@@ -259,10 +270,11 @@ func (db *DB) DeleteClipProfile(ctx context.Context, id string) error {
 //   - preset: The encoder settings this profile describes.
 func (profile ClipProfile) QualityPreset() clip.QualityPreset {
 	return clip.QualityPreset{
-		CRF:       profile.CRF,
-		Preset:    profile.Preset,
-		AudioKbps: profile.AudioKbps,
-		MaxWidth:  profile.MaxWidth,
+		CRF:         profile.CRF,
+		Preset:      profile.Preset,
+		AudioKbps:   profile.AudioKbps,
+		MaxWidth:    profile.MaxWidth,
+		PreserveHDR: profile.KeepHDR,
 	}
 }
 
@@ -358,6 +370,7 @@ func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 func scanClipProfile(row scannable) (ClipProfile, error) {
 	var profile ClipProfile
 	var isDefault int
+	var keepHDR int
 
 	err := row.Scan(
 		&profile.ID,
@@ -367,6 +380,7 @@ func scanClipProfile(row scannable) (ClipProfile, error) {
 		&profile.AudioKbps,
 		&profile.MaxWidth,
 		&isDefault,
+		&keepHDR,
 		&profile.CreatedAt,
 		&profile.UpdatedAt,
 	)
@@ -375,6 +389,7 @@ func scanClipProfile(row scannable) (ClipProfile, error) {
 	}
 
 	profile.IsDefault = isDefault != 0
+	profile.KeepHDR = keepHDR != 0
 
 	return profile, nil
 }

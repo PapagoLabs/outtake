@@ -71,6 +71,7 @@ func previewTestHandler(t *testing.T, limit int) (*Handler, *blob.Storage) {
 		service,
 		&config.Config{MaxConcurrentPreviews: limit},
 		nil,
+		nil,
 	), store
 }
 
@@ -557,7 +558,7 @@ func previewHandler(
 	service := clippreview.New(limit, store, store.Paths, runner)
 	sources := library.NewMediaSource(cfg, selected, runner)
 
-	return New(service, cfg, sources), store
+	return New(service, cfg, nil, sources), store
 }
 
 // e2ePreviewHandler builds a handler whose media ids name local files, which is

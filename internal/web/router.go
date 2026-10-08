@@ -195,6 +195,7 @@ func newRouterHandlers(deps Deps) routerHandlers {
 		preview: previews.New(
 			deps.Previews,
 			deps.Cfg,
+			deps.DB,
 			deps.Sources,
 		),
 		profiles: profiles.New(profilesettings.New(deps.DB)),

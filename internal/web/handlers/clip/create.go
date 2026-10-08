@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"context"
 	"time"
 	"uuid"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
+	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
 
@@ -42,7 +44,7 @@ func (handler *Handler) Create(ctx fiber.Ctx) error {
 		&req,
 		jobType,
 		inputPath,
-		api.FlagOrDefault(req.PreserveHDR, handler.cfg.PreserveHDR),
+		handler.keepHDR(ctx.Context(), &req),
 	)
 
 	job.OutputPath = handler.clipPaths.OutputPath(job.ID, job.Type)
@@ -105,7 +107,6 @@ func buildJob(
 		FPS:           req.FPS,
 		AudioIndex:    req.AudioIndex,
 		CropBlackBars: req.CropBlackBars,
-		WebSafeColor:  api.Flag(req.WebSafeColor),
 		PreserveHDR:   preserveHDR,
 		CreatedAt:     now,
 		UpdatedAt:     now,
@@ -115,4 +116,20 @@ func buildJob(
 		Progress:      0,
 		Error:         "",
 	}
+}
+
+// keepHDR decides whether a new clip keeps an HDR source's HDR: the request's
+// choice when it made one, otherwise its profile's default.
+//
+// Parameters:
+//   - ctx: Request scope for the profile lookup.
+//   - req: Parsed request, whose quality names the profile.
+//
+// Returns:
+//   - keep: True when the clip keeps HDR.
+func (handler *Handler) keepHDR(ctx context.Context, req *api.ClipRequest) bool {
+	return api.FlagOrDefault(
+		req.KeepHDR(),
+		clipprofile.Preset(ctx, handler.db, req.Quality).PreserveHDR,
+	)
 }

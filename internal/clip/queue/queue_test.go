@@ -1509,7 +1509,6 @@ func editOf(job *clip.Job) clip.Edit {
 		FPS:           job.FPS,
 		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
-		WebSafeColor:  &job.WebSafeColor,
 		PreserveHDR:   &job.PreserveHDR,
 	}
 }

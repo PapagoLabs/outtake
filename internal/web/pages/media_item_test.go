@@ -51,8 +51,9 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 		StartTime:   0,
 		EndTime:     0,
 		Export: view.ExportForm{
-			WebSafeColor: true,
+			PreserveHDR: true,
 		},
+		SourceHDR: true,
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
@@ -62,12 +63,13 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Contains(t, body, `name="endTime"`)
 	assert.Contains(t, body, "Time")
 	assert.Contains(t, body, `name="cropBlackBars"`)
-	assert.Contains(t, body, `name="webSafeColor"`)
-	assert.Contains(t, body, "Web-safe color")
+	assert.NotContains(t, body, `name="webSafeColor"`, "Keep HDR is the only color switch")
+	assert.Contains(t, body, "Keep HDR")
 
-	webSafe := inputTagFor(t, body, "webSafeColor")
-	assert.Contains(t, webSafe, `value="1"`)
-	assert.Contains(t, webSafe, "checked")
+	keepHDR := inputTagFor(t, body, "preserveHdr")
+	assert.Contains(t, keepHDR, `value="1"`)
+	assert.Contains(t, keepHDR, "checked")
+	assert.Contains(t, keepHDR, "data-keep-hdr-box", "the form script finds the box to set it")
 	assert.Less(t, strings.Index(body, `id="clipType"`), strings.Index(body, `id="name"`))
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")
@@ -140,7 +142,6 @@ func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
 			Width:         1280,
 			FPS:           24,
 			CropBlackBars: true,
-			WebSafeColor:  true,
 		},
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
@@ -149,16 +150,12 @@ func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
 
 	assert.Contains(t, body, `<option value="gif" selected>`)
 	assert.Contains(t, body, `name="name" placeholder="Optional name" value="A named clip"`)
-	assert.Contains(t, body, `<option value="profile-high" selected>`)
+	assert.Contains(t, body, `<option value="profile-high" data-keep-hdr="0" selected>`)
 	assert.Contains(t, body, `<option value="2" selected>`)
 
 	cropBars := inputTagFor(t, body, "cropBlackBars")
 	assert.Contains(t, cropBars, `value="1"`)
 	assert.Contains(t, cropBars, "checked")
-
-	webSafe := inputTagFor(t, body, "webSafeColor")
-	assert.Contains(t, webSafe, `value="1"`)
-	assert.Contains(t, webSafe, "checked")
 
 	assert.Contains(t, body, `name="width" type="number" min="120" max="1920" value="1280"`)
 	assert.Contains(t, body, `name="fps" type="number" min="5" max="30" value="24"`)
@@ -184,7 +181,7 @@ func TestMediaItemPageFallsBackToFormDefaults(t *testing.T) {
 	assert.Contains(t, body, `name="width" type="number" min="120" max="1920" value="480"`)
 	assert.Contains(t, body, `name="fps" type="number" min="5" max="30" value="10"`)
 	assert.NotContains(t, body, `name="cropBlackBars" value="1" checked`)
-	assert.NotContains(t, body, `name="webSafeColor" value="1" checked`)
+	assert.NotContains(t, body, `name="preserveHdr"`, "an SDR source offers no Keep HDR box")
 }
 
 func TestMediaItemPageRendersClearedName(t *testing.T) {

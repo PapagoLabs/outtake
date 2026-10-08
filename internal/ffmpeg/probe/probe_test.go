@@ -117,3 +117,68 @@ func TestParseProbeOutput_DurationIsExact(t *testing.T) {
 		assert.Equal(t, want, info.Duration, "duration %q", payload)
 	}
 }
+
+// TestParseProbeOutputReadsTheDolbyVisionRecord covers the Dolby Vision
+// configuration record ffprobe lists in a video stream's side data, and which
+// profiles have no base layer an export can show correctly.
+func TestParseProbeOutputReadsTheDolbyVisionRecord(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		sideData  string
+		want      DolbyVision
+		reshaping bool
+	}{
+		{
+			name:      "no record",
+			sideData:  `[]`,
+			want:      DolbyVision{Present: false, Profile: 0, BaseLayerCompatibility: 0},
+			reshaping: false,
+		},
+		{
+			name: "profile 5",
+			sideData: `[{"side_data_type":"DOVI configuration record","dv_profile":5,` +
+				`"dv_bl_signal_compatibility_id":0}]`,
+			want:      DolbyVision{Present: true, Profile: 5, BaseLayerCompatibility: 0},
+			reshaping: true,
+		},
+		{
+			name: "profile 8.1 with an HDR10 base layer",
+			sideData: `[{"side_data_type":"DOVI configuration record","dv_profile":8,` +
+				`"dv_bl_signal_compatibility_id":1}]`,
+			want:      DolbyVision{Present: true, Profile: 8, BaseLayerCompatibility: 1},
+			reshaping: false,
+		},
+		{
+			name: "profile 7 from a UHD Blu-ray",
+			sideData: `[{"side_data_type":"DOVI configuration record","dv_profile":7,` +
+				`"dv_bl_signal_compatibility_id":6}]`,
+			want:      DolbyVision{Present: true, Profile: 7, BaseLayerCompatibility: 6},
+			reshaping: false,
+		},
+		{
+			name: "AV1 profile 10 with no compatible base layer",
+			sideData: `[{"side_data_type":"DOVI configuration record","dv_profile":10,` +
+				`"dv_bl_signal_compatibility_id":0}]`,
+			want:      DolbyVision{Present: true, Profile: 10, BaseLayerCompatibility: 0},
+			reshaping: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			data := []byte(`{"format":{"duration":"10.0"},"streams":[{"codec_type":"video",` +
+				`"codec_name":"hevc","color_transfer":"smpte2084","side_data_list":` +
+				test.sideData + `}]}`)
+
+			info, err := parseProbeOutput(data)
+			require.NoError(t, err)
+
+			assert.Equal(t, test.want, info.DolbyVision)
+			assert.Equal(t, test.reshaping, info.NeedsDolbyVisionReshaping())
+		})
+	}
+}

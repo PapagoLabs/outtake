@@ -38,7 +38,6 @@ func TestNewClipItemMapsEveryField(t *testing.T) {
 		Duration:      4250 * time.Millisecond,
 		AudioIndex:    2,
 		CropBlackBars: true,
-		WebSafeColor:  true,
 		PreserveHDR:   true,
 
 		CreatedAt: created,
@@ -71,7 +70,6 @@ func TestNewClipItemMapsEveryField(t *testing.T) {
 		FileExists:    true,
 		AudioIndex:    2,
 		CropBlackBars: true,
-		WebSafeColor:  true,
 		PreserveHDR:   true,
 		Width:         640,
 		FPS:           12,

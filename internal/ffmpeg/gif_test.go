@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 )
 
@@ -31,7 +30,6 @@ func TestExecFFmpeg_ExtractGIF_MissingInput(t *testing.T) {
 		480,
 		10,
 		crop.CropRect{},
-		clip.QualityPreset{},
 	)
 	assert.Error(t, err)
 }
@@ -64,7 +62,7 @@ func TestExtractGIFWritesFile(t *testing.T) {
 	err = NewExecFFmpeg(ffmpegPath, "ffprobe").
 		ExtractGIF(
 			t.Context(),
-			src, out, 0, 500*time.Millisecond, 160, 10, crop.CropRect{}, clip.QualityPreset{},
+			src, out, 0, 500*time.Millisecond, 160, 10, crop.CropRect{},
 		)
 	require.NoError(t, err)
 

@@ -32,7 +32,6 @@ func ClipResponse(job *clip.Job) clip.Response {
 		UpdatedAt:     job.UpdatedAt,
 		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
-		WebSafeColor:  job.WebSafeColor,
 		PreserveHDR:   job.PreserveHDR,
 	}
 }

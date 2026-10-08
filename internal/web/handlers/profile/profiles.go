@@ -127,6 +127,7 @@ func profileFields(ctx fiber.Ctx) clipprofile.ProfileFields {
 		AudioKbps: ctx.FormValue("audioKbps"),
 		MaxWidth:  ctx.FormValue("maxWidth"),
 		IsDefault: routes.IsFormChecked(ctx.FormValue("isDefault")),
+		KeepHDR:   routes.IsFormChecked(ctx.FormValue("keepHdr")),
 	}
 }
 

@@ -14,12 +14,13 @@ type ClipQuality string
 
 // QualityPreset represents ffmpeg clip encode settings.
 type QualityPreset struct {
-	CRF          int
-	Preset       string
-	AudioKbps    int
-	MaxWidth     int
-	WebSafeColor bool
-	PreserveHDR  bool
+	CRF       int
+	Preset    string
+	AudioKbps int
+	MaxWidth  int
+	// PreserveHDR keeps an HDR source's transfer instead of tone mapping it
+	// to SDR. A profile's value is the default for its new video clips.
+	PreserveHDR bool
 }
 
 const (
@@ -98,10 +99,11 @@ var QualityPresets = map[ClipQuality]QualityPreset{
 		MaxWidth:  OutputWidth1080p,
 	},
 	ClipQualityHigh: {
-		CRF:       crfHighQuality,
-		Preset:    "slow",
-		AudioKbps: audioKbpsHigh,
-		MaxWidth:  OutputWidth2160p,
+		CRF:         crfHighQuality,
+		Preset:      "slow",
+		AudioKbps:   audioKbpsHigh,
+		MaxWidth:    OutputWidth2160p,
+		PreserveHDR: true,
 	},
 }
 

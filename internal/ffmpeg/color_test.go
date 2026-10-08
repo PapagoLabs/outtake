@@ -51,15 +51,13 @@ func applyColorPlan(req *h264EncodeRequest, transfer string, remap remapDecision
 	}
 }
 
-func TestRemapDecisionToneMapsOnlyForWebSafeColor(t *testing.T) {
+// TestRemapDecisionFollowsKeepHDR covers the one switch: a clip that keeps
+// HDR keeps the source transfer, and any other clip is tone mapped.
+func TestRemapDecisionFollowsKeepHDR(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, preserveHDR, remapDecisionFor(hdrInputs{webSafe: false, preserve: false}),
-		"neither flag still keeps the source HDR transfer")
-	assert.Equal(t, preserveHDR, remapDecisionFor(hdrInputs{webSafe: false, preserve: true}))
-	assert.Equal(t, webSafeRemap, remapDecisionFor(hdrInputs{webSafe: true, preserve: false}))
-	assert.Equal(t, webSafeRemap, remapDecisionFor(hdrInputs{webSafe: true, preserve: true}),
-		"an explicit web-safe request tone-maps even when preserve is also set")
+	assert.Equal(t, keepHDR, remapDecisionFor(clip.QualityPreset{PreserveHDR: true}))
+	assert.Equal(t, toneMapSDR, remapDecisionFor(clip.QualityPreset{PreserveHDR: false}))
 }
 
 func TestDecideColor(t *testing.T) {
@@ -78,7 +76,7 @@ func TestDecideColor(t *testing.T) {
 		{
 			name:        "an sdr source keeps the transfer it was probed with",
 			transfer:    nameBT709,
-			remap:       webSafeRemap,
+			remap:       toneMapSDR,
 			wantHDRKind: "",
 			wantTags:    nameBT709,
 			wantPixFmt:  pixelFormatYUV420P,
@@ -86,7 +84,7 @@ func TestDecideColor(t *testing.T) {
 		{
 			name:        "an sdr source with an unreported transfer is left untagged",
 			transfer:    "unknown",
-			remap:       webSafeRemap,
+			remap:       toneMapSDR,
 			wantHDRKind: "",
 			wantTags:    "",
 			wantPixFmt:  pixelFormatYUV420P,
@@ -94,7 +92,7 @@ func TestDecideColor(t *testing.T) {
 		{
 			name:        "a pal sdr source is not claimed as srgb",
 			transfer:    "bt470bg",
-			remap:       webSafeRemap,
+			remap:       toneMapSDR,
 			wantHDRKind: "",
 			wantTags:    "bt470bg",
 			wantPixFmt:  pixelFormatYUV420P,
@@ -102,7 +100,7 @@ func TestDecideColor(t *testing.T) {
 		{
 			name:          "pq is remapped by default and tagged rec709",
 			transfer:      clip.TransferPQ,
-			remap:         webSafeRemap,
+			remap:         toneMapSDR,
 			wantHDRKind:   clip.TransferPQAlias,
 			wantToneMap:   true,
 			wantTags:      tonemap.TransferSRGB,
@@ -112,7 +110,7 @@ func TestDecideColor(t *testing.T) {
 		{
 			name:        "pq is preserved, tagged, and kept 10-bit",
 			transfer:    clip.TransferPQ,
-			remap:       preserveHDR,
+			remap:       keepHDR,
 			wantHDRKind: clip.TransferPQAlias,
 			wantTags:    clip.TransferPQ,
 			wantPixFmt:  pixelFormatYUV420P10LE,
@@ -120,7 +118,7 @@ func TestDecideColor(t *testing.T) {
 		{
 			name:        "hlg is remapped, tagged rec709, and needs no peak sample",
 			transfer:    clip.TransferHLG,
-			remap:       webSafeRemap,
+			remap:       toneMapSDR,
 			wantHDRKind: clip.TransferHLGAlias,
 			wantToneMap: true,
 			wantTags:    tonemap.TransferSRGB,
@@ -129,7 +127,7 @@ func TestDecideColor(t *testing.T) {
 		{
 			name:        "hlg is preserved, tagged, and kept 10-bit",
 			transfer:    clip.TransferHLG,
-			remap:       preserveHDR,
+			remap:       keepHDR,
 			wantHDRKind: clip.TransferHLGAlias,
 			wantTags:    clip.TransferHLG,
 			wantPixFmt:  pixelFormatYUV420P10LE,
@@ -172,7 +170,7 @@ func TestPreservedHDRIsTaggedForItsTransfer(t *testing.T) {
 		1,
 		crop.CropRect{},
 	)
-	applyColorPlan(&req, clip.TransferPQ, preserveHDR)
+	applyColorPlan(&req, clip.TransferPQ, keepHDR)
 
 	args := h264EncodeArgs(&req)
 	joined := strings.Join(args, " ")
@@ -198,31 +196,31 @@ func TestPreservedHDRStaysTenBit(t *testing.T) {
 		{
 			name:     "preserved pq is 10-bit",
 			transfer: clip.TransferPQ,
-			remap:    preserveHDR,
+			remap:    keepHDR,
 			want:     pixelFormatYUV420P10LE,
 		},
 		{
 			name:     "preserved hlg is 10-bit",
 			transfer: clip.TransferHLG,
-			remap:    preserveHDR,
+			remap:    keepHDR,
 			want:     pixelFormatYUV420P10LE,
 		},
 		{
 			name:     "remapped pq is 8-bit",
 			transfer: clip.TransferPQ,
-			remap:    webSafeRemap,
+			remap:    toneMapSDR,
 			want:     pixelFormatYUV420P,
 		},
 		{
 			name:     "remapped hlg is 8-bit",
 			transfer: clip.TransferHLG,
-			remap:    webSafeRemap,
+			remap:    toneMapSDR,
 			want:     pixelFormatYUV420P,
 		},
 		{
 			name:     "sdr is 8-bit",
 			transfer: nameBT709,
-			remap:    preserveHDR,
+			remap:    keepHDR,
 			want:     pixelFormatYUV420P,
 		},
 	}
@@ -372,42 +370,41 @@ func TestSignalstatsFilterSamplesEightBitLuma(t *testing.T) {
 func TestPeakSampleSecondsPinsTheWindow(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, webSafePeak, peakSampleSeconds(600*time.Second))
-	assert.Equal(t, webSafePeak, peakSampleSeconds(0))
+	assert.Equal(t, peakSampleCap, peakSampleSeconds(600*time.Second))
+	assert.Equal(t, peakSampleCap, peakSampleSeconds(0))
 	assert.Equal(t, 3500*time.Millisecond, peakSampleSeconds(3500*time.Millisecond))
 }
 
-// TestStillsAndGIFsToneMapOnlyWhenWebSafeMeetsHDR covers the GIF and the
-// screenshot: web-safe color tone maps an HDR source, and leaves an SDR
-// source, or an export without web-safe color, as it is.
-func TestStillsAndGIFsToneMapOnlyWhenWebSafeMeetsHDR(t *testing.T) {
+// TestStillsAndGIFsAlwaysToneMapHDR covers the GIF and the screenshot:
+// neither format can carry HDR, so an HDR source is always tone mapped, and an
+// SDR source is left as it is.
+func TestStillsAndGIFsAlwaysToneMapHDR(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name    string
-		probe   string
-		webSafe bool
-		mapped  bool
+		name   string
+		probe  string
+		mapped bool
 	}{
-		{name: "web-safe HDR", probe: hlgProbe, webSafe: true, mapped: true},
-		{name: "HDR without web-safe", probe: hlgProbe, webSafe: false, mapped: false},
-		{name: "web-safe SDR", probe: sdrProbe, webSafe: true, mapped: false},
+		{name: "HLG", probe: hlgProbe, mapped: true},
+		{name: "PQ", probe: pqProbe, mapped: true},
+		{name: "SDR", probe: sdrProbe, mapped: false},
 	}
 
-	exports := map[string]func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture, preset clip.QualityPreset){
-		"gif": func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture, preset clip.QualityPreset) {
+	exports := map[string]func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture){
+		"gif": func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture) {
 			t.Helper()
 
 			require.NoError(t, runner.ExtractGIF(
 				t.Context(), fixture.input, fixture.output, time.Second, 3*time.Second, 0, 0,
-				crop.CropRect{}, preset,
+				crop.CropRect{},
 			))
 		},
-		"screenshot": func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture, preset clip.QualityPreset) {
+		"screenshot": func(t *testing.T, runner *ExecFFmpeg, fixture encodeFixture) {
 			t.Helper()
 
 			require.NoError(t, runner.ExtractScreenshot(
-				t.Context(), fixture.input, fixture.output, time.Second, crop.CropRect{}, preset,
+				t.Context(), fixture.input, fixture.output, time.Second, crop.CropRect{},
 			))
 		},
 	}
@@ -425,7 +422,7 @@ func TestStillsAndGIFsToneMapOnlyWhenWebSafeMeetsHDR(t *testing.T) {
 					probeStub(t, test.probe),
 				)
 
-				render(t, runner, fixture, clip.QualityPreset{WebSafeColor: test.webSafe})
+				render(t, runner, fixture)
 
 				recorded, err := os.ReadFile(logPath)
 				require.NoError(t, err)
@@ -470,7 +467,7 @@ func TestToneMapSitsBetweenCropAndScale(t *testing.T) {
 }
 
 // TestAScreenshotSamplesItsPeakNearTheStill covers the PQ peak of a
-// web-safe screenshot: it is sampled from a short window starting at the
+// screenshot of an HDR source: it is sampled from a short window starting at the
 // still, not the longer window a clip uses.
 func TestAScreenshotSamplesItsPeakNearTheStill(t *testing.T) {
 	t.Parallel()
@@ -489,7 +486,6 @@ func TestAScreenshotSamplesItsPeakNearTheStill(t *testing.T) {
 
 	require.NoError(t, runner.ExtractScreenshot(
 		t.Context(), fixture.input, fixture.output, 90*time.Second, crop.CropRect{},
-		clip.QualityPreset{WebSafeColor: true},
 	))
 
 	recorded, err := os.ReadFile(logPath)

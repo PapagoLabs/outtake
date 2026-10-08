@@ -12,8 +12,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
+	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/database"
 	clips "github.com/PapagoLabs/outtake/internal/web/handlers/clip"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -23,6 +25,7 @@ import (
 type Handler struct {
 	previews *clippreview.Service
 	cfg      *config.Config
+	db       *database.DB
 	sources  *library.MediaSource
 }
 
@@ -35,7 +38,9 @@ const (
 //
 // Parameters:
 //   - previews: Preview service the routes submit to.
-//   - cfg: Configuration supplying the keep-HDR default.
+//   - cfg: Configuration supplying the clip length cap.
+//   - db: Clip profile store, whose profiles supply the keep-HDR default. It
+//     may be nil, which falls back to the built-in profiles.
 //   - sources: Resolver for the media a preview is cut from.
 //
 // Returns:
@@ -43,11 +48,13 @@ const (
 func New(
 	previews *clippreview.Service,
 	cfg *config.Config,
+	db *database.DB,
 	sources *library.MediaSource,
 ) *Handler {
 	return &Handler{
 		previews: previews,
 		cfg:      cfg,
+		db:       db,
 		sources:  sources,
 	}
 }
@@ -100,7 +107,10 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 
 	// Resolved before the id is derived, because the id has to reflect the
 	// setting the render will actually use, not only what the form sent.
-	preserveHDR := api.FlagOrDefault(req.PreserveHDR, handler.cfg.PreserveHDR)
+	preserveHDR := api.FlagOrDefault(
+		req.KeepHDR(),
+		clipprofile.Preset(ctx.Context(), handler.db, req.Quality).PreserveHDR,
+	)
 
 	req.PreserveHDR = new(preserveHDR)
 

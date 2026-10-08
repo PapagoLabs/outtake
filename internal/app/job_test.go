@@ -47,7 +47,6 @@ func testClipJob(id string) *clip.Job {
 		FPS:           0,
 		AudioIndex:    1,
 		CropBlackBars: false,
-		WebSafeColor:  false,
 		PreserveHDR:   false,
 
 		CreatedAt: time.Now().UTC().Truncate(time.Second),

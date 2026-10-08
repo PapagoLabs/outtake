@@ -83,7 +83,9 @@ func NewMediaSource(
 }
 
 // CheckEdit probes a source once and reports whether an edit fits it: within
-// the length cap, inside the source, and naming an audio track it carries.
+// the length cap, inside the source, and naming an audio track it carries. A
+// Dolby Vision source with no displayable base layer is refused outright,
+// because every export of it would come out green and magenta.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -102,6 +104,10 @@ func (source *MediaSource) CheckEdit(
 	facts := clip.Source{Length: 0, AudioTracks: 0, Probed: false}
 
 	info, err := source.prober.Probe(ctx, path)
+	if err == nil && info.NeedsDolbyVisionReshaping() {
+		return fmt.Errorf("check edit: %w", ErrDolbyVisionBaseLayer)
+	}
+
 	if err == nil {
 		facts = clip.Source{
 			Length:      max(info.Duration, 0),

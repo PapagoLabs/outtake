@@ -22,8 +22,10 @@ type Request struct {
 	FPS           int     `json:"fps"`
 	AudioIndex    int     `json:"audioIndex"`
 	CropBlackBars bool    `json:"cropBlackBars"`
-	WebSafeColor  *bool   `json:"webSafeColor"`
 	PreserveHDR   *bool   `json:"preserveHdr"`
+	// WebSafeColor is the inverse of PreserveHDR, accepted from callers that
+	// still send it. PreserveHDR wins when both are present.
+	WebSafeColor *bool `json:"webSafeColor"`
 }
 
 // Response is a clip as a caller reads it back. Input and output paths are
@@ -44,8 +46,45 @@ type Response struct {
 	UpdatedAt     time.Time `json:"updatedAt"`
 	AudioIndex    int       `json:"audioIndex"`
 	CropBlackBars bool      `json:"cropBlackBars"`
-	WebSafeColor  bool      `json:"webSafeColor"`
 	PreserveHDR   bool      `json:"preserveHdr"`
+}
+
+// KeepHDR reports the keep-HDR choice the request carried.
+//
+// Returns:
+//   - keep: The choice, nil when the request carried neither preserveHdr nor
+//     webSafeColor.
+func (req *Request) KeepHDR() *bool {
+	return keepHDR(req.PreserveHDR, req.WebSafeColor)
+}
+
+// KeepHDR reports the keep-HDR choice the edit carried.
+//
+// Returns:
+//   - keep: The choice, nil when the edit carried neither preserveHdr nor
+//     webSafeColor.
+func (req *EditRequest) KeepHDR() *bool {
+	return keepHDR(req.PreserveHDR, req.WebSafeColor)
+}
+
+// keepHDR resolves the keep-HDR choice from its current and its legacy field.
+//
+// Parameters:
+//   - preserve: The preserveHdr field, nil when absent.
+//   - webSafe: The legacy webSafeColor field, nil when absent.
+//
+// Returns:
+//   - keep: preserve when present, otherwise the inverse of webSafe, otherwise nil.
+func keepHDR(preserve, webSafe *bool) *bool {
+	if preserve != nil {
+		return new(*preserve)
+	}
+
+	if webSafe != nil {
+		return new(!*webSafe)
+	}
+
+	return nil
 }
 
 // Flag reads an optional request flag, treating an absent one as false.

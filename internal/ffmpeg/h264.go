@@ -17,22 +17,21 @@ import (
 
 // h264EncodeRequest is the input for a browser-safe libx264 encode.
 type h264EncodeRequest struct {
-	ffmpegPath   string
-	input        string
-	output       string
-	start        time.Duration
-	duration     time.Duration
-	preset       clip.QualityPreset
-	audioIndex   int
-	maxWidth     int
-	scaleFlags   string
-	crop         crop.CropRect
-	webSafeColor bool
-	hdrKind      string
-	toneMap      bool
-	colorTags    []string
-	pixFmt       string
-	tonePeak     float64
+	ffmpegPath string
+	input      string
+	output     string
+	start      time.Duration
+	duration   time.Duration
+	preset     clip.QualityPreset
+	audioIndex int
+	maxWidth   int
+	scaleFlags string
+	crop       crop.CropRect
+	hdrKind    string
+	toneMap    bool
+	colorTags  []string
+	pixFmt     string
+	tonePeak   float64
 }
 
 const (
@@ -68,7 +67,7 @@ const (
 //   - output: Destination mp4 path.
 //   - start: Seek offset into the source.
 //   - duration: Length of the clip.
-//   - preset: Encode quality, including WebSafeColor.
+//   - preset: Encode quality, including whether HDR is kept.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
 //
@@ -123,7 +122,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 //   - output: Destination mp4 path.
 //   - start: Seek offset into the source.
 //   - duration: Length of the clip.
-//   - preset: Encode quality, including WebSafeColor.
+//   - preset: Encode quality, including whether HDR is kept.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
 //
@@ -141,19 +140,18 @@ func clipEncodeRequest(
 	hdrKind := ""
 
 	return h264EncodeRequest{
-		ffmpegPath:   ffmpegPath,
-		input:        input,
-		output:       output,
-		start:        start,
-		duration:     duration,
-		preset:       preset,
-		audioIndex:   audioIndex,
-		maxWidth:     clip.NormalizeOutputWidth(preset.MaxWidth),
-		scaleFlags:   scaleFlagsLanczos,
-		crop:         rect,
-		webSafeColor: preset.WebSafeColor,
-		hdrKind:      hdrKind,
-		tonePeak:     tonemap.DefaultWebSafePeak,
+		ffmpegPath: ffmpegPath,
+		input:      input,
+		output:     output,
+		start:      start,
+		duration:   duration,
+		preset:     preset,
+		audioIndex: audioIndex,
+		maxWidth:   clip.NormalizeOutputWidth(preset.MaxWidth),
+		scaleFlags: scaleFlagsLanczos,
+		crop:       rect,
+		hdrKind:    hdrKind,
+		tonePeak:   tonemap.DefaultWebSafePeak,
 	}
 }
 
@@ -167,7 +165,7 @@ func clipEncodeRequest(
 //   - duration: Length of the preview window.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only WebSafeColor is read.
+//   - preset: Encode options; only PreserveHDR is read.
 //
 // Returns:
 //   - req: Populated encode request. HDR peak is filled later by resolveColor.
@@ -189,20 +187,18 @@ func previewEncodeRequest(
 		start:      start,
 		duration:   duration,
 		preset: clip.QualityPreset{
-			CRF:          previewCRF,
-			Preset:       previewPreset,
-			AudioKbps:    previewAudioKbps,
-			MaxWidth:     previewMaxWidth,
-			WebSafeColor: preset.WebSafeColor,
-			PreserveHDR:  preset.PreserveHDR,
+			CRF:         previewCRF,
+			Preset:      previewPreset,
+			AudioKbps:   previewAudioKbps,
+			MaxWidth:    previewMaxWidth,
+			PreserveHDR: preset.PreserveHDR,
 		},
-		audioIndex:   audioIndex,
-		maxWidth:     previewMaxWidth,
-		scaleFlags:   scaleFlagsFast,
-		crop:         rect,
-		webSafeColor: preset.WebSafeColor,
-		hdrKind:      hdrKind,
-		tonePeak:     tonemap.DefaultWebSafePeak,
+		audioIndex: audioIndex,
+		maxWidth:   previewMaxWidth,
+		scaleFlags: scaleFlagsFast,
+		crop:       rect,
+		hdrKind:    hdrKind,
+		tonePeak:   tonemap.DefaultWebSafePeak,
 	}
 }
 
@@ -216,7 +212,7 @@ func previewEncodeRequest(
 //   - duration: Requested window, capped by PreviewDuration.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only WebSafeColor is read.
+//   - preset: Encode options; only PreserveHDR is read.
 //
 // Returns:
 //   - err: Non-nil when the preview could not be encoded.
@@ -307,7 +303,7 @@ func pixelFormat(req *h264EncodeRequest) string {
 // videoFilter applies optional black-bar crop, optional HDR tone-map, then scale.
 //
 // Parameters:
-//   - req: Encode request with crop, scale, and web-safe color fields.
+//   - req: Encode request with crop, scale, and tone map fields.
 //
 // Returns:
 //   - filter: The ffmpeg -vf chain.
@@ -369,7 +365,7 @@ func h264EncodeArgs(req *h264EncodeRequest) []string {
 //     output as Rec.709.
 func movFlags(req *h264EncodeRequest) string {
 	if req.toneMap {
-		return webSafeMovFlags
+		return toneMappedMovFlags
 	}
 
 	return overwriteFlag

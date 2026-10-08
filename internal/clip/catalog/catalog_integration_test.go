@@ -108,7 +108,6 @@ func fixtureClips() []*clip.Job {
 			Quality:   "medium",
 
 			CropBlackBars: item.id == "d-gif",
-			WebSafeColor:  item.id == "c-outro",
 			PreserveHDR:   item.id == "g-opening",
 			CreatedAt:     catalogBase.Add(item.created),
 			UpdatedAt: catalogBase.Add(
@@ -392,7 +391,6 @@ func TestIntegration_ClipResponsesWithholdPathsAndKeepFlags(t *testing.T) {
 
 	assert.Equal(t, "c-outro", responses[2].ID)
 	assert.Equal(t, clip.StatusProcessing, responses[2].Status)
-	assert.True(t, responses[2].WebSafeColor)
 
 	assert.Empty(t, catalog.ClipResponses(nil))
 }
@@ -483,7 +481,6 @@ func renamed(job *clip.Job, name string) clip.Edit {
 		FPS:           job.FPS,
 		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
-		WebSafeColor:  &job.WebSafeColor,
 		PreserveHDR:   &job.PreserveHDR,
 	}
 }

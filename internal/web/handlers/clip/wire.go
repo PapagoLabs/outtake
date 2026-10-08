@@ -68,8 +68,7 @@ func clipEdit(req api.ClipRequest) clipdom.Edit {
 		FPS:           req.FPS,
 		AudioIndex:    req.AudioIndex,
 		CropBlackBars: req.CropBlackBars,
-		WebSafeColor:  req.WebSafeColor,
-		PreserveHDR:   req.PreserveHDR,
+		PreserveHDR:   req.KeepHDR(),
 	}
 }
 
@@ -207,7 +206,6 @@ func ParseRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		FPS:           respond.FormInt(ctx, "fps"),
 		AudioIndex:    respond.FormInt(ctx, "audioIndex"),
 		CropBlackBars: routes.IsFormChecked(ctx.FormValue("cropBlackBars")),
-		WebSafeColor:  new(routes.IsFormChecked(ctx.FormValue("webSafeColor"))),
 		PreserveHDR:   new(routes.IsFormChecked(ctx.FormValue("preserveHdr"))),
 	}, nil
 }

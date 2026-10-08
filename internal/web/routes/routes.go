@@ -97,9 +97,6 @@ const (
 	// QueryUpTitle is the media breadcrumb parent title.
 	QueryUpTitle = "upTitle"
 
-	// QueryWebSafeColor carries the New export web-safe color checkbox.
-	QueryWebSafeColor = "webSafeColor"
-
 	// QueryWidth carries the New export GIF width across a redirect.
 	QueryWidth = "width"
 )

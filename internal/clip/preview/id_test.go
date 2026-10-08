@@ -103,11 +103,6 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 		{name: "duration", mutate: func(r *clip.Request) { r.Duration = 21 }},
 		{name: "audio index", mutate: func(r *clip.Request) { r.AudioIndex = 2 }},
 		{name: "crop", mutate: func(r *clip.Request) { r.CropBlackBars = true }},
-		{name: "web safe", mutate: func(r *clip.Request) {
-			on := true
-
-			r.WebSafeColor = &on
-		}},
 		{name: "preserve hdr", mutate: func(r *clip.Request) {
 			on := true
 

@@ -27,7 +27,6 @@ func TestExportFormApplyToQueryLeavesTheZeroFieldsUnwritten(t *testing.T) {
 	assert.NotContains(t, values, routes.QueryFPS)
 	assert.Empty(t, values.Get(routes.QueryExportName))
 	assert.Equal(t, routes.FormUnchecked, values.Get(routes.QueryCropBlackBars))
-	assert.Equal(t, routes.FormUnchecked, values.Get(routes.QueryWebSafeColor))
 	assert.Equal(t, routes.FormUnchecked, values.Get(routes.QueryPreserveHDR))
 }
 
@@ -67,7 +66,6 @@ func TestExportFormApplyToQueryCarriesEveryField(t *testing.T) {
 		Width:         640,
 		FPS:           12,
 		CropBlackBars: true,
-		WebSafeColor:  true,
 		PreserveHDR:   true,
 	}.ApplyToQuery(values)
 
@@ -78,6 +76,5 @@ func TestExportFormApplyToQueryCarriesEveryField(t *testing.T) {
 	assert.Equal(t, "640", values.Get(routes.QueryWidth))
 	assert.Equal(t, "12", values.Get(routes.QueryFPS))
 	assert.Equal(t, routes.FormChecked, values.Get(routes.QueryCropBlackBars))
-	assert.Equal(t, routes.FormChecked, values.Get(routes.QueryWebSafeColor))
 	assert.Equal(t, routes.FormChecked, values.Get(routes.QueryPreserveHDR))
 }

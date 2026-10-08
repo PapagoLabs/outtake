@@ -52,7 +52,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 									}
 								}
 							</div>
-							@profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, props.Presets, props.Widths)
+							@profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, profile.KeepHDR, props.Presets, props.Widths)
 							<div class="flex flex-wrap gap-2">
 								@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
 									Save
@@ -100,7 +100,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 							<p class="font-medium">New profile</p>
 							<p class="text-sm text-muted-foreground">CRF 18–28 is typical. Slower presets take longer and compress more efficiently.</p>
 						</div>
-						@profileFields("new-", "", 23, "medium", 192, 1920, props.Presets, props.Widths)
+						@profileFields("new-", "", 23, "medium", 192, 1920, false, props.Presets, props.Widths)
 						<label class="flex items-center gap-2 text-sm">
 							@checkbox.Checkbox(checkbox.Props{Name: "isDefault", Value: "1", Class: "rounded border-input"})
 							Set as default
@@ -124,9 +124,10 @@ templ ClipProfiles(props ClipProfilesProps) {
 //   - preset: Current encoder preset.
 //   - audioKbps: Current audio bitrate in kbps.
 //   - maxWidth: Current export resolution.
+//   - keepHDR: Whether new video clips from HDR sources keep HDR by default.
 //   - presets: Encoder presets to choose from.
 //   - widths: Export resolutions to choose from.
-templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, presets []string, widths []profile.OutputWidth) {
+templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, keepHDR bool, presets []string, widths []profile.OutputWidth) {
 	<div class="flex flex-col gap-2">
 		@label.Label(label.Props{For: idPrefix + "name"}) {
 			Name
@@ -175,4 +176,9 @@ templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, ma
 			</select>
 		</div>
 	</div>
+	<label class="flex items-center gap-2 text-sm">
+		@checkbox.Checkbox(checkbox.Props{ID: idPrefix + "keephdr", Name: "keepHdr", Value: "1", Checked: keepHDR, Class: "rounded border-input"})
+		Keep HDR by default
+	</label>
+	<p class="text-sm text-muted-foreground">New video clips from an HDR source keep HDR. Turn it off to convert them to SDR, which most social sites need. Each clip can still change it.</p>
 }

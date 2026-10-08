@@ -92,7 +92,6 @@ func TestIntegration_ClipRoundTripPersistsEveryColumn(t *testing.T) {
 	job.FPS = 24
 	job.AudioIndex = 3
 	job.CropBlackBars = true
-	job.WebSafeColor = true
 	job.PreserveHDR = true
 	job.StartTime = 1500 * time.Millisecond
 	job.Duration = 7500 * time.Millisecond
@@ -118,7 +117,6 @@ func TestIntegration_ClipRoundTripPersistsEveryColumn(t *testing.T) {
 	assert.Equal(t, 1500*time.Millisecond, stored.StartTime)
 	assert.Equal(t, 7500*time.Millisecond, stored.Duration)
 	assert.True(t, stored.CropBlackBars, "a true flag survives as a non-zero column")
-	assert.True(t, stored.WebSafeColor, "a true flag survives as a non-zero column")
 	assert.True(t, stored.PreserveHDR, "a true flag survives as a non-zero column")
 	assert.True(t, stored.CreatedAt.Equal(base), "the stored creation time reads back")
 	assert.True(t, stored.UpdatedAt.Equal(base), "the stored update time reads back")

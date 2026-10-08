@@ -215,7 +215,6 @@ func TestExtractGIFPublishesAndLeavesNoPalette(t *testing.T) {
 	).ExtractGIF(
 		t.Context(),
 		fixture.input, fixture.output, time.Second, 3*time.Second, 0, 0, crop.CropRect{},
-		clip.QualityPreset{},
 	)
 	require.NoError(t, err)
 

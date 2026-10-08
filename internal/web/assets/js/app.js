@@ -288,6 +288,16 @@
 		}
 	}
 
+	// syncKeepHDR sets a form's Keep HDR box to the default of the profile just
+	// chosen. The box stays the user's to change afterwards.
+	function syncKeepHDR(form, quality) {
+		var box = form.querySelector('[data-keep-hdr-box]');
+		var option = quality.options[quality.selectedIndex];
+		if (box && option) {
+			box.checked = option.getAttribute('data-keep-hdr') === '1';
+		}
+	}
+
 	function bindExportForms() {
 		document.querySelectorAll('[data-export-form]').forEach(function (form) {
 			applyExportForm(form);
@@ -302,6 +312,13 @@
 					// the button state have to be worked out again after the switch
 					// rather than left over from the previous type.
 					syncExportDuration(form);
+				});
+			}
+			var quality = form.querySelector('select[name="quality"]');
+			if (quality && !quality.dataset.keepHdrBound) {
+				quality.dataset.keepHdrBound = '1';
+				quality.addEventListener('change', function () {
+					syncKeepHDR(form, quality);
 				});
 			}
 			if (!form.dataset.durationBound) {

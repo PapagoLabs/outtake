@@ -87,6 +87,20 @@ func TestProfileFromFieldsCarriesTheRequestedDefault(t *testing.T) {
 	assert.True(t, profile.IsDefault)
 }
 
+func TestProfileFromFieldsCarriesKeepHDR(t *testing.T) {
+	t.Parallel()
+
+	for _, keep := range []bool{true, false} {
+		fields := fieldsWith(t, func(f *ProfileFields) { f.KeepHDR = keep })
+
+		profile, err := ProfileFromFields("id-1", fields)
+		require.NoError(t, err)
+
+		assert.Equal(t, keep, profile.KeepHDR)
+		assert.Equal(t, keep, profile.record().KeepHDR, "the stored row carries it too")
+	}
+}
+
 // archiveFields are valid profile form values.
 //
 // Returns:

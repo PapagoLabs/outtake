@@ -367,7 +367,6 @@ func TestUpdateOfAPartialJSONBodyKeepsEveryOtherField(t *testing.T) {
 
 	stored.AudioIndex = 2
 	stored.CropBlackBars = true
-	stored.WebSafeColor = true
 	stored.PreserveHDR = true
 	require.NoError(t, db.SaveClip(t.Context(), stored))
 
@@ -386,7 +385,6 @@ func TestUpdateOfAPartialJSONBodyKeepsEveryOtherField(t *testing.T) {
 	assert.Equal(t, string(clipdom.ClipQualityMedium), saved.Quality)
 	assert.Equal(t, 2, saved.AudioIndex)
 	assert.True(t, saved.CropBlackBars)
-	assert.True(t, saved.WebSafeColor)
 	assert.True(t, saved.PreserveHDR)
 }
 
@@ -495,7 +493,7 @@ func TestUpdateSwapsInACardThatKeepsItsSourceChoices(t *testing.T) {
 	handler.sources = hdrSources(t)
 
 	form := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
-	form.Set("webSafeColor", routes.FormChecked)
+	form.Set("preserveHdr", routes.FormChecked)
 
 	answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
 

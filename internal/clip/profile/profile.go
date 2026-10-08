@@ -84,6 +84,7 @@ func ProfileFromFields(id string, fields ProfileFields) (Profile, error) {
 		AudioKbps: audioKbps,
 		MaxWidth:  maxWidth,
 		IsDefault: fields.IsDefault,
+		KeepHDR:   fields.KeepHDR,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}, nil

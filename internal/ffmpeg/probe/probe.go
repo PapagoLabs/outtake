@@ -26,6 +26,20 @@ type Info struct {
 	BitRate       int64         `json:"bit_rate"`
 	ColorTransfer string        `json:"color_transfer"`
 	AudioTracks   []Track       `json:"audio_tracks"`
+	// DolbyVision is the video stream's Dolby Vision configuration, the zero
+	// value when the stream carries none.
+	DolbyVision DolbyVision `json:"dolby_vision"`
+}
+
+// DolbyVision is a stream's Dolby Vision configuration record.
+type DolbyVision struct {
+	// Present reports that the stream carries a configuration record.
+	Present bool `json:"present"`
+	// Profile is the Dolby Vision profile, such as 5, 7, or 8.
+	Profile int `json:"profile"`
+	// BaseLayerCompatibility is the base layer's signal compatibility id:
+	// 0 for none, 1 for HDR10, 2 for SDR, 4 for HLG, and 6 for UHD Blu-ray.
+	BaseLayerCompatibility int `json:"base_layer_compatibility"`
 }
 
 // Track is one audio stream on a source file.
@@ -46,14 +60,23 @@ type probeFormat struct {
 
 // probeStream represents a stream from ffprobe.
 type probeStream struct {
-	Index         int       `json:"index"`
-	CodecType     string    `json:"codec_type"`
-	CodecName     string    `json:"codec_name"`
-	Width         int       `json:"width"`
-	Height        int       `json:"height"`
-	Channels      int       `json:"channels"`
-	ColorTransfer string    `json:"color_transfer"`
-	Tags          probeTags `json:"tags"`
+	Index         int             `json:"index"`
+	CodecType     string          `json:"codec_type"`
+	CodecName     string          `json:"codec_name"`
+	Width         int             `json:"width"`
+	Height        int             `json:"height"`
+	Channels      int             `json:"channels"`
+	ColorTransfer string          `json:"color_transfer"`
+	Tags          probeTags       `json:"tags"`
+	SideData      []probeSideData `json:"side_data_list"`
+}
+
+// probeSideData is one entry of a stream's side data list. Only the Dolby
+// Vision configuration record's fields are read.
+type probeSideData struct {
+	Type                   string `json:"side_data_type"`
+	DolbyVisionProfile     int    `json:"dv_profile"`
+	BaseLayerCompatibility int    `json:"dv_bl_signal_compatibility_id"`
 }
 
 // probeTags holds optional ffprobe stream tags.
@@ -80,6 +103,11 @@ const (
 	emptyVideoCodec = ""
 	// emptyAudioCodec is an empty audio codec placeholder.
 	emptyAudioCodec = ""
+	// dolbyVisionRecordType is ffprobe's name for the Dolby Vision
+	// configuration record.
+	dolbyVisionRecordType = "DOVI configuration record"
+	// dolbyVisionProfile5 is the profile whose base layer is not displayable.
+	dolbyVisionProfile5 = 5
 )
 
 // Probe reads a media file for information.
@@ -230,6 +258,7 @@ func parseStream(stream probeStream, info *Info) {
 			info.Width = stream.Width
 			info.Height = stream.Height
 			info.ColorTransfer = stream.ColorTransfer
+			info.DolbyVision = dolbyVision(stream.SideData)
 		}
 	case "audio":
 		if info.AudioCodec == emptyAudioCodec {
@@ -260,4 +289,39 @@ func audioTitle(tags probeTags) string {
 	}
 
 	return tags.Name
+}
+
+// NeedsDolbyVisionReshaping reports whether the video is Dolby Vision with no
+// displayable base layer, such as profile 5. Its base layer is in Dolby's own
+// color space and only looks right after the Dolby Vision reshaping, which
+// ffmpeg's decoder does not apply.
+//
+// Returns:
+//   - needs: True for profile 5, or for any base layer compatible with nothing.
+func (info Info) NeedsDolbyVisionReshaping() bool {
+	return info.DolbyVision.Present &&
+		(info.DolbyVision.Profile == dolbyVisionProfile5 ||
+			info.DolbyVision.BaseLayerCompatibility == 0)
+}
+
+// dolbyVision reads the Dolby Vision configuration record from a stream's side
+// data.
+//
+// Parameters:
+//   - sideData: The stream's side data list.
+//
+// Returns:
+//   - config: The record, or the zero value when the stream carries none.
+func dolbyVision(sideData []probeSideData) DolbyVision {
+	for _, entry := range sideData {
+		if entry.Type == dolbyVisionRecordType {
+			return DolbyVision{
+				Present:                true,
+				Profile:                entry.DolbyVisionProfile,
+				BaseLayerCompatibility: entry.BaseLayerCompatibility,
+			}
+		}
+	}
+
+	return DolbyVision{Present: false, Profile: 0, BaseLayerCompatibility: 0}
 }

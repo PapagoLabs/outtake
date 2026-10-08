@@ -273,7 +273,7 @@ templ ClipCard(item view.ClipItem) {
 						</div>
 					</div>
 					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ timecode.FromDuration(item.Duration).Short() }</span> (max { timecode.FromDuration(item.MaxDur).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
-					@ColorFields(item.CropBlackBars, item.WebSafeColor, item.PreserveHDR, item.SourceHDR)
+					@ColorFields(item.CropBlackBars, item.PreserveHDR, item.SourceHDR)
 					if !item.SourceHDR && item.PreserveHDR {
 						// The HDR box only shows for an HDR source, so the stored setting is posted back unchanged.
 						<input type="hidden" name="preserveHdr" value="1"/>
@@ -284,17 +284,15 @@ templ ClipCard(item view.ClipItem) {
 	</div>
 }
 
-// ColorFields renders the export checkboxes that apply to every clip type.
+// ColorFields renders the crop and color checkboxes of an export form.
 //
 // Parameters:
 //   - cropBlackBars: Trim black bars is checked.
-//   - webSafeColor: Tone-map to web-safe color is checked.
-//   - preserveHDR: Keep the source HDR transfer is checked.
-//   - sourceHDR: The source carries an HDR transfer.
-templ ColorFields(cropBlackBars, webSafeColor, preserveHDR, sourceHDR bool) {
+//   - preserveHDR: Keep HDR is checked.
+//   - sourceHDR: The source carries an HDR transfer, so Keep HDR is offered.
+templ ColorFields(cropBlackBars, preserveHDR, sourceHDR bool) {
 	<div class="flex flex-wrap items-center gap-4">
 		@CropBlackBarsField(cropBlackBars)
-		@WebSafeColorField(webSafeColor)
 		if sourceHDR {
 			@PreserveHDRField(preserveHDR)
 		}
@@ -312,25 +310,16 @@ templ CropBlackBarsField(checked bool) {
 	</label>
 }
 
-// PreserveHDRField renders the keep-HDR checkbox.
+// PreserveHDRField renders the Keep HDR checkbox of a video clip. Unchecked,
+// the clip is tone mapped to SDR. GIFs and screenshots are always SDR, so the
+// box shows only for video. The export form script sets it from the chosen
+// profile.
 //
 // Parameters:
 //   - checked: The checkbox is checked.
 templ PreserveHDRField(checked bool) {
 	<label class="flex items-center gap-2 text-sm" data-export-for="clip">
-		@checkbox.Checkbox(checkbox.Props{Name: "preserveHdr", Value: "1", Checked: checked, Class: "rounded border-input"})
-		HDR
-	</label>
-}
-
-// WebSafeColorField renders the web-safe color checkbox, which tone maps an HDR
-// source for every export type.
-//
-// Parameters:
-//   - checked: The checkbox is checked.
-templ WebSafeColorField(checked bool) {
-	<label class="flex items-center gap-2 text-sm" data-export-for="clip,gif,screenshot">
-		@checkbox.Checkbox(checkbox.Props{Name: "webSafeColor", Value: "1", Checked: checked, Class: "rounded border-input"})
-		Web-safe color
+		@checkbox.Checkbox(checkbox.Props{Name: "preserveHdr", Value: "1", Checked: checked, Class: "rounded border-input", Attributes: templ.Attributes{"data-keep-hdr-box": ""}})
+		Keep HDR
 	</label>
 }

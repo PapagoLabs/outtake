@@ -47,7 +47,6 @@ func NewClipItem(
 		AudioIndex:    job.AudioIndex,
 		AudioTracks:   nil,
 		CropBlackBars: job.CropBlackBars,
-		WebSafeColor:  job.WebSafeColor,
 		PreserveHDR:   job.PreserveHDR,
 		Width:         job.Width,
 		FPS:           job.FPS,

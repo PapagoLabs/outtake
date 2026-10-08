@@ -24,7 +24,7 @@ const (
 	clipSelectCols = `id, media_id, media_title, media_type, clip_type, status, progress,
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
-		web_safe_color, preserve_hdr`
+		preserve_hdr`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
@@ -247,7 +247,6 @@ func scanJob(row scannable) (*clip.Job, error) {
 	var created time.Time
 	var updated time.Time
 	var cropBlackBars int
-	var webSafeColor int
 	var preserveHDR int
 
 	err := row.Scan(
@@ -271,7 +270,6 @@ func scanJob(row scannable) (*clip.Job, error) {
 		&job.Name,
 		&job.AudioIndex,
 		&cropBlackBars,
-		&webSafeColor,
 		&preserveHDR,
 	)
 	if err != nil {
@@ -285,7 +283,6 @@ func scanJob(row scannable) (*clip.Job, error) {
 	job.CreatedAt = created
 	job.UpdatedAt = updated
 	job.CropBlackBars = cropBlackBars != 0
-	job.WebSafeColor = webSafeColor != 0
 	job.PreserveHDR = preserveHDR != 0
 
 	return job, nil
@@ -334,19 +331,21 @@ func cropBlackBarsColumn(record *clip.Clip) int {
 	return 0
 }
 
-// webSafeColorColumn stores the web-safe color setting as 0 or 1.
+// webSafeColorColumn stores the inverse of the keep-HDR setting in the
+// web_safe_color column, which nothing reads. It keeps the column consistent
+// for a build from before preserve_hdr decided tone mapping.
 //
 // Parameters:
-//   - record: Clip whose color setting is stored.
+//   - record: Clip whose HDR setting is stored.
 //
 // Returns:
-//   - value: 1 when WebSafeColor is set, otherwise 0.
+//   - value: 1 when the clip tone maps HDR, otherwise 0.
 func webSafeColorColumn(record *clip.Clip) int {
-	if record.WebSafeColor {
-		return 1
+	if record.PreserveHDR {
+		return 0
 	}
 
-	return 0
+	return 1
 }
 
 // preserveHDRColumn stores the preserve-HDR setting as 0 or 1.

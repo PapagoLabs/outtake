@@ -441,9 +441,9 @@ func TestClipEditCarriesTheRequest(t *testing.T) {
 	assert.Equal(t, 24, edit.FPS)
 	assert.Equal(t, 3, edit.AudioIndex)
 	assert.True(t, edit.CropBlackBars)
-	assert.True(t, *edit.WebSafeColor)
 	require.NotNil(t, edit.PreserveHDR)
-	assert.False(t, *edit.PreserveHDR)
+	assert.False(t, *edit.PreserveHDR,
+		"preserveHdr wins over the legacy webSafeColor when both are sent")
 	assert.Empty(t, edit.Type, "the type is decided by the caller, not by the wire request")
 }
 

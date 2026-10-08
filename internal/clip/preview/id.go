@@ -35,8 +35,6 @@ type KeyInput struct {
 	AudioIndex int
 	// Crop is whether black bars are trimmed.
 	Crop bool
-	// WebSafe is whether HDR is tone mapped.
-	WebSafe bool
 	// PreserveHDR is whether the source's HDR transfer is kept.
 	PreserveHDR bool
 }
@@ -110,7 +108,6 @@ func RequestID(req clip.Request, source string) (string, error) {
 		),
 		AudioIndex:  req.AudioIndex,
 		Crop:        req.CropBlackBars,
-		WebSafe:     clip.Flag(req.WebSafeColor),
 		PreserveHDR: clip.Flag(req.PreserveHDR),
 	}), nil
 }
@@ -130,7 +127,6 @@ func ContentID(input KeyInput) string {
 		timecode.FromDuration(input.Duration).FormatSeconds(),
 		strconv.FormatInt(input.Size, decimalBase),
 		strconv.FormatBool(input.Crop),
-		strconv.FormatBool(input.WebSafe),
 		strconv.FormatBool(input.PreserveHDR),
 		strconv.Itoa(input.AudioIndex),
 		input.ModTime.UTC().Format(time.RFC3339Nano),
