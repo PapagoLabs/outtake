@@ -31,13 +31,17 @@ var FS embed.FS
 
 // versions maps each embedded file to the hash its URL carries. The files are
 // fixed at build time, so they are hashed once. A file that cannot be read is
-// left out, so its URL carries no hash and is never cached for good.
+// left out, so its URL carries no hash and is never cached for good. A walk
+// that fails leaves every file out.
 var versions = sync.OnceValue(func() map[string]string {
 	hashes := map[string]string{}
 
-	//nolint:errcheck,revive // The walk function never fails. It skips what it cannot read.
-	fs.WalkDir(FS, ".", func(name string, entry fs.DirEntry, err error) error {
-		if err != nil || entry.IsDir() {
+	err := fs.WalkDir(FS, ".", func(name string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		if entry.IsDir() {
 			return nil
 		}
 
@@ -52,6 +56,9 @@ var versions = sync.OnceValue(func() map[string]string {
 
 		return nil
 	})
+	if err != nil {
+		return map[string]string{}
+	}
 
 	return hashes
 })
