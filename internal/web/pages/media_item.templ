@@ -178,7 +178,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				}
 				@card.Content() {
-					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.FormatInt(int64(props.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(props.Duration).FormatSeconds() }>
+					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-keep-hdr-follows-profile data-max-dur={ strconv.FormatInt(int64(props.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(props.Duration).FormatSeconds() }>
 						@csrf.Field()
 						<input type="hidden" name="mediaId" value={ props.ID }/>
 						<input type="hidden" name="mediaTitle" value={ props.Title }/>

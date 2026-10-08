@@ -338,9 +338,10 @@ is higher quality.
   later draw 10-bit video black on NVIDIA under Wayland. The file is fine.
   Start the browser with `--ozone-platform=x11`, use Firefox, or turn off
   **Keep HDR** for that clip.
-- **"This source is Dolby Vision profile 5".** Profile 5 has no HDR10 base
-  layer, so ffmpeg cannot export it with correct colors. Use a copy of the
-  title with an HDR10 base layer.
+- **"This Dolby Vision source has no HDR10 or SDR base layer".** Dolby
+  Vision profile 5, and any other source without a displayable base layer,
+  cannot be exported by ffmpeg with correct colors. Use a copy of the title
+  with an HDR10 base layer.
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and
   keep them on `PATH`, or set the path variables above. Docker images
   already include them.

@@ -530,3 +530,22 @@ func TestClipStatusVersionsTheFileURLByRender(t *testing.T) {
 	assert.Contains(t, first, `src="/clips/c1/file?v=1000"`)
 	assert.Contains(t, second, `src="/clips/c1/file?v=2000"`)
 }
+
+// TestClipCardKeepsItsOwnKeepHDRWhenTheProfileChanges covers a saved clip:
+// its form is not marked to follow the profile, so changing the profile on
+// the card leaves the clip's Keep HDR choice as it was saved.
+func TestClipCardKeepsItsOwnKeepHDRWhenTheProfileChanges(t *testing.T) {
+	t.Parallel()
+
+	item := activeTestItem()
+	item.Status = domainclip.StatusCompleted
+	item.SourceHDR = true
+
+	var buf strings.Builder
+
+	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
+
+	body := buf.String()
+	assert.Contains(t, body, "data-export-form")
+	assert.NotContains(t, body, "data-keep-hdr-follows-profile")
+}

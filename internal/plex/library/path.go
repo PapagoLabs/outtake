@@ -30,8 +30,8 @@ var (
 	// profile 5, whose base layer only shows correct colors after Dolby's
 	// reshaping, which ffmpeg does not apply.
 	ErrDolbyVisionBaseLayer = errors.New(
-		"this source is Dolby Vision profile 5, which cannot be exported with " +
-			"correct colors: use a copy with an HDR10 base layer",
+		"this Dolby Vision source has no HDR10 or SDR base layer, so it cannot " +
+			"be exported with correct colors: use a copy with an HDR10 base layer",
 	)
 )
 

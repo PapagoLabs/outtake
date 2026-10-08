@@ -105,7 +105,11 @@ func (source *MediaSource) CheckEdit(
 
 	info, err := source.prober.Probe(ctx, path)
 	if err == nil && info.NeedsDolbyVisionReshaping() {
-		return fmt.Errorf("check edit: %w", ErrDolbyVisionBaseLayer)
+		return fmt.Errorf(
+			"check edit: %w (profile %d)",
+			ErrDolbyVisionBaseLayer,
+			info.DolbyVision.Profile,
+		)
 	}
 
 	if err == nil {

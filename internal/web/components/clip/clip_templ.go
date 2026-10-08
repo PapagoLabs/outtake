@@ -1539,8 +1539,8 @@ func CropBlackBarsField(checked bool) templ.Component {
 
 // PreserveHDRField renders the Keep HDR checkbox of a video clip. Unchecked,
 // the clip is tone mapped to SDR. GIFs and screenshots are always SDR, so the
-// box shows only for video. The export form script sets it from the chosen
-// profile.
+// box shows only for video. On the new export form, the form script sets it
+// from the chosen profile. A saved clip keeps its own choice.
 //
 // Parameters:
 //   - checked: The checkbox is checked.

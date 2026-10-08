@@ -314,7 +314,11 @@
 					syncExportDuration(form);
 				});
 			}
-			var quality = form.querySelector('select[name="quality"]');
+			// Only a new export takes Keep HDR from its profile. An existing
+			// clip keeps the choice it was saved with when its profile changes.
+			var quality = form.hasAttribute('data-keep-hdr-follows-profile')
+				? form.querySelector('select[name="quality"]')
+				: null;
 			if (quality && !quality.dataset.keepHdrBound) {
 				quality.dataset.keepHdrBound = '1';
 				quality.addEventListener('change', function () {

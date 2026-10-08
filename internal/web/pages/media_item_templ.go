@@ -586,14 +586,14 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<form id=\"clip-form\" class=\"flex flex-col gap-4\" data-export-form data-max-dur=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<form id=\"clip-form\" class=\"flex flex-col gap-4\" data-export-form data-keep-hdr-follows-profile data-max-dur=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.FormatInt(int64(props.MaxDur/time.Second), 10))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 181, Col: 140}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 181, Col: 170}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 					if templ_7745c5c3_Err != nil {
@@ -606,7 +606,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(timecode.FromDuration(props.Duration).FormatSeconds())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 181, Col: 213}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media_item.templ`, Line: 181, Col: 243}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 					if templ_7745c5c3_Err != nil {

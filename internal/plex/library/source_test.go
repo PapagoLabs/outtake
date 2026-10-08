@@ -227,6 +227,12 @@ func TestCheckEditRefusesADolbyVisionSourceWithoutABaseLayer(t *testing.T) {
 
 			if test.refuse {
 				require.ErrorIs(t, err, ErrDolbyVisionBaseLayer)
+				assert.Contains(
+					t,
+					err.Error(),
+					"(profile 5)",
+					"the message names the detected profile",
+				)
 
 				return
 			}

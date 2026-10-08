@@ -70,6 +70,12 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Contains(t, keepHDR, `value="1"`)
 	assert.Contains(t, keepHDR, "checked")
 	assert.Contains(t, keepHDR, "data-keep-hdr-box", "the form script finds the box to set it")
+	assert.Contains(
+		t,
+		body,
+		`id="clip-form" class="flex flex-col gap-4" data-export-form data-keep-hdr-follows-profile`,
+		"a new export takes Keep HDR from the chosen profile",
+	)
 	assert.Less(t, strings.Index(body, `id="clipType"`), strings.Index(body, `id="name"`))
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")
