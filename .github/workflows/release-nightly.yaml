@@ -50,7 +50,7 @@ jobs:
           fi
 
           CHANGED=$(git diff --name-only "$LAST_NIGHTLY_COMMIT" HEAD -- \
-            internal/ main.go go.mod scripts/ build/docker/ build/goreleaser/ || true)
+            internal/ main.go go.mod build/docker/ build/goreleaser/ || true)
 
           if [ -n "$CHANGED" ]; then
             echo "Detected changes in watched paths:"

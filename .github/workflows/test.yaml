@@ -9,7 +9,6 @@ on:
       - go.mod
       - go.sum
       - internal/**
-      - scripts/**
 
 permissions:
   contents: read
@@ -56,7 +55,3 @@ jobs:
 
       - name: Run tests
         run: go test -v ./...
-
-      - name: Run download-ffmpeg tests
-        run: go test -v
-        working-directory: scripts/download-ffmpeg
