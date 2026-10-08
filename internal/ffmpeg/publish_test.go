@@ -351,10 +351,11 @@ func TestAClipCarriesNoSourceMetadata(t *testing.T) {
 	}
 }
 
-// toneMapFFmpeg returns the real ffmpeg and ffprobe for the tone map test,
-// skipping the test when either is missing, when ffmpeg has no libx265 to
-// build the HDR10 source with, or when ffmpeg is older than 8.0, which copies
-// a source's container HDR10 metadata into every output.
+// hdrFFmpeg returns the real ffmpeg and ffprobe for the HDR tests, skipping
+// the test when either is missing, when ffmpeg has no libx265 to build the
+// HDR10 source and the kept HDR export with, or when ffmpeg is older than 8.0,
+// which copies a source's container HDR10 metadata into every output and
+// leaves parameter sets inside hvc1 samples.
 //
 // Parameters:
 //   - t: The test that needs the tools.
@@ -362,7 +363,7 @@ func TestAClipCarriesNoSourceMetadata(t *testing.T) {
 // Returns:
 //   - ffmpegPath: The ffmpeg binary.
 //   - ffprobePath: The ffprobe binary.
-func toneMapFFmpeg(t *testing.T) (string, string) {
+func hdrFFmpeg(t *testing.T) (string, string) {
 	t.Helper()
 
 	ffmpegPath, ffmpegErr := exec.LookPath("ffmpeg")
@@ -401,7 +402,7 @@ func toneMapFFmpeg(t *testing.T) (string, string) {
 func TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata(t *testing.T) {
 	t.Parallel()
 
-	ffmpegPath, ffprobePath := toneMapFFmpeg(t)
+	ffmpegPath, ffprobePath := hdrFFmpeg(t)
 
 	dir := t.TempDir()
 	seiOnly := filepath.Join(dir, "sei.mkv")
@@ -451,4 +452,63 @@ func TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata(t *testing.T) {
 	assert.Contains(t, body, `"color_primaries": "bt709"`)
 	assert.NotContains(t, body, "Mastering display metadata")
 	assert.NotContains(t, body, "Content light level metadata")
+}
+
+// TestAKeptHDRClipIsHEVCMain10AndKeepsTheSourcesHDR10Metadata encodes a PQ
+// source carrying HDR10 mastering display and light level data through a crop
+// and a downscale, and checks that the clip is HEVC Main 10 in an hvc1 track,
+// tagged PQ, and carries the source's own HDR10 values rather than any others.
+func TestAKeptHDRClipIsHEVCMain10AndKeepsTheSourcesHDR10Metadata(t *testing.T) {
+	t.Parallel()
+
+	ffmpegPath, ffprobePath := hdrFFmpeg(t)
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src.mkv")
+
+	makeSource := exec.CommandContext(t.Context(), ffmpegPath, "-y",
+		"-f", "lavfi", "-i", "testsrc2=size=1920x1080:rate=24:duration=1",
+		"-vf", "format=gbrp,zscale=tin=iec61966-2-1:pin=bt709:rin=full:"+
+			"t=smpte2084:p=bt2020:m=bt2020nc:r=tv:npl=203,format=yuv420p10le",
+		"-c:v", "libx265", "-preset", "ultrafast", "-pix_fmt", "yuv420p10le",
+		"-color_primaries", "bt2020", "-color_trc", "smpte2084", "-colorspace", "bt2020nc",
+		"-x265-params", "log-level=error:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:"+
+			"master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):"+
+			"max-cll=1000,400",
+		src,
+	)
+	require.NoError(t, makeSource.Run())
+
+	out := filepath.Join(dir, "clip.mp4")
+	preset := clip.QualityPreset{
+		CRF:         clip.QualityPresets[clip.ClipQualityLow].CRF,
+		Preset:      "ultrafast",
+		AudioKbps:   clip.MinAudioKbps,
+		MaxWidth:    clip.OutputWidth720p,
+		PreserveHDR: true,
+	}
+
+	err := NewExecFFmpeg(ffmpegPath, ffprobePath).ExtractClip(
+		t.Context(), src, out, 0, 500*time.Millisecond,
+		preset, 0, crop.CropRect{Width: 1920, Height: 800, X: 0, Y: 140},
+	)
+	require.NoError(t, err)
+
+	streams, err := exec.CommandContext(t.Context(), ffprobePath, "-v", "error",
+		"-select_streams", "v:0", "-show_streams", "-show_frames", "-read_intervals", "%+#1",
+		"-of", "json", out).Output()
+	require.NoError(t, err)
+
+	body := string(streams)
+	assert.Contains(t, body, `"codec_name": "hevc"`)
+	assert.Contains(t, body, `"profile": "Main 10"`)
+	assert.Contains(t, body, `"codec_tag_string": "hvc1"`)
+	assert.Contains(t, body, `"pix_fmt": "yuv420p10le"`)
+	assert.Contains(t, body, `"width": 1280`, "the crop and the scale ran")
+	assert.Contains(t, body, `"color_transfer": "smpte2084"`)
+	assert.Contains(t, body, `"color_primaries": "bt2020"`)
+	assert.Contains(t, body, `"max_luminance": "10000000/10000"`,
+		"the source's 1000-nit mastering peak survives the crop and scale")
+	assert.Contains(t, body, `"max_content": 1000`)
+	assert.Contains(t, body, `"max_average": 400`)
 }

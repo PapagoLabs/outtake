@@ -47,9 +47,9 @@ const (
 	crfMediumQuality = 23
 	// crfHighQuality is the CRF value for high quality.
 	crfHighQuality = 18
-	// MinCRF is the lowest allowed libx264 CRF.
+	// MinCRF is the lowest allowed CRF.
 	MinCRF = 0
-	// MaxCRF is the highest allowed libx264 CRF.
+	// MaxCRF is the highest allowed CRF. An HEVC encode adds one, capped here.
 	MaxCRF = 51
 	// MinAudioKbps is the lowest allowed AAC bitrate.
 	MinAudioKbps = 64
@@ -71,7 +71,8 @@ const (
 	OutputWidth2160p = 3840
 )
 
-// EncoderPresets lists valid libx264 -preset values from fastest to slowest.
+// EncoderPresets lists the -preset values libx264 and libx265 share, from
+// fastest to slowest.
 var EncoderPresets = []string{
 	"ultrafast",
 	"superfast",
@@ -115,7 +116,7 @@ var OutputWidths = []int{
 	OutputWidth2160p,
 }
 
-// ValidEncoderPreset reports whether name is a supported libx264 preset.
+// ValidEncoderPreset reports whether name is a supported encoder preset.
 //
 // Parameters:
 //   - name: Candidate preset name.
@@ -126,7 +127,7 @@ func ValidEncoderPreset(name string) bool {
 	return slices.Contains(EncoderPresets, name)
 }
 
-// ValidCRF reports whether crf is in the libx264 range.
+// ValidCRF reports whether crf is in the CRF range.
 //
 // Parameters:
 //   - crf: Candidate constant rate factor.

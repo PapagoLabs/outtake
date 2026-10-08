@@ -295,12 +295,20 @@
 			window.matchMedia('(dynamic-range: high)').matches;
 	}
 
-	// markScreen tells the server whether this screen shows HDR, so a preview
-	// of an HDR clip is tone mapped only where HDR cannot be shown.
+	// playsHEVC reports whether the browser can decode the HEVC Main 10 an HDR
+	// preview is encoded in. Chrome on Linux without hardware decoding cannot.
+	function playsHEVC() {
+		var probe = document.createElement('video');
+		return probe.canPlayType('video/mp4; codecs="hvc1.2.4.L93.B0"') !== '';
+	}
+
+	// markScreen tells the server whether this browser can show an HDR
+	// preview, so a preview of an HDR clip is tone mapped wherever its HDR
+	// screen or its HEVC decoder is missing.
 	function markScreen(form) {
 		var field = form.querySelector('[data-screen-hdr]');
 		if (field) {
-			field.value = screenShowsHDR() ? '1' : '0';
+			field.value = screenShowsHDR() && playsHEVC() ? '1' : '0';
 		}
 	}
 

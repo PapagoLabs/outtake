@@ -244,3 +244,154 @@ func TestScaleFilterForcesEvenWidth(t *testing.T) {
 	assert.Contains(t, scaleFilter(1920, scaleFlagsLanczos), "trunc(min(1920,iw)/2)*2")
 	assert.Contains(t, scaleFilter(1920, scaleFlagsLanczos), "h=-2")
 }
+
+// TestVideoEncodeArgsPickTheEncoderFromTheColorPlan covers the codec each
+// clip gets: a clip that keeps HDR from an HDR source is HEVC Main 10 in an
+// hvc1 track, tagged for its transfer in x265's own options, and every other
+// clip stays 8-bit H.264. An SDR source is left untagged.
+func TestVideoEncodeArgsPickTheEncoderFromTheColorPlan(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		probe      string
+		keep       bool
+		wantCodec  string
+		wantPixFmt string
+		wantCRF    string
+		wantParams string
+	}{
+		{
+			name:       "sdr source",
+			probe:      sdrProbe,
+			keep:       false,
+			wantCodec:  videoCodecH264,
+			wantPixFmt: pixelFormatYUV420P,
+			wantCRF:    "18",
+			wantParams: "",
+		},
+		{
+			name:       "sdr source under a profile that keeps hdr",
+			probe:      sdrProbe,
+			keep:       true,
+			wantCodec:  videoCodecH264,
+			wantPixFmt: pixelFormatYUV420P,
+			wantCRF:    "18",
+			wantParams: "",
+		},
+		{
+			name:       "pq kept",
+			probe:      pqProbe,
+			keep:       true,
+			wantCodec:  videoCodecHEVC,
+			wantPixFmt: pixelFormatYUV420P10LE,
+			wantCRF:    "19",
+			wantParams: "colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:" +
+				"range=limited:hdr10-opt=1:log-level=error",
+		},
+		{
+			name:       "pq tone mapped",
+			probe:      pqProbe,
+			keep:       false,
+			wantCodec:  videoCodecH264,
+			wantPixFmt: pixelFormatYUV420P,
+			wantCRF:    "18",
+			wantParams: "colorprim=bt709:transfer=bt709:colormatrix=bt709",
+		},
+		{
+			name:       "hlg kept",
+			probe:      hlgProbe,
+			keep:       true,
+			wantCodec:  videoCodecHEVC,
+			wantPixFmt: pixelFormatYUV420P10LE,
+			wantCRF:    "19",
+			wantParams: "colorprim=bt2020:transfer=arib-std-b67:colormatrix=bt2020nc:" +
+				"range=limited:log-level=error",
+		},
+		{
+			name:       "hlg tone mapped",
+			probe:      hlgProbe,
+			keep:       false,
+			wantCodec:  videoCodecH264,
+			wantPixFmt: pixelFormatYUV420P,
+			wantCRF:    "18",
+			wantParams: "colorprim=bt709:transfer=bt709:colormatrix=bt709",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			preset := clip.QualityPresets[clip.ClipQualityHigh]
+
+			preset.PreserveHDR = test.keep
+
+			args := recordClipEncode(t, newEncodeExec(t, test.probe), preset, crop.CropRect{})
+
+			assert.Equal(t, test.wantCodec, args[indexOf(args, "-c:v")+1])
+			assert.Equal(t, test.wantPixFmt, args[indexOf(args, pixelFormatFlag)+1])
+			assert.Equal(t, test.wantCRF, args[indexOf(args, "-crf")+1])
+			assert.Equal(
+				t,
+				"slow",
+				args[indexOf(args, "-preset")+1],
+				"the profile's preset is kept",
+			)
+
+			if test.wantCodec == videoCodecHEVC {
+				assert.Equal(t, hevcProfile, args[indexOf(args, "-profile:v")+1])
+				assert.Equal(t, hevcTag, args[indexOf(args, "-tag:v")+1])
+				assert.Equal(t, test.wantParams, args[indexOf(args, flagX265Params)+1])
+				assert.NotContains(t, args, flagX264Params)
+
+				return
+			}
+
+			if test.wantParams == "" {
+				assert.NotContains(t, args, flagX264Params, "an sdr source is left untagged")
+			} else {
+				assert.Equal(t, test.wantParams, args[indexOf(args, flagX264Params)+1])
+			}
+
+			assert.NotContains(t, args, flagX265Params)
+			assert.NotContains(t, args, hevcTag)
+		})
+	}
+}
+
+// TestCodecArgsKeepTheHEVCCRFInRange covers the CRF offset at the top of the
+// range, where the x264 maximum plus the offset would be refused by x265.
+func TestCodecArgsKeepTheHEVCCRFInRange(t *testing.T) {
+	t.Parallel()
+
+	preset := clip.QualityPreset{CRF: clip.MaxCRF, Preset: "medium"}
+
+	hevc := codecArgs(videoCodecHEVC, preset)
+	assert.Equal(t, strconv.Itoa(clip.MaxCRF), hevc[indexOf(hevc, "-crf")+1])
+
+	h264 := codecArgs("", preset)
+	assert.Equal(t, videoCodecH264, h264[indexOf(h264, "-c:v")+1],
+		"a request without a plan, such as a source that could not be probed, is H.264")
+}
+
+// TestExtractPreviewEncodesKeptHDRAsHEVC covers a preview for an HDR screen
+// of a clip that keeps HDR: it is encoded like the clip, as HEVC Main 10,
+// at the preview's speed and the preview CRF plus the HEVC offset.
+func TestExtractPreviewEncodesKeptHDRAsHEVC(t *testing.T) {
+	t.Parallel()
+
+	args := recordPreviewEncode(
+		t,
+		hdrEncodeExec(t),
+		clip.QualityPreset{PreserveHDR: true},
+		crop.CropRect{},
+	)
+
+	assert.Equal(t, videoCodecHEVC, args[indexOf(args, "-c:v")+1])
+	assert.Equal(t, hevcTag, args[indexOf(args, "-tag:v")+1])
+	assert.Equal(t, pixelFormatYUV420P10LE, args[indexOf(args, pixelFormatFlag)+1])
+	assert.Equal(t, previewPreset, args[indexOf(args, "-preset")+1])
+	assert.Equal(t, strconv.Itoa(previewCRF+hevcCRFOffset), args[indexOf(args, "-crf")+1])
+	assert.Contains(t, args, scaleFilter(previewMaxWidth, scaleFlagsFast))
+}

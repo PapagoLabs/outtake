@@ -21,7 +21,7 @@ var (
 	errProfileName = errors.New("name is required")
 	// errProfileNameLength reports a name over the length cap.
 	errProfileNameLength = fmt.Errorf("name must be %d characters or fewer", MaxProfileNameLen)
-	// errProfileCRF reports a CRF outside the libx264 range.
+	// errProfileCRF reports a CRF outside the encoder range.
 	errProfileCRF = fmt.Errorf("crf must be between %d and %d", clip.MinCRF, clip.MaxCRF)
 	// errProfilePreset reports an unrecognized encoder preset.
 	errProfilePreset = errors.New("unknown encoder preset")

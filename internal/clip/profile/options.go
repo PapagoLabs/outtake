@@ -37,7 +37,8 @@ func BuiltinProfiles() []ProfileOption {
 	}
 }
 
-// EncoderPresets lists valid libx264 -preset values from fastest to slowest.
+// EncoderPresets lists the -preset values libx264 and libx265 share, from
+// fastest to slowest.
 //
 // Returns:
 //   - presets: A copy of the supported encoder presets.

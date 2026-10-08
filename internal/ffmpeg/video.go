@@ -15,8 +15,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
 
-// h264EncodeRequest is the input for a browser-safe libx264 encode.
-type h264EncodeRequest struct {
+// videoEncodeRequest is the input for a clip or preview video encode.
+type videoEncodeRequest struct {
 	ffmpegPath string
 	input      string
 	output     string
@@ -31,12 +31,23 @@ type h264EncodeRequest struct {
 	toneMap    bool
 	colorTags  []string
 	pixFmt     string
+	encoder    string
 	tonePeak   float64
 }
 
 const (
-	// defaultVideoCodec is the default video codec.
-	defaultVideoCodec = "libx264"
+	// videoCodecH264 encodes SDR and tone mapped video.
+	videoCodecH264 = "libx264"
+	// videoCodecHEVC encodes video that keeps HDR.
+	videoCodecHEVC = "libx265"
+	// hevcProfile is the 10-bit HEVC profile kept HDR is encoded in.
+	hevcProfile = "main10"
+	// hevcTag is the MP4 sample entry Apple players and browsers require for
+	// HEVC. FFmpeg 8 and later move the parameter sets out of its samples.
+	hevcTag = "hvc1"
+	// hevcCRFOffset is how much higher an x265 CRF is than the x264 CRF of
+	// the same visual quality.
+	hevcCRFOffset = 1
 	// defaultAudioCodec is the default audio codec.
 	defaultAudioCodec = "aac"
 	// scaleFlagsLanczos is the scaler used for saved clip scaling.
@@ -59,7 +70,8 @@ const (
 	encodePreviewErrFmt = "encode preview: %w"
 )
 
-// ExtractClip encodes a clip segment with x264.
+// ExtractClip encodes a clip segment, with x265 when it keeps HDR and x264
+// otherwise.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for the encode.
@@ -105,7 +117,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		)
 		execFFmpeg.resolveColor(ctx, &req)
 
-		return execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
+		return execFFmpeg.run(ctx, duration, videoEncodeArgs(&req)...)
 	})
 	if err != nil {
 		return fmt.Errorf(encodeClipErrFmt, err)
@@ -114,7 +126,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 	return nil
 }
 
-// clipEncodeRequest builds the shared H.264 encode request for a saved clip.
+// clipEncodeRequest builds the shared encode request for a saved clip.
 //
 // Parameters:
 //   - ffmpegPath: Path to the ffmpeg binary.
@@ -134,12 +146,12 @@ func clipEncodeRequest(
 	preset clip.QualityPreset,
 	audioIndex int,
 	rect crop.CropRect,
-) h264EncodeRequest {
+) videoEncodeRequest {
 	// The transfer is resolved from the source before the arguments are built,
 	// so it is not seeded here.
 	hdrKind := ""
 
-	return h264EncodeRequest{
+	return videoEncodeRequest{
 		ffmpegPath: ffmpegPath,
 		input:      input,
 		output:     output,
@@ -155,7 +167,7 @@ func clipEncodeRequest(
 	}
 }
 
-// previewEncodeRequest builds the shared H.264 encode request for a preview.
+// previewEncodeRequest builds the shared encode request for a preview.
 //
 // Parameters:
 //   - ffmpegPath: Path to the ffmpeg binary.
@@ -175,12 +187,12 @@ func previewEncodeRequest(
 	audioIndex int,
 	rect crop.CropRect,
 	preset clip.QualityPreset,
-) h264EncodeRequest {
+) videoEncodeRequest {
 	// The transfer is resolved from the source before the arguments are built,
 	// so it is not seeded here.
 	hdrKind := ""
 
-	return h264EncodeRequest{
+	return videoEncodeRequest{
 		ffmpegPath: ffmpegPath,
 		input:      input,
 		output:     output,
@@ -202,7 +214,8 @@ func previewEncodeRequest(
 	}
 }
 
-// ExtractPreview writes a short, downscaled, browser-safe preview segment.
+// ExtractPreview writes a short, downscaled preview segment, encoded like the
+// clip it previews.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for the encode.
@@ -249,7 +262,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 		)
 		execFFmpeg.resolveColor(ctx, &req)
 
-		return execFFmpeg.run(ctx, duration, h264EncodeArgs(&req)...)
+		return execFFmpeg.run(ctx, duration, videoEncodeArgs(&req)...)
 	})
 	if runErr != nil {
 		return fmt.Errorf(encodePreviewErrFmt, runErr)
@@ -292,7 +305,7 @@ func scaleFilter(maxWidth int, flags string) string {
 //
 // Returns:
 //   - pixFmt: The requested format, or 8-bit 4:2:0 when none was planned.
-func pixelFormat(req *h264EncodeRequest) string {
+func pixelFormat(req *videoEncodeRequest) string {
 	if req.pixFmt != "" {
 		return req.pixFmt
 	}
@@ -307,7 +320,7 @@ func pixelFormat(req *h264EncodeRequest) string {
 //
 // Returns:
 //   - filter: The ffmpeg -vf chain.
-func videoFilter(req *h264EncodeRequest) string {
+func videoFilter(req *videoEncodeRequest) string {
 	chain := scaleFilter(req.maxWidth, req.scaleFlags)
 	if req.toneMap && req.hdrKind != "" {
 		chain = tonemap.ToneMapFilter(
@@ -320,14 +333,14 @@ func videoFilter(req *h264EncodeRequest) string {
 	return prependCrop(req.crop, chain)
 }
 
-// h264EncodeArgs builds a browser-safe libx264 argv.
+// videoEncodeArgs builds the argv of a clip or preview encode.
 //
 // Parameters:
 //   - req: Encode request for a clip or preview.
 //
 // Returns:
 //   - args: ffmpeg argv including the binary path.
-func h264EncodeArgs(req *h264EncodeRequest) []string {
+func videoEncodeArgs(req *videoEncodeRequest) []string {
 	preset := clip.NormalizePreset(req.preset)
 	audioIndex := max(req.audioIndex, 0)
 
@@ -340,15 +353,16 @@ func h264EncodeArgs(req *h264EncodeRequest) []string {
 		durationFlag, timecode.FromDuration(req.duration).FormatSeconds(),
 		"-map", "0:v:0",
 		"-map", "0:a:" + strconv.Itoa(audioIndex) + "?",
-		"-c:v", defaultVideoCodec,
+	}
+
+	args = append(args, codecArgs(req.encoder, preset)...)
+	args = append(args,
 		pixelFormatFlag, pixelFormat(req),
 		videoFilterFlag, videoFilter(req),
-		"-crf", strconv.Itoa(preset.CRF),
-		"-preset", preset.Preset,
 		"-c:a", defaultAudioCodec,
-		"-b:a", strconv.Itoa(preset.AudioKbps) + "k",
+		"-b:a", strconv.Itoa(preset.AudioKbps)+"k",
 		"-ac", "2",
-	}
+	)
 
 	args = append(args, req.colorTags...)
 
@@ -359,6 +373,33 @@ func h264EncodeArgs(req *h264EncodeRequest) []string {
 	return append(args, "-movflags", movFlags(req), req.output)
 }
 
+// codecArgs selects the video encoder and its quality. HEVC is encoded as
+// 10-bit Main 10 in an hvc1 track, at the x264 CRF plus hevcCRFOffset.
+//
+// Parameters:
+//   - encoder: The planned encoder, empty for H.264.
+//   - preset: Normalized encode settings.
+//
+// Returns:
+//   - args: The encoder, profile, tag, CRF, and preset flags.
+func codecArgs(encoder string, preset clip.QualityPreset) []string {
+	if encoder != videoCodecHEVC {
+		return []string{
+			"-c:v", videoCodecH264,
+			"-crf", strconv.Itoa(preset.CRF),
+			"-preset", preset.Preset,
+		}
+	}
+
+	return []string{
+		"-c:v", videoCodecHEVC,
+		"-profile:v", hevcProfile,
+		"-tag:v", hevcTag,
+		"-crf", strconv.Itoa(min(preset.CRF+hevcCRFOffset, clip.MaxCRF)),
+		"-preset", preset.Preset,
+	}
+}
+
 // movFlags returns container flags, adding colr when the output was retagged.
 //
 // Parameters:
@@ -367,7 +408,7 @@ func h264EncodeArgs(req *h264EncodeRequest) []string {
 // Returns:
 //   - flags: +faststart, or +faststart+write_colr once the tone map retagged the
 //     output as Rec.709.
-func movFlags(req *h264EncodeRequest) string {
+func movFlags(req *videoEncodeRequest) string {
 	if req.toneMap {
 		return toneMappedMovFlags
 	}
