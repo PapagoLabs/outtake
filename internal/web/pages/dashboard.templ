@@ -101,7 +101,7 @@ templ LiveSessions(sessions []view.SessionItem, tokenRejected bool) {
 		if tokenRejected {
 			@TokenRejectedNotice()
 		}
-		if len(sessions) == 0 {
+		if len(sessions) == 0 && !tokenRejected {
 			<p class="text-sm text-muted-foreground">No one is playing anything in Plex right now.</p>
 		}
 		for _, sess := range sessions {

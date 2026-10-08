@@ -356,7 +356,7 @@ func LiveSessions(sessions []view.SessionItem, tokenRejected bool) templ.Compone
 				return templ_7745c5c3_Err
 			}
 		}
-		if len(sessions) == 0 {
+		if len(sessions) == 0 && !tokenRejected {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<p class=\"text-sm text-muted-foreground\">No one is playing anything in Plex right now.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

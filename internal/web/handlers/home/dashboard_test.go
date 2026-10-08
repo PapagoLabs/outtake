@@ -205,4 +205,6 @@ func TestDashboardSessionsExplainsARefusedToken(t *testing.T) {
 	assertBodyContains(t, answer.body, "data-token-rejected",
 		"the panel explains a refused token instead of showing nothing")
 	assertBodyContains(t, answer.body, `href="/servers"`, "and links to where it is fixed")
+	assertBodyOmits(t, answer.body, "No one is playing",
+		"the sessions could not be read, so the panel does not claim nothing is playing")
 }
