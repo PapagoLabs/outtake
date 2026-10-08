@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/timecode"
@@ -29,6 +30,11 @@ type Info struct {
 	// DolbyVision is the video stream's Dolby Vision configuration, the zero
 	// value when the stream carries none.
 	DolbyVision DolbyVision `json:"dolby_vision"`
+	// MaxCLLNits is the video stream's MaxCLL in nits, 0 when it is unknown.
+	MaxCLLNits float64 `json:"max_cll_nits"`
+	// MasteringMaxNits is the mastering display's peak in nits, 0 when it is
+	// unknown.
+	MasteringMaxNits float64 `json:"mastering_max_nits"`
 }
 
 // DolbyVision is a stream's Dolby Vision configuration record.
@@ -75,8 +81,10 @@ type probeStream struct {
 // Vision configuration record's fields are read.
 type probeSideData struct {
 	Type                   string `json:"side_data_type"`
+	MaxLuminance           string `json:"max_luminance"`
 	DolbyVisionProfile     int    `json:"dv_profile"`
 	BaseLayerCompatibility int    `json:"dv_bl_signal_compatibility_id"`
+	MaxContent             int    `json:"max_content"`
 }
 
 // probeTags holds optional ffprobe stream tags.
@@ -108,6 +116,12 @@ const (
 	dolbyVisionRecordType = "DOVI configuration record"
 	// dolbyVisionProfile5 is the profile whose base layer is not displayable.
 	dolbyVisionProfile5 = 5
+	// contentLightType is ffprobe's name for the content light level record.
+	contentLightType = "Content light level metadata"
+	// masteringDisplayType is ffprobe's name for the mastering display record.
+	masteringDisplayType = "Mastering display metadata"
+	// rationalSeparator splits ffprobe's numerator/denominator values.
+	rationalSeparator = "/"
 )
 
 // Probe reads a media file for information.
@@ -259,6 +273,7 @@ func parseStream(stream probeStream, info *Info) {
 			info.Height = stream.Height
 			info.ColorTransfer = stream.ColorTransfer
 			info.DolbyVision = dolbyVision(stream.SideData)
+			info.MaxCLLNits, info.MasteringMaxNits = lightLevels(stream.SideData)
 		}
 	case "audio":
 		if info.AudioCodec == emptyAudioCodec {
@@ -304,6 +319,24 @@ func (info Info) NeedsDolbyVisionReshaping() bool {
 			info.DolbyVision.BaseLayerCompatibility == 0)
 }
 
+// PeakNits reports the brightest the source's HDR10 metadata says it gets:
+// MaxCLL when the stream carries it, otherwise the mastering display's peak.
+//
+// Returns:
+//   - nits: The peak in nits.
+//   - ok: False when the stream carries neither.
+func (info Info) PeakNits() (float64, bool) {
+	if info.MaxCLLNits > 0 {
+		return info.MaxCLLNits, true
+	}
+
+	if info.MasteringMaxNits > 0 {
+		return info.MasteringMaxNits, true
+	}
+
+	return 0, false
+}
+
 // dolbyVision reads the Dolby Vision configuration record from a stream's side
 // data.
 //
@@ -324,4 +357,52 @@ func dolbyVision(sideData []probeSideData) DolbyVision {
 	}
 
 	return DolbyVision{Present: false, Profile: 0, BaseLayerCompatibility: 0}
+}
+
+// lightLevels reads a stream's HDR10 light levels from its side data. A
+// MaxCLL of 0 means the encoder did not know it, so it reads as unknown.
+//
+// Parameters:
+//   - sideData: The stream's side data list.
+//
+// Returns:
+//   - maxCLL: MaxCLL in nits, 0 when unknown.
+//   - masteringMax: The mastering display's peak in nits, 0 when unknown.
+//
+//nolint:nonamedreturns // Same-type returns need names.
+func lightLevels(sideData []probeSideData) (maxCLL, masteringMax float64) {
+	for _, entry := range sideData {
+		switch entry.Type {
+		case contentLightType:
+			maxCLL = float64(max(entry.MaxContent, 0))
+		case masteringDisplayType:
+			masteringMax = parseRational(entry.MaxLuminance)
+		default:
+		}
+	}
+
+	return maxCLL, masteringMax
+}
+
+// parseRational reads ffprobe's rational value, such as "10000000/10000".
+//
+// Parameters:
+//   - raw: The value as ffprobe prints it.
+//
+// Returns:
+//   - value: The value, or 0 when it is missing or malformed.
+func parseRational(raw string) float64 {
+	numerator, denominator, found := strings.Cut(raw, rationalSeparator)
+	if !found {
+		denominator = "1"
+	}
+
+	num, numErr := strconv.ParseFloat(numerator, bitRateBits)
+	den, denErr := strconv.ParseFloat(denominator, bitRateBits)
+
+	if numErr != nil || denErr != nil || den <= 0 || num <= 0 {
+		return 0
+	}
+
+	return num / den
 }

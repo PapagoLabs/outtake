@@ -156,16 +156,24 @@ func TestExtractClipEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {
 
 	args := recordClipEncode(t, hdrEncodeExec(t), preset, crop.CropRect{})
 	joined := strings.Join(args, " ")
-	wantFilter := tonemap.ToneMapFilter(clip.TransferPQAlias, tonemap.DefaultWebSafePeak) +
-		"," + scaleFilter(clip.OutputWidth2160p, scaleFlagsLanczos)
+	wantFilter := tonemap.ToneMapFilter(
+		clip.TransferPQAlias,
+		tonemap.DefaultWebSafePeak,
+		tonemap.TransferBT709,
+	) +
+		"," + scaleFilter(
+		clip.OutputWidth2160p,
+		scaleFlagsLanczos,
+	)
 
 	assert.Contains(t, args, wantFilter)
 	assert.Contains(t, joined, "zscale=tin=smpte2084")
-	assert.Contains(t, joined, "tonemap=tonemap=hable")
+	assert.Contains(t, joined, "tonemap=tonemap=mobius")
 	assert.Contains(t, args, "-color_primaries")
 	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
-	assert.Contains(t, args, "iec61966-2-1")
+	assert.Contains(t, args, tonemap.TransferBT709)
+	assert.NotContains(t, args, tonemap.TransferSRGB, "SDR video is tagged BT.709, not sRGB")
 	assert.Contains(t, args, toneMappedMovFlags)
 	assert.NotContains(t, joined, "libplacebo")
 	assert.NotContains(t, args, "-init_hw_device")
@@ -185,7 +193,7 @@ func TestExtractPreviewEncodeArgs(t *testing.T) {
 	assert.Contains(t, args, strconv.Itoa(previewAudioKbps)+"k")
 	assert.Contains(t, args, scaleFilter(previewMaxWidth, scaleFlagsFast))
 	assert.NotContains(t, args, "320k")
-	assert.NotContains(t, strings.Join(args, " "), "tonemap=tonemap=hable")
+	assert.NotContains(t, strings.Join(args, " "), "tonemap=tonemap=mobius")
 }
 
 // TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR covers a preview of a
@@ -200,15 +208,23 @@ func TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {
 		crop.CropRect{},
 	)
 	joined := strings.Join(args, " ")
-	wantFilter := tonemap.ToneMapFilter(clip.TransferPQAlias, tonemap.DefaultWebSafePeak) +
-		"," + scaleFilter(previewMaxWidth, scaleFlagsFast)
+	wantFilter := tonemap.ToneMapFilter(
+		clip.TransferPQAlias,
+		tonemap.DefaultWebSafePeak,
+		tonemap.TransferBT709,
+	) +
+		"," + scaleFilter(
+		previewMaxWidth,
+		scaleFlagsFast,
+	)
 
 	assert.Contains(t, args, wantFilter)
-	assert.Contains(t, joined, "tonemap=tonemap=hable")
+	assert.Contains(t, joined, "tonemap=tonemap=mobius")
 	assert.Contains(t, args, "-color_primaries")
 	assert.Contains(t, args, nameBT709)
 	assert.Contains(t, args, "-color_trc")
-	assert.Contains(t, args, "iec61966-2-1")
+	assert.Contains(t, args, tonemap.TransferBT709)
+	assert.NotContains(t, args, tonemap.TransferSRGB, "SDR video is tagged BT.709, not sRGB")
 	assert.Contains(t, args, toneMappedMovFlags)
 	assert.Contains(t, joined, scaleFilter(previewMaxWidth, scaleFlagsFast))
 	assert.NotContains(t, joined, "libplacebo")

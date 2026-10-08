@@ -125,17 +125,18 @@ func hdrColorArgs(kind string) []string {
 	}
 }
 
-// toneMappedColorArgs tags the encode as Rec.709 / sRGB limited range.
+// toneMappedColorArgs tags a tone mapped video as BT.709 limited range, the
+// standard for SDR video, which upload sites and editors expect.
 //
 // Returns:
 //   - args: ffmpeg color and x264-params flags.
 func toneMappedColorArgs() []string {
 	return []string{
 		flagColorPrimaries, nameBT709,
-		flagColorTransfer, tonemap.TransferSRGB,
+		flagColorTransfer, tonemap.TransferBT709,
 		flagColorSpace, nameBT709,
 		flagColorRange, flagRangeTV,
-		flagX264Params, "colorprim=" + nameBT709 + ":transfer=" + tonemap.TransferSRGB +
+		flagX264Params, "colorprim=" + nameBT709 + ":transfer=" + tonemap.TransferBT709 +
 			":colormatrix=" + nameBT709,
 	}
 }
@@ -266,11 +267,13 @@ func (execFFmpeg *ExecFFmpeg) sdrToneMap(
 	return tonemap.ToneMapFilter(
 		plan.hdrKind,
 		execFFmpeg.tonePeak(ctx, input, plan.hdrKind, start, duration),
+		tonemap.TransferSRGB,
 	)
 }
 
 // tonePeak returns the peak an HDR tone map scales against. HLG carries a
-// nominal peak, and PQ is sampled from the window.
+// nominal peak. PQ takes the source's MaxCLL or mastering peak, and is sampled
+// from the window when the source carries neither.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for luma sampling.
@@ -288,6 +291,14 @@ func (execFFmpeg *ExecFFmpeg) tonePeak(
 ) float64 {
 	if hdrKind != clip.TransferPQAlias {
 		return tonemap.DefaultWebSafePeak
+	}
+
+	// The source's own HDR10 metadata gives one peak for the whole title, so
+	// clips cut from the same title share their exposure. Sampling the window
+	// is the fallback for a source that carries none.
+	info, err := execFFmpeg.Probe(ctx, input)
+	if nits, known := info.PeakNits(); err == nil && known {
+		return tonemap.PeakFromNits(nits)
 	}
 
 	ymax, ok := execFFmpeg.signalstatsYMax(ctx, input, start, duration)

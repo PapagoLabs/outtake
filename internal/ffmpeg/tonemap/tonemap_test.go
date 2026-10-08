@@ -42,13 +42,17 @@ func TestParseSignalstatsYMax(t *testing.T) {
 func TestToneMapFilter(t *testing.T) {
 	t.Parallel()
 
-	pq := ToneMapFilter(clip.TransferPQAlias, 3.8471)
+	pq := ToneMapFilter(clip.TransferPQAlias, 3.8471, TransferBT709)
 	assert.Contains(t, pq, "zscale=tin=smpte2084")
-	assert.Contains(t, pq, "tonemap=tonemap=hable:desat=0:peak=3.8471")
-	assert.Contains(t, pq, "iec61966-2-1")
+	assert.Contains(t, pq, "tonemap=tonemap=mobius:desat=0:peak=3.8471")
+	assert.Contains(t, pq, "zscale=t=bt709:m=bt709:p=bt709:r=tv", "video is encoded BT.709")
+	assert.NotContains(t, pq, "hable")
 	assert.NotContains(t, pq, "libplacebo")
 
-	hlg := ToneMapFilter(clip.TransferHLGAlias, 0)
+	still := ToneMapFilter(clip.TransferPQAlias, 3.8471, TransferSRGB)
+	assert.Contains(t, still, "zscale=t=iec61966-2-1:m=bt709", "stills and GIFs are encoded sRGB")
+
+	hlg := ToneMapFilter(clip.TransferHLGAlias, 0, TransferBT709)
 	assert.Contains(t, hlg, "zscale=tin=arib-std-b67")
 	assert.Contains(t, hlg, "peak=4.0000")
 }

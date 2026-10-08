@@ -288,6 +288,37 @@
 		}
 	}
 
+	// screenShowsHDR reports whether the browser says its screen shows HDR
+	// video. Firefox only answers the video-dynamic-range query.
+	function screenShowsHDR() {
+		return window.matchMedia('(video-dynamic-range: high)').matches ||
+			window.matchMedia('(dynamic-range: high)').matches;
+	}
+
+	// markScreen tells the server whether this screen shows HDR, so a preview
+	// of an HDR clip is tone mapped only where HDR cannot be shown.
+	function markScreen(form) {
+		var field = form.querySelector('[data-screen-hdr]');
+		if (field) {
+			field.value = screenShowsHDR() ? '1' : '0';
+		}
+	}
+
+	// explainPlaybackError says why a clip's player stays empty when the
+	// browser cannot decode the file, such as HEVC in Chrome on Linux. The
+	// file itself is fine, so the note points at the download.
+	function explainPlaybackError(video) {
+		if (video.nextElementSibling && video.nextElementSibling.hasAttribute('data-playback-error')) {
+			return;
+		}
+		var note = document.createElement('p');
+		note.setAttribute('data-playback-error', '');
+		note.setAttribute('role', 'status');
+		note.className = 'mt-2 text-sm text-destructive';
+		note.textContent = 'This browser cannot play this clip. Download it to watch it in a video player.';
+		video.insertAdjacentElement('afterend', note);
+	}
+
 	// syncKeepHDR sets a form's Keep HDR box to the default of the profile just
 	// chosen. The box stays the user's to change afterwards.
 	function syncKeepHDR(form, quality) {
@@ -301,6 +332,7 @@
 	function bindExportForms() {
 		document.querySelectorAll('[data-export-form]').forEach(function (form) {
 			applyExportForm(form);
+			markScreen(form);
 			syncExportDuration(form);
 			var select = form.querySelector('[name="clipType"]');
 			if (select && !select.dataset.exportBound) {
@@ -549,6 +581,14 @@
 			}
 		}
 	});
+
+	// A media element's error does not bubble, so it is caught on the way down.
+	document.addEventListener('error', function (event) {
+		var target = event.target;
+		if (target instanceof HTMLVideoElement && target.hasAttribute('data-clip-video')) {
+			explainPlaybackError(target);
+		}
+	}, true);
 
 	document.addEventListener('submit', function (event) {
 		var form = event.target;

@@ -182,3 +182,45 @@ func TestParseProbeOutputReadsTheDolbyVisionRecord(t *testing.T) {
 		})
 	}
 }
+
+// TestParseProbeOutputReadsTheLightLevels covers HDR10 light levels as
+// ffprobe prints them for a container that carries them, and the peak they
+// give: MaxCLL first, the mastering display's peak when MaxCLL is unknown.
+func TestParseProbeOutputReadsTheLightLevels(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{"format":{"duration":"3.0"},"streams":[{"codec_type":"video",` +
+		`"codec_name":"hevc","color_transfer":"smpte2084","side_data_list":[` +
+		`{"side_data_type":"Content light level metadata","max_content":1000,"max_average":400},` +
+		`{"side_data_type":"Mastering display metadata","red_x":"17/25","min_luminance":"1/10000",` +
+		`"max_luminance":"1000/1"}]}]}`)
+
+	info, err := parseProbeOutput(data)
+	require.NoError(t, err)
+
+	assert.InDelta(t, 1000.0, info.MaxCLLNits, 0.0001)
+	assert.InDelta(t, 1000.0, info.MasteringMaxNits, 0.0001)
+
+	peak, ok := info.PeakNits()
+	require.True(t, ok)
+	assert.InDelta(t, 1000.0, peak, 0.0001)
+
+	_, ok = Info{}.PeakNits()
+	assert.False(t, ok, "a stream without HDR10 metadata has no known peak")
+
+	peak, ok = Info{MasteringMaxNits: 4000}.PeakNits()
+	require.True(t, ok)
+	assert.InDelta(t, 4000.0, peak, 0.0001, "the mastering peak stands in for an unknown MaxCLL")
+}
+
+// TestParseRationalReadsFfprobeValues covers ffprobe's numerator/denominator
+// values and the malformed ones it never trusts.
+func TestParseRationalReadsFfprobeValues(t *testing.T) {
+	t.Parallel()
+
+	assert.InDelta(t, 1000.0, parseRational("10000000/10000"), 0.0001)
+	assert.InDelta(t, 1000.0, parseRational("1000"), 0.0001)
+	assert.Zero(t, parseRational(""))
+	assert.Zero(t, parseRational("1000/0"))
+	assert.Zero(t, parseRational("x/1"))
+}

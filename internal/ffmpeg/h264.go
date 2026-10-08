@@ -310,7 +310,11 @@ func pixelFormat(req *h264EncodeRequest) string {
 func videoFilter(req *h264EncodeRequest) string {
 	chain := scaleFilter(req.maxWidth, req.scaleFlags)
 	if req.toneMap && req.hdrKind != "" {
-		chain = tonemap.ToneMapFilter(req.hdrKind, req.tonePeak) + "," + chain
+		chain = tonemap.ToneMapFilter(
+			req.hdrKind,
+			req.tonePeak,
+			tonemap.TransferBT709,
+		) + "," + chain
 	}
 
 	return prependCrop(req.crop, chain)

@@ -17,9 +17,10 @@ const (
 	qualityFlag = "-q:v"
 	// encodeScreenshotErrFmt is the message screenshot encode failures are wrapped with.
 	encodeScreenshotErrFmt = "encode screenshot: %w"
-	// stillPeakWindow is how much of the source after a still its HDR peak is
-	// sampled from. A still has no length of its own, and a short window keeps
-	// a brighter shot later on from darkening it.
+	// stillPeakWindow is how much of the source after a still its PQ peak is
+	// sampled from, when the source carries no MaxCLL or mastering peak. A
+	// still has no length of its own, and a short window keeps a brighter shot
+	// later on from darkening it.
 	stillPeakWindow = time.Second
 )
 

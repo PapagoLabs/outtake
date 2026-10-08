@@ -67,7 +67,7 @@ templ clipPlayback(item view.ClipItem) {
 				if item.ClipType == domainclip.TypeGIF || item.ClipType == domainclip.TypeScreenshot {
 					<img src={ clipFileURL(item) } alt={ item.DisplayName() } loading="lazy" class="w-full max-h-64 rounded-md object-contain bg-black"/>
 				} else {
-					<video controls preload="none" class="w-full max-h-64 rounded-md bg-black" src={ clipFileURL(item) }></video>
+					<video controls preload="none" class="w-full max-h-64 rounded-md bg-black" src={ clipFileURL(item) } data-clip-video></video>
 				}
 			</div>
 		</details>

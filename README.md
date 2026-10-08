@@ -290,7 +290,9 @@ without owners, only the account that signed in last can claim Outtake.
    HDR. Leave it off to tone-map the clip to SDR, which most social sites
    need. The box starts from the profile: the built-in High keeps HDR, and
    Low and Medium convert. Set the default per profile under **Clip
-   Profiles**. GIFs and screenshots are always SDR.
+   Profiles**. GIFs and screenshots are always SDR. When your screen does
+   not show HDR, the preview of an HDR clip is shown in SDR and says so,
+   while the saved clip keeps HDR.
 5. Choose **Preview** to check the segment, then **Save clip**.
 
 If something is already playing, the dashboard **Live Sessions** list
@@ -337,7 +339,8 @@ is higher quality.
 - **HDR clips play black in Brave or Chrome on Linux.** Chromium 151 and
   later draw 10-bit video black on NVIDIA under Wayland. The file is fine.
   Start the browser with `--ozone-platform=x11`, use Firefox, or turn off
-  **Keep HDR** for that clip.
+  **Keep HDR** for that clip. Previews are not affected, because on an SDR
+  screen they are shown in SDR.
 - **"This Dolby Vision source has no HDR10 or SDR base layer".** Dolby
   Vision profile 5, and any other source without a displayable base layer,
   cannot be exported by ffmpeg with correct colors. Use a copy of the title
