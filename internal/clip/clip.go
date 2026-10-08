@@ -58,6 +58,22 @@ func Types() []Type {
 	return []Type{TypeClip, TypeGIF, TypeScreenshot}
 }
 
+// InputPaths lists the source file of each job, in order.
+//
+// Parameters:
+//   - jobs: The jobs to read.
+//
+// Returns:
+//   - paths: Each job's input path, empty for a job with none.
+func InputPaths(jobs []*Job) []string {
+	paths := make([]string, 0, len(jobs))
+	for _, job := range jobs {
+		paths = append(paths, job.InputPath)
+	}
+
+	return paths
+}
+
 // OutputPaths lists the rendered file of each job, in order.
 //
 // Parameters:

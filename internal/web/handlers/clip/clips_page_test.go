@@ -371,3 +371,30 @@ func TestClipsAsksTheStoreWhetherAFileExists(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assert.NotContains(t, answer.body, "Missing file")
 }
+
+// TestClipsOffersTheHDRChoiceForAnHDRSource covers the clips page: a card
+// shows the HDR checkbox when its own source is HDR, as on the media page,
+// and not when it is SDR.
+func TestClipsOffersTheHDRChoiceForAnHDRSource(t *testing.T) {
+	t.Parallel()
+
+	handler, db := clipPageHandler(t)
+	storeClipped(t, db, "hdr-clip", clipdom.TypeClip, clipdom.StatusCompleted)
+
+	answer := getClips(t, handler, routes.PathClips, "")
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.NotContains(t, answer.body, `name="preserveHdr"`, "an SDR source has no HDR choice")
+
+	handler.sources = hdrSources(t)
+
+	answer = getClips(t, handler, routes.PathClips, "")
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.Contains(t, answer.body, `type="checkbox"`)
+	assert.Contains(t, answer.body, `name="preserveHdr"`, "an HDR source offers the HDR choice")
+	assert.NotContains(
+		t,
+		answer.body,
+		`type="hidden" name="preserveHdr"`,
+		"as the checkbox, not a hidden copy",
+	)
+}

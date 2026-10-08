@@ -22,6 +22,20 @@ const (
 	trackFallback = "Track "
 )
 
+// ApplySource fills in what a clip card knows from probing its source: the
+// audio tracks it offers, whether it shows the HDR choice, and the source
+// length the window is checked against. A source that could not be probed
+// leaves them empty.
+//
+// Parameters:
+//   - item: The card to fill in.
+//   - source: What probing the clip's source turned up.
+func ApplySource(item *ClipItem, source library.SourceInfo) {
+	item.AudioTracks = AudioTrackOptions(source.AudioStreams)
+	item.SourceHDR = source.HDR
+	item.MediaDuration = source.Duration
+}
+
 // AudioTrackOptions maps probed audio streams onto select options.
 //
 // Parameters:

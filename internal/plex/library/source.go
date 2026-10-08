@@ -6,6 +6,8 @@ package library
 import (
 	"context"
 	"fmt"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -148,6 +150,54 @@ func (source *MediaSource) Describe(ctx context.Context, mediaID string) SourceI
 //   - info: What the file turned out to be, zero when it could not be probed.
 func (source *MediaSource) DescribePath(ctx context.Context, path string) SourceInfo {
 	return source.probeFile(ctx, path)
+}
+
+// DescribePaths probes several media files at once, at most limit at a time,
+// and returns what each turned out to be. An empty or repeated path is probed
+// once at most, and a probe that fails reads as a zero description.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - paths: Local media file paths, which may repeat.
+//   - limit: How many probes may run at once, at least one.
+//
+// Returns:
+//   - infos: Each distinct path's description.
+func (source *MediaSource) DescribePaths(
+	ctx context.Context,
+	paths []string,
+	limit int,
+) map[string]SourceInfo {
+	var (
+		mu    sync.Mutex
+		group sync.WaitGroup
+	)
+
+	infos := make(map[string]SourceInfo, len(paths))
+	slots := make(chan struct{}, max(limit, 1))
+
+	for _, path := range slices.Compact(slices.Sorted(slices.Values(paths))) {
+		if path == "" {
+			continue
+		}
+
+		slots <- struct{}{}
+
+		group.Go(func() {
+			defer func() { <-slots }()
+
+			info := source.probeFile(ctx, path)
+
+			mu.Lock()
+
+			infos[path] = info
+			mu.Unlock()
+		})
+	}
+
+	group.Wait()
+
+	return infos
 }
 
 // Duration probes a media file for its length.

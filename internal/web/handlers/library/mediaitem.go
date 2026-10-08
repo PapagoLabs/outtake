@@ -154,9 +154,7 @@ func (handler *Handler) clipsForMedia(
 	)
 
 	for index := range clips {
-		clips[index].AudioTracks = view.AudioTrackOptions(source.AudioStreams)
-		clips[index].SourceHDR = source.HDR
-		clips[index].MediaDuration = source.Duration
+		view.ApplySource(&clips[index], source)
 	}
 
 	return clips

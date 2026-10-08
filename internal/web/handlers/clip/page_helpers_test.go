@@ -67,7 +67,7 @@ func clipPageHandler(t *testing.T) (*Handler, *database.DB) {
 		blob.Paths{},
 		db,
 		&config.Config{MaxClipDur: 15 * time.Minute},
-		nil,
+		stubSources(t, 2*time.Hour),
 	), db
 }
 

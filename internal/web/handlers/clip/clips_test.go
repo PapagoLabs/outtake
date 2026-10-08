@@ -43,6 +43,7 @@ func clipRowTestHandler(t *testing.T, jobs ...*clipdom.Job) *Handler {
 		clipStorage: &blob.Storage{},
 		db:          db,
 		cfg:         &config.Config{MaxClipDur: 15 * time.Minute},
+		sources:     stubSources(t, 2*time.Hour),
 	}
 }
 

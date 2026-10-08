@@ -28,6 +28,9 @@ const (
 	queryQ = "q"
 	// querySort is the clip list sort query parameter.
 	querySort = "sort"
+
+	// describeLimit is how many clip sources the clips page probes at once.
+	describeLimit = 4
 )
 
 // ClipFile streams a completed clip for in-browser playback.
@@ -91,18 +94,27 @@ func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
 func (handler *Handler) Clips(ctx fiber.Ctx) error {
 	query := parseClipListQuery(ctx)
 	jobs := catalog.Apply(catalog.Jobs(ctx.Context(), handler.clipQueue, handler.db), query)
-	props := pages.ClipsProps{
-		Items: view.NewClipItems(
-			jobs,
-			profile.SelectableProfiles(ctx.Context(), handler.db),
-			clipdom.DurationCap(handler.cfg.MaxClipDur),
-			blob.ExistsEach(
-				ctx.Context(),
-				handler.clipStorage.Exists,
-				clipdom.OutputPaths(jobs),
-				blob.ExistsLimit,
-			),
+	items := view.NewClipItems(
+		jobs,
+		profile.SelectableProfiles(ctx.Context(), handler.db),
+		clipdom.DurationCap(handler.cfg.MaxClipDur),
+		blob.ExistsEach(
+			ctx.Context(),
+			handler.clipStorage.Exists,
+			clipdom.OutputPaths(jobs),
+			blob.ExistsLimit,
 		),
+	)
+
+	// Each card shows the choices its own source allows, such as the HDR
+	// checkbox, so the sources are described the way the media page does.
+	sources := handler.sources.DescribePaths(ctx.Context(), clipdom.InputPaths(jobs), describeLimit)
+	for index, job := range jobs {
+		view.ApplySource(&items[index], sources[job.InputPath])
+	}
+
+	props := pages.ClipsProps{
+		Items:  items,
 		Status: query.Status,
 		Type:   query.Type,
 		Query:  query.Query,
