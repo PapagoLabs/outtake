@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github/codeql-action action to v4.38.3 by @renovate[bot] in [#362](https://github.com/PapagoLabs/outtake/pull/362)
 - Update step-security/harden-runner action to v2.22.1 by @renovate[bot] in [#353](https://github.com/PapagoLabs/outtake/pull/353)
 - Update github.com/google/pprof digest to 7bae8d8 by @renovate[bot] in [#352](https://github.com/PapagoLabs/outtake/pull/352)
 - Update golang.org/x/exp digest to f45ad48 by @renovate[bot] in [#348](https://github.com/PapagoLabs/outtake/pull/348)
