@@ -103,6 +103,18 @@ func (service *Service) Close(ctx context.Context) error {
 	return nil
 }
 
+// Exists reports whether a preview's file is stored, without downloading it.
+//
+// Parameters:
+//   - ctx: Request scope for a storage lookup.
+//   - previewID: Preview id.
+//
+// Returns:
+//   - exists: True when the published preview file is stored.
+func (service *Service) Exists(ctx context.Context, previewID string) bool {
+	return service.store.Exists(ctx, service.OutputPath(previewID))
+}
+
 // OutputPath is where a published preview is stored.
 //
 // Parameters:

@@ -12,10 +12,12 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
+	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 )
 
 func newPendingJob(name string) *entry {
@@ -421,4 +423,18 @@ func TestDiscardRemovesThePreviewFile(t *testing.T) {
 	assert.NoFileExists(t, path)
 
 	assert.NotPanics(t, func() { service.discard("evicted") }, "a missing file is not an error")
+}
+
+// TestExistsLooksUpWithoutDownloading covers the status poll's check: it asks
+// the store whether the preview is there and never fetches it.
+func TestExistsLooksUpWithoutDownloading(t *testing.T) {
+	t.Parallel()
+
+	store := storagemocks.NewMockBlob(t)
+	paths := blob.NewPaths(t.TempDir())
+	service := New(1, store, paths, stagingFFmpeg(t, false))
+
+	store.EXPECT().Exists(mock.Anything, service.OutputPath("remote")).Return(true).Once()
+
+	assert.True(t, service.Exists(t.Context(), "remote"))
 }

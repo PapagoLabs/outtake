@@ -160,6 +160,11 @@ func (handler *Handler) PreviewFile(ctx fiber.Ctx) error {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
+	// A preview another instance published is fetched once it is asked for.
+	if !handler.previews.Published(ctx.Context(), id) {
+		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
+	}
+
 	err := respond.SendRangedFile(ctx, handler.previews.OutputPath(id))
 	if err != nil {
 		return fmt.Errorf("send preview: %w", err)
@@ -188,8 +193,9 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	}
 
 	// The file is only served once it is published, so the URL is withheld until
-	// then rather than pointing at something that is not there.
-	if view.Status == clip.StatusCompleted && handler.previews.Published(ctx.Context(), view.ID) {
+	// then rather than pointing at something that is not there. The poll only
+	// looks the file up, and PreviewFile fetches it when it is asked for.
+	if view.Status == clip.StatusCompleted && handler.previews.Exists(ctx.Context(), view.ID) {
 		payload["url"] = routes.PathPreviewPrefix + view.ID
 	}
 

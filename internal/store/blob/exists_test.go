@@ -85,3 +85,29 @@ func TestExistsEachRunsChecksAtOnceUpToTheLimit(t *testing.T) {
 		assert.Equal(t, 4*time.Second, time.Since(start), "ten one-second checks, three at a time")
 	})
 }
+
+// TestExistsEachStopsSchedulingWhenTheContextEnds covers a request that goes
+// away: no further check starts, and an unchecked path reads as absent.
+func TestExistsEachStopsSchedulingWhenTheContextEnds(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	var checks atomic.Int32
+
+	exists := func(context.Context, string) bool {
+		checks.Add(1)
+
+		// The request ends while the only slot is held, so the next path
+		// cannot take one.
+		cancel()
+
+		return true
+	}
+
+	found := ExistsEach(ctx, exists, []string{"/first", "/second", "/third"}, 1)
+
+	assert.Equal(t, int32(1), checks.Load(), "nothing is scheduled after the context ends")
+	assert.True(t, found("/first"), "a check already running finishes")
+	assert.False(t, found("/second"), "an unchecked path reads as absent")
+}

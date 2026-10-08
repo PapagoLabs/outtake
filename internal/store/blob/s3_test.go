@@ -4,6 +4,7 @@
 package blob
 
 import (
+	"bytes"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -13,9 +14,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
@@ -276,4 +279,51 @@ func writeS3NotFound(writer http.ResponseWriter) {
 	_, _ = writer.Write([]byte(
 		`<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code></Error>`,
 	))
+}
+
+// TestS3ExistsLogsAFailedLookup covers an S3 error other than a missing
+// object: the file reads as absent and the failure is logged, while a missing
+// object is not.
+//
+//nolint:paralleltest // It swaps the package-level logger, which is shared state.
+func TestS3ExistsLogsAFailedLookup(t *testing.T) {
+	original := logging.Logger
+
+	t.Cleanup(func() { logging.Logger = original })
+
+	var out bytes.Buffer
+
+	logging.Logger = zerolog.New(&out)
+
+	status := http.StatusInternalServerError
+
+	httpServer := httptest.NewServer(
+		http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+			writer.WriteHeader(status)
+		}),
+	)
+	t.Cleanup(httpServer.Close)
+
+	store, err := newS3FromSettings(s3Settings{
+		endpoint:     httpServer.URL,
+		bucket:       "outtake",
+		region:       defaultS3Region,
+		accessKey:    "key",
+		secretKey:    "secret",
+		scratch:      NewPaths(t.TempDir()),
+		usePathStyle: true,
+	})
+	require.NoError(t, err)
+
+	path := store.Paths().ClipPath("clip-1")
+
+	assert.False(t, store.Exists(t.Context(), path))
+	assert.Contains(t, out.String(), "failed to look up an object on S3")
+
+	out.Reset()
+
+	status = http.StatusNotFound
+
+	assert.False(t, store.Exists(t.Context(), path))
+	assert.Empty(t, out.String(), "a missing object is an answer, not a failure")
 }

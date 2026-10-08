@@ -14,7 +14,8 @@ const ExistsLimit = 8
 
 // ExistsEach checks many paths at once, at most limit at a time, and returns
 // a lookup over the answers. An empty path is never checked and reads as
-// absent.
+// absent. Once ctx ends no further check starts, the ones already running
+// finish, and every path left unchecked reads as absent.
 //
 // Parameters:
 //   - ctx: Request scope for the checks.
@@ -36,17 +37,12 @@ func ExistsEach(
 	)
 
 	answers := make(map[string]bool, len(paths))
-	seen := make(map[string]struct{}, len(paths))
 	slots := make(chan struct{}, max(limit, 1))
 
-	for _, path := range paths {
-		if _, repeat := seen[path]; repeat || path == "" {
-			continue
+	for _, path := range distinctPaths(paths) {
+		if !takeSlot(ctx, slots) {
+			break
 		}
-
-		seen[path] = struct{}{}
-
-		slots <- struct{}{}
 
 		group.Go(func() {
 			defer func() { <-slots }()
@@ -64,5 +60,45 @@ func ExistsEach(
 
 	return func(path string) bool {
 		return answers[path]
+	}
+}
+
+// distinctPaths drops empty and repeated paths, keeping the first of each.
+//
+// Parameters:
+//   - paths: Paths that may repeat.
+//
+// Returns:
+//   - distinct: Each non-empty path once, in order.
+func distinctPaths(paths []string) []string {
+	seen := make(map[string]struct{}, len(paths))
+	distinct := make([]string, 0, len(paths))
+
+	for _, path := range paths {
+		if _, repeat := seen[path]; repeat || path == "" {
+			continue
+		}
+
+		seen[path] = struct{}{}
+		distinct = append(distinct, path)
+	}
+
+	return distinct
+}
+
+// takeSlot waits for a free slot, giving up when ctx ends.
+//
+// Parameters:
+//   - ctx: Request scope the wait follows.
+//   - slots: Semaphore with one entry per running check.
+//
+// Returns:
+//   - taken: False when ctx ended first.
+func takeSlot(ctx context.Context, slots chan struct{}) bool {
+	select {
+	case slots <- struct{}{}:
+		return true
+	case <-ctx.Done():
+		return false
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
@@ -184,7 +185,8 @@ func (store *S3) Ensure(ctx context.Context, path string) error {
 }
 
 // Exists reports whether the object exists locally or on S3, asking S3 only
-// for its headers.
+// for its headers. A lookup S3 fails, rather than one that finds no object, is
+// logged, since it reads as a missing file.
 //
 // Parameters:
 //   - ctx: Request scope for the lookup.
@@ -198,8 +200,13 @@ func (store *S3) Exists(ctx context.Context, path string) bool {
 	}
 
 	exists, err := store.head(ctx, path)
+	if err != nil {
+		logging.Logger.Warn().Err(err).Str("path", path).Msg("failed to look up an object on S3")
 
-	return err == nil && exists
+		return false
+	}
+
+	return exists
 }
 
 // Paths returns the local layout the backend scratches against.
