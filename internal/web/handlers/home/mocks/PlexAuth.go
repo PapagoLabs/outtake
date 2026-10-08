@@ -335,3 +335,47 @@ func (_c *MockPlexAuth_Sessions_Call) RunAndReturn(run func() []plex.Session) *M
 	_c.Call.Return(run)
 	return _c
 }
+
+// TokenRejected provides a mock function for the type MockPlexAuth
+func (_mock *MockPlexAuth) TokenRejected() bool {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for TokenRejected")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func() bool); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockPlexAuth_TokenRejected_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TokenRejected'
+type MockPlexAuth_TokenRejected_Call struct {
+	*mock.Call
+}
+
+// TokenRejected is a helper method to define mock.On call
+func (_e *MockPlexAuth_Expecter) TokenRejected() *MockPlexAuth_TokenRejected_Call {
+	return &MockPlexAuth_TokenRejected_Call{Call: _e.mock.On("TokenRejected")}
+}
+
+func (_c *MockPlexAuth_TokenRejected_Call) Run(run func()) *MockPlexAuth_TokenRejected_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockPlexAuth_TokenRejected_Call) Return(b bool) *MockPlexAuth_TokenRejected_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockPlexAuth_TokenRejected_Call) RunAndReturn(run func() bool) *MockPlexAuth_TokenRejected_Call {
+	_c.Call.Return(run)
+	return _c
+}

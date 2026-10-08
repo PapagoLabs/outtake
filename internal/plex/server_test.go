@@ -685,3 +685,43 @@ func TestSearchMedia_Errors(t *testing.T) {
 		})
 	}
 }
+
+// TestLibraryCallsReportARefusedToken covers a server that refuses the token:
+// the library list and the media path report ErrUnauthorized rather than
+// decoding the refusal page as data.
+func TestLibraryCallsReportARefusedToken(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+
+		_, _ = w.Write([]byte("<html><body>401 Unauthorized</body></html>"))
+	}))
+	t.Cleanup(ts.Close)
+
+	client, server := testPMSClientFor(t, ts)
+
+	_, err := client.GetLibraries(t.Context(), server)
+	require.ErrorIs(t, err, ErrUnauthorized)
+	require.ErrorIs(t, err, ErrServerReturnedError)
+
+	_, err = client.GetMediaPath(t.Context(), server, "42")
+	require.ErrorIs(t, err, ErrUnauthorized)
+}
+
+// TestLibraryCallsReportAFailureStatus covers any other failure status: it is
+// reported as a server error, not as a refused token.
+func TestLibraryCallsReportAFailureStatus(t *testing.T) {
+	t.Parallel()
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(ts.Close)
+
+	client, server := testPMSClientFor(t, ts)
+
+	_, err := client.GetLibraries(t.Context(), server)
+	require.ErrorIs(t, err, ErrServerReturnedError)
+	assert.NotErrorIs(t, err, ErrUnauthorized)
+}

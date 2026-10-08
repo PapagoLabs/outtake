@@ -1046,7 +1046,10 @@ func TestBindServerSkipsSeveralDiscoveredServers(t *testing.T) {
 	auth.bindServer(t.Context(), "access-token")
 }
 
-func TestBindServerSkipsAnExistingSelection(t *testing.T) {
+// TestBindServerLeavesASelectionItCannotIdentify covers a bound server with no
+// stored machine identifier that does not answer /identity: nothing is
+// discovered, set, or saved.
+func TestBindServerLeavesASelectionItCannotIdentify(t *testing.T) {
 	t.Parallel()
 
 	store := mocks.NewMockStore(t)
@@ -1219,4 +1222,100 @@ func TestChooseCustomURLRefusesAHostThatDoesNotAnswer(t *testing.T) {
 	)
 
 	require.ErrorIs(t, err, ErrServerUnreachable)
+}
+
+// TestBindServerRefreshesTheTokenOfTheBoundServer covers a sign-in while a
+// server is bound with a token Plex no longer accepts: discovery's token for
+// the same machine replaces it, and the bound connection, here a custom URL,
+// is kept.
+func TestBindServerRefreshesTheTokenOfTheBoundServer(t *testing.T) {
+	t.Parallel()
+
+	origin, _, _ := reachablePlexTV(t)
+
+	stale := plex.Server{
+		Name: "Attic", Address: "plex.example.com", Port: 443, Token: "stale-token",
+		Scheme: "https", Local: false, MachineID: "machine-1", Relay: false,
+	}
+
+	refreshed := stale
+
+	refreshed.Token = "discovered-token"
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().SaveSelectedServer(mock.Anything, refreshed).Return(nil).Once()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(stale, true).Once()
+	bound.EXPECT().Set(refreshed).Once()
+
+	testAuth(t, origin, store, bound).bindServer(t.Context(), "access-token")
+}
+
+// TestBindServerIdentifiesALegacyBindingBeforeRefreshing covers a binding
+// stored before its machine identifier was recorded: the bound connection is
+// asked for its identity, and the refreshed binding records it.
+func TestBindServerIdentifiesALegacyBindingBeforeRefreshing(t *testing.T) {
+	t.Parallel()
+
+	origin, reachable, _ := reachablePlexTV(t)
+
+	legacy := reachable
+
+	legacy.Token = "stale-token"
+	legacy.MachineID = ""
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().SaveSelectedServer(mock.Anything, reachable).Return(nil).Once()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(legacy, true).Once()
+	bound.EXPECT().Set(reachable).Once()
+
+	testAuth(t, origin, store, bound).bindServer(t.Context(), "access-token")
+}
+
+// TestBindServerKeepsACurrentToken covers a bound server whose token is still
+// the one discovery reports: nothing is set or saved.
+func TestBindServerKeepsACurrentToken(t *testing.T) {
+	t.Parallel()
+
+	origin, reachable, _ := reachablePlexTV(t)
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(reachable, true).Once()
+
+	testAuth(t, origin, mocks.NewMockStore(t), bound).bindServer(t.Context(), "access-token")
+}
+
+// TestBindServerLeavesAServerTheAccountDoesNotList covers a bound server that
+// is not among the signed-in account's servers: no other server's token is
+// put on it.
+func TestBindServerLeavesAServerTheAccountDoesNotList(t *testing.T) {
+	t.Parallel()
+
+	origin, reachable, _ := reachablePlexTV(t)
+
+	other := reachable
+
+	other.MachineID = "machine-2"
+	other.Token = "stale-token"
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(other, true).Once()
+
+	testAuth(t, origin, mocks.NewMockStore(t), bound).bindServer(t.Context(), "access-token")
+}
+
+// TestTokenRejectedFollowsTheBinding covers the refused-token check pages
+// show: it is false with no binding, and otherwise asks the binding.
+func TestTokenRejectedFollowsTheBinding(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, testAuth(t, "", nil, nil).TokenRejected())
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().TokenRejected().Return(true).Once()
+
+	assert.True(t, testAuth(t, "", nil, bound).TokenRejected())
 }

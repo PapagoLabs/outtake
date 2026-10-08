@@ -29,6 +29,9 @@ type PlexAuth interface {
 
 	// Sessions returns the Plex sessions currently playing.
 	Sessions() []plex.Session
+
+	// TokenRejected reports whether the bound server refuses its stored token.
+	TokenRejected() bool
 }
 
 // MediaDescriber describes the media a page renders.

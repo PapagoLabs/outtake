@@ -73,9 +73,10 @@ func (handler *Handler) Servers(ctx fiber.Ctx) error {
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Servers(pages.ServersProps{
-			Servers: view.ServerItems(handler.discoverServers(ctx), current),
-			Error:   ctx.Query(routes.QueryError),
-			Bound:   bound,
+			Servers:       view.ServerItems(handler.discoverServers(ctx), current),
+			Error:         ctx.Query(routes.QueryError),
+			Bound:         bound,
+			TokenRejected: handler.auth.TokenRejected(),
 		}).Render(ctx.Context(), writer)
 	})
 }

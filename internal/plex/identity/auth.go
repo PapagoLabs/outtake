@@ -64,6 +64,9 @@ type ServerBinding interface {
 
 	// Sessions returns the latest cached playback sessions.
 	Sessions() []plex.Session
+
+	// TokenRejected reports whether the server refused the stored token.
+	TokenRejected() bool
 }
 
 // PendingPIN is a Plex PIN that has been created but not yet authorized.
@@ -457,6 +460,19 @@ func (auth *Auth) SignIn(ctx context.Context, accessToken string) (User, error) 
 	return user, nil
 }
 
+// TokenRejected reports whether the bound server refused its stored token on
+// the last session poll. Signing in again refreshes the token.
+//
+// Returns:
+//   - rejected: True while the bound server refuses the token.
+func (auth *Auth) TokenRejected() bool {
+	if auth.selected == nil {
+		return false
+	}
+
+	return auth.selected.TokenRejected()
+}
+
 // authorize decides whether a validated Plex account may use this installation.
 //
 // Parameters:
@@ -496,7 +512,8 @@ func (auth *Auth) authorize(ctx context.Context, candidate User) (User, error) {
 }
 
 // bindServer selects the single discovered Plex server, through its most
-// preferred connection that answers, and persists the choice.
+// preferred connection that answers, and persists the choice. When a server is
+// bound already, its token is refreshed instead.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -506,11 +523,13 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 		return
 	}
 
-	if _, ok := auth.selected.Get(); ok {
+	client := auth.clientFor(accessToken)
+
+	if bound, ok := auth.selected.Get(); ok {
+		auth.refreshBoundToken(ctx, client, bound)
+
 		return
 	}
-
-	client := auth.clientFor(accessToken)
 
 	servers, err := client.DiscoverServers(ctx)
 	if err != nil {
@@ -662,6 +681,61 @@ func (auth *Auth) legacyOwnerAllows(ctx context.Context, plexUserID int) bool {
 	return account.ID == plexUserID
 }
 
+// refreshBoundToken replaces the bound server's stored token with the one the
+// signed-in account's discovery reports for the same server, matched by
+// machine identifier. A server token can change after it was bound, and Plex
+// then refuses every request made with the stored one. The connection itself,
+// which may be a custom URL, is kept.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - client: Plex client carrying the signed-in account's token.
+//   - bound: The server bound now.
+func (auth *Auth) refreshBoundToken(ctx context.Context, client *plex.Client, bound plex.Server) {
+	machineID := boundMachineID(ctx, client, bound)
+	if machineID == "" {
+		log.Warn().Str("server", bound.Name).Msg("could not identify the bound plex server")
+
+		return
+	}
+
+	servers, err := client.DiscoverServers(ctx)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to discover plex servers")
+
+		return
+	}
+
+	token, found := discoveredToken(servers, machineID)
+	if !found {
+		log.Warn().
+			Str("server", bound.Name).
+			Msg("the bound plex server is not among the signed-in account's servers")
+
+		return
+	}
+
+	if token == bound.Token && bound.MachineID == machineID {
+		return
+	}
+
+	refreshed := bound
+
+	refreshed.Token = token
+	refreshed.MachineID = machineID
+
+	auth.selected.Set(refreshed)
+
+	saveErr := auth.store.SaveSelectedServer(ctx, refreshed)
+	if saveErr != nil {
+		log.Warn().Err(saveErr).Msg("failed to persist refreshed plex server token")
+
+		return
+	}
+
+	log.Info().Str("server", bound.Name).Msg("refreshed the bound plex server's token")
+}
+
 // settleClaim completes a claim this sign-in won and deletes the stored Plex
 // tokens.
 //
@@ -723,4 +797,54 @@ func GenerateClientID() string {
 	}
 
 	return hex.EncodeToString(buf[:])
+}
+
+// boundMachineID returns the machine identifier of the bound server. A binding
+// stored before the identifier was recorded is asked for its identity, without
+// a token, as a custom URL is.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - client: Plex client used for the identity request.
+//   - bound: The server bound now.
+//
+// Returns:
+//   - machineID: The identifier, or empty when the server could not be asked.
+func boundMachineID(ctx context.Context, client *plex.Client, bound plex.Server) string {
+	if bound.MachineID != "" {
+		return bound.MachineID
+	}
+
+	identityCtx, cancel := context.WithTimeout(ctx, identityTimeout)
+	defer cancel()
+
+	anonymous := bound
+
+	anonymous.Token = ""
+
+	identity, err := client.GetServerIdentity(identityCtx, anonymous)
+	if err != nil {
+		return ""
+	}
+
+	return identity.MachineIdentifier
+}
+
+// discoveredToken finds the token discovery reports for a server.
+//
+// Parameters:
+//   - servers: Every connection discovery reported.
+//   - machineID: The server's machine identifier.
+//
+// Returns:
+//   - token: The server's token.
+//   - found: False when no connection belongs to that server.
+func discoveredToken(servers []plex.Server, machineID string) (string, bool) {
+	for _, server := range servers {
+		if server.MachineID == machineID {
+			return server.Token, true
+		}
+	}
+
+	return "", false
 }

@@ -67,16 +67,17 @@ func (db *DB) ClearLegacyTokens(ctx context.Context) error {
 //   - err: Non-nil when the row cannot be written.
 func (db *DB) SaveSelectedServer(ctx context.Context, server plex.Server) error {
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
-		INSERT INTO selected_server (id, name, address, port, scheme, token, updated_at)
-		VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+		INSERT INTO selected_server (id, name, address, port, scheme, token, machine_id, updated_at)
+		VALUES (1, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			address = excluded.address,
 			port = excluded.port,
 			scheme = excluded.scheme,
 			token = excluded.token,
+			machine_id = excluded.machine_id,
 			updated_at = CURRENT_TIMESTAMP
-	`), server.Name, server.Address, server.Port, server.Scheme, server.Token)
+	`), server.Name, server.Address, server.Port, server.Scheme, server.Token, server.MachineID)
 	if err != nil {
 		return fmt.Errorf("save selected server: %w", err)
 	}
@@ -114,8 +115,9 @@ func (db *DB) SelectedServer(ctx context.Context) (plex.Server, bool, error) {
 
 	err := db.conn.QueryRowContext(
 		ctx,
-		db.rewrite(`SELECT name, address, port, scheme, token FROM selected_server WHERE id = 1`),
-	).Scan(&server.Name, &server.Address, &server.Port, &server.Scheme, &server.Token)
+		db.rewrite(`SELECT name, address, port, scheme, token, machine_id
+			FROM selected_server WHERE id = 1`),
+	).Scan(&server.Name, &server.Address, &server.Port, &server.Scheme, &server.Token, &server.MachineID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return server, false, nil

@@ -19,6 +19,8 @@ type DashboardProps struct {
 	Completed    int
 	Failed       int
 	Sessions     []view.SessionItem
+	// TokenRejected reports that the bound server refuses its stored token.
+	TokenRejected bool
 }
 
 // Dashboard renders the activity overview page.
@@ -74,7 +76,7 @@ templ Dashboard(props DashboardProps) {
 					}
 				</a>
 			</div>
-			@LiveSessions(props.Sessions)
+			@LiveSessions(props.Sessions, props.TokenRejected)
 			<div class="flex gap-4">
 				<a href="/media" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
 					Browse Media
@@ -91,10 +93,15 @@ templ Dashboard(props DashboardProps) {
 //
 // Parameters:
 //   - sessions: Sessions playing right now.
-templ LiveSessions(sessions []view.SessionItem) {
+//   - tokenRejected: The bound server refuses its stored token, so no
+//     sessions can be read.
+templ LiveSessions(sessions []view.SessionItem, tokenRejected bool) {
 	<div id="live-sessions" class="flex flex-col gap-3" hx-get="/dashboard/sessions" hx-trigger="every 10s" hx-swap="outerHTML">
 		<h3 class="text-lg font-semibold">Live Sessions</h3>
-		if len(sessions) == 0 {
+		if tokenRejected {
+			@TokenRejectedNotice()
+		}
+		if len(sessions) == 0 && !tokenRejected {
 			<p class="text-sm text-muted-foreground">No one is playing anything in Plex right now.</p>
 		}
 		for _, sess := range sessions {
@@ -134,4 +141,12 @@ templ LiveSessions(sessions []view.SessionItem) {
 			}
 		}
 	</div>
+}
+
+// TokenRejectedNotice explains that the bound Plex server refuses the token
+// Outtake stored for it, and how to recover.
+templ TokenRejectedNotice() {
+	<p role="status" class="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-token-rejected>
+		Plex refused the token saved for this server. Sign out and sign in again to refresh it, or forget the server on the <a href="/servers" class="underline">Servers</a> page and select it again.
+	</p>
 }

@@ -93,17 +93,7 @@ func formatHost(address, scheme string, port int) string {
 //   - libraries: The server's library sections.
 //   - err: Non-nil when the PMS request or decode fails.
 func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Library, error) {
-	scheme := server.Scheme
-	if scheme == "" {
-		scheme = defaultScheme
-	}
-
-	hostPort := formatHost(server.Address, scheme, server.Port)
-	reqURL := fmt.Sprintf("%s://%s%s/sections/all", scheme, hostPort, serverAPIBase)
-
-	cfg := fiberClient.Config{Ctx: ctx, Header: jsonHeaders(server.Token)}
-
-	resp, err := client.httpClient.Get(reqURL, cfg)
+	resp, err := client.getPMS(ctx, server, serverAPIBase+"/sections/all", "")
 	if err != nil {
 		return nil, fmt.Errorf("get libraries: %w", err)
 	}
@@ -332,17 +322,7 @@ func (client *Client) GetMediaPath(
 		return "", fmt.Errorf("%w: %q", ErrInvalidMediaID, mediaID)
 	}
 
-	scheme := server.Scheme
-	if scheme == "" {
-		scheme = defaultScheme
-	}
-
-	hostPort := formatHost(server.Address, scheme, server.Port)
-	reqURL := fmt.Sprintf("%s://%s/library/metadata/%s", scheme, hostPort, url.PathEscape(mediaID))
-
-	cfg := fiberClient.Config{Ctx: ctx, Header: jsonHeaders(server.Token)}
-
-	resp, err := client.httpClient.Get(reqURL, cfg)
+	resp, err := client.getPMS(ctx, server, "/library/metadata/"+url.PathEscape(mediaID), "")
 	if err != nil {
 		return "", fmt.Errorf("get media path: %w", err)
 	}
