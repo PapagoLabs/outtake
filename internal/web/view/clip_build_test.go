@@ -4,6 +4,7 @@
 package view
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -41,6 +42,7 @@ func TestNewClipItemMapsEveryField(t *testing.T) {
 		PreserveHDR:   true,
 
 		CreatedAt: created,
+		UpdatedAt: created.Add(time.Minute),
 		Width:     640,
 		FPS:       12, OutputPath: "/clips/clip-1.mp4",
 
@@ -60,6 +62,7 @@ func TestNewClipItemMapsEveryField(t *testing.T) {
 		Status:        clip.StatusCompleted,
 		Progress:      40,
 		CreatedAt:     "Sep 3, 2026 4:32 AM",
+		FileVersion:   strconv.FormatInt(created.Add(time.Minute).UnixMilli(), fileVersionBase),
 		StartTime:     12 * time.Second,
 		Duration:      4250 * time.Millisecond,
 		Quality:       "profile-1",

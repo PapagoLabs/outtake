@@ -11,6 +11,8 @@ import (
 	"github.com/a-h/templ"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 )
 
 // failingAfterWriter accepts the first budgeted writes and rejects the rest.
@@ -101,10 +103,13 @@ func TestRandomIDIsPrefixedAndUnpredictable(t *testing.T) {
 	assert.NotEqual(t, first, RandomID())
 }
 
-func TestScriptURLCarriesTheCacheBustingVersion(t *testing.T) {
+func TestScriptURLCarriesTheContentHash(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "/assets/js/clip.js?v="+ScriptVersion, ScriptURL("/assets/js/clip.js"))
+	url := ScriptURL("/assets/js/checkbox.js")
+
+	assert.Equal(t, assets.URL("js/checkbox.js"), url)
+	assert.Regexp(t, `^/assets/js/checkbox\.js\?v=[0-9a-f]{16}$`, url)
 }
 
 func TestComponentScriptRendersTheMinifiedFile(t *testing.T) {
@@ -112,13 +117,13 @@ func TestComponentScriptRendersTheMinifiedFile(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := ComponentScript("clip").Render(t.Context(), &buf)
+	err := ComponentScript("checkbox").Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	assert.Contains(
 		t,
 		buf.String(),
-		`<script type="module" src="/assets/js/clip.min.js?v=`+ScriptVersion+`">`,
+		`<script type="module" src="`+assets.URL("js/checkbox.min.js")+`">`,
 	)
 	assert.NotContains(t, buf.String(), "nonce",
 		"a request with no nonce carries no nonce attribute")
@@ -133,11 +138,11 @@ func TestComponentScriptRendersTheUnminifiedFile(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := ComponentScript("clip").Render(t.Context(), &buf)
+	err := ComponentScript("checkbox").Render(t.Context(), &buf)
 	require.NoError(t, err)
 
-	assert.Contains(t, buf.String(), `src="/assets/js/clip.js?v=`+ScriptVersion+`"`)
-	assert.NotContains(t, buf.String(), "clip.min.js")
+	assert.Contains(t, buf.String(), `src="`+assets.URL("js/checkbox.js")+`"`)
+	assert.NotContains(t, buf.String(), "checkbox.min.js")
 }
 
 func TestComponentScriptCarriesTheContentSecurityNonce(t *testing.T) {
@@ -146,7 +151,7 @@ func TestComponentScriptCarriesTheContentSecurityNonce(t *testing.T) {
 	ctx := templ.WithNonce(t.Context(), `abc"123`)
 	var buf strings.Builder
 
-	err := ComponentScript("clip").Render(ctx, &buf)
+	err := ComponentScript("checkbox").Render(ctx, &buf)
 	require.NoError(t, err)
 
 	assert.Contains(t, buf.String(), `<script type="module" nonce="abc&#34;123"`,
@@ -161,7 +166,7 @@ func TestComponentScriptReportsEveryWriteFailure(t *testing.T) {
 	for budget := range 7 {
 		writer := &failingAfterWriter{allowed: budget}
 
-		err := ComponentScript("clip").Render(ctx, writer)
+		err := ComponentScript("checkbox").Render(ctx, writer)
 
 		require.ErrorIsf(t, err, errFailedWrite,
 			"a write rejected at step %d stops the render instead of being swallowed", budget)

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/PapagoLabs/outtake/internal/web/assets"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,10 +24,10 @@ func TestIconHeadLinksEveryIconSize(t *testing.T) {
 	body := buf.String()
 
 	for _, want := range []string{
-		`<link rel="icon" href="/assets/brand/favicon.ico" sizes="48x48">`,
-		`<link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/favicon-32x32.png">`,
-		`<link rel="icon" type="image/png" sizes="16x16" href="/assets/brand/favicon-16x16.png">`,
-		`<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">`,
+		`<link rel="icon" href="` + assets.URL("brand/favicon.ico") + `" sizes="48x48">`,
+		`<link rel="icon" type="image/png" sizes="32x32" href="` + assets.URL("brand/favicon-32x32.png") + `">`,
+		`<link rel="icon" type="image/png" sizes="16x16" href="` + assets.URL("brand/favicon-16x16.png") + `">`,
+		`<link rel="apple-touch-icon" href="` + assets.URL("brand/apple-touch-icon.png") + `">`,
 	} {
 		assert.Contains(t, body, want)
 	}

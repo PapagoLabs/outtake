@@ -284,7 +284,8 @@ func (client *Client) GetChildrenPage(
 //   - mediaID: Rating key of the item.
 //
 // Returns:
-//   - item: The mapped media item, keyed by mediaID.
+//   - item: The mapped media item, keyed by mediaID, with the path of its
+//     first media part as the server sees it.
 //   - err: ErrNoFilePathFound when the server returned no metadata, or a request
 //     error.
 func (client *Client) GetMediaItem(
@@ -310,6 +311,7 @@ func (client *Client) GetMediaItem(
 	item := metadataToItem(&container.Metadata[0], "")
 
 	item.ID = mediaID
+	item.FilePath = firstMediaFile(&container.Metadata[0])
 
 	return &item, nil
 }

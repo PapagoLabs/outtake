@@ -13,14 +13,18 @@ import (
 
 // ClipItem is one clip card on the clips list and media item pages.
 type ClipItem struct {
-	ID            string
-	Name          string
-	MediaID       string
-	MediaTitle    string
-	ClipType      clip.Type
-	Status        clip.Status
-	Progress      int
-	CreatedAt     string
+	ID         string
+	Name       string
+	MediaID    string
+	MediaTitle string
+	ClipType   clip.Type
+	Status     clip.Status
+	Progress   int
+	CreatedAt  string
+	// FileVersion changes whenever the clip is rendered again, so the file
+	// URL changes with it. Chromium reuses media it loaded for a URL within
+	// the same page without asking the server, whatever the cache headers say.
+	FileVersion   string
 	StartTime     time.Duration
 	Duration      time.Duration
 	Quality       string
@@ -48,6 +52,9 @@ type AudioTrackOption struct {
 
 // clipTimeLayout is how a clip timestamp is rendered.
 const clipTimeLayout = "Jan 2, 2006 3:04 PM"
+
+// fileVersionBase is the number base a clip's file version is written in.
+const fileVersionBase = 36
 
 const (
 	// ClipSortCreatedDesc lists newest created clips first.

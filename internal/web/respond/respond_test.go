@@ -319,6 +319,64 @@ func TestSendRangedFile(t *testing.T) {
 	assert.Contains(t, bodyText(t, resp), "clip")
 }
 
+// TestSendRangedFileServesAReplacedFile covers a clip rendered again: the new
+// file is moved into place under the same path, and the next request gets the
+// new contents rather than a handle kept open on the old file.
+func TestSendRangedFileServesAReplacedFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "clip.mp4")
+	require.NoError(t, os.WriteFile(path, []byte("first render"), 0o600))
+
+	app := newTestApp()
+	app.Get("/x", func(ctx fiber.Ctx) error {
+		return SendRangedFile(ctx, path)
+	})
+
+	get := func() string {
+		resp, err := app.Test(httptest.NewRequestWithContext(
+			t.Context(), http.MethodGet, "/x", nil,
+		))
+		require.NoError(t, err)
+
+		defer closeBody(t, resp)
+
+		return bodyText(t, resp)
+	}
+
+	assert.Equal(t, "first render", get())
+
+	staged := filepath.Join(dir, ".staging-clip.mp4")
+	require.NoError(t, os.WriteFile(staged, []byte("second render"), 0o600))
+	require.NoError(t, os.Rename(staged, path))
+
+	assert.Equal(t, "second render", get())
+}
+
+// TestSendRangedFileAsksTheBrowserToRevalidate covers the cache header on a
+// media file: the same URL serves a new file after a regenerate, so a browser
+// must check back before reusing what it holds.
+func TestSendRangedFileAsksTheBrowserToRevalidate(t *testing.T) {
+	t.Parallel()
+
+	app := newTestApp()
+	app.Get("/x", func(ctx fiber.Ctx) error {
+		return SendRangedFile(ctx, testFilePath(t))
+	})
+
+	resp, err := app.Test(httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet, "/x", nil,
+	))
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	assert.Equal(t, "no-cache", resp.Header.Get(fiber.HeaderCacheControl))
+	assert.NotEmpty(t, resp.Header.Get(fiber.HeaderLastModified),
+		"revalidation compares the file's modification time")
+}
+
 func TestIsHTMXRequest(t *testing.T) {
 	t.Parallel()
 

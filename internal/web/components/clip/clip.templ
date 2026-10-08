@@ -42,15 +42,17 @@ func statusBadgeVariant(status domainclip.Status) badge.Variant {
 	}
 }
 
-// clipFileURL builds the file URL for one clip.
+// clipFileURL builds the file URL for one clip. It carries the clip's file
+// version, so a card swapped in after a regenerate loads the new file rather
+// than media the browser kept for the old URL.
 //
 // Parameters:
-//   - id: Clip id.
+//   - item: Clip being rendered.
 //
 // Returns:
 //   - url: The /clips file URL.
-func clipFileURL(id string) templ.SafeURL {
-	return templ.SafeURL("/clips/" + id + "/file")
+func clipFileURL(item view.ClipItem) templ.SafeURL {
+	return templ.SafeURL("/clips/" + item.ID + "/file?v=" + item.FileVersion)
 }
 
 // clipPlayback renders the collapsible preview for a clip that can play.
@@ -63,9 +65,9 @@ templ clipPlayback(item view.ClipItem) {
 			<summary class="cursor-pointer select-none px-3 py-1.5 text-sm font-medium">Preview</summary>
 			<div class="border-t p-2">
 				if item.ClipType == domainclip.TypeGIF || item.ClipType == domainclip.TypeScreenshot {
-					<img src={ clipFileURL(item.ID) } alt={ item.DisplayName() } loading="lazy" class="w-full max-h-64 rounded-md object-contain bg-black"/>
+					<img src={ clipFileURL(item) } alt={ item.DisplayName() } loading="lazy" class="w-full max-h-64 rounded-md object-contain bg-black"/>
 				} else {
-					<video controls preload="none" class="w-full max-h-64 rounded-md bg-black" src={ clipFileURL(item.ID) }></video>
+					<video controls preload="none" class="w-full max-h-64 rounded-md bg-black" src={ clipFileURL(item) }></video>
 				}
 			</div>
 		</details>

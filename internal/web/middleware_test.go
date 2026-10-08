@@ -22,6 +22,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 )
 
 // csrfSource names where a request carries its CSRF token.
@@ -386,25 +387,25 @@ func TestStaticConfigServesTheEmbeddedFileSystem(t *testing.T) {
 
 	cfg := staticConfig()
 
-	assert.Equal(t, Assets, cfg.FS)
+	assert.Equal(t, assets.FS, cfg.FS)
 	assert.Equal(t, []string{"index.html"}, cfg.IndexNames)
 	assert.Equal(t, time.Duration(0), cfg.CacheDuration)
 	assert.Equal(t, 0, cfg.MaxAge)
 }
 
-func TestStaticConfigLeavesEveryOptionalBehaviourOff(t *testing.T) {
+func TestStaticConfigSetsCachingAndCompressionOnly(t *testing.T) {
 	t.Parallel()
 
 	cfg := staticConfig()
 
 	assert.Nil(t, cfg.Next)
-	assert.Nil(t, cfg.ModifyResponse)
+	assert.NotNil(t, cfg.ModifyResponse, "every served asset gets a cache header")
 	assert.NotNil(
 		t,
 		cfg.NotFoundHandler,
 		"a missing asset answers 404 before the session middleware",
 	)
-	assert.False(t, cfg.Compress)
+	assert.True(t, cfg.Compress, "text assets are compressed")
 	assert.False(t, cfg.ByteRange)
 	assert.False(t, cfg.Browse)
 	assert.False(t, cfg.Download)

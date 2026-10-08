@@ -295,6 +295,63 @@ func TestMediaCardPosterLinksToItem(t *testing.T) {
 	assert.NotContains(t, body, ">Open<")
 }
 
+// TestMediaCardPosterLoadsLazilyAtItsShape covers the poster markup a long
+// library page relies on: posters below the fold wait until they are scrolled
+// to, decode off the main thread, and carry the size of the frame they fill so
+// the grid does not move as they arrive.
+func TestMediaCardPosterLoadsLazilyAtItsShape(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		mediaType string
+		width     string
+		height    string
+	}{
+		{mediaType: "movie", width: `width="200"`, height: `height="300"`},
+		{mediaType: "episode", width: `width="320"`, height: `height="180"`},
+		{mediaType: "album", width: `width="300"`, height: `height="300"`},
+	} {
+		t.Run(tc.mediaType, func(t *testing.T) {
+			t.Parallel()
+
+			var buf strings.Builder
+
+			err := mediaCard(view.MediaItem{
+				ID:        "10",
+				Title:     "Poster",
+				Type:      tc.mediaType,
+				ThumbPath: "/thumbs?path=/library/metadata/10/thumb/1",
+			}, "title_asc").Render(t.Context(), &buf)
+			require.NoError(t, err)
+
+			body := buf.String()
+			assert.Contains(t, body, tc.width)
+			assert.Contains(t, body, tc.height)
+			assert.Contains(t, body, `loading="lazy"`)
+			assert.Contains(t, body, `decoding="async"`)
+		})
+	}
+}
+
+// TestLibraryCardThumbnailLoadsLazilyAtItsSize covers the library chooser's
+// thumbnails, which follow the same lazy, sized markup as the posters.
+func TestLibraryCardThumbnailLoadsLazilyAtItsSize(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+
+	err := libraryCard(view.LibraryItem{
+		ID:        "1",
+		Title:     "Movies",
+		Type:      "movie",
+		ThumbPath: "/thumbs?path=/library/sections/1/composite/1",
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
+
+	body := buf.String()
+	assert.Contains(t, body, `width="64" height="64" loading="lazy" decoding="async"`)
+}
+
 func TestMediaCardPosterLinksToBrowse(t *testing.T) {
 	t.Parallel()
 

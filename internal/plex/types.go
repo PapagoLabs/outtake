@@ -44,6 +44,9 @@ type MediaItem struct {
 	GrandparentTitle string  `json:"grandparentTitle,omitempty"`
 	TitleSort        string  `json:"titleSort,omitempty"`
 	AddedAt          int64   `json:"addedAt,omitempty"`
+	// FilePath is the item's first on-disk part as the Plex server sees it.
+	// Only GetMediaItem fills it, and it never leaves the server.
+	FilePath string `json:"-"`
 }
 
 // Session represents a playback session.

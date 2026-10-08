@@ -8,8 +8,8 @@ import (
 	"context"
 	"crypto/rand"
 	"io"
-	"strconv"
-	"time"
+
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 
 	"github.com/a-h/templ"
 
@@ -73,13 +73,9 @@ func RandomID() string {
 	return "id-" + rand.Text()
 }
 
-// ScriptVersion is a timestamp generated at app start for cache busting.
-var ScriptVersion = strconv.FormatInt(time.Now().Unix(), 10)
-
-// ScriptURL appends the cache-busting query to a script path.
-var ScriptURL = func(path string) string {
-	return path + "?v=" + ScriptVersion
-}
+// ScriptURL names a script by a URL that carries a hash of its contents, so
+// the browser fetches it again only when it changes.
+var ScriptURL = assets.URL
 
 // componentScriptBasePath is the base public path for component JavaScript files.
 var componentScriptBasePath = "/assets/js"

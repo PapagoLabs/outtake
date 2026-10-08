@@ -14,6 +14,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -56,7 +57,7 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, `src="/assets/js/media-item.js"`)
+	assert.Contains(t, body, `src="`+assets.URL("js/media-item.js")+`"`)
 	assert.Contains(t, body, `data-max-dur="600"`)
 	assert.Contains(t, body, `name="endTime"`)
 	assert.Contains(t, body, "Time")
@@ -237,7 +238,7 @@ func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 	assert.Contains(t, body, `role="progressbar"`)
 	assert.Contains(t, body, `aria-valuenow="0"`)
 
-	assert.Contains(t, body, `src="/assets/js/progress.min.js`)
+	assert.Contains(t, body, `src="`+assets.URL("js/progress.min.js")+`"`)
 
 	assert.NotContains(t, body, `src="/previews/`)
 

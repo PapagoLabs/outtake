@@ -4,6 +4,7 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
@@ -24,8 +25,8 @@ templ AuthComplete(next string) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>Signed in - Outtake</title>
 			@brand.IconHead()
-			<script src="/assets/js/theme.js"></script>
-			<link href="/assets/css/output.css" rel="stylesheet"/>
+			<script src={ assets.URL("js/theme.js") }></script>
+			<link href={ assets.URL("css/output.css") } rel="stylesheet"/>
 			if headers := identity.CSRFHeaderJSON(ctx); headers != "" {
 				<meta name="csrf-token" content={ identity.CSRFToken(ctx) }/>
 			}

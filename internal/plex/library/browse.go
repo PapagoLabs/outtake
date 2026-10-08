@@ -40,6 +40,7 @@ var errNoAddedAtCache = errors.New("added-at jump index needs its cache")
 //
 // Parameters:
 //   - ctx: Request context.
+//   - libraries: Cache the server's library list is read through.
 //   - client: PMS client.
 //   - server: PMS to query.
 //   - query: Normalized browse state.
@@ -50,17 +51,18 @@ var errNoAddedAtCache = errors.New("added-at jump index needs its cache")
 //   - err: Non-nil when Plex could not be asked, and the libraries are absent.
 func Browse(
 	ctx context.Context,
+	libraries *LibraryCache,
 	client *plex.Client,
 	server plex.Server,
 	query Query,
 	window Window,
 ) (Browsed, error) {
-	libraries, err := client.GetLibraries(ctx, server)
+	listed, err := libraries.Libraries(ctx, client, server)
 	if err != nil {
 		return Browsed{}, fmt.Errorf("list libraries: %w", err)
 	}
 
-	browsed := Browsed{Libraries: libraries}
+	browsed := Browsed{Libraries: listed}
 
 	if query.Query != "" {
 		found, searchErr := client.SearchOnServer(ctx, server, query.Query, query.LibraryID)

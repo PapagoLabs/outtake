@@ -4,6 +4,7 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
@@ -34,9 +35,9 @@ templ Login(props LoginProps) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>Login - Outtake</title>
 			@brand.IconHead()
-			<script src="/assets/js/theme.js"></script>
-			<link href="/assets/css/output.css" rel="stylesheet"/>
-			<script src="/assets/js/htmx.min.js"></script>
+			<script src={ assets.URL("js/theme.js") }></script>
+			<link href={ assets.URL("css/output.css") } rel="stylesheet"/>
+			<script src={ assets.URL("js/htmx.min.js") }></script>
 			<script src={ utils.ScriptURL("/assets/js/app.js") } defer></script>
 			@input.Script()
 			@label.Script()
@@ -54,7 +55,7 @@ templ Login(props LoginProps) {
 				@flash.Slot("")
 				@card.Card() {
 					@card.Header(card.HeaderProps{Class: "items-center text-center"}) {
-						<img src="/assets/brand/mascot-128.png" width="80" height="80" alt="" class="size-20"/>
+						<img src={ assets.URL("brand/mascot-128.png") } width="80" height="80" alt="" class="size-20"/>
 						@card.Title() {
 							Outtake
 						}
@@ -94,7 +95,7 @@ templ Login(props LoginProps) {
 					}
 				}
 			</div>
-			<script src="/assets/js/login.js"></script>
+			<script src={ assets.URL("js/login.js") }></script>
 		</body>
 	</html>
 }

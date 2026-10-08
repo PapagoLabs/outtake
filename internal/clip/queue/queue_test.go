@@ -187,6 +187,45 @@ func TestQueue_ProcessJob_Success(t *testing.T) {
 	})
 }
 
+// TestQueue_ACompletedRenderAdvancesUpdatedAt covers the stamp a finished
+// render leaves: clip cards version their file URL by UpdatedAt, so each
+// render must move it forward or a browser keeps playing the previous file.
+func TestQueue_ACompletedRenderAdvancesUpdatedAt(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		handler := func(_ context.Context, _ *clip.Job) error {
+			time.Sleep(time.Second)
+
+			return nil
+		}
+
+		q := NewQueue(1, handler)
+		q.Start(t.Context())
+		t.Cleanup(q.Stop)
+
+		submitted := time.Now()
+
+		q.Submit(&clip.Job{
+			ID: "stamped-job", Type: clip.TypeClip, Name: "",
+			MediaID: "", MediaTitle: "", MediaType: "",
+			StartTime: 0, Duration: 0, Quality: "", Width: 0, FPS: 0,
+			AudioIndex: 0, CropBlackBars: false,
+			CreatedAt: submitted, UpdatedAt: submitted, InputPath: "/tmp/input.mp4",
+			Status: clip.StatusPending, OutputPath: "", Progress: 0, Error: "",
+		})
+
+		time.Sleep(2 * time.Second)
+		synctest.Wait()
+
+		job := q.GetJob("stamped-job")
+		require.NotNil(t, job)
+		require.Equal(t, clip.StatusCompleted, job.Status)
+		assert.True(t, job.UpdatedAt.After(submitted),
+			"the finished render is stamped after the job was submitted")
+	})
+}
+
 func TestQueue_ProcessJob_Failure(t *testing.T) {
 	t.Parallel()
 

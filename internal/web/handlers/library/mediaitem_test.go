@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -153,7 +154,8 @@ func TestMediaItemRendersTheResolvedItem(t *testing.T) {
 		case "/library/metadata/42":
 			_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
 		{"ratingKey":"42","title":"Test Movie","type":"movie","duration":7200000,
-		 "year":1999,"librarySectionID":"1"}
+		 "year":1999,"librarySectionID":"1",
+		 "Media":[{"Part":[{"file":"/movies/test.mkv"}]}]}
 	]}}`))
 		default:
 			_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[
@@ -168,7 +170,7 @@ func TestMediaItemRendersTheResolvedItem(t *testing.T) {
 
 	sources := mocks.NewMockMediaDescriber(t)
 	sources.EXPECT().
-		Describe(mock.Anything, "42").
+		DescribePath(mock.Anything, "/movies/test.mkv").
 		Return(sourceInfo(90 * time.Minute))
 
 	handler, _ := pageHandler(t, auth, sources)
@@ -254,7 +256,8 @@ func TestMediaItemNamesTheExportFormFromTheMediaTitle(t *testing.T) {
 		if r.URL.Path == "/library/metadata/42" {
 			_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
 		{"ratingKey":"42","title":"Test Movie","type":"movie","duration":7200000,
-		 "year":1999,"librarySectionID":"1"}
+		 "year":1999,"librarySectionID":"1",
+		 "Media":[{"Part":[{"file":"/movies/test.mkv"}]}]}
 	]}}`))
 
 			return
@@ -270,7 +273,7 @@ func TestMediaItemNamesTheExportFormFromTheMediaTitle(t *testing.T) {
 	auth.EXPECT().Client().Return(stub.client, stub.server, true)
 
 	sources := mocks.NewMockMediaDescriber(t)
-	sources.EXPECT().Describe(mock.Anything, "42").Return(library.SourceInfo{})
+	sources.EXPECT().DescribePath(mock.Anything, "/movies/test.mkv").Return(library.SourceInfo{})
 
 	handler, _ := pageHandler(t, auth, sources)
 
@@ -516,4 +519,78 @@ func TestClipsForMediaStampsEachCardFromTheSource(t *testing.T) {
 	assert.True(t, clips[0].SourceHDR, "the card offers to keep the probed HDR transfer")
 	assert.Len(t, clips[0].AudioTracks, 2,
 		"the card offers every probed audio track")
+}
+
+// TestMediaItemAsksPlexForTheItemOnce covers the media page reading the item's
+// metadata a single time: the file it probes comes from the metadata it
+// already holds.
+func TestMediaItemAsksPlexForTheItemOnce(t *testing.T) {
+	t.Parallel()
+
+	var lookups atomic.Int32
+
+	stub := startPMS(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/library/metadata/42" {
+			lookups.Add(1)
+
+			_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
+		{"ratingKey":"42","title":"Test Movie","type":"movie","duration":7200000,
+		 "librarySectionID":"1","Media":[{"Part":[{"file":"/plex/movies/test.mkv"}]}]}
+	]}}`))
+
+			return
+		}
+
+		_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[]}}`))
+	})
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().
+		DescribePath(mock.Anything, "/media/movies/test.mkv").
+		Return(sourceInfo(time.Hour)).
+		Once()
+
+	handler, _ := pageHandler(t, auth, sources)
+
+	handler.cfg.PlexMediaRoot = "/plex"
+	handler.cfg.LocalMediaRoot = "/media"
+
+	answer := getItem(t, handler, routes.PathItemPrefix+"42")
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.Equal(t, int32(1), lookups.Load(),
+		"the page reads the item's metadata once and probes the file it names")
+}
+
+// TestMediaItemProbesNothingForAnItemWithoutAFile covers an item Plex reports
+// with no media part, such as a show: there is no file to describe, so the
+// page neither probes nor asks Plex again.
+func TestMediaItemProbesNothingForAnItemWithoutAFile(t *testing.T) {
+	t.Parallel()
+
+	stub := startPMS(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/library/metadata/42" {
+			_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
+		{"ratingKey":"42","title":"Test Show","type":"show","librarySectionID":"2"}
+	]}}`))
+
+			return
+		}
+
+		_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[]}}`))
+	})
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+
+	handler, _ := pageHandler(t, auth, mocks.NewMockMediaDescriber(t))
+
+	answer := getItem(t, handler, routes.PathItemPrefix+"42")
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, "Test Show",
+		"the page still renders what Plex reported")
 }

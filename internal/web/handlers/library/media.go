@@ -123,7 +123,7 @@ func (handler *Handler) mediaPageProps(
 //
 // Returns:
 //   - browsed: The libraries and the items of the window.
-func (*Handler) browse(
+func (handler *Handler) browse(
 	ctx fiber.Ctx,
 	plexClient *plex.Client,
 	server plex.Server,
@@ -134,7 +134,14 @@ func (*Handler) browse(
 		return library.Browsed{}
 	}
 
-	browsed, err := library.Browse(ctx.Context(), plexClient, server, query, window)
+	browsed, err := library.Browse(
+		ctx.Context(),
+		&handler.libraries,
+		plexClient,
+		server,
+		query,
+		window,
+	)
 	if err != nil {
 		log.Warn().Err(err).Msg("browse media failed")
 	}

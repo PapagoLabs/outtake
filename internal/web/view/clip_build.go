@@ -4,6 +4,7 @@
 package view
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -35,6 +36,7 @@ func NewClipItem(
 		Status:        job.Status,
 		Progress:      job.Progress,
 		CreatedAt:     FormatClipCreated(job.CreatedAt),
+		FileVersion:   strconv.FormatInt(job.UpdatedAt.UnixMilli(), fileVersionBase),
 		Error:         job.Error,
 		StartTime:     job.StartTime,
 		Duration:      job.Duration,

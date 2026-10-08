@@ -40,7 +40,7 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
 	item, itemErr := handler.loadMediaItem(ctx, id)
 	query := parseClipListQuery(ctx)
-	source := handler.sources.Describe(ctx.Context(), id)
+	source := handler.describeItem(ctx, id, item, itemErr)
 	clips := handler.clipsForMedia(ctx, id, source, query)
 	window := exportform.ClipWindow(ctx)
 
@@ -158,6 +158,35 @@ func (handler *Handler) clipsForMedia(
 	}
 
 	return clips
+}
+
+// describeItem reports what the file behind a media page holds. The page
+// already read the item's metadata, so a loaded item is described from the
+// file path it carries rather than by asking Plex for that metadata again.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - mediaID: Plex media item id.
+//   - item: The metadata the page loaded.
+//   - itemErr: Why the metadata could not be loaded, or nil.
+//
+// Returns:
+//   - source: What the file turned out to be, zero when it could not be probed.
+func (handler *Handler) describeItem(
+	ctx fiber.Ctx,
+	mediaID string,
+	item plex.MediaItem,
+	itemErr error,
+) library.SourceInfo {
+	if itemErr != nil {
+		return handler.sources.Describe(ctx.Context(), mediaID)
+	}
+
+	if item.FilePath == "" {
+		return library.SourceInfo{}
+	}
+
+	return handler.sources.DescribePath(ctx.Context(), handler.cfg.RemapMediaPath(item.FilePath))
 }
 
 // loadMediaItem fetches metadata for a Plex rating key.
