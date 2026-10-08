@@ -190,6 +190,11 @@ func (handler *Handler) respondWithClipCard(ctx fiber.Ctx, job *clipdom.Job) err
 			handler.outputExists(ctx.Context())(job.OutputPath),
 		)
 
+		// The swapped-in card replaces one the page filled in from the source,
+		// so it is filled in the same way or it loses the HDR checkbox, the
+		// audio tracks, and the source length.
+		view.ApplySource(&item, handler.sources.DescribePath(ctx.Context(), job.InputPath))
+
 		return clipcard.ClipCard(item).Render(ctx.Context(), writer)
 	})
 }

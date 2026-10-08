@@ -5,6 +5,7 @@ package view
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -48,4 +49,28 @@ func TestAudioTrackOptionsAreEmptyForNoTracks(t *testing.T) {
 	t.Parallel()
 
 	assert.Empty(t, AudioTrackOptions(nil))
+}
+
+// TestApplySourceFillsTheCardFromItsSource covers the fields a clip card
+// takes from its probed source, and an unprobed source leaving them empty.
+func TestApplySourceFillsTheCardFromItsSource(t *testing.T) {
+	t.Parallel()
+
+	item := ClipItem{ID: "c1"}
+
+	ApplySource(&item, library.SourceInfo{
+		Duration:     time.Hour,
+		HDR:          true,
+		AudioStreams: []library.AudioStream{{Index: 0, Language: "eng"}},
+	})
+
+	assert.True(t, item.SourceHDR)
+	assert.Equal(t, time.Hour, item.MediaDuration)
+	assert.Len(t, item.AudioTracks, 1)
+
+	ApplySource(&item, library.SourceInfo{})
+
+	assert.False(t, item.SourceHDR)
+	assert.Zero(t, item.MediaDuration)
+	assert.Empty(t, item.AudioTracks)
 }

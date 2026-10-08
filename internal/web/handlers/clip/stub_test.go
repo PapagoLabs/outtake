@@ -20,6 +20,8 @@ import (
 // stubProber reports a fixed length for any media file.
 type stubProber struct {
 	duration time.Duration
+	// transfer is the video color transfer the probe reports, empty for SDR.
+	transfer string
 }
 
 // Probe returns a length for any path.
@@ -35,7 +37,11 @@ func (prober *stubProber) Probe(_ context.Context, _ string) (probe.Info, error)
 	// Three audio tracks, so a test may pick any track up to the third.
 	tracks := []probe.Track{{Index: 0}, {Index: 1}, {Index: 2}}
 
-	return probe.Info{Duration: prober.duration, AudioTracks: tracks}, nil
+	return probe.Info{
+		Duration:      prober.duration,
+		AudioTracks:   tracks,
+		ColorTransfer: prober.transfer,
+	}, nil
 }
 
 // noopJobHandler is a queue worker that renders nothing, for tests that only
@@ -102,4 +108,22 @@ func closeBody(t *testing.T, resp *http.Response) {
 	t.Helper()
 
 	require.NoError(t, resp.Body.Close())
+}
+
+// hdrSources returns a media source resolver whose probe reports a two-hour
+// PQ source with three audio tracks.
+//
+// Parameters:
+//   - t: The test the resolver belongs to.
+//
+// Returns:
+//   - sources: A resolver bound to no Plex server.
+func hdrSources(t *testing.T) *library.MediaSource {
+	t.Helper()
+
+	return library.NewMediaSource(
+		&config.Config{MaxClipDur: 10 * time.Minute},
+		nil,
+		&stubProber{duration: 2 * time.Hour, transfer: "smpte2084"},
+	)
 }

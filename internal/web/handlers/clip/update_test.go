@@ -482,3 +482,25 @@ func TestUpdateRefusesANegativeMark(t *testing.T) {
 		})
 	}
 }
+
+// TestUpdateSwapsInACardThatKeepsItsSourceChoices covers the card an edit
+// swaps in: it keeps the HDR checkbox and the audio track select the page
+// showed, rather than dropping them until a reload.
+func TestUpdateSwapsInACardThatKeepsItsSourceChoices(t *testing.T) {
+	t.Parallel()
+
+	db := updateTestDB(t)
+	handler := updateTestHandler(t, db)
+
+	handler.sources = hdrSources(t)
+
+	form := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
+	form.Set("webSafeColor", routes.FormChecked)
+
+	answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.NotContains(t, answer.body, `type="hidden" name="preserveHdr"`)
+	assert.Contains(t, answer.body, `name="preserveHdr"`, "the HDR checkbox is still offered")
+	assert.Contains(t, answer.body, `id="audio-stored"`, "and so is the audio track select")
+}

@@ -5,6 +5,7 @@ package library
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +15,12 @@ import (
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
+
+// countingProber reports a fixed length and counts the paths it probes.
+type countingProber struct {
+	mu     sync.Mutex
+	probed []string
+}
 
 // stubProber returns a fixed probe result, or an error, for any path.
 type stubProber struct {
@@ -131,4 +138,44 @@ func TestDurationWithNothingToReport(t *testing.T) {
 			assert.Zero(t, duration)
 		})
 	}
+}
+
+// Probe records the path and reports an HDR source with one audio track.
+//
+// Parameters:
+//   - ctx: Request context, unused.
+//   - path: Media file path.
+//
+// Returns:
+//   - info: A fixed probe result.
+//   - err: Always nil.
+func (prober *countingProber) Probe(_ context.Context, path string) (probe.Info, error) {
+	prober.mu.Lock()
+
+	prober.probed = append(prober.probed, path)
+	prober.mu.Unlock()
+
+	return probe.Info{
+		Duration:      time.Hour,
+		ColorTransfer: "smpte2084",
+		AudioTracks:   []probe.Track{{Index: 0}},
+	}, nil
+}
+
+// TestDescribePathsProbesEachSourceOnce covers the clips page's probe: each
+// distinct source is probed once, an empty path never, and every result is
+// returned.
+func TestDescribePathsProbesEachSourceOnce(t *testing.T) {
+	t.Parallel()
+
+	prober := &countingProber{}
+	source := NewMediaSource(&config.Config{}, nil, prober)
+
+	infos := source.DescribePaths(t.Context(), []string{"/m/a.mkv", "", "/m/b.mkv", "/m/a.mkv"}, 2)
+
+	assert.ElementsMatch(t, []string{"/m/a.mkv", "/m/b.mkv"}, prober.probed)
+	require.Len(t, infos, 2)
+	assert.True(t, infos["/m/a.mkv"].HDR)
+	assert.Equal(t, time.Hour, infos["/m/b.mkv"].Duration)
+	assert.Len(t, infos["/m/b.mkv"].AudioStreams, 1)
 }
