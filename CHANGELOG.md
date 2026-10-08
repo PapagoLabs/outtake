@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Export clips that keep hdr as hevc main 10 by @nicholas-fedor in [#378](https://github.com/PapagoLabs/outtake/pull/378)
 - Ship static ffmpeg 9.0.2 from a digest-pinned image by @nicholas-fedor in [#376](https://github.com/PapagoLabs/outtake/pull/376)
 - Parse progress incrementally and stop downloading to check files by @nicholas-fedor in [#351](https://github.com/PapagoLabs/outtake/pull/351)
 - Persist sessions and csrf tokens in the database by @nicholas-fedor in [#326](https://github.com/PapagoLabs/outtake/pull/326)
