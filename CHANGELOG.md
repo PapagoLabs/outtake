@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refresh the bound plex server's token on sign-in by @nicholas-fedor in [#364](https://github.com/PapagoLabs/outtake/pull/364)
 - Make keep HDR the only HDR switch and tone-map every still by @nicholas-fedor in [#360](https://github.com/PapagoLabs/outtake/pull/360)
 - Play regenerated clips at once and cache pages and plex calls by @nicholas-fedor in [#358](https://github.com/PapagoLabs/outtake/pull/358)
 - Fill every clip card from its source so HDR clips offer the HDR choice by @nicholas-fedor in [#356](https://github.com/PapagoLabs/outtake/pull/356)
