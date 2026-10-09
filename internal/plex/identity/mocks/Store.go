@@ -10,8 +10,9 @@ package mocks
 import (
 	"context"
 
-	"github.com/PapagoLabs/outtake/internal/plex"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
 // NewMockStore creates a new instance of MockStore. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
