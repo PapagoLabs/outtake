@@ -70,7 +70,9 @@ func clipSDRURL(item view.ClipItem) templ.SafeURL {
 // clipPlayback renders the collapsible preview for a clip that can play. An
 // HDR clip with an SDR version plays that version, and the page script moves
 // it to the HDR file only where the screen shows HDR and the browser decodes
-// HEVC, so a browser that cannot show the HDR file never starts on it.
+// HEVC, so a browser that cannot show the HDR file never starts on it. The
+// card carries the clip's id and version, from which the script builds the
+// HDR file's URL, rather than a URL for it to trust.
 //
 // Parameters:
 //   - item: Clip being rendered.
@@ -88,7 +90,8 @@ templ clipPlayback(item view.ClipItem) {
 						class="w-full max-h-64 rounded-md bg-black"
 						src={ clipSDRURL(item) }
 						data-clip-video
-						data-hdr-src={ string(clipFileURL(item)) }
+						data-clip-id={ item.ID }
+						data-hdr-version={ item.FileVersion }
 					></video>
 				} else {
 					<video

@@ -315,19 +315,25 @@
 		}
 	}
 
+	// clipFileURL builds the URL of a clip's own file from its id and version,
+	// on the fixed /clips path, so no URL is read back from the page.
+	function clipFileURL(id, version) {
+		return '/clips/' + encodeURIComponent(id) + '/file?v=' + encodeURIComponent(version);
+	}
+
 	// chooseClipSources moves each HDR clip's player from its SDR version to
 	// the HDR file where the screen shows HDR and the browser decodes HEVC, the
 	// same test the export form applies to previews. A clip with no SDR version
 	// says so where its HDR file cannot be shown. Each player is visited once.
 	function chooseClipSources() {
 		var showsHDR = screenShowsHDR() && playsHEVC();
-		document.querySelectorAll('video[data-hdr-src]').forEach(function (video) {
+		document.querySelectorAll('video[data-hdr-version]').forEach(function (video) {
 			if (video.dataset.sourceChosen) {
 				return;
 			}
 			video.dataset.sourceChosen = '1';
-			if (showsHDR) {
-				video.src = video.getAttribute('data-hdr-src');
+			if (showsHDR && video.dataset.clipId) {
+				video.src = clipFileURL(video.dataset.clipId, video.dataset.hdrVersion);
 			}
 		});
 		document.querySelectorAll('video[data-sdr-missing]').forEach(function (video) {

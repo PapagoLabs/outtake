@@ -466,8 +466,10 @@ func TestClipsPlaysTheSDRVersionFirst(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 
 	assertBodyContains(t, answer.body, `src="/clips/with-sdr/sdr?v=`, "the SDR version plays first")
-	assertBodyContains(t, answer.body, `data-hdr-src="/clips/with-sdr/file?v=`,
-		"and the HDR file is named for screens that show it")
+	assertBodyContains(t, answer.body, `data-clip-id="with-sdr"`,
+		"and the clip is named for the script to build the HDR file's URL")
+	assertBodyContains(t, answer.body, `data-hdr-version="`,
+		"with the version the HDR file is served under")
 	assertBodyContains(t, answer.body, `src="/clips/without-sdr/file?v=`,
 		"a clip with no SDR version plays its own file")
 	assertBodyContains(t, answer.body, "data-sdr-missing", "and is marked as lacking one")
