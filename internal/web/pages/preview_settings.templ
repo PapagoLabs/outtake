@@ -1,0 +1,67 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"strconv"
+
+	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/utils"
+)
+
+// PreviewSettingsProps carries the preview settings and their choices.
+type PreviewSettingsProps struct {
+	// MaxPreviewWidth is the widest previews are rendered.
+	MaxPreviewWidth int
+	// MaxPreviewWidths lists the widths the setting offers.
+	MaxPreviewWidths []int
+	// Error is a failed save's message, empty otherwise.
+	Error string
+}
+
+// PreviewSettings renders the settings for clip previews.
+//
+// Parameters:
+//   - props: The current settings and their choices.
+templ PreviewSettings(props PreviewSettingsProps) {
+	@layout.Layout(layout.Props{Title: "Previews", Active: "previews"}) {
+		<div class="flex flex-col gap-6 max-w-xl">
+			<h2 class="text-2xl font-bold tracking-tight">Previews</h2>
+			@flash.Banner(props.Error)
+			@card.Card() {
+				@card.Content() {
+					<form action="/settings/previews" method="POST" class="flex flex-col gap-4">
+						@csrf.Field()
+						<div class="flex flex-col gap-2">
+							@label.Label(label.Props{For: "max-preview-width"}) {
+								Maximum Preview Resolution
+							}
+							<select id="max-preview-width" name="maxPreviewWidth" class={ utils.ControlClass }>
+								for _, width := range props.MaxPreviewWidths {
+									if width == props.MaxPreviewWidth {
+										<option value={ strconv.Itoa(width) } selected>{ clip.OutputWidthLabel(width) }</option>
+									} else {
+										<option value={ strconv.Itoa(width) }>{ clip.OutputWidthLabel(width) }</option>
+									}
+								}
+							</select>
+							<p class="text-sm text-muted-foreground">Set the maximum video resolution for previews.</p>
+						</div>
+						<div>
+							@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
+								Save
+							}
+						</div>
+					</form>
+				}
+			}
+		</div>
+	}
+}

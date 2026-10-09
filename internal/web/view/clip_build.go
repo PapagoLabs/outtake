@@ -49,6 +49,8 @@ func NewClipItem(
 		CropBlackBars: job.CropBlackBars,
 		PreserveHDR:   job.PreserveHDR,
 		Stage:         job.Stage,
+		OutputFormat:  job.OutputFormat,
+		SDRFormat:     job.SDRFormat,
 		Width:         job.Width,
 		FPS:           job.FPS,
 		MaxDur:        limit,

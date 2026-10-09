@@ -224,3 +224,23 @@ func TestNewClipItemsAsksOnlyWhereAnSDRVersionMayBe(t *testing.T) {
 	assert.False(t, items[1].SDRExists)
 	assert.Equal(t, []string{"/c/a.mp4", "/c/a.sdr.mp4", "/c/b.mp4"}, asked)
 }
+
+// TestClipItemBadgesNameEachFile covers the badge text of a card: each file's
+// recorded format, and for a clip with an SDR version recorded before formats
+// were, the range alone, since its file is HDR and its version SDR.
+func TestClipItemBadgesNameEachFile(t *testing.T) {
+	t.Parallel()
+
+	recorded := ClipItem{
+		OutputFormat: clip.Format{Width: 3840, Height: 1608, HDR: true},
+		SDRFormat:    clip.Format{Width: 1920, Height: 804},
+	}
+	assert.Equal(t, "HDR · 4K", recorded.HDRBadge())
+	assert.Equal(t, "SDR · 1080p", recorded.SDRBadge())
+	assert.Equal(t, "HDR · 4K", recorded.FileBadge())
+
+	older := ClipItem{}
+	assert.Equal(t, "HDR", older.HDRBadge())
+	assert.Equal(t, "SDR", older.SDRBadge())
+	assert.Empty(t, older.FileBadge(), "an older clip's own file is not named")
+}

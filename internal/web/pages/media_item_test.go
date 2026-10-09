@@ -215,6 +215,7 @@ func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 
 	for _, id := range []string{
 		"preview-video",
+		"preview-format",
 		"preview-progress",
 		"preview-cancel",
 		"preview-status",
@@ -223,6 +224,10 @@ func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 	} {
 		assert.Contains(t, body, `id="`+id+`"`, "the preview script needs #"+id)
 	}
+
+	assert.Contains(t, body, "data-player-frame", "the format badge sits in the player's frame")
+	assert.Regexp(t, `id="preview-format"[^>]*\shidden[\s>]`, body,
+		"the badge stays hidden until the script fills it in")
 
 	assert.Contains(t, body, "data-tui-progress-indicator")
 	assert.Contains(t, body, `role="progressbar"`)

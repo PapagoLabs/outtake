@@ -224,7 +224,7 @@ The reset also forgets the server the old owner chose. The next Plex account to 
 
 If something is already playing, the dashboard **Live Sessions** list includes **Clip now**.
 
-Finished exports appear on the item and on **Clips**. When a job is **completed** and the file is on disk, use **Download**. Progress updates while a job is pending or processing. A video clip that keeps HDR from an HDR source also renders a 1080p SDR version, with a second progress bar, and its card plays that version unless your screen shows HDR and your browser plays HEVC. **Download** always gives you the HDR file.
+Finished exports appear on the item and on **Clips**. When a job is **completed** and the file is on disk, use **Download**. Progress updates while a job is pending or processing. A video clip that keeps HDR from an HDR source also renders an SDR version, with a second progress bar, and its card plays that version unless your screen shows HDR and your browser plays HEVC. **Maximum Preview Resolution** under **Settings → Previews** caps every preview at 720p, 1080p, or 4K, and a smaller source keeps its own size. It applies to previews rendered after you change it, including the SDR versions of clips rendered afterwards. **Download** always gives you the HDR file. Each player shows a badge in its corner naming what it plays, such as **HDR · 4K** or **SDR · 1080p**.
 
 Named encode settings live under **Settings → Clip Profiles**. Lower CRF is higher quality.
 

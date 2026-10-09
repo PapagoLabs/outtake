@@ -196,6 +196,28 @@ func TestExtractPreviewEncodeArgs(t *testing.T) {
 	assert.NotContains(t, strings.Join(args, " "), "tonemap=tonemap=mobius")
 }
 
+// TestExtractPreviewEncodeArgsFollowTheMaximumWidth covers the maximum
+// preview resolution: a preview, cropped first, is scaled no wider than the
+// width its preset names, so a 4K maximum keeps a letterboxed 4K source at 4K.
+func TestExtractPreviewEncodeArgsFollowTheMaximumWidth(t *testing.T) {
+	t.Parallel()
+
+	args := recordPreviewEncode(
+		t,
+		sdrEncodeExec(t),
+		clip.QualityPreset{MaxWidth: clip.OutputWidth2160p},
+		crop.CropRect{Width: 3840, Height: 1608, X: 0, Y: 276},
+	)
+	joined := strings.Join(args, " ")
+
+	assert.Contains(
+		t,
+		joined,
+		"crop=3840:1608:0:276,"+scaleFilter(clip.OutputWidth2160p, scaleFlagsFast),
+	)
+	assert.NotContains(t, joined, scaleFilter(previewMaxWidth, scaleFlagsFast))
+}
+
 // TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR covers a preview of a
 // clip that does not keep HDR: it is tone mapped like the clip.
 func TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {

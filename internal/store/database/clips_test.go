@@ -608,6 +608,65 @@ func TestMigrationHDRProfileKeepsAUsersOwnProfile(t *testing.T) {
 	require.ErrorIs(t, err, ErrClipProfileNotFound)
 }
 
+// TestSaveClipKeepsEachFilesFormat covers the formats a render read from its
+// files: they are stored and read back, including the clip file's HDR flag.
+func TestSaveClipKeepsEachFilesFormat(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/formats.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testStoredClip("formats", "1", time.Date(2026, time.October, 9, 0, 0, 0, 0, time.UTC))
+
+	job.OutputFormat = clip.Format{Width: 3840, Height: 1608, HDR: true}
+	job.SDRFormat = clip.Format{Width: 1920, Height: 804}
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	saved, err := db.GetClip(t.Context(), "formats")
+	require.NoError(t, err)
+	assert.Equal(t, job.OutputFormat, saved.OutputFormat)
+	assert.Equal(t, job.SDRFormat, saved.SDRFormat)
+}
+
+// TestMigrationOutputFormatsLeavesOlderClipsUnread covers clips rendered
+// before formats were stored: the migration gives them no format, so their
+// players show no badge rather than a wrong one.
+func TestMigrationOutputFormatsLeavesOlderClipsUnread(t *testing.T) {
+	t.Parallel()
+
+	path := t.TempDir() + "/older.db"
+
+	db, err := New(path)
+	require.NoError(t, err)
+
+	require.NoError(t, db.SaveClip(t.Context(),
+		testStoredClip("older", "1", time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC))))
+
+	for _, statement := range []string{
+		`ALTER TABLE clips DROP COLUMN output_width`,
+		`ALTER TABLE clips DROP COLUMN output_height`,
+		`ALTER TABLE clips DROP COLUMN output_hdr`,
+		`ALTER TABLE clips DROP COLUMN sdr_width`,
+		`ALTER TABLE clips DROP COLUMN sdr_height`,
+		`DELETE FROM schema_migrations WHERE name = '009_output_formats.sql'`,
+	} {
+		_, err = db.Conn().ExecContext(t.Context(), statement)
+		require.NoError(t, err, statement)
+	}
+
+	require.NoError(t, db.Close())
+
+	db, err = New(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	older, err := db.GetClip(t.Context(), "older")
+	require.NoError(t, err)
+	assert.False(t, older.OutputFormat.Known())
+	assert.False(t, older.SDRFormat.Known())
+}
+
 // TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse covers the column no
 // build reads any more: it is kept as the inverse of keep-HDR, so an older
 // build reading it renders the clip the same way.

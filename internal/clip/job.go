@@ -26,6 +26,13 @@ type Job struct {
 	// Stage is which encode of a running render Progress counts. It is only
 	// known while the queue holds the job, and is never stored.
 	Stage Stage
+
+	// OutputFormat is what the clip's own file holds, read when it was
+	// published. It is zero for a GIF, a screenshot, or a file never read.
+	OutputFormat Format
+
+	// SDRFormat is what the clip's SDR version holds, zero when it has none.
+	SDRFormat Format
 }
 
 // Clone returns an independent copy of the render.

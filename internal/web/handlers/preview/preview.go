@@ -11,6 +11,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/playback"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
@@ -112,8 +113,9 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	sourceHDR := handler.sources.DescribePath(ctx.Context(), inputPath).HDR
 	render, shownSDR := previewRender(req, sourceHDR, screenShowsHDR(ctx))
 	renderKeepsHDR := api.Flag(render.PreserveHDR)
+	maxWidth := playback.MaxPreviewWidth(ctx.Context(), handler.db)
 
-	previewID, err := clippreview.RequestID(render, inputPath)
+	previewID, err := clippreview.RequestID(render, inputPath, maxWidth)
 	if err != nil {
 		return respond.WriteError(ctx, fiber.StatusBadRequest, api.MediaPathUnresolved, err.Error())
 	}
@@ -128,7 +130,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	// recorded as finished so the page it redirects to can poll a status rather
 	// than an unknown id.
 	if handler.previews.Published(ctx.Context(), previewID) {
-		handler.previews.Remember(previewID)
+		handler.previews.Remember(ctx.Context(), previewID)
 
 		return respond.RedirectTo(ctx, location)
 	}
@@ -150,6 +152,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 				inputPath,
 				render,
 				renderKeepsHDR,
+				maxWidth,
 			)
 		},
 	)
@@ -266,6 +269,10 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 
 	if view.Error != "" {
 		payload["error"] = view.Error
+	}
+
+	if label := view.Format.Label(); label != "" {
+		payload["format"] = label
 	}
 
 	return respond.WriteJSON(ctx, fiber.StatusOK, payload)

@@ -1132,6 +1132,29 @@ func TestSetStageStartsTheNextEncodeFromZero(t *testing.T) {
 	assert.Nil(t, q.SetStage("never-queued", clip.StageSDR))
 }
 
+// TestSetFormatsRecordWhatEachFileHolds covers the formats a render reports:
+// the entry carries each one, and a job the queue does not have records
+// nothing.
+func TestSetFormatsRecordWhatEachFileHolds(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Restore(testJob("formats", clip.StatusProcessing))
+
+	output := clip.Format{Width: 3840, Height: 1608, HDR: true}
+	sdr := clip.Format{Width: 1920, Height: 804}
+
+	require.NotNil(t, q.SetOutputFormat("formats", output))
+	require.NotNil(t, q.SetSDRFormat("formats", sdr))
+
+	job := q.GetJob("formats")
+	assert.Equal(t, output, job.OutputFormat)
+	assert.Equal(t, sdr, job.SDRFormat)
+
+	assert.Nil(t, q.SetOutputFormat("never-queued", output))
+	assert.Nil(t, q.SetSDRFormat("never-queued", sdr))
+}
+
 // TestASettledRenderLeavesNoStage covers a render that ended during its SDR
 // version: the settled clip carries no stage, so its card shows one state.
 func TestASettledRenderLeavesNoStage(t *testing.T) {

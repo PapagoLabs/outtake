@@ -54,8 +54,9 @@ const (
 	scaleFlagsLanczos = "lanczos"
 	// scaleFlagsFast is the scaler used for preview scaling.
 	scaleFlagsFast = "fast_bilinear"
-	// previewMaxWidth is the maximum width for preview encodes.
-	previewMaxWidth = 1280
+	// previewMaxWidth is the widest a preview is encoded when its request
+	// names no maximum.
+	previewMaxWidth = clip.OutputWidth1080p
 	// previewCRF is the libx264 CRF for previews.
 	previewCRF = 30
 	// previewPreset is the libx264 preset for previews.
@@ -177,7 +178,8 @@ func clipEncodeRequest(
 //   - duration: Length of the preview window.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only PreserveHDR is read.
+//   - preset: Encode options; only PreserveHDR and MaxWidth are read. A
+//     narrower source keeps its width, and a zero MaxWidth caps at 1080p.
 //
 // Returns:
 //   - req: Populated encode request. HDR peak is filled later by resolveColor.
@@ -192,6 +194,11 @@ func previewEncodeRequest(
 	// so it is not seeded here.
 	hdrKind := ""
 
+	maxWidth := preset.MaxWidth
+	if maxWidth <= 0 {
+		maxWidth = previewMaxWidth
+	}
+
 	return videoEncodeRequest{
 		ffmpegPath: ffmpegPath,
 		input:      input,
@@ -202,11 +209,11 @@ func previewEncodeRequest(
 			CRF:         previewCRF,
 			Preset:      previewPreset,
 			AudioKbps:   previewAudioKbps,
-			MaxWidth:    previewMaxWidth,
+			MaxWidth:    maxWidth,
 			PreserveHDR: preset.PreserveHDR,
 		},
 		audioIndex: audioIndex,
-		maxWidth:   previewMaxWidth,
+		maxWidth:   maxWidth,
 		scaleFlags: scaleFlagsFast,
 		crop:       rect,
 		hdrKind:    hdrKind,
@@ -225,7 +232,8 @@ func previewEncodeRequest(
 //   - duration: Requested window, capped by PreviewDuration.
 //   - audioIndex: Audio stream index on the source.
 //   - rect: Optional black-bar crop.
-//   - preset: Encode options; only PreserveHDR is read.
+//   - preset: Encode options; only PreserveHDR and MaxWidth are read. A
+//     narrower source keeps its width, and a zero MaxWidth caps at 1080p.
 //
 // Returns:
 //   - err: Non-nil when the preview could not be encoded.

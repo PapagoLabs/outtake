@@ -33,6 +33,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/handlers/server"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
+	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
 // Deps is every dependency the route table and its handlers are built from. The
@@ -277,8 +278,10 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Post("/servers", guard, serverHandler.SelectServer)
 	app.Post("/servers/forget", guard, serverHandler.ForgetServer)
 	app.Get("/settings/appearance", guard, homeHandler.Appearance)
+	app.Get(routes.PathSettingsPreviews, guard, homeHandler.PreviewSettings)
 	app.Get("/settings/profiles", guard, profilesHandler.ClipProfiles)
 	app.Post("/settings/profiles", guard, profilesHandler.CreateClipProfile)
+	app.Post(routes.PathSettingsPreviews, guard, homeHandler.SavePreviewSettings)
 	app.Post("/settings/profiles/:id/default", guard, profilesHandler.SetDefaultClipProfile)
 	app.Post("/settings/profiles/:id/delete", guard, profilesHandler.DeleteClipProfile)
 	app.Post("/settings/profiles/:id", guard, profilesHandler.UpdateClipProfile)

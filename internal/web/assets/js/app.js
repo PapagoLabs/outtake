@@ -321,6 +321,21 @@
 		return '/clips/' + encodeURIComponent(id) + '/file?v=' + encodeURIComponent(version);
 	}
 
+	// playerFrame is the element a note about a player goes beside: the frame
+	// that holds the player and its badge, or the player itself without one.
+	function playerFrame(video) {
+		return video.closest('[data-player-frame]') || video;
+	}
+
+	// showFormatBadge shows the badge naming the file a clip's player plays.
+	// Both badges are rendered by the server in the player's frame, so only
+	// their visibility changes.
+	function showFormatBadge(video, which) {
+		playerFrame(video).querySelectorAll('[data-format-badge]').forEach(function (badge) {
+			badge.hidden = badge.getAttribute('data-format-badge') !== which;
+		});
+	}
+
 	// chooseClipSources moves each HDR clip's player from its SDR version to
 	// the HDR file where the screen shows HDR and the browser decodes HEVC, the
 	// same test the export form applies to previews. A clip with no SDR version
@@ -334,6 +349,7 @@
 			video.dataset.sourceChosen = '1';
 			if (showsHDR && video.dataset.clipId) {
 				video.src = clipFileURL(video.dataset.clipId, video.dataset.hdrVersion);
+				showFormatBadge(video, 'hdr');
 			}
 		});
 		document.querySelectorAll('video[data-sdr-missing]').forEach(function (video) {
@@ -348,7 +364,7 @@
 			note.setAttribute('data-sdr-missing-note', '');
 			note.className = 'mb-2 text-xs text-muted-foreground';
 			note.textContent = 'This clip has no SDR version yet. Regenerate it to make one for this screen.';
-			video.insertAdjacentElement('beforebegin', note);
+			playerFrame(video).insertAdjacentElement('beforebegin', note);
 		});
 	}
 
