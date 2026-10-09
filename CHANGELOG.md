@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Name the built-in profiles by resolution with generated ids by @nicholas-fedor in [#402](https://github.com/PapagoLabs/outtake/pull/402)
 - Stop hard-wrapping the readmes by @nicholas-fedor in [#394](https://github.com/PapagoLabs/outtake/pull/394)
 - Render an sdr version of hdr clips with the clip by @nicholas-fedor in [#390](https://github.com/PapagoLabs/outtake/pull/390)
 - Make keep hdr a clip profile setting by @nicholas-fedor in [#386](https://github.com/PapagoLabs/outtake/pull/386)
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module golang.org/x/crypto to v0.58.0 by @renovate[bot] in [#403](https://github.com/PapagoLabs/outtake/pull/403)
 - Update module golang.org/x/net to v0.61.0 by @renovate[bot] in [#404](https://github.com/PapagoLabs/outtake/pull/404)
 - Update module golang.org/x/sys to v0.49.0 by @renovate[bot] in [#397](https://github.com/PapagoLabs/outtake/pull/397)
 - Update module golang.org/x/sync to v0.24.0 by @renovate[bot] in [#396](https://github.com/PapagoLabs/outtake/pull/396)
