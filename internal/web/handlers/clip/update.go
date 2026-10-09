@@ -103,7 +103,7 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 // edit renders when it regenerates, changes the type, or reaches a clip still
 // waiting to render. Any other edit keeps the stored value, and so does one
 // whose profile is gone, such as a stored profile since deleted, rather than
-// taking the Medium fallback's setting.
+// taking the setting of [clipdom.DefaultPreset].
 //
 // Parameters:
 //   - ctx: Request context.

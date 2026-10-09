@@ -41,7 +41,7 @@ const (
 //   - previews: Preview service the routes submit to.
 //   - cfg: Configuration supplying the clip length cap.
 //   - db: Clip profile store, whose profiles supply the keep-HDR default. It
-//     may be nil, which falls back to the built-in profiles.
+//     may be nil, which falls back to [clip.DefaultPreset].
 //   - sources: Resolver for the media a preview is cut from.
 //
 // Returns:

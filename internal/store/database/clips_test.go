@@ -450,8 +450,7 @@ func seedLegacyToken(t *testing.T, db *DB, clientID, token string) {
 
 // TestMigrationKeepHDRCarriesEachClipsChoice covers the upgrade that made
 // keep-HDR the only switch. A clip whose web-safe color was off kept HDR, so it
-// keeps HDR after the upgrade, and one with it on still tone maps. The High
-// profile is the only seeded one that keeps HDR.
+// keeps HDR after the upgrade, and one with it on still tone maps.
 func TestMigrationKeepHDRCarriesEachClipsChoice(t *testing.T) {
 	t.Parallel()
 
@@ -489,37 +488,50 @@ func TestMigrationKeepHDRCarriesEachClipsChoice(t *testing.T) {
 	mapped, err := db.GetClip(t.Context(), "mapped")
 	require.NoError(t, err)
 	assert.False(t, mapped.PreserveHDR, "web-safe on tone mapped, so the clip still does")
-
-	for id, want := range map[string]bool{"low": false, "medium": false, "high": true} {
-		profile, getErr := db.GetClipProfile(t.Context(), id)
-		require.NoError(t, getErr)
-		assert.Equal(t, want, profile.KeepHDR, id)
-	}
 }
 
-// rerunHDRProfileMigration puts a database back as it stood before migration
-// 008, with High keeping HDR and no High HDR profile, runs the given setup,
+// rerunResolutionProfilesMigration puts a database back as it stood before
+// migration 010, with the Low, Medium, High, and High HDR built-ins and Medium
+// the default, saves a clip on each given profile id, runs the given setup,
 // and reopens the database so the migration runs again.
 //
 // Parameters:
 //   - t: The test the database belongs to.
+//   - clipsOn: A clip's id and the profile id it is saved on.
 //   - setup: Statements run before the migration, such as a user's own
 //     profile.
 //
 // Returns:
 //   - db: The reopened, migrated database.
-func rerunHDRProfileMigration(t *testing.T, setup ...string) *DB {
+func rerunResolutionProfilesMigration(
+	t *testing.T,
+	clipsOn map[string]string,
+	setup ...string,
+) *DB {
 	t.Helper()
 
-	path := t.TempDir() + "/hdr-profile.db"
+	path := t.TempDir() + "/resolution-profiles.db"
 
 	db, err := New(path)
 	require.NoError(t, err)
 
+	stamp := time.Date(2026, time.October, 9, 0, 0, 0, 0, time.UTC)
+
+	for id, quality := range clipsOn {
+		job := testStoredClip(id, "1", stamp)
+
+		job.Quality = quality
+		require.NoError(t, db.SaveClip(t.Context(), job))
+	}
+
 	statements := append([]string{
-		`DELETE FROM clip_profiles WHERE id = 'high-hdr'`,
-		`UPDATE clip_profiles SET keep_hdr = 1 WHERE id = 'high'`,
-		`DELETE FROM schema_migrations WHERE name = '008_hdr_profile.sql'`,
+		`DELETE FROM clip_profiles`,
+		`INSERT INTO clip_profiles (id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr)
+		 VALUES ('low', 'Low', 28, 'veryfast', 128, 1280, 0, 0),
+		        ('medium', 'Medium', 23, 'medium', 192, 1920, 1, 0),
+		        ('high', 'High', 18, 'slow', 320, 3840, 0, 0),
+		        ('high-hdr', 'High HDR', 18, 'slow', 320, 3840, 0, 1)`,
+		`DELETE FROM schema_migrations WHERE name = '010_resolution_profiles.sql'`,
 	}, setup...)
 
 	for _, statement := range statements {
@@ -536,76 +548,139 @@ func rerunHDRProfileMigration(t *testing.T, setup ...string) *DB {
 	return db
 }
 
-// TestMigrationHDRProfileMovesKeepHDRToItsOwnProfile covers the upgrade that
-// made Keep HDR profile-only: High converts to SDR, and a new High HDR built-in
-// keeps HDR with High's encode settings.
-func TestMigrationHDRProfileMovesKeepHDRToItsOwnProfile(t *testing.T) {
-	t.Parallel()
+// clipQuality reads the profile id a stored clip carries.
+//
+// Parameters:
+//   - t: The test that needs it.
+//   - db: The database the clip is in.
+//   - id: The clip's id.
+//
+// Returns:
+//   - quality: The clip's profile id.
+func clipQuality(t *testing.T, db *DB, id string) string {
+	t.Helper()
 
-	db := rerunHDRProfileMigration(t)
-
-	high, err := db.GetClipProfile(t.Context(), "high")
+	stored, err := db.GetClip(t.Context(), id)
 	require.NoError(t, err)
-	assert.False(t, high.KeepHDR)
 
-	highHDR, err := db.GetClipProfile(t.Context(), "high-hdr")
-	require.NoError(t, err)
-	assert.Equal(t, "High HDR", highHDR.Name)
-	assert.True(t, highHDR.KeepHDR)
-	assert.False(t, highHDR.IsDefault)
-	assert.Equal(t, high.CRF, highHDR.CRF)
-	assert.Equal(t, high.Preset, highHDR.Preset)
-	assert.Equal(t, high.MaxWidth, highHDR.MaxWidth)
+	return stored.Quality
 }
 
-// TestMigrationHDRProfileMirrorsAnEditedHigh covers a user who tuned High:
-// High HDR takes their encode settings, so the two differ only in keeping
-// HDR, and a database whose High was deleted gets the built-in values.
-func TestMigrationHDRProfileMirrorsAnEditedHigh(t *testing.T) {
+// TestMigrationResolutionProfilesReplaceTheBuiltIns covers the upgrade that
+// named the built-ins after what they produce: each old built-in's clips move
+// to the profile that replaces it, the old rows are gone, the new ones carry
+// generated ids, and 1080p takes over as the default from Medium. A clip on a
+// custom profile keeps it.
+func TestMigrationResolutionProfilesReplaceTheBuiltIns(t *testing.T) {
 	t.Parallel()
 
-	edited := rerunHDRProfileMigration(t,
-		`UPDATE clip_profiles SET crf = 16, preset = 'slower', audio_kbps = 256, max_width = 2560
-		 WHERE id = 'high'`,
+	db := rerunResolutionProfilesMigration(t, map[string]string{
+		"on-low":      "low",
+		"on-medium":   "medium",
+		"on-high":     "high",
+		"on-high-hdr": "high-hdr",
+		"on-mine":     "mine",
+	}, `INSERT INTO clip_profiles (id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr)
+	    VALUES ('mine', 'Mine', 22, 'fast', 160, 1280, 0, 0)`)
+
+	ids := builtinIDs(t, db)
+
+	assert.Equal(t, ids["720p"], clipQuality(t, db, "on-low"))
+	assert.Equal(t, ids["1080p"], clipQuality(t, db, "on-medium"))
+	assert.Equal(t, ids["4K"], clipQuality(t, db, "on-high"))
+	assert.Equal(t, ids["4K HDR"], clipQuality(t, db, "on-high-hdr"))
+	assert.Equal(t, "mine", clipQuality(t, db, "on-mine"))
+
+	for _, old := range []string{"low", "medium", "high", "high-hdr"} {
+		_, err := db.GetClipProfile(t.Context(), old)
+		require.ErrorIs(t, err, ErrClipProfileNotFound, old)
+	}
+
+	for _, name := range []string{"720p", "1080p", "4K", "4K HDR"} {
+		assert.Regexp(t, generatedID, ids[name], name)
+	}
+
+	def, err := db.DefaultClipProfile(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, "1080p", def.Name)
+}
+
+// TestMigrationResolutionProfilesKeepACustomDefault covers an owner who made
+// one of their own profiles the default: it stays the default rather than
+// passing to 1080p.
+func TestMigrationResolutionProfilesKeepACustomDefault(t *testing.T) {
+	t.Parallel()
+
+	db := rerunResolutionProfilesMigration(
+		t,
+		nil,
+		`UPDATE clip_profiles SET is_default = 0`,
+		`INSERT INTO clip_profiles (id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr)
+		 VALUES ('mine', 'High 1080p', 18, 'slow', 320, 1920, 1, 0)`,
 	)
 
-	highHDR, err := edited.GetClipProfile(t.Context(), "high-hdr")
+	def, err := db.DefaultClipProfile(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, 16, highHDR.CRF)
-	assert.Equal(t, "slower", highHDR.Preset)
-	assert.Equal(t, 256, highHDR.AudioKbps)
-	assert.Equal(t, 2560, highHDR.MaxWidth)
+	assert.Equal(t, "mine", def.ID)
 
-	deleted := rerunHDRProfileMigration(t, `DELETE FROM clip_profiles WHERE id = 'high'`)
-
-	builtIn, err := deleted.GetClipProfile(t.Context(), "high-hdr")
+	profiles, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, 18, builtIn.CRF)
-	assert.Equal(t, "slow", builtIn.Preset)
-	assert.Equal(t, 320, builtIn.AudioKbps)
-	assert.Equal(t, 3840, builtIn.MaxWidth)
-	assert.True(t, builtIn.KeepHDR)
+
+	defaults := 0
+
+	for i := range profiles {
+		if profiles[i].IsDefault {
+			defaults++
+		}
+	}
+
+	assert.Equal(t, 1, defaults, "exactly one profile is the default")
 }
 
-// TestMigrationHDRProfileKeepsAUsersOwnProfile covers a user who already made
-// a profile named High HDR: the migration leaves it as it is rather than
-// replacing it or failing on the name.
-func TestMigrationHDRProfileKeepsAUsersOwnProfile(t *testing.T) {
+// TestMigrationResolutionProfilesKeepAProfileOfTheSameName covers an owner
+// who already made a profile named like a new built-in: the migration keeps
+// it as it is, moves the old built-in's clips to it, and adds no second
+// profile of that name, which the unique name would refuse.
+func TestMigrationResolutionProfilesKeepAProfileOfTheSameName(t *testing.T) {
 	t.Parallel()
 
-	db := rerunHDRProfileMigration(
+	db := rerunResolutionProfilesMigration(
 		t,
+		map[string]string{"on-medium": "medium"},
 		`INSERT INTO clip_profiles (id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr)
-		 VALUES ('mine', 'High HDR', 20, 'medium', 192, 1920, 0, 0)`,
+		 VALUES ('mine', '1080p', 24, 'fast', 128, 1920, 0, 0)`,
 	)
 
 	mine, err := db.GetClipProfile(t.Context(), "mine")
 	require.NoError(t, err)
-	assert.Equal(t, 20, mine.CRF, "the user's profile is untouched")
-	assert.False(t, mine.KeepHDR)
+	assert.Equal(t, 24, mine.CRF, "the owner's profile is untouched")
+	assert.Equal(t, "mine", clipQuality(t, db, "on-medium"))
 
-	_, err = db.GetClipProfile(t.Context(), "high-hdr")
-	require.ErrorIs(t, err, ErrClipProfileNotFound)
+	profiles, err := db.ListClipProfiles(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, profiles, 4, "720p, 4K, and 4K HDR join the owner's 1080p")
+}
+
+// TestMigrationResolutionProfilesKeepABuiltInRenamedToANewName covers an
+// owner who renamed an old built-in to one of the new names, here Medium,
+// their default, to 1080p: that profile stands in for the new built-in, so it
+// is kept with its clips and stays the default rather than being deleted from
+// under them.
+func TestMigrationResolutionProfilesKeepABuiltInRenamedToANewName(t *testing.T) {
+	t.Parallel()
+
+	db := rerunResolutionProfilesMigration(t, map[string]string{"on-medium": "medium"},
+		`UPDATE clip_profiles SET name = '1080p', crf = 22 WHERE id = 'medium'`,
+	)
+
+	renamed, err := db.GetClipProfile(t.Context(), "medium")
+	require.NoError(t, err, "the profile standing in for 1080p is kept")
+	assert.Equal(t, 22, renamed.CRF, "with the owner's settings")
+	assert.Equal(t, "medium", clipQuality(t, db, "on-medium"))
+
+	def, err := db.DefaultClipProfile(t.Context())
+	require.NoError(t, err, "a default is still marked")
+	assert.Equal(t, "medium", def.ID)
 }
 
 // TestSaveClipKeepsEachFilesFormat covers the formats a render read from its

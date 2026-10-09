@@ -50,7 +50,7 @@ var _ = Describe("Previews", func() {
 				MediaType:  "movie",
 				StartTime:  0,
 				Duration:   helpers.VideoSeconds,
-				Quality:    "low",
+				Quality:    "",
 				ClipType:   "clip",
 			})
 
@@ -108,7 +108,7 @@ func submitPreview(ctx SpecContext) string {
 		MediaType:  "movie",
 		StartTime:  0,
 		Duration:   helpers.VideoSeconds,
-		Quality:    "low",
+		Quality:    "",
 		ClipType:   "clip",
 	})
 	helpers.CloseBody(resp)

@@ -116,8 +116,8 @@ func bodyText(t *testing.T, resp *http.Response) string {
 }
 
 // TestKeepHDRFollowsTheProfile covers a clip's Keep HDR, which is its
-// profile's setting: High HDR keeps HDR, and High, Medium, and the default
-// profile convert.
+// profile's setting: 4K HDR keeps HDR, and 4K, 1080p, and the default profile
+// convert.
 func TestKeepHDRFollowsTheProfile(t *testing.T) {
 	t.Parallel()
 
@@ -129,20 +129,25 @@ func TestKeepHDRFollowsTheProfile(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		quality string
+		profile string
 		want    bool
 	}{
-		{name: "High HDR keeps HDR", quality: "high-hdr", want: true},
-		{name: "High converts", quality: "high", want: false},
-		{name: "Medium converts", quality: "medium", want: false},
-		{name: "the default profile converts", quality: "", want: false},
+		{name: "4K HDR keeps HDR", profile: "4K HDR", want: true},
+		{name: "4K converts", profile: "4K", want: false},
+		{name: "1080p converts", profile: "1080p", want: false},
+		{name: "the default profile converts", profile: "", want: false},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, handler.keepHDR(t.Context(), test.quality))
+			quality := ""
+			if test.profile != "" {
+				quality = storedProfileID(t, db, test.profile)
+			}
+
+			assert.Equal(t, test.want, handler.keepHDR(t.Context(), quality))
 		})
 	}
 }

@@ -42,6 +42,33 @@ func presetDatabase(t *testing.T) *database.DB {
 	return db
 }
 
+// builtinID finds the generated id of a built-in profile the migrations
+// stored.
+//
+// Parameters:
+//   - t: The test that needs the id.
+//   - db: A migrated database.
+//   - name: The built-in's name, such as "4K HDR".
+//
+// Returns:
+//   - id: The stored profile's id.
+func builtinID(t *testing.T, db *database.DB, name string) string {
+	t.Helper()
+
+	profiles, err := db.ListClipProfiles(t.Context())
+	require.NoError(t, err)
+
+	for i := range profiles {
+		if profiles[i].Name == name {
+			return profiles[i].ID
+		}
+	}
+
+	require.Failf(t, "built-in profile missing", "no stored profile is named %q", name)
+
+	return ""
+}
+
 // closedPresetDatabase opens a database and closes it again so its reads fail.
 //
 // Parameters:
@@ -96,22 +123,28 @@ func TestPresetEmptyQualityUsesTheDefaultProfile(t *testing.T) {
 	assert.Equal(t, clip.OutputWidth2160p, preset.MaxWidth)
 }
 
-func TestPresetResolvesABuiltInQuality(t *testing.T) {
+// TestPresetResolvesAStoredBuiltIn covers a built-in, found by the id the
+// migrations generated for it.
+func TestPresetResolvesAStoredBuiltIn(t *testing.T) {
 	t.Parallel()
 
-	preset := Preset(t.Context(), nil, string(clip.ClipQualityHigh))
+	db := presetDatabase(t)
 
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityHigh].CRF, preset.CRF)
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityHigh].MaxWidth, preset.MaxWidth)
+	preset := Preset(t.Context(), db, builtinID(t, db, "4K"))
+
+	assert.Equal(t, 18, preset.CRF)
+	assert.Equal(t, clip.OutputWidth2160p, preset.MaxWidth)
 }
 
-func TestPresetUnknownQualityFallsBackToMedium(t *testing.T) {
+// TestPresetUnknownQualityFallsBackToTheDefaultPreset covers an id no stored
+// profile has, including an old built-in id: it renders with the in-code
+// 1080p settings, without a database too.
+func TestPresetUnknownQualityFallsBackToTheDefaultPreset(t *testing.T) {
 	t.Parallel()
 
-	preset := Preset(t.Context(), presetDatabase(t), "no-such-quality")
-
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityMedium].CRF, preset.CRF)
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityMedium].Preset, preset.Preset)
+	assert.Equal(t, clip.DefaultPreset, Preset(t.Context(), presetDatabase(t), "no-such-quality"))
+	assert.Equal(t, clip.DefaultPreset, Preset(t.Context(), presetDatabase(t), "high"))
+	assert.Equal(t, clip.DefaultPreset, Preset(t.Context(), nil, "high"))
 }
 
 func TestPresetStoredProfileIsNormalized(t *testing.T) {
@@ -136,16 +169,14 @@ func TestPresetStoredProfileIsNormalized(t *testing.T) {
 
 	preset := Preset(t.Context(), db, "archive")
 
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityMedium], preset,
-		"an out of range profile is replaced by the Medium built-in")
+	assert.Equal(t, clip.DefaultPreset, preset,
+		"an out of range profile is replaced by the default preset")
 }
 
-func TestDefaultPresetWithoutADatabaseIsMedium(t *testing.T) {
+func TestDefaultPresetWithoutADatabaseIsTheInCodePreset(t *testing.T) {
 	t.Parallel()
 
-	preset := defaultPreset(t.Context(), nil)
-
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityMedium], preset)
+	assert.Equal(t, clip.DefaultPreset, defaultPreset(t.Context(), nil))
 }
 
 func TestDefaultPresetReadsTheStoredProfile(t *testing.T) {
@@ -174,21 +205,19 @@ func TestDefaultPresetReadsTheStoredProfile(t *testing.T) {
 	assert.Equal(t, clip.OutputWidth1440p, preset.MaxWidth)
 }
 
-func TestDefaultPresetFallsBackWhenTheSeededProfileIsMissing(t *testing.T) {
+// TestDefaultPresetOfAFreshDatabaseIs1080p covers the default the migrations
+// store: the 1080p built-in.
+func TestDefaultPresetOfAFreshDatabaseIs1080p(t *testing.T) {
 	t.Parallel()
 
-	preset := defaultPreset(t.Context(), presetDatabase(t))
-
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityMedium].CRF, preset.CRF,
-		"a fresh database falls back to the seeded Medium profile")
+	assert.Equal(t, clip.DefaultPreset, defaultPreset(t.Context(), presetDatabase(t)),
+		"a fresh database's default is the stored 1080p profile")
 }
 
-func TestDefaultPresetReportsAReadFailureAsMedium(t *testing.T) {
+func TestDefaultPresetReportsAReadFailureAsTheInCodePreset(t *testing.T) {
 	t.Parallel()
 
-	preset := defaultPreset(t.Context(), closedPresetDatabase(t))
-
-	assert.Equal(t, clip.QualityPresets[clip.ClipQualityMedium], preset)
+	assert.Equal(t, clip.DefaultPreset, defaultPreset(t.Context(), closedPresetDatabase(t)))
 }
 
 func TestLookupPresetFindsAStoredProfile(t *testing.T) {
@@ -235,57 +264,45 @@ func TestLookupPresetReportsAReadFailureAsAMiss(t *testing.T) {
 }
 
 // TestPresetCarriesTheProfilesKeepHDR covers the setting a clip takes when it
-// renders: a stored profile's Keep HDR, where only High HDR keeps HDR among
-// the built-ins, both stored and without a database.
+// renders: a stored profile's Keep HDR, where only 4K HDR keeps HDR among the
+// built-ins, and the default 1080p converts to SDR.
 func TestPresetCarriesTheProfilesKeepHDR(t *testing.T) {
 	t.Parallel()
 
 	db := presetDatabase(t)
 
-	assert.True(t, Preset(t.Context(), db, "high-hdr").PreserveHDR)
-	assert.False(t, Preset(t.Context(), db, "high").PreserveHDR, "High converts to SDR")
-	assert.False(t, Preset(t.Context(), db, "medium").PreserveHDR)
-	assert.False(t, Preset(t.Context(), db, "").PreserveHDR, "the default profile is Medium")
-	assert.True(t, Preset(t.Context(), nil, "high-hdr").PreserveHDR,
-		"the built-in High HDR keeps HDR")
-	assert.False(t, Preset(t.Context(), nil, "high").PreserveHDR)
+	assert.True(t, Preset(t.Context(), db, builtinID(t, db, "4K HDR")).PreserveHDR)
+	assert.False(t, Preset(t.Context(), db, builtinID(t, db, "4K")).PreserveHDR,
+		"4K converts to SDR")
+	assert.False(t, Preset(t.Context(), db, builtinID(t, db, "1080p")).PreserveHDR)
+	assert.False(t, Preset(t.Context(), db, builtinID(t, db, "720p")).PreserveHDR)
+	assert.False(t, Preset(t.Context(), db, "").PreserveHDR, "the default profile is 1080p")
 }
 
-// TestBuiltinProfilesOfferOneThatKeepsHDR covers the built-ins without a
-// database: High HDR is the only one that keeps HDR, and Medium is the default.
-func TestBuiltinProfilesOfferOneThatKeepsHDR(t *testing.T) {
+// TestFallbackProfilesOfferTheDefault covers the quality select without stored
+// profiles: one option, with the empty id every caller resolves to the
+// default profile, named after the in-code preset.
+func TestFallbackProfilesOfferTheDefault(t *testing.T) {
 	t.Parallel()
 
-	var keeping, defaults []string
-
-	for _, option := range BuiltinProfiles() {
-		if option.KeepHDR {
-			keeping = append(keeping, option.ID)
-		}
-
-		if option.IsDefault {
-			defaults = append(defaults, option.ID)
-		}
-	}
-
-	assert.Equal(t, []string{"high-hdr"}, keeping)
-	assert.Equal(t, []string{"medium"}, defaults)
+	assert.Equal(t, []ProfileOption{{ID: "", Name: "1080p", IsDefault: true, KeepHDR: false}},
+		FallbackProfiles())
 }
 
 // TestKeepHDRReportsAProfileThatIsGone covers the lookup an edit uses: a
-// stored profile, a built-in, and the default profile are found, and an id
-// that names neither is reported missing rather than answered with the Medium
-// fallback's setting.
+// stored profile and the default profile are found, and an id no stored
+// profile has, such as an old built-in id, is reported missing rather than
+// answered with the default preset's setting.
 func TestKeepHDRReportsAProfileThatIsGone(t *testing.T) {
 	t.Parallel()
 
 	db := presetDatabase(t)
 
-	keep, found := KeepHDR(t.Context(), db, "high-hdr")
+	keep, found := KeepHDR(t.Context(), db, builtinID(t, db, "4K HDR"))
 	assert.True(t, found)
 	assert.True(t, keep)
 
-	keep, found = KeepHDR(t.Context(), db, "high")
+	keep, found = KeepHDR(t.Context(), db, builtinID(t, db, "4K"))
 	assert.True(t, found)
 	assert.False(t, keep)
 
@@ -296,7 +313,13 @@ func TestKeepHDRReportsAProfileThatIsGone(t *testing.T) {
 	_, found = KeepHDR(t.Context(), db, "deleted-profile")
 	assert.False(t, found)
 
-	keep, found = KeepHDR(t.Context(), nil, "high-hdr")
-	assert.True(t, found, "a built-in is found without a database")
-	assert.True(t, keep)
+	_, found = KeepHDR(t.Context(), db, "high-hdr")
+	assert.False(t, found, "an old built-in id names no profile")
+
+	_, found = KeepHDR(t.Context(), nil, "high-hdr")
+	assert.False(t, found, "without a database no id is found")
+
+	keep, found = KeepHDR(t.Context(), nil, "")
+	assert.True(t, found, "without a database the default is the in-code preset")
+	assert.False(t, keep)
 }

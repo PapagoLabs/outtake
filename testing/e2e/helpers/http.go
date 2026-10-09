@@ -142,8 +142,10 @@ func (a *App) CreateClip(ctx context.Context, mediaID, title string) string {
 		MediaType:  movieType,
 		StartTime:  0,
 		Duration:   VideoSeconds,
-		Quality:    qualityLow,
-		ClipType:   clipType,
+		// An empty quality asks for the default profile, whose id the
+		// migrations generate.
+		Quality:  "",
+		ClipType: clipType,
 	})
 
 	body := ReadBody(resp)

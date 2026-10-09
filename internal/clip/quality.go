@@ -9,9 +9,6 @@ import (
 	"strings"
 )
 
-// ClipQuality represents a built-in clip quality identifier.
-type ClipQuality string
-
 // QualityPreset represents ffmpeg clip encode settings.
 type QualityPreset struct {
 	CRF       int
@@ -35,22 +32,12 @@ const (
 )
 
 const (
-	// ClipQualityLow is the low quality preset.
-	ClipQualityLow ClipQuality = "low"
-	// ClipQualityMedium is the medium quality preset.
-	ClipQualityMedium ClipQuality = "medium"
-	// ClipQualityHigh is the high quality preset.
-	ClipQualityHigh ClipQuality = "high"
-	// ClipQualityHighHDR is the high quality preset that keeps HDR.
-	ClipQualityHighHDR ClipQuality = "high-hdr"
-	// crfLowQuality is the CRF value for low quality.
-	crfLowQuality = 28
-	// crfMediumQuality is the CRF value for medium quality.
-	crfMediumQuality = 23
-	// presetSlow is the slow encoder preset, which both High profiles use.
-	presetSlow = "slow"
-	// crfHighQuality is the CRF value for high quality.
-	crfHighQuality = 18
+	// defaultCRF is the 1080p profile's CRF.
+	defaultCRF = 20
+	// presetMedium is the medium encoder preset, which the 1080p profile uses.
+	presetMedium = "medium"
+	// defaultAudioKbps is the 1080p profile's AAC bitrate.
+	defaultAudioKbps = 192
 	// MinCRF is the lowest allowed CRF.
 	MinCRF = 0
 	// MaxCRF is the highest allowed CRF. An HEVC encode adds one, capped here.
@@ -59,12 +46,6 @@ const (
 	MinAudioKbps = 64
 	// MaxAudioKbps is the highest allowed AAC bitrate.
 	MaxAudioKbps = 640
-	// audioKbpsLow is the AAC bitrate for the Low profile.
-	audioKbpsLow = 128
-	// audioKbpsMedium is the AAC bitrate for the Medium profile.
-	audioKbpsMedium = 192
-	// audioKbpsHigh is the AAC bitrate for the High profile.
-	audioKbpsHigh = 320
 	// OutputWidth720p is 1280px wide.
 	OutputWidth720p = 1280
 	// OutputWidth1080p is 1920px wide.
@@ -83,40 +64,21 @@ var EncoderPresets = []string{
 	"veryfast",
 	"faster",
 	"fast",
-	"medium",
-	presetSlow,
+	presetMedium,
+	"slow",
 	"slower",
 	"veryslow",
 }
 
-// QualityPresets maps built-in quality identifiers to presets.
-var QualityPresets = map[ClipQuality]QualityPreset{
-	ClipQualityLow: {
-		CRF:       crfLowQuality,
-		Preset:    "veryfast",
-		AudioKbps: audioKbpsLow,
-		MaxWidth:  OutputWidth720p,
-	},
-	ClipQualityMedium: {
-		CRF:       crfMediumQuality,
-		Preset:    "medium",
-		AudioKbps: audioKbpsMedium,
-		MaxWidth:  OutputWidth1080p,
-	},
-	ClipQualityHigh: {
-		CRF:         crfHighQuality,
-		Preset:      presetSlow,
-		AudioKbps:   audioKbpsHigh,
-		MaxWidth:    OutputWidth2160p,
-		PreserveHDR: false,
-	},
-	ClipQualityHighHDR: {
-		CRF:         crfHighQuality,
-		Preset:      presetSlow,
-		AudioKbps:   audioKbpsHigh,
-		MaxWidth:    OutputWidth2160p,
-		PreserveHDR: true,
-	},
+// DefaultPreset is the 1080p profile's settings, which a render uses when no
+// stored profile answers: with no database, or for a clip whose profile is
+// gone. The stored profiles, including the built-ins, live in clip_profiles.
+var DefaultPreset = QualityPreset{
+	CRF:         defaultCRF,
+	Preset:      presetMedium,
+	AudioKbps:   defaultAudioKbps,
+	MaxWidth:    OutputWidth1080p,
+	PreserveHDR: false,
 }
 
 // OutputWidths lists selectable clip export widths.
@@ -160,7 +122,7 @@ func ValidAudioKbps(kbps int) bool {
 	return kbps >= MinAudioKbps && kbps <= MaxAudioKbps
 }
 
-// NormalizePreset fills missing or invalid encode settings with Medium.
+// NormalizePreset fills missing or invalid encode settings from DefaultPreset.
 //
 // Parameters:
 //   - preset: Candidate encode settings.
@@ -169,11 +131,11 @@ func ValidAudioKbps(kbps int) bool {
 //   - preset: The settings with every invalid field replaced.
 func NormalizePreset(preset QualityPreset) QualityPreset {
 	if !ValidCRF(preset.CRF) || !ValidEncoderPreset(preset.Preset) {
-		return QualityPresets[ClipQualityMedium]
+		return DefaultPreset
 	}
 
 	if !ValidAudioKbps(preset.AudioKbps) {
-		preset.AudioKbps = QualityPresets[ClipQualityMedium].AudioKbps
+		preset.AudioKbps = DefaultPreset.AudioKbps
 	}
 
 	preset.MaxWidth = NormalizeOutputWidth(preset.MaxWidth)
@@ -233,10 +195,11 @@ func OutputWidthLabel(width int) string {
 //
 // Parameters:
 //   - quality: Stored quality identifier.
-//   - lookup: User-defined profile lookup, which may be nil.
+//   - lookup: Stored profile lookup, which may be nil.
 //
 // Returns:
-//   - preset: Encode settings for the quality, normalized.
+//   - preset: Encode settings for the quality, normalized, or DefaultPreset
+//     when no stored profile has the id.
 func ResolvePreset(quality string, lookup func(string) (QualityPreset, bool)) QualityPreset {
 	if lookup != nil {
 		if preset, ok := lookup(quality); ok {
@@ -244,11 +207,7 @@ func ResolvePreset(quality string, lookup func(string) (QualityPreset, bool)) Qu
 		}
 	}
 
-	if preset, ok := QualityPresets[ClipQuality(quality)]; ok {
-		return preset
-	}
-
-	return QualityPresets[ClipQualityMedium]
+	return DefaultPreset
 }
 
 // IsPQTransfer reports whether an ffprobe color_transfer value is HDR10/PQ.

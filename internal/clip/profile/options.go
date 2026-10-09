@@ -25,18 +25,19 @@ type OutputWidth struct {
 	Label string
 }
 
-// BuiltinProfiles returns the built-in clip profiles.
+// FallbackProfiles returns what a quality select offers when no stored profile
+// can be read.
 //
 // Returns:
-//   - options: The Low, Medium, High, and High HDR built-ins, Medium marked
-//     default. Only High HDR keeps HDR.
-func BuiltinProfiles() []ProfileOption {
-	return []ProfileOption{
-		{ID: string(clip.ClipQualityLow), Name: "Low", IsDefault: false, KeepHDR: false},
-		{ID: string(clip.ClipQualityMedium), Name: "Medium", IsDefault: true, KeepHDR: false},
-		{ID: string(clip.ClipQualityHigh), Name: "High", IsDefault: false, KeepHDR: false},
-		{ID: string(clip.ClipQualityHighHDR), Name: "High HDR", IsDefault: false, KeepHDR: true},
-	}
+//   - options: One option with an empty id, which every caller resolves to
+//     the default profile, named after [clip.DefaultPreset].
+func FallbackProfiles() []ProfileOption {
+	return []ProfileOption{{
+		ID:        "",
+		Name:      clip.OutputWidthLabel(clip.DefaultPreset.MaxWidth),
+		IsDefault: true,
+		KeepHDR:   clip.DefaultPreset.PreserveHDR,
+	}}
 }
 
 // EncoderPresets lists the -preset values libx264 and libx265 share, from
@@ -77,7 +78,8 @@ func OutputWidths() []OutputWidth {
 //
 // Returns:
 //   - profiles: Stored profiles with the default first, or nil when the table
-//     cannot be read, which is the caller's cue to fall back to the built-ins.
+//     cannot be read, which is the caller's cue to fall back to
+//     FallbackProfiles.
 func StoredProfiles(ctx context.Context, store *database.DB) []database.ClipProfile {
 	profiles, err := store.ListClipProfiles(ctx)
 	if err != nil {
@@ -94,8 +96,8 @@ func StoredProfiles(ctx context.Context, store *database.DB) []database.ClipProf
 //   - store: Persistence handle for the clip_profiles table.
 //
 // Returns:
-//   - options: The stored profiles, or the built-in profiles when none are
-//     stored or the table cannot be read.
+//   - options: The stored profiles, or FallbackProfiles when none are stored
+//     or the table cannot be read.
 func SelectableProfiles(ctx context.Context, store *database.DB) []ProfileOption {
 	stored := StoredProfiles(ctx, store)
 	options := make([]ProfileOption, 0, len(stored))
@@ -112,7 +114,7 @@ func SelectableProfiles(ctx context.Context, store *database.DB) []ProfileOption
 	}
 
 	if len(options) == 0 {
-		return BuiltinProfiles()
+		return FallbackProfiles()
 	}
 
 	return options

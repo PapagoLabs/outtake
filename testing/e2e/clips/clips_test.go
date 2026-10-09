@@ -31,7 +31,7 @@ var _ = Describe("Clips", func() {
 				MediaType:  "movie",
 				StartTime:  0,
 				Duration:   helpers.VideoSeconds,
-				Quality:    "low",
+				Quality:    "",
 				ClipType:   "clip",
 			})
 
@@ -75,7 +75,7 @@ var _ = Describe("Clips", func() {
 				MediaTitle: "Missing",
 				MediaType:  "movie",
 				Duration:   1,
-				Quality:    "low",
+				Quality:    "",
 				ClipType:   "clip",
 			})
 

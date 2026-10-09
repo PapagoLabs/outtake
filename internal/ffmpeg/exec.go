@@ -70,11 +70,12 @@ func mediaPath(path string) (string, error) {
 	return abs, nil
 }
 
-// run executes the FFmpeg command, reporting progress as it decodes.
+// run executes the FFmpeg command within the deadline its clip's length
+// allows, reporting progress as it decodes.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for the command.
-//   - duration: Expected duration, used to report progress.
+//   - duration: Expected duration, used to report progress and set the limit.
 //   - args: ffmpeg argv, whose first element is the binary path.
 //
 // Returns:
@@ -84,11 +85,29 @@ func (execFFmpeg *ExecFFmpeg) run(
 	duration time.Duration,
 	args ...string,
 ) error {
+	//nolint:wrapcheck // runWithin wraps every error it returns.
+	return runWithin(ctx, duration, execFFmpeg.deadline(duration), args...)
+}
+
+// runWithin executes the FFmpeg command, reporting progress as it decodes,
+// and stops it at limit.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the command.
+//   - duration: Expected duration, used to report progress.
+//   - limit: How long the run may take.
+//   - args: ffmpeg argv, whose first element is the binary path.
+//
+// Returns:
+//   - err: Non-nil when the process failed, ErrTimeout when it ran past limit.
+func runWithin(
+	ctx context.Context,
+	duration, limit time.Duration,
+	args ...string,
+) error {
 	logging.Logger.Debug().
 		Strs("args", args).
 		Msg("running ffmpeg command")
-
-	limit := execFFmpeg.deadline(duration)
 
 	runCtx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()

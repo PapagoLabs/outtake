@@ -209,7 +209,7 @@ func TestResolveNewClipReportsASourceItCannotResolve(t *testing.T) {
 	app.Post("/api/clips/create", func(ctx fiber.Ctx) error {
 		req := &api.ClipRequest{
 			MediaID:   "42",
-			Quality:   string(clipdom.ClipQualityMedium),
+			Quality:   "",
 			ClipType:  string(clipdom.TypeClip),
 			StartTime: 10,
 			Duration:  15,
@@ -253,7 +253,7 @@ func TestCreateReportsASourceItCannotResolve(t *testing.T) {
 	handler := sourceHandler(t, 2*time.Hour)
 
 	status, body := createClip(t, handler,
-		`{"mediaId":"42","mediaTitle":"Movie","clipType":"clip","quality":"medium",
+		`{"mediaId":"42","mediaTitle":"Movie","clipType":"clip","quality":"",
 		 "startTime":10,"duration":15}`)
 
 	assert.Equal(t, fiber.StatusBadRequest, status)
@@ -433,7 +433,7 @@ func TestResolveNewClipRestatesTheResolvedQuality(t *testing.T) {
 
 	defer closeBody(t, resp)
 
-	assert.Equal(t, string(clipdom.ClipQualityMedium), resolved,
+	assert.Equal(t, storedProfileID(t, db, "1080p"), resolved,
 		"the request is rewritten with the profile the clip will actually use")
 }
 
@@ -536,7 +536,7 @@ func createJSON(
 //
 // Parameters:
 //   - mediaID: Media the clip is cut from.
-//   - quality: Profile id or built-in quality, empty for the default.
+//   - quality: Profile id, empty for the default.
 //
 // Returns:
 //   - body: The encoded JSON request.
@@ -560,7 +560,7 @@ func TestCreateQueuesAClipItResolved(t *testing.T) {
 	stored, err := handler.db.ListClips(t.Context())
 	require.NoError(t, err)
 	require.Len(t, stored, 1)
-	assert.Equal(t, string(clipdom.ClipQualityMedium), stored[0].Quality,
+	assert.Equal(t, storedProfileID(t, handler.db, "1080p"), stored[0].Quality,
 		"the empty quality asked for was resolved to the seeded default")
 	assert.NotEmpty(
 		t,
@@ -613,7 +613,7 @@ func TestCreateRedirectsAFormPostBackToTheMediaItem(t *testing.T) {
 		"clipType":   {string(clipdom.TypeClip)},
 		"startTime":  {"00:00:10.000"},
 		"endTime":    {"00:00:25.000"},
-		"quality":    {string(clipdom.ClipQualityMedium)},
+		"quality":    {storedProfileID(t, handler.db, "1080p")},
 	}
 
 	req := httptest.NewRequestWithContext(

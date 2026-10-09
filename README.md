@@ -180,7 +180,7 @@ Docker images store the SQLite database and filesystem exports under `/data` (`o
 | `OUTTAKE_PLEX_MEDIA_ROOT` | Prefix Plex reports for those files, replaced by `OUTTAKE_LOCAL_MEDIA_ROOT`. Source media only | unset |
 | `OUTTAKE_FFMPEG_PATH` | `ffmpeg` binary | `ffmpeg` (images use `/usr/bin/ffmpeg`) |
 | `OUTTAKE_FFPROBE_PATH` | `ffprobe` binary | `ffprobe` (images use `/usr/bin/ffprobe`) |
-| `OUTTAKE_FFMPEG_TIMEOUT_SEC` | Longest one ffmpeg run may take, in seconds. `0` allows 20 times the clip's length, and at least 30 minutes | `0` |
+| `OUTTAKE_FFMPEG_TIMEOUT_SEC` | Longest one ffmpeg run may take, in seconds. `0` allows 20 times the clip's length, 60 times for the HEVC encode of a clip that keeps HDR from an HDR source, and at least 30 minutes | `0` |
 | `OUTTAKE_MAX_CLIP_DUR` | Maximum clip duration in seconds | `600` |
 | `OUTTAKE_CROP_BLACK_BARS` | Default for **Trim black bars** | `false` |
 | `OUTTAKE_SESSION_POLL_SEC` | How often to poll live Plex playback | `10` |
@@ -219,14 +219,14 @@ The reset also forgets the server the old owner chose. The next Plex account to 
 1. Open **Media Libraries** (or **Browse Media** on the dashboard).
 2. Search, or browse a library, then **Open** a title. Folders and shows use **Browse** until you reach a playable item.
 3. On the item page, play the title in Plex if you want live markers. When Plex is playing, use **Set start from Plex** and **Set end from Plex**. Pause in Plex first for an exact mark, because a playing client reports its position only every few seconds. You can also type **Start** and **End** yourself.
-4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or **Screenshot**, pick a **Profile**, and optionally **Trim black bars**. The profile decides whether a video clip from an HDR source keeps HDR. The built-in **High HDR** keeps it in a 10-bit HEVC file, which phones, Apple devices, and YouTube take as HDR. **Low**, **Medium**, and **High** tone-map to SDR, which most social sites need. Change it per profile with **Keep HDR** under **Clip Profiles**. A clip takes the setting each time it renders, so regenerate a finished clip to apply a changed profile. GIFs and screenshots are always SDR. When your screen does not show HDR, or your browser cannot play HEVC, the preview of an HDR clip is shown in SDR and says so, while the saved clip keeps HDR.
+4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or **Screenshot**, pick a **Profile**, and optionally **Trim black bars**. The profile decides whether a video clip from an HDR source keeps HDR. The built-in **4K HDR** keeps it in a 10-bit HEVC file, which phones, Apple devices, and YouTube take as HDR. **720p**, **1080p**, and **4K** tone-map to SDR, which most social sites need. Change it per profile with **Keep HDR** under **Clip Profiles**. A clip takes the setting each time it renders, so regenerate a finished clip to apply a changed profile. GIFs and screenshots are always SDR. When your screen does not show HDR, or your browser cannot play HEVC, the preview of an HDR clip is shown in SDR and says so, while the saved clip keeps HDR.
 5. Choose **Preview** to check the segment, then **Save clip**.
 
 If something is already playing, the dashboard **Live Sessions** list includes **Clip now**.
 
 Finished exports appear on the item and on **Clips**. When a job is **completed** and the file is on disk, use **Download**. Progress updates while a job is pending or processing. A video clip that keeps HDR from an HDR source also renders an SDR version, with a second progress bar, and its card plays that version unless your screen shows HDR and your browser plays HEVC. **Maximum Preview Resolution** under **Settings → Previews** caps every preview at 720p, 1080p, or 4K, and a smaller source keeps its own size. It applies to previews rendered after you change it, including the SDR versions of clips rendered afterwards. **Download** always gives you the HDR file. Each player shows a badge in its corner naming what it plays, such as **HDR · 4K** or **SDR · 1080p**.
 
-Named encode settings live under **Settings → Clip Profiles**. Lower CRF is higher quality.
+Named encode settings live under **Settings → Clip Profiles**. Lower CRF is higher quality. The built-ins are named after what they produce: **720p**, **1080p** (the default), **4K**, and **4K HDR**. You can edit, rename, or delete them like your own profiles.
 
 ## Troubleshooting
 

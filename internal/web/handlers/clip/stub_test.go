@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
 // stubProber reports a fixed length for any media file.
@@ -70,7 +71,7 @@ func testClipJob(id string, kind clipdom.Type) *clipdom.Job {
 
 		StartTime:  0,
 		Duration:   0,
-		Quality:    string(clipdom.ClipQualityMedium),
+		Quality:    "profile-1080p",
 		AudioIndex: 0,
 
 		CreatedAt: time.Time{},
@@ -126,4 +127,30 @@ func hdrSources(t *testing.T) *library.MediaSource {
 		nil,
 		&stubProber{duration: 2 * time.Hour, transfer: "smpte2084"},
 	)
+}
+
+// storedProfileID finds the generated id of a profile the migrations stored.
+//
+// Parameters:
+//   - t: The test that needs the id.
+//   - db: A migrated database.
+//   - name: The profile's name, such as "1080p".
+//
+// Returns:
+//   - id: The stored profile's id.
+func storedProfileID(t *testing.T, db *database.DB, name string) string {
+	t.Helper()
+
+	profiles, err := db.ListClipProfiles(t.Context())
+	require.NoError(t, err)
+
+	for i := range profiles {
+		if profiles[i].Name == name {
+			return profiles[i].ID
+		}
+	}
+
+	require.Failf(t, "profile missing", "no stored profile is named %q", name)
+
+	return ""
 }

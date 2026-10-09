@@ -44,6 +44,7 @@ func updateTestDB(t *testing.T) *database.DB {
 
 	job := testClipJob("stored", clipdom.TypeClip)
 
+	job.Quality = storedProfileID(t, db, "1080p")
 	job.StartTime = 30 * time.Second
 	job.Duration = 20 * time.Second
 	job.InputPath = "/media/movie.mkv"
@@ -126,7 +127,7 @@ func postUpdate(t *testing.T, handler *Handler, req *http.Request) updateAnswer 
 func TestUpdateSwapsARejectionIntoTheFlashSlot(t *testing.T) {
 	t.Parallel()
 
-	staleType := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
+	staleType := updateMarks("00:00:30.000", "00:00:50.000", "")
 	staleType.Set("clipType", "hologram")
 
 	tests := []struct {
@@ -141,7 +142,7 @@ func TestUpdateSwapsARejectionIntoTheFlashSlot(t *testing.T) {
 		},
 		{
 			name:   "a selection past the end of the source",
-			form:   updateMarks("11:00:00.000", "11:00:20.000", string(clipdom.ClipQualityMedium)),
+			form:   updateMarks("11:00:00.000", "11:00:20.000", ""),
 			reason: "outside the media",
 		},
 		{
@@ -187,7 +188,7 @@ func TestUpdateSwapsAMissingClipIntoTheFlashSlot(t *testing.T) {
 	db := updateTestDB(t)
 	handler := updateTestHandler(t, db)
 
-	form := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
+	form := updateMarks("00:00:30.000", "00:00:50.000", storedProfileID(t, db, "1080p"))
 	answer := postUpdate(t, handler, htmxFormRequest(t, "absent", form))
 
 	assert.Equal(t, fiber.StatusOK, answer.status)
@@ -264,7 +265,7 @@ func TestUpdateKeepsAMalformedMarkOutOfTheRow(t *testing.T) {
 	db := updateTestDB(t)
 	handler := updateTestHandler(t, db)
 
-	form := updateMarks("00:00:50.000", "00:01:10.000", string(clipdom.ClipQualityMedium))
+	form := updateMarks("00:00:50.000", "00:01:10.000", storedProfileID(t, db, "1080p"))
 	form.Set("startTime", "not-a-mark")
 
 	answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
@@ -304,7 +305,7 @@ func TestUpdateSwapsTheCardBackInAfterAnAcceptedEdit(t *testing.T) {
 	db := updateTestDB(t)
 	handler := updateTestHandler(t, db)
 
-	form := updateMarks("00:00:42.345", "00:00:50.345", string(clipdom.ClipQualityMedium))
+	form := updateMarks("00:00:42.345", "00:00:50.345", storedProfileID(t, db, "1080p"))
 	form.Set("name", "Outro")
 	form.Set("audioIndex", "2")
 	form.Set("cropBlackBars", routes.FormChecked)
@@ -324,7 +325,7 @@ func TestUpdateSwapsTheCardBackInAfterAnAcceptedEdit(t *testing.T) {
 	assert.InDelta(t, 8, stored.Duration.Seconds(), 0.0005)
 	assert.Equal(t, 2, stored.AudioIndex)
 	assert.True(t, stored.CropBlackBars)
-	assert.Equal(t, string(clipdom.ClipQualityMedium), stored.Quality)
+	assert.Equal(t, storedProfileID(t, db, "1080p"), stored.Quality)
 }
 
 // TestUpdateRegeneratesACanceledClip covers the regenerate flag: a settled
@@ -342,7 +343,7 @@ func TestUpdateRegeneratesACanceledClip(t *testing.T) {
 	stored.OutputPath = ""
 	require.NoError(t, db.SaveClip(t.Context(), stored))
 
-	form := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
+	form := updateMarks("00:00:30.000", "00:00:50.000", storedProfileID(t, db, "1080p"))
 	form.Set("regenerate", "1")
 
 	answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
@@ -383,7 +384,7 @@ func TestUpdateOfAPartialJSONBodyKeepsEveryOtherField(t *testing.T) {
 	assert.Equal(t, clipdom.TypeClip, saved.Type)
 	assert.InDelta(t, 30, saved.StartTime.Seconds(), 0.0005)
 	assert.InDelta(t, 20, saved.Duration.Seconds(), 0.0005)
-	assert.Equal(t, string(clipdom.ClipQualityMedium), saved.Quality)
+	assert.Equal(t, storedProfileID(t, db, "1080p"), saved.Quality)
 	assert.Equal(t, 2, saved.AudioIndex)
 	assert.True(t, saved.CropBlackBars)
 	assert.True(t, saved.PreserveHDR)
@@ -493,7 +494,7 @@ func TestUpdateSwapsInACardThatKeepsItsSourceChoices(t *testing.T) {
 
 	handler.sources = hdrSources(t)
 
-	form := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
+	form := updateMarks("00:00:30.000", "00:00:50.000", storedProfileID(t, db, "1080p"))
 
 	answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
 
@@ -512,7 +513,7 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 	tests := []struct {
 		name    string
 		status  clipdom.Status
-		quality clipdom.ClipQuality
+		profile string
 		stored  string
 		form    url.Values
 		want    bool
@@ -520,34 +521,34 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 		{
 			name:    "a finished clip saved without rendering keeps its file's setting",
 			status:  clipdom.StatusCompleted,
-			quality: clipdom.ClipQualityMedium,
+			profile: "1080p",
 			want:    true,
 		},
 		{
 			name:    "a regenerate takes the profile's",
 			status:  clipdom.StatusCompleted,
-			quality: clipdom.ClipQualityMedium,
+			profile: "1080p",
 			form:    url.Values{"regenerate": {routes.FormChecked}},
 			want:    false,
 		},
 		{
-			name:    "a regenerate under High HDR keeps HDR",
+			name:    "a regenerate under 4K HDR keeps HDR",
 			status:  clipdom.StatusCompleted,
-			quality: clipdom.ClipQualityHighHDR,
+			profile: "4K HDR",
 			form:    url.Values{"regenerate": {routes.FormChecked}},
 			want:    true,
 		},
 		{
 			name:    "a type change renders, so it takes the profile's",
 			status:  clipdom.StatusCompleted,
-			quality: clipdom.ClipQualityMedium,
+			profile: "1080p",
 			form:    url.Values{"clipType": {string(clipdom.TypeGIF)}},
 			want:    false,
 		},
 		{
 			name:    "a regenerate under a deleted profile keeps the stored setting",
 			status:  clipdom.StatusCompleted,
-			quality: "",
+			profile: "",
 			stored:  "deleted-profile",
 			form:    url.Values{"regenerate": {routes.FormChecked}},
 			want:    true,
@@ -555,7 +556,7 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 		{
 			name:    "a clip still waiting renders the edit, so it takes the profile's",
 			status:  clipdom.StatusPending,
-			quality: clipdom.ClipQualityMedium,
+			profile: "1080p",
 			want:    false,
 		},
 	}
@@ -580,7 +581,12 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 
 			handler := updateTestHandler(t, db)
 
-			form := updateMarks("00:00:30.000", "00:00:50.000", string(test.quality))
+			quality := ""
+			if test.profile != "" {
+				quality = storedProfileID(t, db, test.profile)
+			}
+
+			form := updateMarks("00:00:30.000", "00:00:50.000", quality)
 			maps.Copy(form, test.form)
 
 			answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))

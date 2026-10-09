@@ -55,7 +55,7 @@ type Response struct {
 // ErrHDRIsAProfileSetting refuses a request that chooses Keep HDR itself.
 // A clip keeps HDR when its profile does, so a caller chooses a profile.
 var ErrHDRIsAProfileSetting = errors.New(
-	"keep HDR is a clip profile setting: choose a profile that keeps HDR, such as High HDR, " +
+	"keep HDR is a clip profile setting: choose a profile that keeps HDR, such as 4K HDR, " +
 		"instead of sending preserveHdr or webSafeColor",
 )
 

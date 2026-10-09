@@ -34,6 +34,29 @@ func clipDatabase(t *testing.T) *database.DB {
 	return db
 }
 
+// profileIDs maps each stored profile's name to its id.
+//
+// Parameters:
+//   - t: The test that needs the ids.
+//   - db: A migrated database.
+//
+// Returns:
+//   - ids: Each stored profile's id by name.
+func profileIDs(t *testing.T, db *database.DB) map[string]string {
+	t.Helper()
+
+	profiles, err := db.ListClipProfiles(t.Context())
+	require.NoError(t, err)
+
+	ids := make(map[string]string, len(profiles))
+
+	for i := range profiles {
+		ids[profiles[i].Name] = profiles[i].ID
+	}
+
+	return ids
+}
+
 // clipAt returns a pending clip stamped with the given identity and creation time.
 //
 // Parameters:
@@ -281,30 +304,32 @@ func TestIntegration_DeleteClipProfileKeepsExactlyOneDefault(t *testing.T) {
 
 	db := clipDatabase(t)
 
+	ids := profileIDs(t, db)
+
 	profiles, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
 	require.Len(t, profiles, 4)
-	assert.Equal(t, "medium", profiles[0].ID, "the default leads the listing")
+	assert.Equal(t, ids["1080p"], profiles[0].ID, "the default leads the listing")
 	assert.True(t, profiles[0].IsDefault)
 
-	fallback, err := db.DefaultClipProfile(t.Context())
+	builtIn, err := db.DefaultClipProfile(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, "medium", fallback.ID)
-	assert.Equal(t, 23, fallback.QualityPreset().CRF)
-	assert.Equal(t, 192, fallback.QualityPreset().AudioKbps)
-	assert.Equal(t, 1920, fallback.QualityPreset().MaxWidth)
+	assert.Equal(t, ids["1080p"], builtIn.ID)
+	assert.Equal(t, 20, builtIn.QualityPreset().CRF)
+	assert.Equal(t, 192, builtIn.QualityPreset().AudioKbps)
+	assert.Equal(t, 1920, builtIn.QualityPreset().MaxWidth)
 
-	require.NoError(t, db.SetDefaultClipProfile(t.Context(), "high"))
+	require.NoError(t, db.SetDefaultClipProfile(t.Context(), ids["4K"]))
 
 	afterSet, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, "high", afterSet[0].ID)
+	assert.Equal(t, ids["4K"], afterSet[0].ID)
 
 	moved, err := db.DefaultClipProfile(t.Context())
 	require.NoError(t, err)
-	assert.Equal(t, "high", moved.ID)
+	assert.Equal(t, ids["4K"], moved.ID)
 
-	require.NoError(t, db.DeleteClipProfile(t.Context(), "high"))
+	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["4K"]))
 
 	afterDelete, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
@@ -313,7 +338,7 @@ func TestIntegration_DeleteClipProfileKeepsExactlyOneDefault(t *testing.T) {
 
 	promoted, err := db.DefaultClipProfile(t.Context())
 	require.NoError(t, err)
-	assert.NotEqual(t, "high", promoted.ID)
+	assert.NotEqual(t, ids["4K"], promoted.ID)
 }
 
 func TestIntegration_DeletingTheLastClipProfileIsRefused(t *testing.T) {
@@ -321,18 +346,20 @@ func TestIntegration_DeletingTheLastClipProfileIsRefused(t *testing.T) {
 
 	db := clipDatabase(t)
 
-	require.NoError(t, db.DeleteClipProfile(t.Context(), "low"))
-	require.NoError(t, db.DeleteClipProfile(t.Context(), "high"))
-	require.NoError(t, db.DeleteClipProfile(t.Context(), "high-hdr"))
+	ids := profileIDs(t, db)
+
+	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["720p"]))
+	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["4K"]))
+	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["4K HDR"]))
 
 	remaining, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
 	require.Len(t, remaining, 1)
 
-	err = db.DeleteClipProfile(t.Context(), "medium")
+	err = db.DeleteClipProfile(t.Context(), ids["1080p"])
 	require.ErrorIs(t, err, database.ErrLastClipProfile)
 
-	survivor, err := db.GetClipProfile(t.Context(), "medium")
+	survivor, err := db.GetClipProfile(t.Context(), ids["1080p"])
 	require.NoError(t, err)
 	assert.True(t, survivor.IsDefault, "the refused delete left the last profile in place")
 }

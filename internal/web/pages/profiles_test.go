@@ -52,7 +52,12 @@ func TestClipProfilesRendersTheNewProfileForm(t *testing.T) {
 	assert.Contains(t, body, "New profile")
 	assert.Contains(t, body, `id="new-name"`)
 	assert.Contains(t, body, `name="name"`)
-	assert.Contains(t, body, `value="23"`, "the new profile form opens on CRF 23")
+	assert.Contains(
+		t,
+		body,
+		`value="20"`,
+		"the new profile form opens on the 1080p settings, CRF 20",
+	)
 	assert.Contains(t, body, `value="192"`, "the new profile form opens on 192 kbps")
 	assert.Contains(t, body, `<option value="medium" selected>medium</option>`)
 	assert.Contains(t, body, `<option value="1920" selected>1080p</option>`)
