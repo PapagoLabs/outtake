@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a maximum preview resolution and format badges by @nicholas-fedor in [#400](https://github.com/PapagoLabs/outtake/pull/400)
+
 ### Changed
 
 - Stop hard-wrapping the readmes by @nicholas-fedor in [#394](https://github.com/PapagoLabs/outtake/pull/394)
