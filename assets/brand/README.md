@@ -4,8 +4,7 @@
 
 The editor mascot is **not** a stock Free Gophers Pack pose. There is no original SVG of this character holding a clapperboard and scissors.
 
-It was generated from [Maria Letta's Free Gophers Pack](https://github.com/MariaLetta/free-gophers-pack) **character 9** (`characters/svg/9.svg` / `characters/png/9.png`, CC0) by compositing film-editor props onto that gopher. `mascot.png` is the source of
-truth.
+It was generated from [Maria Letta's Free Gophers Pack](https://github.com/MariaLetta/free-gophers-pack) **character 9** (`characters/svg/9.svg` / `characters/png/9.png`, CC0) by compositing film-editor props onto that gopher. `mascot.png` is the source of truth.
 
 `mascot.svg` is a quantized scanline trace of the isolated raster. It matches the PNG at normal sizes but is not a hand-drawn vector. Prefer `mascot.png` when quality matters.
 
