@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Stop duplicate exports and read the plex position when marking by @nicholas-fedor in [#382](https://github.com/PapagoLabs/outtake/pull/382)
 - Theme the option lists that selects open by @nicholas-fedor in [#370](https://github.com/PapagoLabs/outtake/pull/370)
 - Tone-map with mobius to BT.709 and show HDR previews in SDR on SDR screens by @nicholas-fedor in [#368](https://github.com/PapagoLabs/outtake/pull/368)
 - Refresh the bound plex server's token on sign-in by @nicholas-fedor in [#364](https://github.com/PapagoLabs/outtake/pull/364)
