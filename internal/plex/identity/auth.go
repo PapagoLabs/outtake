@@ -79,6 +79,9 @@ type PendingPIN struct {
 
 	// URL is the Plex Auth App URL the browser is sent to.
 	URL string
+
+	// ExpiresIn is how long the PIN stays valid, zero when Plex did not say.
+	ExpiresIn time.Duration
 }
 
 // Auth coordinates the Plex PIN login lifecycle and decides which Plex accounts
@@ -120,6 +123,10 @@ var (
 
 	// ErrInvalidServerURL reports a custom server URL that is not http or https.
 	ErrInvalidServerURL = errors.New("invalid plex server url")
+
+	// ErrNoServer reports a request that needs a Plex server before one is
+	// selected.
+	ErrNoServer = errors.New("no plex server is selected")
 )
 
 // New creates the Plex authentication service.
@@ -190,9 +197,10 @@ func (auth *Auth) BeginPIN(ctx context.Context) (PendingPIN, error) {
 	forwardURL := auth.baseURL + forwardPath
 
 	return PendingPIN{
-		ID:   pin.ID,
-		Code: pin.Code,
-		URL:  client.GetAuthURL(pin.Code, auth.clientID, forwardURL),
+		ID:        pin.ID,
+		Code:      pin.Code,
+		URL:       client.GetAuthURL(pin.Code, auth.clientID, forwardURL),
+		ExpiresIn: time.Duration(max(pin.ExpiresIn, 0)) * time.Second,
 	}, nil
 }
 
@@ -358,6 +366,30 @@ func (auth *Auth) ForgetServer(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// LiveSessions asks the selected server for its playback sessions now, rather
+// than reading the monitor's last poll, so a position is as fresh as Plex has.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the request.
+//
+// Returns:
+//   - sessions: The server's playback sessions.
+//   - err: ErrNoServer without a selected server, or the wrapped request
+//     failure.
+func (auth *Auth) LiveSessions(ctx context.Context) ([]plex.Session, error) {
+	client, server, ok := auth.Client()
+	if !ok {
+		return nil, ErrNoServer
+	}
+
+	sessions, err := client.GetSessionsOnServer(ctx, server)
+	if err != nil {
+		return nil, fmt.Errorf("live sessions: %w", err)
+	}
+
+	return sessions, nil
 }
 
 // PollPIN asks Plex whether the pending PIN has been authorized.

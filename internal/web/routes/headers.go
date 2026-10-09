@@ -29,6 +29,21 @@ const (
 	HXTargetNone = "none"
 )
 
+// The Cross-Origin-Opener-Policy values pages are served with.
+const (
+	// HeaderOpenerPolicy is the Cross-Origin-Opener-Policy header.
+	HeaderOpenerPolicy = "Cross-Origin-Opener-Policy"
+
+	// OpenerPolicyAllowPopups isolates every page from cross-origin openers,
+	// while a page keeps its hold on the Plex sign-in popup it opens.
+	OpenerPolicyAllowPopups = "same-origin-allow-popups"
+
+	// OpenerPolicyUnsafeNone lets the page Plex returns the sign-in popup to
+	// reach the page that opened it. Any other value would cut the popup off
+	// from its opener on the way back from Plex, which sends none.
+	OpenerPolicyUnsafeNone = "unsafe-none"
+)
+
 // The element ids HTMX swaps media and clip fragments into.
 const (
 	// TargetMediaBrowse is the poster grid the media page swaps.

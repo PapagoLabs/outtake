@@ -184,7 +184,8 @@ func TestHelmetConfigIsolatesTheDocument(t *testing.T) {
 	cfg := helmetConfig()
 
 	assert.Equal(t, "require-corp", cfg.CrossOriginEmbedderPolicy)
-	assert.Equal(t, "same-origin", cfg.CrossOriginOpenerPolicy)
+	assert.Equal(t, "same-origin-allow-popups", cfg.CrossOriginOpenerPolicy,
+		"the login page keeps its hold on the Plex popup it opens")
 	assert.Equal(t, "same-origin", cfg.CrossOriginResourcePolicy)
 	assert.Equal(t, "?1", cfg.OriginAgentCluster)
 }
@@ -216,7 +217,7 @@ func TestHelmetMiddlewareWritesTheConfiguredHeaders(t *testing.T) {
 	headers := helmetHeaders(t, helmetConfig())
 
 	assert.Equal(t, "require-corp", headers.Get("Cross-Origin-Embedder-Policy"))
-	assert.Equal(t, "same-origin", headers.Get("Cross-Origin-Opener-Policy"))
+	assert.Equal(t, "same-origin-allow-popups", headers.Get("Cross-Origin-Opener-Policy"))
 	assert.Equal(t, "same-origin", headers.Get("Cross-Origin-Resource-Policy"))
 	assert.Equal(t, "?1", headers.Get("Origin-Agent-Cluster"))
 	assert.Equal(t, "DENY", headers.Get("X-Frame-Options"))

@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/assets"
+	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
 // contentSecurityPolicy is the helmet CSP for vendored HTMX and same-origin media.
@@ -73,7 +74,7 @@ func helmetConfig() helmet.Config {
 		ReferrerPolicy:            "no-referrer",
 		PermissionPolicy:          "",
 		CrossOriginEmbedderPolicy: "require-corp",
-		CrossOriginOpenerPolicy:   "same-origin",
+		CrossOriginOpenerPolicy:   routes.OpenerPolicyAllowPopups,
 		CrossOriginResourcePolicy: "same-origin",
 		OriginAgentCluster:        "?1",
 		XDNSPrefetchControl:       "off",

@@ -150,18 +150,21 @@
 		return !!type && type.value === 'screenshot';
 	}
 
-	// setSubmitsBlocked disables the export buttons and outlines them.
+	// setSubmitsBlocked disables the export buttons and outlines them. A form
+	// that is being submitted keeps its buttons disabled whatever the marks
+	// say, so a later check cannot open the way to a second submission.
 	//
 	// The outline classes are carried on the button as data-invalid-css and are
 	// appended rather than swapped in, so the button keeps its own variant and
 	// shape. Appending also avoids a Tailwind conflict, since two border colours
 	// in one class list resolve by stylesheet order, not attribute order.
 	function setSubmitsBlocked(form, blocked) {
+		var submitting = form.dataset.submitting === '1';
 		form.querySelectorAll('.js-export-submit').forEach(function (btn) {
 			if (!btn.dataset.okCss) {
 				btn.dataset.okCss = btn.className;
 			}
-			btn.disabled = blocked;
+			btn.disabled = blocked || submitting;
 			btn.className = blocked
 				? btn.dataset.okCss + ' ' + btn.dataset.invalidCss
 				: btn.dataset.okCss;
@@ -337,8 +340,33 @@
 		}
 	}
 
+	// holdSubmits marks a form as being submitted and disables every export
+	// button on it, not just the one clicked, so neither can send it again.
+	function holdSubmits(form) {
+		form.dataset.submitting = '1';
+		form.querySelectorAll('.js-export-submit').forEach(function (btn) {
+			btn.disabled = true;
+		});
+	}
+
+	// releaseSubmits ends a submission's hold and checks the marks again.
+	function releaseSubmits(form) {
+		if (form.dataset.submitting !== '1') {
+			return;
+		}
+		delete form.dataset.submitting;
+		syncExportDuration(form);
+	}
+
+	// bindExportForms sets up each export form once. A swap elsewhere on the
+	// page, such as the Plex position refreshing, leaves forms already set up
+	// as they are, so it cannot undo a submission in flight.
 	function bindExportForms() {
 		document.querySelectorAll('[data-export-form]').forEach(function (form) {
+			if (form.dataset.exportReady) {
+				return;
+			}
+			form.dataset.exportReady = '1';
 			applyExportForm(form);
 			markScreen(form);
 			syncExportDuration(form);
@@ -610,8 +638,24 @@
 		}
 		var btn = event.submitter;
 		if (btn && btn.classList.contains('js-export-submit')) {
-			btn.setAttribute('disabled', 'disabled');
+			holdSubmits(form);
 		}
+	});
+
+	// An htmx submission ends without leaving the page, so its form is
+	// released when the request finishes, whatever the answer was.
+	document.addEventListener('htmx:finally:request', function (event) {
+		var elt = event.target;
+		var form = elt && elt.closest ? elt.closest('form') : null;
+		if (form) {
+			releaseSubmits(form);
+		}
+	});
+
+	// A page restored from the back-forward cache comes back with the hold of
+	// the submission that left it, so it is released.
+	window.addEventListener('pageshow', function () {
+		document.querySelectorAll('[data-export-form]').forEach(releaseSubmits);
 	});
 
 	document.addEventListener('htmx:before:swap', function (event) {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/rs/zerolog/log"
@@ -132,7 +133,10 @@ func (handler *Handler) Login(ctx fiber.Ctx) error {
 
 	identity.SetStoredPIN(sess, pin.ID, pin.Code)
 
-	return respond.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"authUrl": pin.URL})
+	return respond.WriteJSON(ctx, fiber.StatusOK, fiber.Map{
+		"authUrl":   pin.URL,
+		"expiresIn": int(pin.ExpiresIn / time.Second),
+	})
 }
 
 // Logout ends this browser's session. The owner, the bound server, and every
@@ -293,6 +297,8 @@ func (handler *Handler) postAuthPath() string {
 }
 
 // sendAuthComplete finishes popup or full-page login after Plex authorizes.
+// The page carries no opener isolation, so the popup reaches the login page
+// that opened it.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -301,6 +307,8 @@ func (handler *Handler) postAuthPath() string {
 // Returns:
 //   - err: Wrapped render error, or nil on success.
 func sendAuthComplete(ctx fiber.Ctx, next string) error {
+	ctx.Set(routes.HeaderOpenerPolicy, routes.OpenerPolicyUnsafeNone)
+
 	err := respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.AuthComplete(next).Render(ctx.Context(), writer)
 	})

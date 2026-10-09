@@ -56,6 +56,9 @@ type Session struct {
 	Title      string    `json:"title"`
 	Duration   float64   `json:"duration"`
 	ViewOffset float64   `json:"viewOffset"`
+	// State is what the client is doing: StatePlaying, StatePaused, or
+	// buffering. A paused client has reported its exact position.
+	State string `json:"state"`
 }
 
 // ServerIdentity represents the server identity.
@@ -63,6 +66,15 @@ type ServerIdentity struct {
 	MachineIdentifier string `json:"machineIdentifier"`
 	Version           string `json:"version"`
 }
+
+// The states a Plex client reports for a session.
+const (
+	// StatePlaying is a client playing the session.
+	StatePlaying = "playing"
+
+	// StatePaused is a client paused on the session.
+	StatePaused = "paused"
+)
 
 const (
 	// TypeShow is a TV show container.

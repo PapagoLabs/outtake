@@ -340,7 +340,7 @@ func Login(props LoginProps) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div id=\"auth-status\" class=\"mt-4 hidden text-center text-sm text-muted-foreground\" hx-get=\"/api/auth/status\" hx-trigger=\"every 2s\" hx-swap=\"innerHTML\">Waiting for Plex authorization...</div><div class=\"relative my-4\"><div class=\"absolute inset-0 flex items-center\"><div class=\"w-full border-t\"></div></div><div class=\"relative flex justify-center text-xs uppercase\"><span class=\"bg-card px-2 text-muted-foreground\">Or</span></div></div><form action=\"/api/auth/login\" method=\"POST\" class=\"flex flex-col gap-4\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<div id=\"auth-status\" class=\"mt-4 hidden text-center text-sm text-muted-foreground\" role=\"status\" data-status-url=\"/api/auth/status\">Waiting for Plex authorization...</div><div class=\"relative my-4\"><div class=\"absolute inset-0 flex items-center\"><div class=\"w-full border-t\"></div></div><div class=\"relative flex justify-center text-xs uppercase\"><span class=\"bg-card px-2 text-muted-foreground\">Or</span></div></div><form action=\"/api/auth/login\" method=\"POST\" class=\"flex flex-col gap-4\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

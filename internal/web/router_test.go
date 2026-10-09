@@ -103,6 +103,12 @@ var wantRoutes = []routerRoute{
 	},
 	{
 		method:  http.MethodGet,
+		path:    "/media/item/:id/position",
+		guarded: true,
+		sample:  "/media/item/5/position",
+	},
+	{
+		method:  http.MethodGet,
 		path:    "/media/item/:id/clips",
 		guarded: true,
 		sample:  "/media/item/5/clips",

@@ -180,6 +180,68 @@ func (_c *MockPlexAuth_Discover_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// LiveSessions provides a mock function for the type MockPlexAuth
+func (_mock *MockPlexAuth) LiveSessions(ctx context.Context) ([]plex.Session, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LiveSessions")
+	}
+
+	var r0 []plex.Session
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]plex.Session, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []plex.Session); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]plex.Session)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPlexAuth_LiveSessions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LiveSessions'
+type MockPlexAuth_LiveSessions_Call struct {
+	*mock.Call
+}
+
+// LiveSessions is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockPlexAuth_Expecter) LiveSessions(ctx any) *MockPlexAuth_LiveSessions_Call {
+	return &MockPlexAuth_LiveSessions_Call{Call: _e.mock.On("LiveSessions", ctx)}
+}
+
+func (_c *MockPlexAuth_LiveSessions_Call) Run(run func(ctx context.Context)) *MockPlexAuth_LiveSessions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPlexAuth_LiveSessions_Call) Return(sessions []plex.Session, err error) *MockPlexAuth_LiveSessions_Call {
+	_c.Call.Return(sessions, err)
+	return _c
+}
+
+func (_c *MockPlexAuth_LiveSessions_Call) RunAndReturn(run func(ctx context.Context) ([]plex.Session, error)) *MockPlexAuth_LiveSessions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Select provides a mock function for the type MockPlexAuth
 func (_mock *MockPlexAuth) Select(ctx context.Context, server plex.Server) error {
 	ret := _mock.Called(ctx, server)

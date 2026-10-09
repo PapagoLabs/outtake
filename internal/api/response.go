@@ -96,4 +96,7 @@ const (
 
 	// LogoutFailed reports credentials that could not be cleared.
 	LogoutFailed ErrorCode = "logout_failed"
+
+	// PositionFailed reports a Plex position that could not be read.
+	PositionFailed ErrorCode = "position_failed"
 )

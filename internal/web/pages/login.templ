@@ -73,7 +73,7 @@ templ Login(props LoginProps) {
 						@button.Button(button.Props{ID: "plex-login", Type: button.TypeButton, FullWidth: true}) {
 							Sign in with Plex
 						}
-						<div id="auth-status" class="mt-4 hidden text-center text-sm text-muted-foreground" hx-get="/api/auth/status" hx-trigger="every 2s" hx-swap="innerHTML">
+						<div id="auth-status" class="mt-4 hidden text-center text-sm text-muted-foreground" role="status" data-status-url="/api/auth/status">
 							Waiting for Plex authorization...
 						</div>
 						<div class="relative my-4">

@@ -4,12 +4,16 @@
 package home
 
 import (
+	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/home/mocks"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -175,4 +179,140 @@ func TestPlaybackCarriesTheSessionTitle(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, `data-offset="1.000"`,
 		"a short offset still reaches the mark buttons")
+}
+
+// TestPlaybackSaysWhenPlexIsPaused covers the paused panel: it says so, and
+// drops the advice to pause, since a paused position is already exact.
+func TestPlaybackSaysWhenPlexIsPaused(t *testing.T) {
+	t.Parallel()
+
+	auth := playbackAuth(t, []plex.Session{{
+		ID:         "session-42",
+		MediaItem:  plex.MediaItem{ID: "42", Type: "movie"},
+		ViewOffset: 90,
+		State:      plex.StatePaused,
+	}})
+
+	handler, _ := pageHandler(t, auth, silentSources(t))
+
+	answer := getPlayback(t, handler)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, "Plex is paused at", "a paused position is labeled")
+	assertBodyOmits(t, answer.body, "Pause in Plex", "a paused client needs no advice to pause")
+	assertBodyContains(t, answer.body, `data-position-url="/media/item/42/position"`,
+		"the mark buttons read the position fresh when clicked")
+}
+
+// TestPlaybackAdvisesPausingWhilePlaying covers a playing session, whose
+// position is only as fresh as the client's last report to Plex.
+func TestPlaybackAdvisesPausingWhilePlaying(t *testing.T) {
+	t.Parallel()
+
+	auth := playbackAuth(t, []plex.Session{{
+		ID:         "session-42",
+		MediaItem:  plex.MediaItem{ID: "42", Type: "movie"},
+		ViewOffset: 90,
+		State:      plex.StatePlaying,
+	}})
+
+	handler, _ := pageHandler(t, auth, silentSources(t))
+
+	answer := getPlayback(t, handler)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, "Plex is at", "a playing position is reported")
+	assertBodyContains(t, answer.body, "Pause in Plex for an exact mark.",
+		"a playing position lags the client, so pausing is advised")
+}
+
+// getPosition serves one fresh position request for media item 42.
+//
+// Parameters:
+//   - t: The test the request belongs to.
+//   - auth: Plex authentication the handler reads.
+//
+// Returns:
+//   - position: The decoded answer.
+//   - status: The response status.
+func getPosition(t *testing.T, auth *mocks.MockPlexAuth) (api.PlaybackPosition, int) {
+	t.Helper()
+
+	handler, _ := pageHandler(t, auth, silentSources(t))
+
+	app := fiber.New()
+	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/position", handler.Position)
+
+	answer := serve(t, app, routes.PathItemPrefix+"42/position", false)
+
+	var position api.PlaybackPosition
+
+	if answer.status == fiber.StatusOK {
+		require.NoError(t, json.Unmarshal([]byte(answer.body), &position))
+	}
+
+	return position, answer.status
+}
+
+// TestPositionReadsPlexWhenAsked covers the fresh position the mark buttons
+// read: the item's own session, its play state, and nothing for an item no
+// session is on.
+func TestPositionReadsPlexWhenAsked(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		sessions []plex.Session
+		want     api.PlaybackPosition
+	}{
+		{
+			name: "paused",
+			sessions: []plex.Session{{
+				MediaItem:  plex.MediaItem{ID: "42"},
+				ViewOffset: 61.5,
+				State:      plex.StatePaused,
+			}},
+			want: api.PlaybackPosition{Playing: true, Paused: true, Offset: 61.5},
+		},
+		{
+			name: "playing",
+			sessions: []plex.Session{
+				{MediaItem: plex.MediaItem{ID: "7"}, ViewOffset: 5, State: plex.StatePaused},
+				{MediaItem: plex.MediaItem{ID: "42"}, ViewOffset: 12.25, State: plex.StatePlaying},
+			},
+			want: api.PlaybackPosition{Playing: true, Paused: false, Offset: 12.25},
+		},
+		{
+			name:     "nothing on the item",
+			sessions: []plex.Session{{MediaItem: plex.MediaItem{ID: "7"}, ViewOffset: 5}},
+			want:     api.PlaybackPosition{Playing: false, Paused: false, Offset: 0},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			auth := mocks.NewMockPlexAuth(t)
+			auth.EXPECT().LiveSessions(mock.Anything).Return(test.sessions, nil).Once()
+
+			position, status := getPosition(t, auth)
+
+			require.Equal(t, fiber.StatusOK, status)
+			assert.Equal(t, test.want, position)
+		})
+	}
+}
+
+// TestPositionReportsAPlexItCannotReach covers a failed read: the buttons get
+// an error and fall back to the position the panel shows.
+func TestPositionReportsAPlexItCannotReach(t *testing.T) {
+	t.Parallel()
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().LiveSessions(mock.Anything).Return(nil, plex.ErrUnauthorized).Once()
+
+	_, status := getPosition(t, auth)
+
+	assert.Equal(t, fiber.StatusBadGateway, status)
 }

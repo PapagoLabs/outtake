@@ -351,6 +351,7 @@ func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([
 			Title:      item.DisplayTitle(),
 			Duration:   item.Duration,
 			ViewOffset: float64(meta.ViewOffset) / scaleMsToS,
+			State:      meta.Player.State,
 		})
 	}
 

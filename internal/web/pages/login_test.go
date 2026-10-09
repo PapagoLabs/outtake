@@ -36,7 +36,10 @@ func TestLoginOffersBothWaysIn(t *testing.T) {
 
 	assert.Contains(t, body, `id="plex-login"`, "the Plex popup sign-in is offered")
 	assert.Contains(t, body, "Sign in with Plex")
-	assert.Contains(t, body, `hx-get="/api/auth/status"`, "the page polls the sign-in status")
+	assert.Contains(t, body, `data-status-url="/api/auth/status"`,
+		"the sign-in script polls the status once the popup is open")
+	assert.NotContains(t, body, `hx-trigger="every`,
+		"a page nobody signs in from asks the server nothing")
 	assert.Contains(t, body, "Waiting for Plex authorization...")
 	assert.Contains(t, body, `action="/api/auth/login"`,
 		"a manual token can still be posted")
