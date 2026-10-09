@@ -48,6 +48,10 @@ Three tiers. Keep a test in the lowest tier that can prove the thing.
 
 There is no `testing/integration` tree. `task test-e2e` runs the e2e suite.
 
+## Docs
+
+READMEs are not hard-wrapped: every paragraph and list item is one line, and the viewer wraps it. Code blocks, tables, and the centered HTML header keep their own lines.
+
 ## Release
 
 - Dockerfiles: `build/docker/Dockerfile` (GoReleaser image context) and `Dockerfile.dev` (source build used by compose). Both copy static `ffmpeg` and `ffprobe` from `mwader/static-ffmpeg`, pinned by its multi-arch digest in the `FFMPEG_IMAGE` build arg, which Renovate updates. The stage is pulled for the target platform, never `$BUILDPLATFORM`, so an arm64 image gets arm64 binaries. Development and production run the same FFmpeg.
