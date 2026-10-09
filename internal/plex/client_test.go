@@ -127,7 +127,7 @@ func TestGeneratePIN(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		_, _ = w.Write([]byte(`{"id": 12345, "code": "abc123"}`))
+		_, _ = w.Write([]byte(`{"id": 12345, "code": "abc123", "expiresIn": 1800}`))
 	}))
 
 	defer ts.Close()
@@ -152,6 +152,7 @@ func TestGeneratePIN(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 12345, pin.ID)
 	assert.Equal(t, "abc123", pin.Code)
+	assert.Equal(t, 1800, pin.ExpiresIn)
 }
 
 func TestPollPIN(t *testing.T) {

@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -337,6 +339,57 @@ func TestSessionsFromTheBinding(t *testing.T) {
 	assert.Equal(t, sessions, auth.Sessions())
 }
 
+// TestLiveSessionsAsksTheBoundServer covers the fresh session read: it goes
+// to the selected server itself, and refuses without one.
+func TestLiveSessionsAsksTheBoundServer(t *testing.T) {
+	t.Parallel()
+
+	pms := newPlexServer(t, map[string]plexRoute{
+		"/status/sessions": {
+			status: http.StatusOK,
+			body: `{"MediaContainer":{"Metadata":[{"ratingKey":"42","viewOffset":61500,` +
+				`"Session":{"id":"s1"},"Player":{"state":"paused"}}]}}`,
+		},
+	})
+
+	address, err := url.Parse(pms.URL)
+	require.NoError(t, err)
+
+	port, err := strconv.Atoi(address.Port())
+	require.NoError(t, err)
+
+	server := plex.Server{
+		Name:    "Attic",
+		Address: address.Hostname(),
+		Port:    port,
+		Token:   "server-token",
+		Scheme:  "http",
+		Local:   true,
+	}
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Client().Return(plex.NewClient(plex.ClientConfig{
+		Product:  "outtake",
+		ClientID: "test-client",
+		Token:    "server-token",
+		Timeout:  time.Second,
+		BaseURL:  "",
+	}), server, true)
+
+	auth := New("outtake", "test-client", "http://localhost:8080", nil, bound)
+
+	sessions, err := auth.LiveSessions(t.Context())
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	assert.Equal(t, "42", sessions[0].MediaItem.ID)
+	assert.InDelta(t, 61.5, sessions[0].ViewOffset, 0.001)
+	assert.Equal(t, plex.StatePaused, sessions[0].State)
+
+	_, err = New("outtake", "test-client", "http://localhost:8080", nil, nil).
+		LiveSessions(t.Context())
+	assert.ErrorIs(t, err, ErrNoServer)
+}
+
 func TestValidateReturnsTheUserBehindTheToken(t *testing.T) {
 	t.Parallel()
 
@@ -434,7 +487,10 @@ func TestBeginPINReturnsTheAuthorizationURL(t *testing.T) {
 	t.Parallel()
 
 	routes := map[string]plexRoute{
-		"/api/v2/pins": {status: http.StatusOK, body: `{"id": 4321, "code": "ABCD"}`},
+		"/api/v2/pins": {
+			status: http.StatusOK,
+			body:   `{"id": 4321, "code": "ABCD", "expiresIn": 1800}`,
+		},
 	}
 
 	auth := testAuth(t, newPlexServer(t, routes).URL, nil, nil)
@@ -442,6 +498,7 @@ func TestBeginPINReturnsTheAuthorizationURL(t *testing.T) {
 	pin, err := auth.BeginPIN(t.Context())
 	require.NoError(t, err)
 
+	assert.Equal(t, 30*time.Minute, pin.ExpiresIn, "the page stops polling when the PIN lapses")
 	assert.Equal(t, 4321, pin.ID)
 	assert.Equal(t, "ABCD", pin.Code)
 	assert.Contains(t, pin.URL, "clientID="+"test-client")

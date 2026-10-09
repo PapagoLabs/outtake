@@ -30,6 +30,9 @@ type PlexAuth interface {
 	// Sessions returns the Plex sessions currently playing.
 	Sessions() []plex.Session
 
+	// LiveSessions asks the bound server for its playback sessions now.
+	LiveSessions(ctx context.Context) ([]plex.Session, error)
+
 	// TokenRejected reports whether the bound server refuses its stored token.
 	TokenRejected() bool
 }

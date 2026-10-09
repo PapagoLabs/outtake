@@ -285,7 +285,9 @@ without owners, only the account that signed in last can claim Outtake.
    use **Browse** until you reach a playable item.
 3. On the item page, play the title in Plex if you want live markers.
    When Plex is playing, use **Set start from Plex** and **Set end from
-   Plex**. You can also type **Start** and **End** yourself.
+   Plex**. Pause in Plex first for an exact mark, because a playing
+   client reports its position only every few seconds. You can also type
+   **Start** and **End** yourself.
 4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or
    **Screenshot**, pick a **Profile**, and optionally **Trim black bars**.
    For a video clip from an HDR source, **Keep HDR** keeps the source's

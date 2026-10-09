@@ -262,6 +262,7 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get("/dashboard/sessions", guard, homeHandler.DashboardSessions)
 	app.Get("/media", guard, libraryHandler.Media)
 	app.Get("/media/item/:id/playback", guard, homeHandler.Playback)
+	app.Get("/media/item/:id/position", guard, homeHandler.Position)
 	app.Get("/media/item/:id/clips", guard, libraryHandler.MediaItemClips)
 	app.Get("/media/item/:id", guard, libraryHandler.MediaItem)
 	app.Get("/previews/:id", guard, previewHandler.PreviewFile)

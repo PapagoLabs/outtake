@@ -513,7 +513,7 @@ func TestGetSessionsOnServer(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
-			{"ratingKey":"42","title":"Now Playing","type":"movie","duration":3600000,"viewOffset":120000,"Session":{"id":"sess-123"}}
+			{"ratingKey":"42","title":"Now Playing","type":"movie","duration":3600000,"viewOffset":120000,"Session":{"id":"sess-123"},"Player":{"state":"paused"}}
 		]}}`))
 	}))
 	defer ts.Close()
@@ -542,6 +542,7 @@ func TestGetSessionsOnServer(t *testing.T) {
 	require.Len(t, sessions, 1)
 	assert.Equal(t, "42", sessions[0].MediaItem.ID)
 	assert.InEpsilon(t, 120.0, sessions[0].ViewOffset, 0.01)
+	assert.Equal(t, StatePaused, sessions[0].State, "a paused client's position is exact")
 }
 
 func TestSearchOnServer(t *testing.T) {

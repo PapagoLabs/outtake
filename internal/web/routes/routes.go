@@ -91,6 +91,9 @@ const (
 	// QueryQuality carries the New export profile across a preview redirect.
 	QueryQuality = "quality"
 
+	// QuerySession names the Plex session a position is read from.
+	QuerySession = "session"
+
 	// QueryStart is the media pagination offset and the New export start mark.
 	QueryStart = "start"
 

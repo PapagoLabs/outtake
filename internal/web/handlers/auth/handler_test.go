@@ -5,6 +5,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -104,8 +105,8 @@ func authHandler(
 }
 
 // newPlexTV stands in for plex.tv. The user endpoint answers with the account
-// each token belongs to and 401 for any other token, and the pending PIN
-// resolves to pinToken.
+// each token belongs to and 401 for any other token, a new PIN lasts half an
+// hour, and the pending PIN resolves to pinToken.
 //
 // Parameters:
 //   - t: The test the stand-in belongs to.
@@ -126,6 +127,9 @@ func newPlexTV(t *testing.T, accounts map[string]string) *httptest.Server {
 		}
 
 		_, _ = writer.Write([]byte(account))
+	})
+	mux.HandleFunc("/api/v2/pins", func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(`{"id": 4321, "code": "PIN-CODE", "expiresIn": 1800}`))
 	})
 	mux.HandleFunc("/api/v2/pins/4321", func(writer http.ResponseWriter, _ *http.Request) {
 		_, _ = writer.Write([]byte(`{"authToken": "` + pinToken + `"}`))
@@ -435,6 +439,31 @@ func TestLoginReportsAPINItCouldNotCreate(t *testing.T) {
 	assert.Contains(t, answer.body, api.PINFailed)
 	assert.NotContains(t, answer.body, "authUrl",
 		"a PIN that was never created has no authorization URL to send the browser to")
+}
+
+// TestLoginTellsThePageHowLongThePINLasts covers the PIN sign-in: the page
+// gets the Plex URL to open and how long to wait for it, so it can stop
+// polling once the PIN has lapsed.
+func TestLoginTellsThePageHowLongThePINLasts(t *testing.T) {
+	t.Parallel()
+
+	app := sessionApp(t)
+	app.Post("/api/auth/login", liveHandler(t, newPlexTV(t, nil), ownerStore(t)).Login)
+
+	browser := newBrowser(t, app)
+
+	answer := browser.do(http.MethodPost, "/api/auth/login", "", false)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+
+	var started struct {
+		AuthURL   string `json:"authUrl"`
+		ExpiresIn int    `json:"expiresIn"`
+	}
+
+	require.NoError(t, json.Unmarshal([]byte(answer.body), &started))
+	assert.Contains(t, started.AuthURL, "code=PIN-CODE")
+	assert.Equal(t, 1800, started.ExpiresIn)
 }
 
 func TestCallbackRejectsASessionWithNoPENDINGPIN(t *testing.T) {
@@ -769,6 +798,8 @@ func TestCallbackSignsTheOwnerIn(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusOK, answer.status)
 	assert.Contains(t, answer.body, routes.PathServers)
+	assert.Equal(t, "unsafe-none", answer.header.Get("Cross-Origin-Opener-Policy"),
+		"the popup reaches the page that opened it on the way back from Plex")
 
 	got := readSession(t, browser, func(sess *session.Middleware) any {
 		pinID, _ := identity.StoredPIN(sess)

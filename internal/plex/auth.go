@@ -17,6 +17,9 @@ import (
 type PinResponse struct {
 	ID   int    `json:"id"`
 	Code string `json:"code"`
+	// ExpiresIn is how many seconds the PIN stays valid, zero when Plex did
+	// not say.
+	ExpiresIn int `json:"expiresIn"`
 }
 
 // UserResponse represents a user response from Plex.

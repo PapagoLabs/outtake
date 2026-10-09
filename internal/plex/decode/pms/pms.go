@@ -76,6 +76,7 @@ type Metadata struct {
 	AddedAt              int64      `json:"addedAt"`
 	Media                []media    `json:"Media"`
 	Session              session    `json:"Session"`
+	Player               player     `json:"Player"`
 }
 
 // media is a media version on a metadata item.
@@ -93,6 +94,12 @@ type part struct {
 // session is playback session info attached to session metadata.
 type session struct {
 	ID string `json:"id"`
+}
+
+// player is the client playing a session.
+type player struct {
+	// State is playing, paused, or buffering.
+	State string `json:"state"`
 }
 
 // flexString accepts JSON strings or numbers, matching PMS ratingKey values.

@@ -32,28 +32,80 @@
 	function requestSync() {
 		startEl.dispatchEvent(new Event('input', { bubbles: true }));
 	}
+
+	// markStart moves the start mark to an offset. When that leaves the end at
+	// or before it, the end is carried along so the range keeps its length.
+	// The shared binder then reports any limit the new range breaks, so a
+	// carried end never goes unexplained.
+	function markStart(offset) {
+		startEl.value = formatTimecode(offset);
+		var start = parseTimecode(startEl.value);
+		var end = parseTimecode(endEl.value);
+		if (end <= start) {
+			var dur = parseFloat(durEl.value) || 0;
+			if (dur <= 0) { dur = 10; }
+			endEl.value = formatTimecode(start + dur);
+		}
+		requestSync();
+	}
+
+	function markEnd(offset) {
+		endEl.value = formatTimecode(offset);
+		requestSync();
+	}
+
+	// positionTimeoutMs gives up on a fresh read a little after the server
+	// gives up on Plex, so the panel's position is used instead.
+	var positionTimeoutMs = 4000;
+
+	// readPosition asks the server where Plex is now. The panel refreshes on
+	// its own schedule, and a client that is playing moves on in between, so
+	// the position is read at the moment of the click. The panel's position is
+	// the fallback when Plex cannot be asked or no longer plays the item.
+	function readPosition(btn) {
+		var shown = parseFloat(btn.getAttribute('data-offset'));
+		var url = btn.getAttribute('data-position-url');
+		if (!url || typeof AbortController === 'undefined') {
+			return Promise.resolve(shown);
+		}
+		var controller = new AbortController();
+		var timer = window.setTimeout(function () { controller.abort(); }, positionTimeoutMs);
+		return fetch(url, { headers: { 'Accept': 'application/json' }, signal: controller.signal })
+			.then(function (res) {
+				if (!res.ok) { return null; }
+				return res.json();
+			})
+			.then(function (position) {
+				return position && position.playing ? position.offset : shown;
+			})
+			.catch(function () {
+				return shown;
+			})
+			.finally(function () {
+				window.clearTimeout(timer);
+			});
+	}
+
+	// latestRead numbers each mark's position reads. The panel is swapped every
+	// couple of seconds, and the fresh button can start a second read while
+	// the first is still out, so only the newest read for a mark is applied.
+	var latestRead = { start: 0, end: 0 };
+
 	document.addEventListener('click', function (event) {
-		var startBtn = event.target.closest('.js-mark-start');
-		var endBtn = event.target.closest('.js-mark-end');
-		if (startBtn) {
-			startEl.value = formatTimecode(parseFloat(startBtn.getAttribute('data-offset')));
-			var start = parseTimecode(startEl.value);
-			var end = parseTimecode(endEl.value);
-			if (end <= start) {
-				// The end is carried along so the range keeps its length. The
-				// shared binder then reports it, rather than the change being
-				// silent, which is how a start of 11 hours ended up saved as an
-				// 11 hour 10 second range with nothing on screen to explain it.
-				var dur = parseFloat(durEl.value) || 0;
-				if (dur <= 0) { dur = 10; }
-				endEl.value = formatTimecode(start + dur);
+		var btn = event.target.closest('.js-mark-start, .js-mark-end');
+		if (!btn || btn.disabled) {
+			return;
+		}
+		var which = btn.classList.contains('js-mark-start') ? 'start' : 'end';
+		var mark = which === 'start' ? markStart : markEnd;
+		var read = ++latestRead[which];
+		btn.disabled = true;
+		readPosition(btn).then(function (offset) {
+			btn.disabled = false;
+			if (read === latestRead[which]) {
+				mark(offset);
 			}
-			requestSync();
-		}
-		if (endBtn) {
-			endEl.value = formatTimecode(parseFloat(endBtn.getAttribute('data-offset')));
-			requestSync();
-		}
+		});
 	});
 	requestSync();
 
