@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Group mock imports and regenerate every mock by @nicholas-fedor in [#384](https://github.com/PapagoLabs/outtake/pull/384)
 - Update module golang.org/x/net to v0.60.0 by @renovate[bot] in [#380](https://github.com/PapagoLabs/outtake/pull/380)
 - Update golang docker tag to v1.27.2 by @renovate[bot] in [#373](https://github.com/PapagoLabs/outtake/pull/373)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#372](https://github.com/PapagoLabs/outtake/pull/372)
