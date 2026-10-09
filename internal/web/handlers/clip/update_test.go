@@ -513,6 +513,7 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 		name    string
 		status  clipdom.Status
 		quality clipdom.ClipQuality
+		stored  string
 		form    url.Values
 		want    bool
 	}{
@@ -544,6 +545,14 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 			want:    false,
 		},
 		{
+			name:    "a regenerate under a deleted profile keeps the stored setting",
+			status:  clipdom.StatusCompleted,
+			quality: "",
+			stored:  "deleted-profile",
+			form:    url.Values{"regenerate": {routes.FormChecked}},
+			want:    true,
+		},
+		{
 			name:    "a clip still waiting renders the edit, so it takes the profile's",
 			status:  clipdom.StatusPending,
 			quality: clipdom.ClipQualityMedium,
@@ -562,6 +571,11 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 
 			stored.PreserveHDR = true
 			stored.Status = test.status
+
+			if test.stored != "" {
+				stored.Quality = test.stored
+			}
+
 			require.NoError(t, db.SaveClip(t.Context(), stored))
 
 			handler := updateTestHandler(t, db)

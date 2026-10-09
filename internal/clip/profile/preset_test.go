@@ -271,3 +271,32 @@ func TestBuiltinProfilesOfferOneThatKeepsHDR(t *testing.T) {
 	assert.Equal(t, []string{"high-hdr"}, keeping)
 	assert.Equal(t, []string{"medium"}, defaults)
 }
+
+// TestKeepHDRReportsAProfileThatIsGone covers the lookup an edit uses: a
+// stored profile, a built-in, and the default profile are found, and an id
+// that names neither is reported missing rather than answered with the Medium
+// fallback's setting.
+func TestKeepHDRReportsAProfileThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	db := presetDatabase(t)
+
+	keep, found := KeepHDR(t.Context(), db, "high-hdr")
+	assert.True(t, found)
+	assert.True(t, keep)
+
+	keep, found = KeepHDR(t.Context(), db, "high")
+	assert.True(t, found)
+	assert.False(t, keep)
+
+	keep, found = KeepHDR(t.Context(), db, "")
+	assert.True(t, found, "the default profile")
+	assert.False(t, keep)
+
+	_, found = KeepHDR(t.Context(), db, "deleted-profile")
+	assert.False(t, found)
+
+	keep, found = KeepHDR(t.Context(), nil, "high-hdr")
+	assert.True(t, found, "a built-in is found without a database")
+	assert.True(t, keep)
+}

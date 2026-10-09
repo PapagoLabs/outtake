@@ -101,7 +101,9 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 // renderedKeepHDR takes Keep HDR from the edit's profile when the edit renders
 // the clip again, so the stored value always describes the clip's file. An
 // edit renders when it regenerates, changes the type, or reaches a clip still
-// waiting to render. Any other edit keeps the stored value.
+// waiting to render. Any other edit keeps the stored value, and so does one
+// whose profile is gone, such as a stored profile since deleted, rather than
+// taking the Medium fallback's setting.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -109,7 +111,8 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 //   - edit: The merged edit.
 //
 // Returns:
-//   - keep: The profile's setting when the edit renders, otherwise nil.
+//   - keep: The profile's setting when the edit renders and the profile is
+//     found, otherwise nil.
 func (handler *Handler) renderedKeepHDR(
 	ctx fiber.Ctx,
 	job *clipdom.Job,
@@ -120,7 +123,12 @@ func (handler *Handler) renderedKeepHDR(
 		return nil
 	}
 
-	return new(handler.keepHDR(ctx.Context(), edit.Quality))
+	keep, found := profile.KeepHDR(ctx.Context(), handler.db, edit.Quality)
+	if !found {
+		return nil
+	}
+
+	return &keep
 }
 
 // regenerates reports whether the update asked for the clip to render again.
