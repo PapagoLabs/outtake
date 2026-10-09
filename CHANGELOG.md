@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module golang.org/x/net to v0.61.0 by @renovate[bot] in [#404](https://github.com/PapagoLabs/outtake/pull/404)
 - Update module golang.org/x/sys to v0.49.0 by @renovate[bot] in [#397](https://github.com/PapagoLabs/outtake/pull/397)
 - Update module golang.org/x/sync to v0.24.0 by @renovate[bot] in [#396](https://github.com/PapagoLabs/outtake/pull/396)
 - Update nicholas-fedor/actionlint-action action to v1.0.19 by @renovate[bot] in [#392](https://github.com/PapagoLabs/outtake/pull/392)
