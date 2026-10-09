@@ -176,7 +176,12 @@ func renderSDRVersion(
 		return nil
 	}
 
-	if !job.PreserveHDR || !sourceIsHDR(ctx, runner, job.InputPath) {
+	needed, err := needsSDRVersion(ctx, job, runner)
+	if err != nil {
+		return fmt.Errorf("check source: %w", err)
+	}
+
+	if !needed {
 		removeSDRVersion(store, job.ID, output)
 
 		return nil
@@ -184,7 +189,7 @@ func renderSDRVersion(
 
 	stages.SetStage(job.ID, clip.StageSDR)
 
-	err := runner.ExtractClip(
+	err = runner.ExtractClip(
 		ctx,
 		job.InputPath,
 		output,
@@ -210,6 +215,35 @@ func renderSDRVersion(
 	removeSDRVersion(store, job.ID, output)
 
 	return nil
+}
+
+// needsSDRVersion reports whether a video clip needs an SDR version: it keeps
+// HDR and its source is HDR. A probe cut short by a stopped job reads as an
+// SDR source, so the stop is reported rather than taken for a clip that needs
+// no SDR version, which would remove the one it has.
+//
+// Parameters:
+//   - ctx: The job context.
+//   - job: The video clip.
+//   - ffmpeg: The FFmpeg runner, whose probe is cached.
+//
+// Returns:
+//   - needed: True when the clip needs an SDR version.
+//   - err: Non-nil when the job stopped before the source was probed.
+func needsSDRVersion(ctx context.Context, job *clip.Job, runner *ffmpeg.ExecFFmpeg) (bool, error) {
+	if !job.PreserveHDR {
+		return false, nil
+	}
+
+	if sourceIsHDR(ctx, runner, job.InputPath) {
+		return true, nil
+	}
+
+	if ctx.Err() != nil {
+		return false, fmt.Errorf("probe: %w", ctx.Err())
+	}
+
+	return false, nil
 }
 
 // sdrPreset is how an SDR version is encoded: H.264 tone mapped to SDR at the

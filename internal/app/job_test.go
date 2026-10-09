@@ -578,3 +578,39 @@ func TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	assert.ErrorContains(t, err, "sdr version")
 }
+
+// TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe covers a job
+// stopped between the clip and its SDR version: the probe that fails because
+// of the stop is not read as an SDR source, so the stored SDR version stays
+// and the stop reaches the queue.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe(t *testing.T) {
+	dir := t.TempDir()
+
+	job := testClipJob("stopped-before-probe")
+
+	job.PreserveHDR = true
+	job.InputPath = stubInputFile(t, dir, "stopped.mkv")
+	job.OutputPath = filepath.Join(dir, "clip.mp4")
+
+	// No ffprobe, so only the stop decides what the missing probe means.
+	runner := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Put(mock.Anything, job.OutputPath).
+		RunAndReturn(func(context.Context, string) error {
+			cancel()
+
+			return nil
+		}).Once()
+
+	err := processJob(ctx, job, runner, nil, store, &recordedStages{})
+	require.ErrorIs(t, err, context.Canceled)
+}
