@@ -432,6 +432,21 @@ func (q *Queue) Restore(job *clip.Job) {
 	q.jobs[job.ID] = job.Clone()
 }
 
+// SetOutputFormat records what a render's own file holds once it is
+// published, and reports it.
+//
+// Parameters:
+//   - id: The clip being rendered.
+//   - format: What the published file holds.
+//
+// Returns:
+//   - job: The updated job, nil when the queue no longer has it.
+func (q *Queue) SetOutputFormat(id string, format clip.Format) *clip.Job {
+	return q.updateEntry(id, func(job *clip.Job) {
+		job.OutputFormat = format
+	})
+}
+
 // SetProgress records how far a render has got and reports it.
 //
 // Parameters:
@@ -459,6 +474,21 @@ func (q *Queue) SetProgress(id string, percent int) *clip.Job {
 	q.notify(id)
 
 	return updated
+}
+
+// SetSDRFormat records what a render's SDR version holds once it is
+// published, or the zero format when it has none, and reports it.
+//
+// Parameters:
+//   - id: The clip being rendered.
+//   - format: What the SDR version holds.
+//
+// Returns:
+//   - job: The updated job, nil when the queue no longer has it.
+func (q *Queue) SetSDRFormat(id string, format clip.Format) *clip.Job {
+	return q.updateEntry(id, func(job *clip.Job) {
+		job.SDRFormat = format
+	})
 }
 
 // SetStage records that a render moved on to another encode, whose progress
@@ -1062,6 +1092,36 @@ func (q *Queue) take(cancel context.CancelFunc) (*clip.Job, bool) {
 	q.cancels[id] = cancel
 
 	return live.Clone(), true
+}
+
+// updateEntry changes a job's entry under the lock and reports the change.
+//
+// Parameters:
+//   - id: The job to change.
+//   - change: Applies the change to the entry.
+//
+// Returns:
+//   - job: A copy of the changed job, nil when the queue no longer has it.
+func (q *Queue) updateEntry(id string, change func(job *clip.Job)) *clip.Job {
+	q.mu.Lock()
+
+	job, ok := q.jobs[id]
+	if !ok {
+		q.mu.Unlock()
+
+		return nil
+	}
+
+	change(job)
+
+	job.UpdatedAt = time.Now()
+
+	updated := job.Clone()
+	q.mu.Unlock()
+
+	q.notify(id)
+
+	return updated
 }
 
 // worker runs waiting jobs until the queue stops.

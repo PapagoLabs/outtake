@@ -24,7 +24,7 @@ const (
 	clipSelectCols = `id, media_id, media_title, media_type, clip_type, status, progress,
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
-		preserve_hdr`
+		preserve_hdr, output_width, output_height, output_hdr, sdr_width, sdr_height`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
@@ -44,8 +44,9 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 			id, media_id, media_title, media_type, clip_type, status, progress,
 			input_path, output_path, start_time, duration, quality, width, fps,
 			error_message, created_at, updated_at, name, audio_index, crop_black_bars,
-			web_safe_color, preserve_hdr
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			web_safe_color, preserve_hdr, output_width, output_height, output_hdr,
+			sdr_width, sdr_height
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			clip_type = excluded.clip_type,
@@ -61,12 +62,33 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 			crop_black_bars = excluded.crop_black_bars,
 			web_safe_color = excluded.web_safe_color,
 			preserve_hdr = excluded.preserve_hdr,
+			output_width = excluded.output_width,
+			output_height = excluded.output_height,
+			output_hdr = excluded.output_hdr,
+			sdr_width = excluded.sdr_width,
+			sdr_height = excluded.sdr_height,
 			error_message = excluded.error_message,
 			updated_at = excluded.updated_at
 	`)
 
 	//nolint:gosec // G701: rewrite maps ? to $n on constant SQL.
-	_, err := db.conn.ExecContext(ctx, query,
+	_, err := db.conn.ExecContext(ctx, query, clipRowValues(job)...)
+	if err != nil {
+		return fmt.Errorf("save clip: %w", err)
+	}
+
+	return nil
+}
+
+// clipRowValues lists a job's values in the column order SaveClip writes.
+//
+// Parameters:
+//   - job: The render to persist.
+//
+// Returns:
+//   - values: The insert's arguments.
+func clipRowValues(job *clip.Job) []any {
+	return []any{
 		job.ID,
 		job.MediaID,
 		job.MediaTitle,
@@ -89,12 +111,12 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 		cropBlackBarsColumn(&job.Clip),
 		webSafeColorColumn(&job.Clip),
 		preserveHDRColumn(&job.Clip),
-	)
-	if err != nil {
-		return fmt.Errorf("save clip: %w", err)
+		job.OutputFormat.Width,
+		job.OutputFormat.Height,
+		outputHDRColumn(job),
+		job.SDRFormat.Width,
+		job.SDRFormat.Height,
 	}
-
-	return nil
 }
 
 // GetClip loads a job by ID.
@@ -248,6 +270,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 	var updated time.Time
 	var cropBlackBars int
 	var preserveHDR int
+	var outputHDR int
 
 	err := row.Scan(
 		&job.ID,
@@ -271,6 +294,11 @@ func scanJob(row scannable) (*clip.Job, error) {
 		&job.AudioIndex,
 		&cropBlackBars,
 		&preserveHDR,
+		&job.OutputFormat.Width,
+		&job.OutputFormat.Height,
+		&outputHDR,
+		&job.SDRFormat.Width,
+		&job.SDRFormat.Height,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan clip: %w", err)
@@ -284,6 +312,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 	job.UpdatedAt = updated
 	job.CropBlackBars = cropBlackBars != 0
 	job.PreserveHDR = preserveHDR != 0
+	job.OutputFormat.HDR = outputHDR != 0
 
 	return job, nil
 }
@@ -357,6 +386,21 @@ func webSafeColorColumn(record *clip.Clip) int {
 //   - value: 1 when PreserveHDR is set, otherwise 0.
 func preserveHDRColumn(record *clip.Clip) int {
 	if record.PreserveHDR {
+		return 1
+	}
+
+	return 0
+}
+
+// outputHDRColumn stores whether a clip's own file is HDR as 0 or 1.
+//
+// Parameters:
+//   - job: Render whose file format is stored.
+//
+// Returns:
+//   - value: 1 when the file is HDR, otherwise 0.
+func outputHDRColumn(job *clip.Job) int {
+	if job.OutputFormat.HDR {
 		return 1
 	}
 

@@ -41,6 +41,7 @@ func (registry *registry) render(
 			Status:   clip.StatusPending,
 			Progress: 0,
 			Error:    "",
+			Format:   clip.Format{},
 		},
 		cancel:  cancel,
 		created: time.Now(),
@@ -102,6 +103,23 @@ func (registry *registry) setProgress(previewID string, percent int) {
 		job.view.Progress = percent
 		job.updated = time.Now()
 	}
+}
+
+// setFormat records what a published preview holds.
+//
+// Parameters:
+//   - previewID: Preview id.
+//   - format: What the published file holds.
+func (registry *registry) setFormat(previewID string, format clip.Format) {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	job, ok := registry.entries[previewID]
+	if !ok {
+		return
+	}
+
+	job.view.Format = format
 }
 
 // setStatus records where a render has got to.

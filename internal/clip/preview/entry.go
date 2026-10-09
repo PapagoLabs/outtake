@@ -23,6 +23,8 @@ type View struct {
 	Progress int
 	// Error is the failure message when the status is failed.
 	Error string
+	// Format is what the published file holds, zero until it is read.
+	Format clip.Format
 }
 
 // entry is one registered preview render.
@@ -293,7 +295,8 @@ func (registry *registry) flushEvicted() {
 //
 // Parameters:
 //   - previewID: Preview id that is already on disk.
-func (registry *registry) remember(previewID string) {
+//   - format: What the published file holds.
+func (registry *registry) remember(previewID string, format clip.Format) {
 	defer registry.flushEvicted()
 
 	registry.add(&entry{
@@ -302,6 +305,7 @@ func (registry *registry) remember(previewID string) {
 			Status:   clip.StatusCompleted,
 			Progress: progressDone,
 			Error:    "",
+			Format:   format,
 		},
 		cancel:  func() {},
 		created: time.Now(),

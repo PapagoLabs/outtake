@@ -567,3 +567,44 @@ func TestClipStatusShowsBothEncodesDuringTheSDRVersion(t *testing.T) {
 	assert.Contains(t, first, "40%")
 	assert.NotContains(t, first, "SDR version")
 }
+
+// TestClipStatusNamesWhatThePlayerPlays covers the format badges: a clip with
+// an SDR version shows its badge and hides the HDR file's for the script to
+// swap, a clip without one names its own file, and a clip whose file was never
+// read shows none.
+func TestClipStatusNamesWhatThePlayerPlays(t *testing.T) {
+	t.Parallel()
+
+	render := func(change func(item *view.ClipItem)) string {
+		item := activeTestItem()
+		item.Status = domainclip.StatusCompleted
+		item.FileExists = true
+		change(&item)
+
+		var body strings.Builder
+
+		require.NoError(t, ClipStatus(item).Render(t.Context(), &body))
+
+		return body.String()
+	}
+
+	withSDR := render(func(item *view.ClipItem) {
+		item.SDRExists = true
+		item.PreserveHDR = true
+		item.OutputFormat = domainclip.Format{Width: 3840, Height: 1608, HDR: true}
+		item.SDRFormat = domainclip.Format{Width: 1920, Height: 804}
+	})
+	assert.Contains(t, withSDR, "data-player-frame", "the badges sit in the player's frame")
+	assert.Contains(t, withSDR, `data-format-badge="sdr">SDR · 1080p<`)
+	assert.Contains(t, withSDR, `data-format-badge="hdr" hidden>HDR · 4K<`)
+
+	own := render(func(item *view.ClipItem) {
+		item.OutputFormat = domainclip.Format{Width: 1920, Height: 1080}
+	})
+	assert.Contains(t, own, `data-format-badge="file">SDR · 1080p<`)
+	assert.NotContains(t, own, `data-format-badge="sdr"`)
+
+	unread := render(func(*view.ClipItem) {})
+	assert.Contains(t, unread, "data-player-frame")
+	assert.NotContains(t, unread, "data-format-badge")
+}

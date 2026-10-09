@@ -1,0 +1,52 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+// Package player frames a video player and names what it plays.
+package player
+
+// BadgeProps describes the badge over a player.
+type BadgeProps struct {
+	// ID is the badge's element id, empty for none.
+	ID string
+	// Label names what the player plays, such as "HDR · 4K", empty for a
+	// script to fill in.
+	Label string
+	// Plays names the file the badge is for, such as "sdr", so a script can
+	// show the badge for the file it moves the player to.
+	Plays string
+	// Hidden renders the badge hidden, for a script to show.
+	Hidden bool
+	// Attributes are added to the badge's element.
+	Attributes templ.Attributes
+}
+
+// Frame wraps a player so a Badge can sit in its top-left corner, over the
+// picture, taking no room of its own. A script that puts a note beside the
+// player puts it beside the frame, so the badge stays over the picture.
+templ Frame() {
+	<div class="relative" data-player-frame>
+		{ children... }
+	</div>
+}
+
+// Badge names what the player in a Frame plays. It is hidden with the hidden
+// attribute, which the stylesheet honors whatever else the badge is, and it
+// ignores the pointer so the player under it still takes clicks.
+//
+// Parameters:
+//   - props: The badge's label, file, and visibility.
+templ Badge(props BadgeProps) {
+	<span
+		if props.ID != "" {
+			id={ props.ID }
+		}
+		class="pointer-events-none absolute top-2 left-2 inline-flex items-center rounded-md border border-white/20 bg-black/60 px-2 py-0.5 text-xs font-medium text-white"
+		data-format-badge={ props.Plays }
+		if props.Hidden {
+			hidden
+		}
+		{ props.Attributes... }
+	>
+		{ props.Label }
+	</span>
+}

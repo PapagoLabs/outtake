@@ -28,6 +28,8 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
+	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/playback"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
@@ -36,6 +38,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex/library/mocks"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
+	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -45,6 +48,7 @@ type statusResponse struct {
 	Progress int    `json:"progress"`
 	URL      string `json:"url"`
 	Error    string `json:"error"`
+	Format   string `json:"format"`
 }
 
 type errorResponse struct {
@@ -279,7 +283,7 @@ func TestPreviewStatusSeesACachedPreview(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(store.BasePath(), "previews"), 0o750))
 	require.NoError(t, os.WriteFile(store.PreviewPath("cached"), []byte("x"), 0o600))
 
-	handler.previews.Remember("cached")
+	handler.previews.Remember(t.Context(), "cached")
 
 	status, body := getPreviewStatus(t, handler, "cached")
 	assert.Equal(t, fiber.StatusOK, status)
@@ -822,6 +826,45 @@ func TestPreviewStartsARender(t *testing.T) {
 	status, body := getPreviewStatus(t, handler, previewID)
 	assert.Equal(t, fiber.StatusOK, status)
 	assert.Equal(t, routes.PathPreviewPrefix+previewID, body.URL)
+	assert.Equal(t, "SDR · 1080p", body.Format,
+		"the published preview is read for its badge, here from the probe stub")
+}
+
+// TestPreviewFollowsTheMaximumPreviewResolution covers the setting reaching a
+// preview: the same selection asks for a new preview once the maximum preview
+// resolution changes, rather than reusing one rendered under the old maximum.
+func TestPreviewFollowsTheMaximumPreviewResolution(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(filepath.Join(t.TempDir(), "settings.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	store, err := blob.NewStorage(blob.NewPaths(t.TempDir()))
+	require.NoError(t, err)
+
+	cfg := &config.Config{MaxConcurrentPreviews: 2, Env: "e2e"}
+	runner := stubFFmpeg(t)
+	handler := New(
+		clippreview.New(2, store, store.Paths, runner),
+		cfg,
+		db,
+		library.NewMediaSource(cfg, nil, runner),
+	)
+
+	form := previewWindowForm(sourceFile(t), 10, 20)
+
+	_, before := postPreviewForm(t, handler, form).redirect(t)
+	awaitTerminal(t, handler.previews, before.Get(routes.QueryPreview))
+
+	require.NoError(t, playback.SaveMaxPreviewWidth(
+		t.Context(), db, strconv.Itoa(clip.OutputWidth2160p),
+	))
+
+	_, after := postPreviewForm(t, handler, form).redirect(t)
+	awaitTerminal(t, handler.previews, after.Get(routes.QueryPreview))
+
+	assert.NotEqual(t, before.Get(routes.QueryPreview), after.Get(routes.QueryPreview))
 }
 
 func TestPreviewCarriesTheExportFormAcrossTheRedirect(t *testing.T) {

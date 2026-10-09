@@ -40,7 +40,11 @@ type ClipItem struct {
 	// plays it where the clip's HDR file cannot be shown.
 	SDRExists bool
 	// Stage is which encode of a running render Progress counts.
-	Stage         clip.Stage
+	Stage clip.Stage
+	// OutputFormat is what the clip's own file holds, zero when never read.
+	OutputFormat clip.Format
+	// SDRFormat is what the clip's SDR version holds, zero when never read.
+	SDRFormat     clip.Format
 	MediaDuration time.Duration
 	Width         int
 	FPS           int
@@ -158,6 +162,15 @@ func (item *ClipItem) EndTime() time.Duration {
 	return item.StartTime + item.Duration
 }
 
+// FileBadge names what the clip's own file holds, for a card with no SDR
+// version.
+//
+// Returns:
+//   - label: Such as "SDR · 1080p", empty when the file was never read.
+func (item *ClipItem) FileBadge() string {
+	return item.OutputFormat.Label()
+}
+
 // GIFFPS is the GIF frame rate, or the New export default when unset.
 //
 // Returns:
@@ -172,6 +185,20 @@ func (item *ClipItem) GIFFPS() int {
 //   - width: Stored width, or 480 when Width is 0.
 func (item *ClipItem) GIFWidth() int {
 	return GIFWidthOrDefault(item.Width)
+}
+
+// HDRBadge names the HDR file a card with an SDR version can switch to. A
+// clip with an SDR version keeps HDR, so its file is HDR even when it was
+// never read.
+//
+// Returns:
+//   - label: Such as "HDR · 4K", or "HDR" when the file was never read.
+func (item *ClipItem) HDRBadge() string {
+	if label := item.OutputFormat.Label(); label != "" {
+		return label
+	}
+
+	return "HDR"
 }
 
 // IsActive reports whether the clip is still queued or encoding.
@@ -204,6 +231,18 @@ func (item *ClipItem) LacksSDRVersion() bool {
 //   - sdr: True while the SDR version encodes.
 func (item *ClipItem) RendersSDRVersion() bool {
 	return item.IsActive() && item.Stage == clip.StageSDR
+}
+
+// SDRBadge names the SDR version a card plays by default.
+//
+// Returns:
+//   - label: Such as "SDR · 1080p", or "SDR" when the version was never read.
+func (item *ClipItem) SDRBadge() string {
+	if label := item.SDRFormat.Label(); label != "" {
+		return label
+	}
+
+	return "SDR"
 }
 
 // FormatClipCreated renders a clip timestamp for display, or blank when unset.

@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/components/player"
 	"github.com/PapagoLabs/outtake/internal/web/components/progress"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
@@ -127,14 +128,24 @@ templ MediaItemPage(props MediaItemPageProps) {
 				}
 			}
 			if props.PreviewID != "" {
-				<video
-					id="preview-video"
-					class="w-full rounded-md bg-black"
-					controls
-					preload="metadata"
-					data-preview-id={ props.PreviewID }
-					data-preview-start={ timecode.FromDuration(props.StartTime).FormatSeconds() }
-				></video>
+				@player.Frame() {
+					// The page script fills the badge in once the preview's status reports
+					// what the finished file holds.
+					@player.Badge(player.BadgeProps{
+						ID:         "preview-format",
+						Plays:      "preview",
+						Hidden:     true,
+						Attributes: templ.Attributes{"role": "status"},
+					})
+					<video
+						id="preview-video"
+						class="w-full rounded-md bg-black"
+						controls
+						preload="metadata"
+						data-preview-id={ props.PreviewID }
+						data-preview-start={ timecode.FromDuration(props.StartTime).FormatSeconds() }
+					></video>
+				}
 				<div class="mt-3 flex items-center gap-3">
 					@progress.Progress(progress.Props{
 						ID:    "preview-progress",

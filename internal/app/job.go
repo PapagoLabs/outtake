@@ -11,16 +11,22 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/playback"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
-// stageReporter is the queue, told when a render moves on to its next encode.
-type stageReporter interface {
+// renderReporter is the queue, told when a render moves on to its next
+// encode and what each file it published holds.
+type renderReporter interface {
 	// SetStage records the encode now running.
 	SetStage(id string, stage clip.Stage) *clip.Job
+	// SetOutputFormat records what the clip's own file holds.
+	SetOutputFormat(id string, format clip.Format) *clip.Job
+	// SetSDRFormat records what the clip's SDR version holds.
+	SetSDRFormat(id string, format clip.Format) *clip.Job
 }
 
 const (
@@ -108,7 +114,8 @@ func extractJob(
 //   - ffmpeg: The FFmpeg runner.
 //   - db: Clip profile store, may be nil.
 //   - store: The storage backend the rendered output is uploaded to.
-//   - stages: The queue, told when the render moves on to the SDR version.
+//   - reporter: The queue, told when the render moves on to the SDR version
+//     and what each published file holds.
 //
 // Returns:
 //   - error: Non-nil when the extract or the upload fails, or the job was
@@ -119,7 +126,7 @@ func processJob(
 	runner *ffmpeg.ExecFFmpeg,
 	db *database.DB,
 	store blob.Blob,
-	stages stageReporter,
+	reporter renderReporter,
 ) error {
 	rect := detectJobCrop(ctx, runner, job)
 
@@ -137,7 +144,20 @@ func processJob(
 		return fmt.Errorf("store output: %w", err)
 	}
 
-	err = renderSDRVersion(ctx, job, runner, db, store, stages, rect)
+	if job.Type != clip.TypeClip {
+		// A GIF or screenshot has no player, so a clip that was a video before
+		// a type change keeps no format from its old file.
+		reporter.SetOutputFormat(job.ID, clip.Format{})
+		reporter.SetSDRFormat(job.ID, clip.Format{})
+
+		return nil
+	}
+
+	// Recorded as soon as the file is published, so a job stopped during its
+	// SDR version still describes the file it left.
+	reporter.SetOutputFormat(job.ID, fileFormat(ctx, runner, job.OutputPath))
+
+	err = renderSDRVersion(ctx, job, runner, db, store, reporter, rect)
 	if err != nil {
 		return fmt.Errorf("sdr version: %w", err)
 	}
@@ -157,7 +177,8 @@ func processJob(
 //   - ffmpeg: The FFmpeg runner.
 //   - db: Clip profile store, may be nil.
 //   - store: The storage backend the SDR version is uploaded to.
-//   - stages: The queue, told when the render moves on to the SDR version.
+//   - reporter: The queue, told when the render moves on to the SDR version
+//     and what the SDR version holds.
 //   - rect: The crop the clip was rendered with.
 //
 // Returns:
@@ -168,7 +189,7 @@ func renderSDRVersion(
 	runner *ffmpeg.ExecFFmpeg,
 	db *database.DB,
 	store blob.Blob,
-	stages stageReporter,
+	reporter renderReporter,
 	rect crop.CropRect,
 ) error {
 	output := job.SDRPath()
@@ -183,11 +204,12 @@ func renderSDRVersion(
 
 	if !needed {
 		removeSDRVersion(store, job.ID, output)
+		reporter.SetSDRFormat(job.ID, clip.Format{})
 
 		return nil
 	}
 
-	stages.SetStage(job.ID, clip.StageSDR)
+	reporter.SetStage(job.ID, clip.StageSDR)
 
 	err = runner.ExtractClip(
 		ctx,
@@ -195,7 +217,7 @@ func renderSDRVersion(
 		output,
 		job.StartTime,
 		job.Duration,
-		sdrPreset(clipEncodePreset(ctx, db, &job.Clip)),
+		sdrPreset(clipEncodePreset(ctx, db, &job.Clip), playback.MaxPreviewWidth(ctx, db)),
 		job.AudioIndex,
 		rect,
 	)
@@ -204,6 +226,8 @@ func renderSDRVersion(
 	}
 
 	if err == nil {
+		reporter.SetSDRFormat(job.ID, fileFormat(ctx, runner, output))
+
 		return nil
 	}
 
@@ -213,8 +237,31 @@ func renderSDRVersion(
 
 	log.Warn().Err(err).Str("job_id", job.ID).Msg("failed to render the SDR version of a clip")
 	removeSDRVersion(store, job.ID, output)
+	reporter.SetSDRFormat(job.ID, clip.Format{})
 
 	return nil
+}
+
+// fileFormat reads what a published file holds.
+//
+// Parameters:
+//   - ctx: The job context.
+//   - ffmpeg: The FFmpeg runner, whose probe is cached.
+//   - path: The published file.
+//
+// Returns:
+//   - format: The file's size and range, zero when it cannot be read.
+func fileFormat(ctx context.Context, runner *ffmpeg.ExecFFmpeg, path string) clip.Format {
+	info, err := runner.Probe(ctx, path)
+	if err != nil {
+		return clip.Format{}
+	}
+
+	return clip.Format{
+		Width:  info.Width,
+		Height: info.Height,
+		HDR:    clip.IsHDRTransfer(info.ColorTransfer),
+	}
 }
 
 // needsSDRVersion reports whether a video clip needs an SDR version: it keeps
@@ -246,30 +293,23 @@ func needsSDRVersion(ctx context.Context, job *clip.Job, runner *ffmpeg.ExecFFmp
 	return false, nil
 }
 
-// sdrPreset is how an SDR version is encoded: H.264 tone mapped to SDR at the
-// SDR playback width, with the clip's own audio bitrate.
+// sdrPreset is how an SDR version is encoded: H.264 tone mapped to SDR, no
+// wider than the maximum preview width, with the clip's own audio bitrate.
 //
 // Parameters:
 //   - clipPreset: The clip's own encode settings.
+//   - width: The maximum preview width the settings chose.
 //
 // Returns:
 //   - preset: The SDR version's encode settings.
-func sdrPreset(clipPreset clip.QualityPreset) clip.QualityPreset {
+func sdrPreset(clipPreset clip.QualityPreset, width int) clip.QualityPreset {
 	return clip.QualityPreset{
 		CRF:         sdrCRF,
 		Preset:      sdrEncoderPreset,
 		AudioKbps:   clipPreset.AudioKbps,
-		MaxWidth:    sdrPlaybackWidth(),
+		MaxWidth:    width,
 		PreserveHDR: false,
 	}
-}
-
-// sdrPlaybackWidth is the width SDR versions are rendered at.
-//
-// Returns:
-//   - width: The SDR playback width, 1080p.
-func sdrPlaybackWidth() int {
-	return clip.OutputWidth1080p
 }
 
 // sourceIsHDR reports whether a source carries an HDR transfer.

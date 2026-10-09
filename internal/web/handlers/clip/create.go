@@ -116,6 +116,8 @@ func buildJob(
 		Progress:      0,
 		Error:         "",
 		Stage:         clipdom.StageClip,
+		OutputFormat:  clipdom.Format{},
+		SDRFormat:     clipdom.Format{},
 	}
 }
 

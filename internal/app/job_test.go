@@ -27,7 +27,7 @@ import (
 // renders an SDR version as well.
 const pqProbeJSON = `{"format":{"duration":"120.0","bit_rate":"8000","format_name":"matroska"},` +
 	`"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","width":3840,` +
-	`"height":2160,"color_transfer":"smpte2084"},{"index":1,"codec_type":"audio",` +
+	`"height":1608,"color_transfer":"smpte2084"},{"index":1,"codec_type":"audio",` +
 	`"codec_name":"aac","channels":2}]}` + "\n"
 
 // errStoreFailed is the failure the storage double reports.
@@ -238,6 +238,41 @@ func TestExtractJobRendersAScreenshot(t *testing.T) {
 	assert.Contains(t, invocations[0], "-frames:v", "the screenshot arm grabs a single frame")
 }
 
+// TestProcessJobClearsTheFormatsOfAClipThatIsNoLongerAVideo covers a type
+// change: a clip rendered again as a screenshot records zero formats, so the
+// formats of the video file it replaced are not kept.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobClearsTheFormatsOfAClipThatIsNoLongerAVideo(t *testing.T) {
+	dir := t.TempDir()
+
+	job := testClipJob("screenshot-after-video")
+
+	job.Type = clip.TypeScreenshot
+	job.InputPath = stubInputFile(t, dir, "still-after-video.mkv")
+	job.OutputPath = filepath.Join(dir, "still.png")
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Put(t.Context(), job.OutputPath).Return(nil).Once()
+
+	execFFmpeg := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
+
+	stages := &recordedStages{
+		output: clip.Format{Width: 3840, Height: 1608, HDR: true},
+		sdr:    clip.Format{Width: 1920, Height: 804, HDR: false},
+	}
+
+	require.NoError(t, processJob(t.Context(), job, execFFmpeg, nil, store, stages))
+
+	output, sdr, sdrReported := stages.formats()
+	assert.Equal(t, clip.Format{}, output, "the old video's format is cleared")
+	assert.Equal(t, clip.Format{}, sdr, "the old SDR version's format is cleared")
+	assert.True(t, sdrReported)
+}
+
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestExtractJobReportsAScreenshotFailure(t *testing.T) {
 	dir := t.TempDir()
@@ -279,6 +314,10 @@ func TestProcessJobUploadsTheRenderedOutput(t *testing.T) {
 
 	require.NoError(t, processJob(t.Context(), job, execFFmpeg, nil, store, stages))
 	assert.Empty(t, stages.reported(), "a clip that converts to SDR has no second encode")
+
+	_, sdr, sdrReported := stages.formats()
+	assert.True(t, sdrReported, "and reports that it has no SDR version")
+	assert.False(t, sdr.Known())
 }
 
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
@@ -517,6 +556,15 @@ func TestProcessJobRendersAnSDRVersionOfAClipThatKeepsHDR(t *testing.T) {
 	require.NoError(t, processJob(t.Context(), job, runner, nil, store, stages))
 
 	assert.Equal(t, []clip.Stage{clip.StageSDR}, stages.reported())
+
+	// The probe stub reports one format for every file, so these values show
+	// each published file was read, not that the encodes differ.
+	output, sdr, sdrReported := stages.formats()
+	assert.Equal(t, clip.Format{Width: 3840, Height: 1608, HDR: true}, output,
+		"the clip's own file is read once it is published")
+	assert.True(t, sdrReported)
+	assert.Equal(t, 3840, sdr.Width, "and so is the SDR version")
+
 	assert.FileExists(t, job.OutputPath)
 	assert.FileExists(t, job.SDRPath(), "the SDR version is published beside the clip")
 
@@ -549,7 +597,13 @@ func TestProcessJobKeepsTheClipWhenItsSDRVersionFails(t *testing.T) {
 	store.EXPECT().Put(mock.Anything, job.SDRPath()).Return(errStoreFailed).Once()
 	store.EXPECT().DeleteFile(job.SDRPath()).Return(nil).Once()
 
-	require.NoError(t, processJob(t.Context(), job, runner, nil, store, &recordedStages{}))
+	stages := &recordedStages{}
+
+	require.NoError(t, processJob(t.Context(), job, runner, nil, store, stages))
+
+	_, sdr, sdrReported := stages.formats()
+	assert.True(t, sdrReported, "the removed SDR version is reported gone")
+	assert.False(t, sdr.Known())
 }
 
 // TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion covers a job stopped

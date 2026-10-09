@@ -379,6 +379,7 @@ func TestIntegration_RenderIntoSkipsAPreviewThatIsAlreadyPublished(t *testing.T)
 			"/media/source.mkv",
 			clip.Request{},
 			false,
+			clip.OutputWidth1080p,
 		),
 	)
 
@@ -407,7 +408,7 @@ func TestIntegration_RememberMakesAPublishedPreviewTerminal(t *testing.T) {
 	_, ok := service.Status("preview-1")
 	assert.False(t, ok, "an id nothing knows about has no status")
 
-	service.Remember("preview-1")
+	service.Remember(t.Context(), "preview-1")
 
 	view, ok := service.Status("preview-1")
 	require.True(t, ok)

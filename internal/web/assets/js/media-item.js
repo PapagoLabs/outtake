@@ -221,6 +221,15 @@
 	// is the same source time. Picking the end mark against the loaded footage
 	// is therefore exact, and Preview then renders the selection as typed.
 	var setEndEl = document.getElementById('preview-set-end');
+	var formatEl = document.getElementById('preview-format');
+
+	// showFormat names what the finished preview holds, such as "SDR · 720p",
+	// in the player's corner. textContent keeps the server's label as text.
+	function showFormat(label) {
+		if (!formatEl || !label) { return; }
+		formatEl.textContent = label;
+		formatEl.hidden = false;
+	}
 	var proxyStart = parseFloat(videoEl.getAttribute('data-preview-start')) || 0;
 
 	if (setEndEl) {
@@ -269,6 +278,7 @@
 					clearProgress();
 					statusEl.textContent = '';
 					statusEl.classList.add('hidden');
+					showFormat(state.format);
 					videoEl.src = state.url;
 					videoEl.load();
 

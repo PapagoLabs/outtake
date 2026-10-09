@@ -131,12 +131,24 @@ var wantRoutes = []routerRoute{
 	},
 	{
 		method:  http.MethodGet,
+		path:    "/settings/previews",
+		guarded: true,
+		sample:  "/settings/previews",
+	},
+	{
+		method:  http.MethodGet,
 		path:    "/settings/profiles",
 		guarded: true,
 		sample:  "/settings/profiles",
 	},
 	{method: http.MethodPost, path: "/servers", guarded: true, sample: "/servers"},
 	{method: http.MethodPost, path: "/servers/forget", guarded: true, sample: "/servers/forget"},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/previews",
+		guarded: true,
+		sample:  "/settings/previews",
+	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/profiles",

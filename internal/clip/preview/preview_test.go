@@ -283,6 +283,7 @@ func TestServiceRenderIntoPublishesUnderThePreviewID(t *testing.T) {
 		"/media/source.mkv",
 		clip.Request{MediaID: "42", Duration: 5},
 		false,
+		clip.OutputWidth1080p,
 	)
 	require.NoError(t, err)
 
@@ -305,6 +306,7 @@ func TestServiceRenderIntoSkipsAPreviewThatExists(t *testing.T) {
 		"/media/source.mkv",
 		clip.Request{MediaID: "42", Duration: 5},
 		false,
+		clip.OutputWidth1080p,
 	)
 	require.NoError(t, err)
 
@@ -400,7 +402,7 @@ func TestEvictionRemovesOnlyCompletedPreviewFiles(t *testing.T) {
 	})
 
 	for i := range retained + 1 {
-		registry.remember("done-" + strconv.Itoa(i))
+		registry.remember("done-"+strconv.Itoa(i), clip.Format{})
 	}
 
 	assert.Equal(t, []string{"done-0"}, removed,

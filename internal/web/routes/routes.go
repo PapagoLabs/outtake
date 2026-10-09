@@ -25,6 +25,9 @@ const (
 	// PathSettingsProfiles is the clip profile settings path.
 	PathSettingsProfiles = "/settings/profiles"
 
+	// PathSettingsPreviews is the preview settings path.
+	PathSettingsPreviews = "/settings/previews"
+
 	// PathMedia is the media library path.
 	PathMedia = "/media"
 

@@ -37,6 +37,8 @@ type KeyInput struct {
 	Crop bool
 	// PreserveHDR is whether the source's HDR transfer is kept.
 	PreserveHDR bool
+	// MaxWidth is the widest the preview is scaled.
+	MaxWidth int
 }
 
 const (
@@ -87,11 +89,13 @@ func sourceIdentity(source string) (time.Time, int64, bool) {
 // Parameters:
 //   - req: Parsed request carrying the window and encoding options.
 //   - source: Resolved source path.
+//   - maxWidth: The widest the preview is scaled, so a changed maximum
+//     preview resolution renders a new preview.
 //
 // Returns:
 //   - previewID: The preview id, within the allowlist ValidID checks.
 //   - err: Non-nil when the source file cannot be read.
-func RequestID(req clip.Request, source string) (string, error) {
+func RequestID(req clip.Request, source string, maxWidth int) (string, error) {
 	modTime, size, ok := sourceIdentity(source)
 	if !ok {
 		return "", ErrSourceUnreadable
@@ -109,6 +113,7 @@ func RequestID(req clip.Request, source string) (string, error) {
 		AudioIndex:  req.AudioIndex,
 		Crop:        req.CropBlackBars,
 		PreserveHDR: clip.Flag(req.PreserveHDR),
+		MaxWidth:    maxWidth,
 	}), nil
 }
 
@@ -129,6 +134,7 @@ func ContentID(input KeyInput) string {
 		strconv.FormatBool(input.Crop),
 		strconv.FormatBool(input.PreserveHDR),
 		strconv.Itoa(input.AudioIndex),
+		strconv.Itoa(input.MaxWidth),
 		input.ModTime.UTC().Format(time.RFC3339Nano),
 	}
 

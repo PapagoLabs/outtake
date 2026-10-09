@@ -29,6 +29,7 @@ import (
 //   - req: Parsed request carrying the marks and encoding options.
 //   - preserveHDR: Whether an HDR source is kept rather than tone mapped. It
 //     comes from the request, because the clip is where the user decides.
+//   - maxWidth: The widest the preview is scaled.
 //
 // Returns:
 //   - err: Non-nil when the preview could not be written or published.
@@ -39,6 +40,7 @@ func Render(
 	source, output string,
 	req clip.Request,
 	preserveHDR bool,
+	maxWidth int,
 ) error {
 	rect := crop.CropRect{}
 	start := timecode.FromSeconds(req.StartTime).Duration()
@@ -64,6 +66,7 @@ func Render(
 		req.AudioIndex,
 		rect,
 		clip.QualityPreset{
+			MaxWidth:    maxWidth,
 			PreserveHDR: preserveHDR,
 		},
 	)

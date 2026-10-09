@@ -140,12 +140,14 @@ func (service *Service) Published(ctx context.Context, previewID string) bool {
 }
 
 // Remember records an id whose preview is already published, so a client
-// polling it finds a terminal status rather than an unknown one.
+// polling it finds a terminal status rather than an unknown one, along with
+// what the file holds, read while it is on local disk.
 //
 // Parameters:
+//   - ctx: Request scope for reading the file.
 //   - previewID: Preview id that is already on disk.
-func (service *Service) Remember(previewID string) {
-	service.entries.remember(previewID)
+func (service *Service) Remember(ctx context.Context, previewID string) {
+	service.entries.remember(previewID, service.fileFormat(ctx, previewID))
 }
 
 // RenderInto encodes and publishes a preview, waiting for a slot first.
@@ -156,6 +158,7 @@ func (service *Service) Remember(previewID string) {
 //   - source: Resolved source media path.
 //   - req: Parsed request carrying the marks and encoding options.
 //   - preserveHDR: Whether an HDR source is kept rather than tone mapped.
+//   - maxWidth: The widest the preview is scaled.
 //
 // Returns:
 //   - err: Non-nil when no slot freed in time or the preview could not be published.
@@ -164,6 +167,7 @@ func (service *Service) RenderInto(
 	previewID, source string,
 	req clip.Request,
 	preserveHDR bool,
+	maxWidth int,
 ) error {
 	release, err := service.Acquire(ctx, slotWait)
 	if err != nil {
@@ -173,6 +177,8 @@ func (service *Service) RenderInto(
 	defer release()
 
 	if service.Published(ctx, previewID) {
+		service.entries.setFormat(previewID, service.fileFormat(ctx, previewID))
+
 		return nil
 	}
 
@@ -184,10 +190,15 @@ func (service *Service) RenderInto(
 		service.OutputPath(previewID),
 		req,
 		preserveHDR,
+		maxWidth,
 	)
 	if err != nil {
 		return fmt.Errorf("render preview: %w", err)
 	}
+
+	// Read while the file is on local disk, which a later status poll cannot
+	// rely on with S3.
+	service.entries.setFormat(previewID, service.fileFormat(ctx, previewID))
 
 	return nil
 }
@@ -246,5 +257,30 @@ func (service *Service) discard(previewID string) {
 			Err(err).
 			Str("preview_id", previewID).
 			Msg("failed to remove an evicted preview")
+	}
+}
+
+// fileFormat reads what a published preview holds.
+//
+// Parameters:
+//   - ctx: Request scope for the probe.
+//   - previewID: Preview id whose file is read.
+//
+// Returns:
+//   - format: The file's size and range, zero when it cannot be read.
+func (service *Service) fileFormat(ctx context.Context, previewID string) clip.Format {
+	if service.ffmpeg == nil {
+		return clip.Format{}
+	}
+
+	info, err := service.ffmpeg.Probe(ctx, service.OutputPath(previewID))
+	if err != nil {
+		return clip.Format{}
+	}
+
+	return clip.Format{
+		Width:  info.Width,
+		Height: info.Height,
+		HDR:    clip.IsHDRTransfer(info.ColorTransfer),
 	}
 }

@@ -19,13 +19,19 @@ import (
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
 
-// recordedStages stands in for the queue, recording each stage a render
-// reports.
+// recordedStages stands in for the queue, recording each stage and file
+// format a render reports.
 type recordedStages struct {
-	// mu guards stages.
+	// mu guards the records.
 	mu sync.Mutex
 	// stages are the reported stages, in order.
 	stages []clip.Stage
+	// output is the last reported format of the clip's own file.
+	output clip.Format
+	// sdr is the last reported format of the SDR version.
+	sdr clip.Format
+	// sdrReported reports that an SDR format was reported at all.
+	sdrReported bool
 }
 
 // stubInvocationSeparator ends each run's argv in a fake's log.
@@ -193,6 +199,41 @@ func extractWithCrop(t *testing.T, job *clip.Job, runner *ffmpeg.ExecFFmpeg) err
 	return extractJob(t.Context(), job, runner, nil, detectJobCrop(t.Context(), runner, job))
 }
 
+// SetOutputFormat records the clip file's reported format.
+//
+// Parameters:
+//   - _: The clip id, which the record ignores.
+//   - format: The reported format.
+//
+// Returns:
+//   - job: Always nil, as for a job the queue no longer has.
+func (recorded *recordedStages) SetOutputFormat(_ string, format clip.Format) *clip.Job {
+	recorded.mu.Lock()
+	defer recorded.mu.Unlock()
+
+	recorded.output = format
+
+	return nil
+}
+
+// SetSDRFormat records the SDR version's reported format.
+//
+// Parameters:
+//   - _: The clip id, which the record ignores.
+//   - format: The reported format.
+//
+// Returns:
+//   - job: Always nil, as for a job the queue no longer has.
+func (recorded *recordedStages) SetSDRFormat(_ string, format clip.Format) *clip.Job {
+	recorded.mu.Lock()
+	defer recorded.mu.Unlock()
+
+	recorded.sdr = format
+	recorded.sdrReported = true
+
+	return nil
+}
+
 // SetStage records a reported stage.
 //
 // Parameters:
@@ -208,6 +249,21 @@ func (recorded *recordedStages) SetStage(_ string, stage clip.Stage) *clip.Job {
 	recorded.stages = append(recorded.stages, stage)
 
 	return nil
+}
+
+// formats returns the last reported formats.
+//
+// Returns:
+//   - output: The clip file's format.
+//   - sdr: The SDR version's format.
+//   - sdrReported: Whether an SDR format was reported at all.
+//
+//nolint:nonamedreturns // Same-type returns need names.
+func (recorded *recordedStages) formats() (output, sdr clip.Format, sdrReported bool) {
+	recorded.mu.Lock()
+	defer recorded.mu.Unlock()
+
+	return recorded.output, recorded.sdr, recorded.sdrReported
 }
 
 // reported returns the stages recorded so far.

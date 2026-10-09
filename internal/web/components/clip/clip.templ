@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/checkbox"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/player"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -84,26 +85,35 @@ templ clipPlayback(item view.ClipItem) {
 				if item.ClipType == domainclip.TypeGIF || item.ClipType == domainclip.TypeScreenshot {
 					<img src={ clipFileURL(item) } alt={ item.DisplayName() } loading="lazy" class="w-full max-h-64 rounded-md object-contain bg-black"/>
 				} else if item.SDRExists {
-					<video
-						controls
-						preload="none"
-						class="w-full max-h-64 rounded-md bg-black"
-						src={ clipSDRURL(item) }
-						data-clip-video
-						data-clip-id={ item.ID }
-						data-hdr-version={ item.FileVersion }
-					></video>
+					@player.Frame() {
+						@player.Badge(player.BadgeProps{Label: item.SDRBadge(), Plays: "sdr"})
+						@player.Badge(player.BadgeProps{Label: item.HDRBadge(), Plays: "hdr", Hidden: true})
+						<video
+							controls
+							preload="none"
+							class="w-full max-h-64 rounded-md bg-black"
+							src={ clipSDRURL(item) }
+							data-clip-video
+							data-clip-id={ item.ID }
+							data-hdr-version={ item.FileVersion }
+						></video>
+					}
 				} else {
-					<video
-						controls
-						preload="none"
-						class="w-full max-h-64 rounded-md bg-black"
-						src={ clipFileURL(item) }
-						data-clip-video
-						if item.LacksSDRVersion() {
-							data-sdr-missing
+					@player.Frame() {
+						if item.FileBadge() != "" {
+							@player.Badge(player.BadgeProps{Label: item.FileBadge(), Plays: "file"})
 						}
-					></video>
+						<video
+							controls
+							preload="none"
+							class="w-full max-h-64 rounded-md bg-black"
+							src={ clipFileURL(item) }
+							data-clip-video
+							if item.LacksSDRVersion() {
+								data-sdr-missing
+							}
+						></video>
+					}
 				}
 			</div>
 		</details>

@@ -77,6 +77,7 @@ func renderStagedPreview(
 		final,
 		clip.Request{MediaID: "42", Duration: 5},
 		false,
+		clip.OutputWidth1080p,
 	)
 	if err != nil {
 		return fmt.Errorf("render preview: %w", err)
