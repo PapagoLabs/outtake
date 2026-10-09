@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"errors"
 	"time"
 )
 
@@ -22,9 +23,11 @@ type Request struct {
 	FPS           int     `json:"fps"`
 	AudioIndex    int     `json:"audioIndex"`
 	CropBlackBars bool    `json:"cropBlackBars"`
-	PreserveHDR   *bool   `json:"preserveHdr"`
-	// WebSafeColor is the inverse of PreserveHDR, accepted from callers that
-	// still send it. PreserveHDR wins when both are present.
+	// PreserveHDR is whether a render keeps HDR, which the server sets from the
+	// clip's profile. A caller that sends it is refused.
+	PreserveHDR *bool `json:"preserveHdr"`
+	// WebSafeColor is read only so a caller that still sends it is refused
+	// rather than silently given a different file.
 	WebSafeColor *bool `json:"webSafeColor"`
 }
 
@@ -49,42 +52,50 @@ type Response struct {
 	PreserveHDR   bool      `json:"preserveHdr"`
 }
 
-// KeepHDR reports the keep-HDR choice the request carried.
+// ErrHDRIsAProfileSetting refuses a request that chooses Keep HDR itself.
+// A clip keeps HDR when its profile does, so a caller chooses a profile.
+var ErrHDRIsAProfileSetting = errors.New(
+	"keep HDR is a clip profile setting: choose a profile that keeps HDR, such as High HDR, " +
+		"instead of sending preserveHdr or webSafeColor",
+)
+
+// CheckHDRChoice refuses a request that chooses Keep HDR itself.
 //
 // Returns:
-//   - keep: The choice, nil when the request carried neither preserveHdr nor
+//   - err: ErrHDRIsAProfileSetting when the request carries preserveHdr or
 //     webSafeColor.
-func (req *Request) KeepHDR() *bool {
-	return keepHDR(req.PreserveHDR, req.WebSafeColor)
-}
-
-// KeepHDR reports the keep-HDR choice the edit carried.
-//
-// Returns:
-//   - keep: The choice, nil when the edit carried neither preserveHdr nor
-//     webSafeColor.
-func (req *EditRequest) KeepHDR() *bool {
-	return keepHDR(req.PreserveHDR, req.WebSafeColor)
-}
-
-// keepHDR resolves the keep-HDR choice from its current and its legacy field.
-//
-// Parameters:
-//   - preserve: The preserveHdr field, nil when absent.
-//   - webSafe: The legacy webSafeColor field, nil when absent.
-//
-// Returns:
-//   - keep: preserve when present, otherwise the inverse of webSafe, otherwise nil.
-func keepHDR(preserve, webSafe *bool) *bool {
-	if preserve != nil {
-		return new(*preserve)
-	}
-
-	if webSafe != nil {
-		return new(!*webSafe)
+func (req *Request) CheckHDRChoice() error {
+	if choosesHDR(req.PreserveHDR, req.WebSafeColor) {
+		return ErrHDRIsAProfileSetting
 	}
 
 	return nil
+}
+
+// CheckHDRChoice refuses an edit that chooses Keep HDR itself.
+//
+// Returns:
+//   - err: ErrHDRIsAProfileSetting when the edit carries preserveHdr or
+//     webSafeColor.
+func (req *EditRequest) CheckHDRChoice() error {
+	if choosesHDR(req.PreserveHDR, req.WebSafeColor) {
+		return ErrHDRIsAProfileSetting
+	}
+
+	return nil
+}
+
+// choosesHDR reports whether a caller sent either field it could choose Keep
+// HDR with.
+//
+// Parameters:
+//   - preserve: The preserveHdr field, nil when absent.
+//   - webSafe: The webSafeColor field, nil when absent.
+//
+// Returns:
+//   - chooses: True when either field is present.
+func choosesHDR(preserve, webSafe *bool) bool {
+	return preserve != nil || webSafe != nil
 }
 
 // Flag reads an optional request flag, treating an absent one as false.

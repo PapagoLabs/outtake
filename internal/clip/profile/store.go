@@ -22,7 +22,7 @@ type Profile struct {
 	AudioKbps int
 	MaxWidth  int
 	IsDefault bool
-	// KeepHDR is the keep-HDR default for new video clips under this profile.
+	// KeepHDR reports whether a video clip rendered with this profile keeps HDR.
 	KeepHDR   bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -42,7 +42,7 @@ type ProfileFields struct {
 	MaxWidth string
 	// IsDefault reports whether the form asked for this profile to be default.
 	IsDefault bool
-	// KeepHDR reports whether new video clips from HDR sources keep HDR.
+	// KeepHDR reports whether video clips from HDR sources keep HDR.
 	KeepHDR bool
 }
 

@@ -497,6 +497,117 @@ func TestMigrationKeepHDRCarriesEachClipsChoice(t *testing.T) {
 	}
 }
 
+// rerunHDRProfileMigration puts a database back as it stood before migration
+// 008, with High keeping HDR and no High HDR profile, runs the given setup,
+// and reopens the database so the migration runs again.
+//
+// Parameters:
+//   - t: The test the database belongs to.
+//   - setup: Statements run before the migration, such as a user's own
+//     profile.
+//
+// Returns:
+//   - db: The reopened, migrated database.
+func rerunHDRProfileMigration(t *testing.T, setup ...string) *DB {
+	t.Helper()
+
+	path := t.TempDir() + "/hdr-profile.db"
+
+	db, err := New(path)
+	require.NoError(t, err)
+
+	statements := append([]string{
+		`DELETE FROM clip_profiles WHERE id = 'high-hdr'`,
+		`UPDATE clip_profiles SET keep_hdr = 1 WHERE id = 'high'`,
+		`DELETE FROM schema_migrations WHERE name = '008_hdr_profile.sql'`,
+	}, setup...)
+
+	for _, statement := range statements {
+		_, err = db.Conn().ExecContext(t.Context(), statement)
+		require.NoError(t, err, statement)
+	}
+
+	require.NoError(t, db.Close())
+
+	db, err = New(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	return db
+}
+
+// TestMigrationHDRProfileMovesKeepHDRToItsOwnProfile covers the upgrade that
+// made Keep HDR profile-only: High converts to SDR, and a new High HDR built-in
+// keeps HDR with High's encode settings.
+func TestMigrationHDRProfileMovesKeepHDRToItsOwnProfile(t *testing.T) {
+	t.Parallel()
+
+	db := rerunHDRProfileMigration(t)
+
+	high, err := db.GetClipProfile(t.Context(), "high")
+	require.NoError(t, err)
+	assert.False(t, high.KeepHDR)
+
+	highHDR, err := db.GetClipProfile(t.Context(), "high-hdr")
+	require.NoError(t, err)
+	assert.Equal(t, "High HDR", highHDR.Name)
+	assert.True(t, highHDR.KeepHDR)
+	assert.False(t, highHDR.IsDefault)
+	assert.Equal(t, high.CRF, highHDR.CRF)
+	assert.Equal(t, high.Preset, highHDR.Preset)
+	assert.Equal(t, high.MaxWidth, highHDR.MaxWidth)
+}
+
+// TestMigrationHDRProfileMirrorsAnEditedHigh covers a user who tuned High:
+// High HDR takes their encode settings, so the two differ only in keeping
+// HDR, and a database whose High was deleted gets the built-in values.
+func TestMigrationHDRProfileMirrorsAnEditedHigh(t *testing.T) {
+	t.Parallel()
+
+	edited := rerunHDRProfileMigration(t,
+		`UPDATE clip_profiles SET crf = 16, preset = 'slower', audio_kbps = 256, max_width = 2560
+		 WHERE id = 'high'`,
+	)
+
+	highHDR, err := edited.GetClipProfile(t.Context(), "high-hdr")
+	require.NoError(t, err)
+	assert.Equal(t, 16, highHDR.CRF)
+	assert.Equal(t, "slower", highHDR.Preset)
+	assert.Equal(t, 256, highHDR.AudioKbps)
+	assert.Equal(t, 2560, highHDR.MaxWidth)
+
+	deleted := rerunHDRProfileMigration(t, `DELETE FROM clip_profiles WHERE id = 'high'`)
+
+	builtIn, err := deleted.GetClipProfile(t.Context(), "high-hdr")
+	require.NoError(t, err)
+	assert.Equal(t, 18, builtIn.CRF)
+	assert.Equal(t, "slow", builtIn.Preset)
+	assert.Equal(t, 320, builtIn.AudioKbps)
+	assert.Equal(t, 3840, builtIn.MaxWidth)
+	assert.True(t, builtIn.KeepHDR)
+}
+
+// TestMigrationHDRProfileKeepsAUsersOwnProfile covers a user who already made
+// a profile named High HDR: the migration leaves it as it is rather than
+// replacing it or failing on the name.
+func TestMigrationHDRProfileKeepsAUsersOwnProfile(t *testing.T) {
+	t.Parallel()
+
+	db := rerunHDRProfileMigration(
+		t,
+		`INSERT INTO clip_profiles (id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr)
+		 VALUES ('mine', 'High HDR', 20, 'medium', 192, 1920, 0, 0)`,
+	)
+
+	mine, err := db.GetClipProfile(t.Context(), "mine")
+	require.NoError(t, err)
+	assert.Equal(t, 20, mine.CRF, "the user's profile is untouched")
+	assert.False(t, mine.KeepHDR)
+
+	_, err = db.GetClipProfile(t.Context(), "high-hdr")
+	require.ErrorIs(t, err, ErrClipProfileNotFound)
+}
+
 // TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse covers the column no
 // build reads any more: it is kept as the inverse of keep-HDR, so an older
 // build reading it renders the clip the same way.

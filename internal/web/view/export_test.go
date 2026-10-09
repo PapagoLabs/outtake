@@ -27,7 +27,6 @@ func TestExportFormApplyToQueryLeavesTheZeroFieldsUnwritten(t *testing.T) {
 	assert.NotContains(t, values, routes.QueryFPS)
 	assert.Empty(t, values.Get(routes.QueryExportName))
 	assert.Equal(t, routes.FormUnchecked, values.Get(routes.QueryCropBlackBars))
-	assert.Equal(t, routes.FormUnchecked, values.Get(routes.QueryPreserveHDR))
 }
 
 func TestExportFormApplyToQueryOmitsAnEmptyExportType(t *testing.T) {
@@ -66,7 +65,6 @@ func TestExportFormApplyToQueryCarriesEveryField(t *testing.T) {
 		Width:         640,
 		FPS:           12,
 		CropBlackBars: true,
-		PreserveHDR:   true,
 	}.ApplyToQuery(values)
 
 	assert.Equal(t, "gif", values.Get(routes.QueryExportType))
@@ -76,5 +74,5 @@ func TestExportFormApplyToQueryCarriesEveryField(t *testing.T) {
 	assert.Equal(t, "640", values.Get(routes.QueryWidth))
 	assert.Equal(t, "12", values.Get(routes.QueryFPS))
 	assert.Equal(t, routes.FormChecked, values.Get(routes.QueryCropBlackBars))
-	assert.Equal(t, routes.FormChecked, values.Get(routes.QueryPreserveHDR))
+	assert.NotContains(t, values, "preserveHdr", "Keep HDR is the profile's, not the form's")
 }

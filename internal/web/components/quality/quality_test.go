@@ -40,9 +40,9 @@ func TestQualitySelectMarksTheSubmittedProfile(t *testing.T) {
 	body := renderQualitySelect(t, "high")
 
 	assert.Contains(t, body, `<select id="quality" name="quality" class="`+utils.ControlClass+`">`)
-	assert.Contains(t, body, `<option value="low" data-keep-hdr="0">Low</option>`)
-	assert.Contains(t, body, `<option value="medium" data-keep-hdr="0">Medium</option>`)
-	assert.Contains(t, body, `<option value="high" data-keep-hdr="1" selected>High</option>`)
+	assert.Contains(t, body, `<option value="low">Low</option>`)
+	assert.Contains(t, body, `<option value="medium">Medium</option>`)
+	assert.Contains(t, body, `<option value="high" selected>High</option>`)
 	assert.Equal(t, 1, strings.Count(body, "selected"),
 		"only the chosen profile is selected")
 }
@@ -52,7 +52,7 @@ func TestQualitySelectFallsBackToTheDefaultProfile(t *testing.T) {
 
 	body := renderQualitySelect(t, "")
 
-	assert.Contains(t, body, `<option value="medium" data-keep-hdr="0" selected>Medium</option>`)
+	assert.Contains(t, body, `<option value="medium" selected>Medium</option>`)
 	assert.Equal(t, 1, strings.Count(body, "selected"),
 		"an unsubmitted form opens on the default profile")
 }

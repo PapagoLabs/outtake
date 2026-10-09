@@ -6,6 +6,7 @@ package clip
 import (
 	"context"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -482,8 +483,8 @@ func TestUpdateRefusesANegativeMark(t *testing.T) {
 }
 
 // TestUpdateSwapsInACardThatKeepsItsSourceChoices covers the card an edit
-// swaps in: it keeps the HDR checkbox and the audio track select the page
-// showed, rather than dropping them until a reload.
+// swaps in: it keeps the audio track select the page showed, rather than
+// dropping it until a reload, and offers no HDR choice for an HDR source.
 func TestUpdateSwapsInACardThatKeepsItsSourceChoices(t *testing.T) {
 	t.Parallel()
 
@@ -493,12 +494,106 @@ func TestUpdateSwapsInACardThatKeepsItsSourceChoices(t *testing.T) {
 	handler.sources = hdrSources(t)
 
 	form := updateMarks("00:00:30.000", "00:00:50.000", string(clipdom.ClipQualityMedium))
-	form.Set("preserveHdr", routes.FormChecked)
 
 	answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assert.NotContains(t, answer.body, `type="hidden" name="preserveHdr"`)
-	assert.Contains(t, answer.body, `name="preserveHdr"`, "the HDR checkbox is still offered")
-	assert.Contains(t, answer.body, `id="audio-stored"`, "and so is the audio track select")
+	assert.NotContains(t, answer.body, `name="preserveHdr"`, "Keep HDR is the profile's")
+	assert.Contains(t, answer.body, `id="audio-stored"`, "the audio track select is still offered")
+}
+
+// TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders covers a stored
+// value that no longer matches its profile: an edit that renders the clip
+// again takes the profile's setting, and any other edit keeps the stored
+// one, so it always describes the clip's file.
+func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		status  clipdom.Status
+		quality clipdom.ClipQuality
+		form    url.Values
+		want    bool
+	}{
+		{
+			name:    "a finished clip saved without rendering keeps its file's setting",
+			status:  clipdom.StatusCompleted,
+			quality: clipdom.ClipQualityMedium,
+			want:    true,
+		},
+		{
+			name:    "a regenerate takes the profile's",
+			status:  clipdom.StatusCompleted,
+			quality: clipdom.ClipQualityMedium,
+			form:    url.Values{"regenerate": {routes.FormChecked}},
+			want:    false,
+		},
+		{
+			name:    "a regenerate under High HDR keeps HDR",
+			status:  clipdom.StatusCompleted,
+			quality: clipdom.ClipQualityHighHDR,
+			form:    url.Values{"regenerate": {routes.FormChecked}},
+			want:    true,
+		},
+		{
+			name:    "a type change renders, so it takes the profile's",
+			status:  clipdom.StatusCompleted,
+			quality: clipdom.ClipQualityMedium,
+			form:    url.Values{"clipType": {string(clipdom.TypeGIF)}},
+			want:    false,
+		},
+		{
+			name:    "a clip still waiting renders the edit, so it takes the profile's",
+			status:  clipdom.StatusPending,
+			quality: clipdom.ClipQualityMedium,
+			want:    false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			db := updateTestDB(t)
+
+			stored, err := db.GetClip(t.Context(), "stored")
+			require.NoError(t, err)
+
+			stored.PreserveHDR = true
+			stored.Status = test.status
+			require.NoError(t, db.SaveClip(t.Context(), stored))
+
+			handler := updateTestHandler(t, db)
+
+			form := updateMarks("00:00:30.000", "00:00:50.000", string(test.quality))
+			maps.Copy(form, test.form)
+
+			answer := postUpdate(t, handler, htmxFormRequest(t, "stored", form))
+			require.Equal(t, fiber.StatusOK, answer.status, answer.body)
+
+			saved, err := db.GetClip(t.Context(), "stored")
+			require.NoError(t, err)
+			assert.Equal(t, test.want, saved.PreserveHDR)
+		})
+	}
+}
+
+// TestUpdateRefusesAKeepHDRChoiceFromAnAPICaller covers a JSON caller that
+// still chooses HDR: the edit is refused with a message naming the profile
+// setting, and the clip is unchanged.
+func TestUpdateRefusesAKeepHDRChoiceFromAnAPICaller(t *testing.T) {
+	t.Parallel()
+
+	db := updateTestDB(t)
+	handler := updateTestHandler(t, db)
+
+	answer := postUpdate(t, handler, apiJSONRequest(t, `{"name":"Renamed","webSafeColor":true}`))
+
+	assert.Equal(t, fiber.StatusBadRequest, answer.status)
+	assert.Contains(t, answer.body, "clip profile setting")
+
+	saved, err := db.GetClip(t.Context(), "stored")
+	require.NoError(t, err)
+	assert.Equal(t, "Intro", saved.Name)
 }

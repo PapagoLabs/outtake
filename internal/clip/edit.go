@@ -29,8 +29,9 @@ type Edit struct {
 	AudioIndex int
 	// CropBlackBars reports whether black bars are trimmed.
 	CropBlackBars bool
-	// PreserveHDR keeps an HDR source's transfer instead of tone mapping it,
-	// nil when the edit carried none.
+	// PreserveHDR keeps an HDR source's transfer instead of tone mapping it.
+	// It is the profile's setting when the edit renders the clip again, and nil
+	// otherwise, which keeps the stored value.
 	PreserveHDR *bool
 }
 
@@ -46,9 +47,9 @@ type EditRequest struct {
 	FPS           *int     `json:"fps"`
 	AudioIndex    *int     `json:"audioIndex"`
 	CropBlackBars *bool    `json:"cropBlackBars"`
-	PreserveHDR   *bool    `json:"preserveHdr"`
-	// WebSafeColor is the inverse of PreserveHDR, accepted from callers that
-	// still send it. PreserveHDR wins when both are present.
+	// PreserveHDR and WebSafeColor are read only so a caller that still sends
+	// them is refused. Keep HDR is a profile setting.
+	PreserveHDR  *bool `json:"preserveHdr"`
 	WebSafeColor *bool `json:"webSafeColor"`
 }
 

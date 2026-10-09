@@ -271,21 +271,16 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	return respond.WriteJSON(ctx, fiber.StatusOK, payload)
 }
 
-// keepHDR resolves whether the clip keeps HDR: the request's choice, or its
-// profile's default. This is the clip's choice, which travels back to the
-// form unchanged whatever the preview is shown as.
+// keepHDR reports whether the clip keeps HDR, which is its profile's setting.
 //
 // Parameters:
 //   - ctx: Preview request.
 //   - req: Parsed request whose quality names the profile.
 //
 // Returns:
-//   - keep: True when the clip keeps HDR.
+//   - keep: True when the profile keeps HDR.
 func (handler *Handler) keepHDR(ctx fiber.Ctx, req api.ClipRequest) bool {
-	return api.FlagOrDefault(
-		req.KeepHDR(),
-		clipprofile.Preset(ctx.Context(), handler.db, req.Quality).PreserveHDR,
-	)
+	return clipprofile.Preset(ctx.Context(), handler.db, req.Quality).PreserveHDR
 }
 
 // resolveSelection resolves a preview's source and checks its window. A

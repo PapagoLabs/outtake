@@ -68,7 +68,7 @@ func clipEdit(req api.ClipRequest) clipdom.Edit {
 		FPS:           req.FPS,
 		AudioIndex:    req.AudioIndex,
 		CropBlackBars: req.CropBlackBars,
-		PreserveHDR:   req.KeepHDR(),
+		PreserveHDR:   nil,
 	}
 }
 
@@ -89,20 +89,28 @@ func requestWindow(req api.ClipRequest) (start, duration time.Duration) {
 	return start, duration
 }
 
-// parseJSONRequest binds a JSON clip request and refuses negative marks.
+// parseJSONRequest binds a JSON clip request, refusing negative marks and a
+// Keep HDR choice, which belongs to the profile.
 //
 // Parameters:
 //   - ctx: Request context.
 //
 // Returns:
 //   - req: The bound request.
-//   - err: Non-nil when the body cannot be read or a mark is negative.
+//   - err: Non-nil when the body cannot be read, a mark is negative, or the
+//     request chooses Keep HDR.
 func parseJSONRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 	var req api.ClipRequest
 
 	err := ctx.Bind().Body(&req)
 	if err != nil {
 		return api.ClipRequest{}, fmt.Errorf("bind json: %w", err)
+	}
+
+	err = req.CheckHDRChoice()
+	if err != nil {
+		//nolint:wrapcheck // The error message tells the caller to choose a profile.
+		return api.ClipRequest{}, err
 	}
 
 	err = checkMarks(req.StartTime, req.Duration)
@@ -206,7 +214,8 @@ func ParseRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 		FPS:           respond.FormInt(ctx, "fps"),
 		AudioIndex:    respond.FormInt(ctx, "audioIndex"),
 		CropBlackBars: routes.IsFormChecked(ctx.FormValue("cropBlackBars")),
-		PreserveHDR:   new(routes.IsFormChecked(ctx.FormValue("preserveHdr"))),
+		PreserveHDR:   nil,
+		WebSafeColor:  nil,
 	}, nil
 }
 

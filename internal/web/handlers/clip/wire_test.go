@@ -356,51 +356,53 @@ func TestParseClipRequestKeepsMillisecondPrecisionThroughTheEdit(t *testing.T) {
 	}
 }
 
-func TestParseClipRequestReadsTheKeepHDRCheckbox(t *testing.T) {
+// TestParseClipRequestTakesNoKeepHDRFromAForm covers Keep HDR as a profile
+// setting: a form that still posts the old checkbox, checked or not, chooses
+// nothing, and the clip takes its profile's setting.
+func TestParseClipRequestTakesNoKeepHDRFromAForm(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name string
-		form url.Values
-		want bool
-	}{
-		{
-			name: "an omitted checkbox tone maps",
-			form: markForm("10", "15"),
-			want: false,
-		},
-		{
-			name: "a checked checkbox preserves the source",
-			form: func() url.Values {
-				form := markForm("10", "15")
-				form.Set("preserveHdr", routes.FormChecked)
+	for _, posted := range []string{routes.FormChecked, routes.FormUnchecked} {
+		form := markForm("10", "15")
+		form.Set("preserveHdr", posted)
 
-				return form
-			}(),
-			want: true,
-		},
-		{
-			name: "an unchecked checkbox tone maps",
-			form: func() url.Values {
-				form := markForm("10", "15")
-				form.Set("preserveHdr", "0")
+		got := parseForm(t, form)
 
-				return form
-			}(),
-			want: false,
-		},
+		assert.Nil(t, got.PreserveHDR, "posted %q", posted)
+		assert.Nil(t, got.WebSafeColor)
 	}
+}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
+// TestParseClipRequestRefusesAKeepHDRChoiceFromAnAPIClient covers a JSON
+// caller that still chooses HDR: it is refused rather than given the
+// profile's file in silence, whichever field and value it sends.
+func TestParseClipRequestRefusesAKeepHDRChoiceFromAnAPIClient(t *testing.T) {
+	t.Parallel()
 
-			got := parseForm(t, test.form)
+	for _, field := range []string{`"preserveHdr":true`, `"preserveHdr":false`, `"webSafeColor":true`} {
+		app := fiber.New()
 
-			require.NotNil(t, got.PreserveHDR,
-				"the form always decides, so the value is never left to the server")
-			assert.Equal(t, test.want, *got.PreserveHDR)
+		var gotErr error
+
+		app.Post("/api/clips", func(ctx fiber.Ctx) error {
+			_, gotErr = ParseRequest(ctx)
+
+			return ctx.SendStatus(fiber.StatusOK)
 		})
+
+		post := httptest.NewRequestWithContext(
+			t.Context(),
+			http.MethodPost,
+			"/api/clips",
+			strings.NewReader(`{"mediaId":"42","startTime":10,"duration":15,`+field+`}`),
+		)
+		post.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+		resp, err := app.Test(post)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+
+		assert.ErrorIs(t, gotErr, clipdom.ErrHDRIsAProfileSetting, field)
 	}
 }
 
@@ -427,8 +429,6 @@ func TestClipEditCarriesTheRequest(t *testing.T) {
 		FPS:           24,
 		AudioIndex:    3,
 		CropBlackBars: true,
-		WebSafeColor:  new(true),
-		PreserveHDR:   new(false),
 	}
 
 	edit := clipEdit(req)
@@ -441,9 +441,7 @@ func TestClipEditCarriesTheRequest(t *testing.T) {
 	assert.Equal(t, 24, edit.FPS)
 	assert.Equal(t, 3, edit.AudioIndex)
 	assert.True(t, edit.CropBlackBars)
-	require.NotNil(t, edit.PreserveHDR)
-	assert.False(t, *edit.PreserveHDR,
-		"preserveHdr wins over the legacy webSafeColor when both are sent")
+	assert.Nil(t, edit.PreserveHDR, "Keep HDR is the profile's, set where the clip renders")
 	assert.Empty(t, edit.Type, "the type is decided by the caller, not by the wire request")
 }
 

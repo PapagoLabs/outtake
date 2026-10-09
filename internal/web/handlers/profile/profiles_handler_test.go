@@ -147,9 +147,10 @@ func namedProfiles(t *testing.T, service *clipprofile.Service) []clipprofile.Pro
 	t.Helper()
 
 	builtIn := map[string]bool{
-		string(clip.ClipQualityLow):    true,
-		string(clip.ClipQualityMedium): true,
-		string(clip.ClipQualityHigh):   true,
+		string(clip.ClipQualityLow):     true,
+		string(clip.ClipQualityMedium):  true,
+		string(clip.ClipQualityHigh):    true,
+		string(clip.ClipQualityHighHDR): true,
 	}
 
 	found := make([]clipprofile.Profile, 0)
@@ -330,8 +331,9 @@ func TestClipProfilesRendersTheStoredProfiles(t *testing.T) {
 	assert.Contains(t, answer.body, "Default", "the default profile says so")
 	assert.Contains(t, answer.body, `name="preset"`, "the form offers the encoder presets")
 	assert.Contains(t, answer.body, "4K", "the form offers every export resolution")
-	assert.Contains(t, answer.body, `name="keepHdr"`, "the form offers the Keep HDR default")
-	assert.Contains(t, answer.body, "Keep HDR by default")
+	assert.Contains(t, answer.body, `name="keepHdr"`, "the form offers the Keep HDR setting")
+	assert.Contains(t, answer.body, "Keep HDR")
+	assert.NotContains(t, answer.body, "Keep HDR by default", "it is the setting, not a default")
 }
 
 func TestClipProfilesRendersTheBuiltInProfiles(t *testing.T) {
@@ -463,7 +465,7 @@ func TestUpdateClipProfileSavesOverAnExistingProfile(t *testing.T) {
 	assert.Equal(t, "fast", updated.Preset)
 	assert.Equal(t, 192, updated.AudioKbps)
 	assert.Equal(t, 1920, updated.MaxWidth)
-	assert.True(t, updated.KeepHDR, "the edit saved the Keep HDR default")
+	assert.True(t, updated.KeepHDR, "the edit saved the Keep HDR setting")
 }
 
 func TestUpdateClipProfileCarriesTheDefaultOverTheForm(t *testing.T) {

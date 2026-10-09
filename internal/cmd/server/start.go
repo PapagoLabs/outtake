@@ -5,6 +5,7 @@ package server
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -52,6 +53,7 @@ func runStart(listen *flags.Listen) error {
 	listen.Apply(cfg)
 
 	logging.InitFromConfig(cfg)
+	warnRetiredSettings(os.LookupEnv)
 
 	log.Info().
 		Str("listen_addr", cfg.ListenAddr).

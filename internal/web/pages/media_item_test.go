@@ -50,10 +50,8 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 		PreviewID:   "",
 		StartTime:   0,
 		EndTime:     0,
-		Export: view.ExportForm{
-			PreserveHDR: true,
-		},
-		SourceHDR: true,
+		Export:      view.ExportForm{},
+		SourceHDR:   true,
 	}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
@@ -63,19 +61,8 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Contains(t, body, `name="endTime"`)
 	assert.Contains(t, body, "Time")
 	assert.Contains(t, body, `name="cropBlackBars"`)
-	assert.NotContains(t, body, `name="webSafeColor"`, "Keep HDR is the only color switch")
-	assert.Contains(t, body, "Keep HDR")
-
-	keepHDR := inputTagFor(t, body, "preserveHdr")
-	assert.Contains(t, keepHDR, `value="1"`)
-	assert.Contains(t, keepHDR, "checked")
-	assert.Contains(t, keepHDR, "data-keep-hdr-box", "the form script finds the box to set it")
-	assert.Contains(
-		t,
-		body,
-		`id="clip-form" class="flex flex-col gap-4" data-export-form data-keep-hdr-follows-profile`,
-		"a new export takes Keep HDR from the chosen profile",
-	)
+	assert.NotContains(t, body, `name="webSafeColor"`)
+	assert.NotContains(t, body, `name="preserveHdr"`, "Keep HDR is the chosen profile's setting")
 	assert.Less(t, strings.Index(body, `id="clipType"`), strings.Index(body, `id="name"`))
 	assert.NotContains(t, body, "Start (seconds)")
 	assert.NotContains(t, body, "formatTimecode")
@@ -156,7 +143,7 @@ func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
 
 	assert.Contains(t, body, `<option value="gif" selected>`)
 	assert.Contains(t, body, `name="name" placeholder="Optional name" value="A named clip"`)
-	assert.Contains(t, body, `<option value="profile-high" data-keep-hdr="0" selected>`)
+	assert.Contains(t, body, `<option value="profile-high" selected>`)
 	assert.Contains(t, body, `<option value="2" selected>`)
 
 	cropBars := inputTagFor(t, body, "cropBlackBars")
@@ -187,7 +174,7 @@ func TestMediaItemPageFallsBackToFormDefaults(t *testing.T) {
 	assert.Contains(t, body, `name="width" type="number" min="120" max="1920" value="480"`)
 	assert.Contains(t, body, `name="fps" type="number" min="5" max="30" value="10"`)
 	assert.NotContains(t, body, `name="cropBlackBars" value="1" checked`)
-	assert.NotContains(t, body, `name="preserveHdr"`, "an SDR source offers no Keep HDR box")
+	assert.NotContains(t, body, `name="preserveHdr"`, "no export form offers a Keep HDR box")
 }
 
 func TestMediaItemPageRendersClearedName(t *testing.T) {
@@ -382,7 +369,10 @@ func TestMediaItemPageShowsTheSaveError(t *testing.T) {
 	assert.Contains(t, body, "js-flash")
 }
 
-func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
+// TestMediaItemPageOffersNoKeepHDRControl covers Keep HDR as a profile
+// setting: neither an HDR nor an SDR source offers the box, and the header
+// still names the source's quality.
+func TestMediaItemPageOffersNoKeepHDRControl(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -390,8 +380,8 @@ func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
 		sourceHDR bool
 		quality   string
 	}{
-		{name: "an hdr source offers the control", sourceHDR: true, quality: "4K HDR10"},
-		{name: "an sdr source hides the control", sourceHDR: false, quality: "1080p"},
+		{name: "an hdr source", sourceHDR: true, quality: "4K HDR10"},
+		{name: "an sdr source", sourceHDR: false, quality: "1080p"},
 	}
 
 	for _, test := range tests {
@@ -413,8 +403,7 @@ func TestMediaItemPageShowsTheKeepHDRControlOnlyForHDRSources(t *testing.T) {
 			body := buf.String()
 
 			assert.Contains(t, body, test.quality, "the header carries the source quality")
-			assert.Equal(t, test.sourceHDR, strings.Contains(body, `name="preserveHdr"`),
-				"the keep-HDR control is only offered when the source is HDR")
+			assert.NotContains(t, body, `name="preserveHdr"`)
 		})
 	}
 }

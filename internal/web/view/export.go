@@ -27,8 +27,6 @@ type ExportForm struct {
 	FPS int
 	// CropBlackBars is the trim-black-bars toggle.
 	CropBlackBars bool
-	// PreserveHDR is the keep-HDR toggle. Off tone maps an HDR source to SDR.
-	PreserveHDR bool
 }
 
 // ApplyToQuery writes the export form state onto a query string, so a redirect
@@ -60,5 +58,4 @@ func (form ExportForm) ApplyToQuery(values url.Values) {
 	}
 
 	values.Set(routes.QueryCropBlackBars, routes.CheckedValue(form.CropBlackBars))
-	values.Set(routes.QueryPreserveHDR, routes.CheckedValue(form.PreserveHDR))
 }

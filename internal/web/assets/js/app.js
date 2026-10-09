@@ -330,16 +330,6 @@
 		video.insertAdjacentElement('afterend', note);
 	}
 
-	// syncKeepHDR sets a form's Keep HDR box to the default of the profile just
-	// chosen. The box stays the user's to change afterwards.
-	function syncKeepHDR(form, quality) {
-		var box = form.querySelector('[data-keep-hdr-box]');
-		var option = quality.options[quality.selectedIndex];
-		if (box && option) {
-			box.checked = option.getAttribute('data-keep-hdr') === '1';
-		}
-	}
-
 	// holdSubmits marks a form as being submitted and disables every export
 	// button on it, not just the one clicked, so neither can send it again.
 	function holdSubmits(form) {
@@ -380,17 +370,6 @@
 					// the button state have to be worked out again after the switch
 					// rather than left over from the previous type.
 					syncExportDuration(form);
-				});
-			}
-			// Only a new export takes Keep HDR from its profile. An existing
-			// clip keeps the choice it was saved with when its profile changes.
-			var quality = form.hasAttribute('data-keep-hdr-follows-profile')
-				? form.querySelector('select[name="quality"]')
-				: null;
-			if (quality && !quality.dataset.keepHdrBound) {
-				quality.dataset.keepHdrBound = '1';
-				quality.addEventListener('change', function () {
-					syncKeepHDR(form, quality);
 				});
 			}
 			if (!form.dataset.durationBound) {
