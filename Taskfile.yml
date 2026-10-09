@@ -31,7 +31,7 @@ tasks:
     desc: Generate test mocks using mockery, with imports grouped like the rest of the code
     cmds:
       - mockery --config=build/mockery/mockery.yaml
-      - goimports -local github.com/PapagoLabs/outtake -w $(find internal -type d -name mocks)
+      - find internal -type d -name mocks -exec goimports -local github.com/PapagoLabs/outtake -w {} +
     preconditions:
       - sh: "command -v mockery"
         msg: "mockery must be installed (run: task mockery-install)"
