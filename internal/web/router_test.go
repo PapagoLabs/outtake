@@ -119,6 +119,7 @@ var wantRoutes = []routerRoute{
 	{method: http.MethodGet, path: "/thumbs", guarded: true, sample: "/thumbs"},
 	{method: http.MethodGet, path: "/clips/new", guarded: true, sample: "/clips/new"},
 	{method: http.MethodGet, path: "/clips/:id/file", guarded: true, sample: "/clips/7/file"},
+	{method: http.MethodGet, path: "/clips/:id/sdr", guarded: true, sample: "/clips/7/sdr"},
 	{method: http.MethodGet, path: "/clips/:id/row", guarded: true, sample: "/clips/7/row"},
 	{method: http.MethodGet, path: routeClips, guarded: true, sample: routeClips},
 	{method: http.MethodGet, path: "/servers", guarded: true, sample: "/servers"},

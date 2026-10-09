@@ -43,8 +43,13 @@ func (handler *Handler) Delete(ctx fiber.Ctx) error {
 		)
 	}
 
-	if job.OutputPath != "" {
-		fileErr := handler.clipStorage.DeleteFile(job.OutputPath)
+	// A video clip's SDR version goes with it.
+	for _, path := range []string{job.OutputPath, job.SDRPath()} {
+		if path == "" {
+			continue
+		}
+
+		fileErr := handler.clipStorage.DeleteFile(path)
 		if fileErr != nil {
 			// The row is already gone, so put the clip back as it was. Marking
 			// it canceled would hide a finished file the delete did not remove.

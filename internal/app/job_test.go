@@ -4,6 +4,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -20,6 +22,13 @@ import (
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 )
+
+// pqProbeJSON is an ffprobe answer for a PQ source, so a clip that keeps HDR
+// renders an SDR version as well.
+const pqProbeJSON = `{"format":{"duration":"120.0","bit_rate":"8000","format_name":"matroska"},` +
+	`"streams":[{"index":0,"codec_type":"video","codec_name":"hevc","width":3840,` +
+	`"height":2160,"color_transfer":"smpte2084"},{"index":1,"codec_type":"audio",` +
+	`"codec_name":"aac","channels":2}]}` + "\n"
 
 // errStoreFailed is the failure the storage double reports.
 var errStoreFailed = errors.New("upload rejected")
@@ -66,7 +75,7 @@ func TestExtractJobRejectsAnUnknownType(t *testing.T) {
 
 	job.Type = clip.Type("video")
 
-	err := extractJob(t.Context(), job, nil, nil)
+	err := extractWithCrop(t, job, nil)
 	require.ErrorIs(t, err, errUnknownClipType)
 	assert.ErrorContains(t, err, "video", "the rejection names the type it refused")
 }
@@ -86,7 +95,7 @@ func TestExtractJobRendersAClip(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	require.NoError(t, extractJob(t.Context(), job, execFFmpeg, nil))
+	require.NoError(t, extractWithCrop(t, job, execFFmpeg))
 
 	invocations := stubInvocations(t, logPath)
 	require.Len(t, invocations, 1, "a clip without crop trimming runs one pass")
@@ -117,7 +126,7 @@ func TestExtractJobRendersAClipWithADetectedCrop(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	require.NoError(t, extractJob(t.Context(), job, execFFmpeg, nil))
+	require.NoError(t, extractWithCrop(t, job, execFFmpeg))
 
 	invocations := stubInvocations(t, logPath)
 	require.Len(t, invocations, 2, "crop detection runs before the encode")
@@ -150,7 +159,7 @@ func TestExtractJobReportsAClipEncodeFailure(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := extractJob(t.Context(), job, execFFmpeg, nil)
+	err := extractWithCrop(t, job, execFFmpeg)
 	require.ErrorContains(t, err, "extract clip")
 }
 
@@ -172,7 +181,7 @@ func TestExtractJobRendersAGIF(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	require.NoError(t, extractJob(t.Context(), job, execFFmpeg, nil))
+	require.NoError(t, extractWithCrop(t, job, execFFmpeg))
 
 	invocations := stubInvocations(t, logPath)
 	require.Len(t, invocations, 2, "a GIF runs a palette pass and an encode pass")
@@ -200,7 +209,7 @@ func TestExtractJobReportsAGIFPaletteFailure(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := extractJob(t.Context(), job, execFFmpeg, nil)
+	err := extractWithCrop(t, job, execFFmpeg)
 	require.ErrorContains(t, err, "extract gif")
 	assert.ErrorContains(t, err, "palettegen", "the failing pass names itself")
 }
@@ -221,7 +230,7 @@ func TestExtractJobRendersAScreenshot(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	require.NoError(t, extractJob(t.Context(), job, execFFmpeg, nil))
+	require.NoError(t, extractWithCrop(t, job, execFFmpeg))
 
 	invocations := stubInvocations(t, logPath)
 	require.Len(t, invocations, 1, "a screenshot needs no second pass")
@@ -244,7 +253,7 @@ func TestExtractJobReportsAScreenshotFailure(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := extractJob(t.Context(), job, execFFmpeg, nil)
+	err := extractWithCrop(t, job, execFFmpeg)
 	require.ErrorContains(t, err, "extract screenshot")
 }
 
@@ -259,13 +268,17 @@ func TestProcessJobUploadsTheRenderedOutput(t *testing.T) {
 
 	store := storagemocks.NewMockBlob(t)
 	store.EXPECT().Put(t.Context(), job.OutputPath).Return(nil).Once()
+	store.EXPECT().DeleteFile(job.SDRPath()).Return(nil).Once()
 
 	execFFmpeg := ffmpeg.NewExecFFmpeg(
 		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
 		missingBinary(dir),
 	)
 
-	require.NoError(t, processJob(t.Context(), job, execFFmpeg, nil, store))
+	stages := &recordedStages{}
+
+	require.NoError(t, processJob(t.Context(), job, execFFmpeg, nil, store, stages))
+	assert.Empty(t, stages.reported(), "a clip that converts to SDR has no second encode")
 }
 
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
@@ -285,7 +298,7 @@ func TestProcessJobReportsAnUploadFailure(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := processJob(t.Context(), job, execFFmpeg, nil, store)
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
 	require.ErrorIs(t, err, errStoreFailed)
 	assert.ErrorContains(t, err, "store output")
 }
@@ -305,7 +318,7 @@ func TestProcessJobRefusesAJobWithoutAnOutput(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := processJob(t.Context(), job, execFFmpeg, nil, store)
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
 	require.ErrorIs(t, err, ffmpeg.ErrNoOutputPath,
 		"a job with nowhere to write is refused before anything renders or uploads")
 	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
@@ -324,7 +337,7 @@ func TestProcessJobReportsAnExtractFailureBeforeUploading(t *testing.T) {
 
 	store := storagemocks.NewMockBlob(t)
 
-	err := processJob(t.Context(), job, nil, nil, store)
+	err := processJob(t.Context(), job, nil, nil, store, &recordedStages{})
 	require.ErrorIs(t, err, errUnknownClipType)
 	assert.ErrorContains(t, err, "extract")
 }
@@ -458,4 +471,146 @@ func parseCropFilter(filter string) (crop.CropRect, bool) {
 		X:      numbers[2],
 		Y:      numbers[3],
 	}, true
+}
+
+// hdrClipJob is a video clip that keeps HDR, cut from a PQ source the probe
+// stub reports, with its own output in dir.
+//
+// Parameters:
+//   - t: The test the clip belongs to.
+//   - dir: Directory the source and the outputs live in.
+//
+// Returns:
+//   - job: The clip.
+//   - runner: An FFmpeg runner whose ffmpeg logs to argv.log in dir.
+func hdrClipJob(t *testing.T, dir string) (*clip.Job, *ffmpeg.ExecFFmpeg) {
+	t.Helper()
+
+	job := testClipJob("hdr-clip")
+
+	job.PreserveHDR = true
+	job.InputPath = stubInputFile(t, dir, "hdr.mkv")
+	job.OutputPath = filepath.Join(dir, "clip.mp4")
+
+	return job, ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
+		ffmpegtest.Install(t, ffmpegtest.Stub{Stdout: pqProbeJSON}),
+	)
+}
+
+// TestProcessJobRendersAnSDRVersionOfAClipThatKeepsHDR covers the second
+// encode: after the clip's own HEVC file, the render reports the SDR stage
+// and encodes a tone mapped H.264 version beside the clip, and both files are
+// uploaded.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobRendersAnSDRVersionOfAClipThatKeepsHDR(t *testing.T) {
+	dir := t.TempDir()
+	job, runner := hdrClipJob(t, dir)
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Put(mock.Anything, job.OutputPath).Return(nil).Once()
+	store.EXPECT().Put(mock.Anything, job.SDRPath()).Return(nil).Once()
+
+	stages := &recordedStages{}
+
+	require.NoError(t, processJob(t.Context(), job, runner, nil, store, stages))
+
+	assert.Equal(t, []clip.Stage{clip.StageSDR}, stages.reported())
+	assert.FileExists(t, job.OutputPath)
+	assert.FileExists(t, job.SDRPath(), "the SDR version is published beside the clip")
+
+	var encodes [][]string
+
+	for _, argv := range stubInvocations(t, filepath.Join(dir, "argv.log")) {
+		if stubArgvContains(argv, "-crf") {
+			encodes = append(encodes, argv)
+		}
+	}
+
+	require.Len(t, encodes, 2, "the clip and its SDR version are encoded")
+	assert.True(t, stubArgvContains(encodes[0], "libx265"), "the clip keeps HDR as HEVC")
+	assert.True(t, stubArgvContains(encodes[1], "libx264"), "the SDR version is H.264")
+	assert.True(t, stubArgvContains(encodes[1], "tonemap=tonemap=mobius"), "tone mapped")
+	assertStagedFor(t, job.SDRPath(), stubOutputArg(encodes[1]))
+}
+
+// TestProcessJobKeepsTheClipWhenItsSDRVersionFails covers a failed SDR
+// version: the clip still completes with its own file, and the half-made SDR
+// version is removed so no card plays it.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobKeepsTheClipWhenItsSDRVersionFails(t *testing.T) {
+	dir := t.TempDir()
+	job, runner := hdrClipJob(t, dir)
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Put(mock.Anything, job.OutputPath).Return(nil).Once()
+	store.EXPECT().Put(mock.Anything, job.SDRPath()).Return(errStoreFailed).Once()
+	store.EXPECT().DeleteFile(job.SDRPath()).Return(nil).Once()
+
+	require.NoError(t, processJob(t.Context(), job, runner, nil, store, &recordedStages{}))
+}
+
+// TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion covers a job stopped
+// during the SDR version, by a cancel or a shutdown: the error reaches the
+// queue, which settles the job itself, rather than the clip completing with
+// no SDR version.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion(t *testing.T) {
+	dir := t.TempDir()
+	job, runner := hdrClipJob(t, dir)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Put(mock.Anything, job.OutputPath).Return(nil).Once()
+	store.EXPECT().Put(mock.Anything, job.SDRPath()).
+		RunAndReturn(func(context.Context, string) error {
+			cancel()
+
+			return context.Canceled
+		}).Once()
+
+	err := processJob(ctx, job, runner, nil, store, &recordedStages{})
+	require.ErrorIs(t, err, context.Canceled)
+	assert.ErrorContains(t, err, "sdr version")
+}
+
+// TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe covers a job
+// stopped between the clip and its SDR version: the probe that fails because
+// of the stop is not read as an SDR source, so the stored SDR version stays
+// and the stop reaches the queue.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe(t *testing.T) {
+	dir := t.TempDir()
+
+	job := testClipJob("stopped-before-probe")
+
+	job.PreserveHDR = true
+	job.InputPath = stubInputFile(t, dir, "stopped.mkv")
+	job.OutputPath = filepath.Join(dir, "clip.mp4")
+
+	// No ffprobe, so only the stop decides what the missing probe means.
+	runner := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Put(mock.Anything, job.OutputPath).
+		RunAndReturn(func(context.Context, string) error {
+			cancel()
+
+			return nil
+		}).Once()
+
+	err := processJob(ctx, job, runner, nil, store, &recordedStages{})
+	require.ErrorIs(t, err, context.Canceled)
 }

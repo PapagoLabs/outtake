@@ -250,3 +250,31 @@ func storedDeleteJob(id, output string, status clipdom.Status) *clipdom.Job {
 
 	return job
 }
+
+// TestDeleteClipRemovesItsSDRVersion covers an HDR clip's delete: its SDR
+// version goes with its own file.
+func TestDeleteClipRemovesItsSDRVersion(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/clips.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testClipJob("hdr", clipdom.TypeClip)
+
+	job.Status = clipdom.StatusCompleted
+	job.PreserveHDR = true
+	job.OutputPath = filepath.Join(t.TempDir(), "hdr.mp4")
+	require.NoError(t, os.WriteFile(job.OutputPath, []byte("hdr"), 0o600))
+	require.NoError(t, os.WriteFile(job.SDRPath(), []byte("sdr"), 0o600))
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	jobQueue := queue.NewQueue(1, noopJobHandler)
+	t.Cleanup(jobQueue.Stop)
+
+	handler := New(jobQueue, &blob.Storage{}, blob.Paths{}, db, &config.Config{}, nil)
+
+	require.Equal(t, fiber.StatusOK, deleteClip(t, handler, "hdr"))
+	assert.NoFileExists(t, job.OutputPath)
+	assert.NoFileExists(t, job.SDRPath())
+}

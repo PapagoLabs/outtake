@@ -115,6 +115,7 @@ func buildJob(
 		Status:        clipdom.StatusPending,
 		Progress:      0,
 		Error:         "",
+		Stage:         clipdom.StageClip,
 	}
 }
 

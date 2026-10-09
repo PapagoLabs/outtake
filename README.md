@@ -306,7 +306,10 @@ includes **Clip now**.
 
 Finished exports appear on the item and on **Clips**. When a job is
 **completed** and the file is on disk, use **Download**. Progress updates
-while a job is pending or processing.
+while a job is pending or processing. A video clip that keeps HDR from an
+HDR source also renders a 1080p SDR version, with a second progress bar,
+and its card plays that version unless your screen shows HDR and your
+browser plays HEVC. **Download** always gives you the HDR file.
 
 Named encode settings live under **Settings → Clip Profiles**. Lower CRF
 is higher quality.
@@ -344,9 +347,11 @@ is higher quality.
   (`backends.cockroach` or `backends.cnpg`).
 - **"This browser cannot play this clip".** Clips that keep HDR are HEVC,
   which Brave and Chrome on Linux decode only with hardware video
-  decoding. The file is fine: download it, use Firefox, or regenerate
-  the clip with a profile that converts to SDR. Previews are not affected, because a browser
-  without HEVC gets an SDR preview. Where Chromium does decode HEVC,
+  decoding. Their cards play an SDR version instead, so this appears only
+  for an HDR clip rendered before SDR versions existed, whose card says to
+  regenerate it. The file is fine: download it, use Firefox, or regenerate
+  the clip. Previews are not affected, because a browser without HEVC gets
+  an SDR preview. Where Chromium does decode HEVC,
   versions 151 and later draw 10-bit video black on NVIDIA under Wayland,
   and `--ozone-platform=x11` avoids that.
 - **"This Dolby Vision source has no HDR10 or SDR base layer".** Dolby

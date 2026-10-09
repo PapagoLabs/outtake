@@ -55,7 +55,24 @@ func clipFileURL(item view.ClipItem) templ.SafeURL {
 	return templ.SafeURL("/clips/" + item.ID + "/file?v=" + item.FileVersion)
 }
 
-// clipPlayback renders the collapsible preview for a clip that can play.
+// clipSDRURL is the URL of a clip's SDR version, versioned like clipFileURL so a
+// regenerated clip loads its new SDR version.
+//
+// Parameters:
+//   - item: Clip being rendered.
+//
+// Returns:
+//   - url: The /clips SDR version URL.
+func clipSDRURL(item view.ClipItem) templ.SafeURL {
+	return templ.SafeURL("/clips/" + item.ID + "/sdr?v=" + item.FileVersion)
+}
+
+// clipPlayback renders the collapsible preview for a clip that can play. An
+// HDR clip with an SDR version plays that version, and the page script moves
+// it to the HDR file only where the screen shows HDR and the browser decodes
+// HEVC, so a browser that cannot show the HDR file never starts on it. The
+// card carries the clip's id and version, from which the script builds the
+// HDR file's URL, rather than a URL for it to trust.
 //
 // Parameters:
 //   - item: Clip being rendered.
@@ -66,12 +83,51 @@ templ clipPlayback(item view.ClipItem) {
 			<div class="border-t p-2">
 				if item.ClipType == domainclip.TypeGIF || item.ClipType == domainclip.TypeScreenshot {
 					<img src={ clipFileURL(item) } alt={ item.DisplayName() } loading="lazy" class="w-full max-h-64 rounded-md object-contain bg-black"/>
+				} else if item.SDRExists {
+					<video
+						controls
+						preload="none"
+						class="w-full max-h-64 rounded-md bg-black"
+						src={ clipSDRURL(item) }
+						data-clip-video
+						data-clip-id={ item.ID }
+						data-hdr-version={ item.FileVersion }
+					></video>
 				} else {
-					<video controls preload="none" class="w-full max-h-64 rounded-md bg-black" src={ clipFileURL(item) } data-clip-video></video>
+					<video
+						controls
+						preload="none"
+						class="w-full max-h-64 rounded-md bg-black"
+						src={ clipFileURL(item) }
+						data-clip-video
+						if item.LacksSDRVersion() {
+							data-sdr-missing
+						}
+					></video>
 				}
 			</div>
 		</details>
 	}
+}
+
+// renderProgress renders one encode's progress bar.
+//
+// Parameters:
+//   - label: What the bar counts, empty for a render with one encode.
+//   - percent: Progress so far.
+templ renderProgress(label string, percent int) {
+	<div class="flex flex-col gap-1" data-render-progress>
+		<div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+			<div class="h-full rounded-full bg-primary" style={ "width: " + strconv.Itoa(percent) + "%" }></div>
+		</div>
+		<p class="text-xs text-muted-foreground">
+			if label != "" {
+				{ label }: { strconv.Itoa(percent) }%
+			} else {
+				{ strconv.Itoa(percent) }%
+			}
+		</p>
+	</div>
 }
 
 // clipFileBadge renders the badge for a clip whose output file is gone.
@@ -148,11 +204,11 @@ templ ClipStatus(item view.ClipItem) {
 		if item.Error != "" {
 			<p class="text-sm text-destructive">{ item.Error }</p>
 		}
-		if item.IsActive() {
-			<div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-				<div class="h-full rounded-full bg-primary" style={ "width: " + strconv.Itoa(item.Progress) + "%" }></div>
-			</div>
-			<p class="text-xs text-muted-foreground">{ strconv.Itoa(item.Progress) }%</p>
+		if item.RendersSDRVersion() {
+			@renderProgress("Clip", 100)
+			@renderProgress("SDR version", item.Progress)
+		} else if item.IsActive() {
+			@renderProgress("", item.Progress)
 		}
 		@clipPlayback(item)
 		<div class="flex flex-wrap items-end gap-2">

@@ -149,7 +149,7 @@ func (handler *Handler) clipsForMedia(
 		blob.ExistsEach(
 			ctx.Context(),
 			handler.outputs.Exists,
-			clip.OutputPaths(jobs),
+			append(clip.OutputPaths(jobs), clip.SDRPaths(jobs)...),
 			blob.ExistsLimit,
 		),
 	)

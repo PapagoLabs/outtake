@@ -22,6 +22,10 @@ type Job struct {
 
 	// Error is the failure a stopped render reports. Empty when it has not failed.
 	Error string
+
+	// Stage is which encode of a running render Progress counts. It is only
+	// known while the queue holds the job, and is never stored.
+	Stage Stage
 }
 
 // Clone returns an independent copy of the render.

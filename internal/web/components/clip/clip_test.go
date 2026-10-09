@@ -538,3 +538,32 @@ func TestClipCardMarksItsPlayerForPlaybackErrors(t *testing.T) {
 	require.NoError(t, ClipStatus(item).Render(t.Context(), &buf))
 	assert.Contains(t, buf.String(), "data-clip-video")
 }
+
+// TestClipStatusShowsBothEncodesDuringTheSDRVersion covers the progress of a
+// clip rendering its SDR version: one bar shows the clip done and another the
+// SDR version's progress, while a render in its first encode shows one bar.
+func TestClipStatusShowsBothEncodesDuringTheSDRVersion(t *testing.T) {
+	t.Parallel()
+
+	render := func(stage domainclip.Stage, progress int) string {
+		item := activeTestItem()
+		item.Stage = stage
+		item.Progress = progress
+
+		var body strings.Builder
+
+		require.NoError(t, ClipStatus(item).Render(t.Context(), &body))
+
+		return body.String()
+	}
+
+	sdr := render(domainclip.StageSDR, 30)
+	assert.Equal(t, 2, strings.Count(sdr, "data-render-progress"))
+	assert.Contains(t, sdr, "Clip: 100%")
+	assert.Contains(t, sdr, "SDR version: 30%")
+
+	first := render(domainclip.StageClip, 40)
+	assert.Equal(t, 1, strings.Count(first, "data-render-progress"))
+	assert.Contains(t, first, "40%")
+	assert.NotContains(t, first, "SDR version")
+}
