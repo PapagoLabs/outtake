@@ -86,18 +86,25 @@
 			});
 	}
 
+	// latestRead numbers each mark's position reads. The panel is swapped every
+	// couple of seconds, and the fresh button can start a second read while
+	// the first is still out, so only the newest read for a mark is applied.
+	var latestRead = { start: 0, end: 0 };
+
 	document.addEventListener('click', function (event) {
 		var btn = event.target.closest('.js-mark-start, .js-mark-end');
 		if (!btn || btn.disabled) {
 			return;
 		}
-		var mark = btn.classList.contains('js-mark-start') ? markStart : markEnd;
-		// The panel is swapped every couple of seconds, so the button may be gone
-		// by the time the read lands. The mark is set either way.
+		var which = btn.classList.contains('js-mark-start') ? 'start' : 'end';
+		var mark = which === 'start' ? markStart : markEnd;
+		var read = ++latestRead[which];
 		btn.disabled = true;
 		readPosition(btn).then(function (offset) {
 			btn.disabled = false;
-			mark(offset);
+			if (read === latestRead[which]) {
+				mark(offset);
+			}
 		});
 	});
 	requestSync();

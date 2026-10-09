@@ -5,6 +5,7 @@ package home
 
 import (
 	"encoding/json"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -200,8 +201,9 @@ func TestPlaybackSaysWhenPlexIsPaused(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, "Plex is paused at", "a paused position is labeled")
 	assertBodyOmits(t, answer.body, "Pause in Plex", "a paused client needs no advice to pause")
-	assertBodyContains(t, answer.body, `data-position-url="/media/item/42/position"`,
-		"the mark buttons read the position fresh when clicked")
+	assertBodyContains(t, answer.body,
+		`data-position-url="/media/item/42/position?session=session-42"`,
+		"the mark buttons read the shown session's position fresh when clicked")
 }
 
 // TestPlaybackAdvisesPausingWhilePlaying covers a playing session, whose
@@ -231,11 +233,16 @@ func TestPlaybackAdvisesPausingWhilePlaying(t *testing.T) {
 // Parameters:
 //   - t: The test the request belongs to.
 //   - auth: Plex authentication the handler reads.
+//   - sessionID: The session the request names, empty to name none.
 //
 // Returns:
 //   - position: The decoded answer.
 //   - status: The response status.
-func getPosition(t *testing.T, auth *mocks.MockPlexAuth) (api.PlaybackPosition, int) {
+func getPosition(
+	t *testing.T,
+	auth *mocks.MockPlexAuth,
+	sessionID string,
+) (api.PlaybackPosition, int) {
 	t.Helper()
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
@@ -243,7 +250,12 @@ func getPosition(t *testing.T, auth *mocks.MockPlexAuth) (api.PlaybackPosition, 
 	app := fiber.New()
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/position", handler.Position)
 
-	answer := serve(t, app, routes.PathItemPrefix+"42/position", false)
+	target := routes.PathItemPrefix + "42/position"
+	if sessionID != "" {
+		target += "?" + url.Values{routes.QuerySession: {sessionID}}.Encode()
+	}
+
+	answer := serve(t, app, target, false)
 
 	var position api.PlaybackPosition
 
@@ -255,19 +267,23 @@ func getPosition(t *testing.T, auth *mocks.MockPlexAuth) (api.PlaybackPosition, 
 }
 
 // TestPositionReadsPlexWhenAsked covers the fresh position the mark buttons
-// read: the item's own session, its play state, and nothing for an item no
-// session is on.
+// read: the named session on the item and its play state, and nothing when
+// that session is gone, plays another item, or no session is named, even
+// while another client plays the item.
 func TestPositionReadsPlexWhenAsked(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
-		sessions []plex.Session
-		want     api.PlaybackPosition
+		name      string
+		sessionID string
+		sessions  []plex.Session
+		want      api.PlaybackPosition
 	}{
 		{
-			name: "paused",
+			name:      "paused",
+			sessionID: "s1",
 			sessions: []plex.Session{{
+				ID:         "s1",
 				MediaItem:  plex.MediaItem{ID: "42"},
 				ViewOffset: 61.5,
 				State:      plex.StatePaused,
@@ -275,17 +291,47 @@ func TestPositionReadsPlexWhenAsked(t *testing.T) {
 			want: api.PlaybackPosition{Playing: true, Paused: true, Offset: 61.5},
 		},
 		{
-			name: "playing",
+			name:      "the named session among others on the item",
+			sessionID: "s2",
 			sessions: []plex.Session{
-				{MediaItem: plex.MediaItem{ID: "7"}, ViewOffset: 5, State: plex.StatePaused},
-				{MediaItem: plex.MediaItem{ID: "42"}, ViewOffset: 12.25, State: plex.StatePlaying},
+				{
+					ID:         "s1",
+					MediaItem:  plex.MediaItem{ID: "42"},
+					ViewOffset: 5,
+					State:      plex.StatePaused,
+				},
+				{
+					ID:         "s2",
+					MediaItem:  plex.MediaItem{ID: "42"},
+					ViewOffset: 12.25,
+					State:      plex.StatePlaying,
+				},
 			},
 			want: api.PlaybackPosition{Playing: true, Paused: false, Offset: 12.25},
 		},
 		{
-			name:     "nothing on the item",
-			sessions: []plex.Session{{MediaItem: plex.MediaItem{ID: "7"}, ViewOffset: 5}},
-			want:     api.PlaybackPosition{Playing: false, Paused: false, Offset: 0},
+			name:      "the named session is gone while another plays the item",
+			sessionID: "s1",
+			sessions: []plex.Session{
+				{ID: "s2", MediaItem: plex.MediaItem{ID: "42"}, ViewOffset: 5},
+			},
+			want: api.PlaybackPosition{Playing: false, Paused: false, Offset: 0},
+		},
+		{
+			name:      "the named session moved to another item",
+			sessionID: "s1",
+			sessions: []plex.Session{
+				{ID: "s1", MediaItem: plex.MediaItem{ID: "7"}, ViewOffset: 5},
+			},
+			want: api.PlaybackPosition{Playing: false, Paused: false, Offset: 0},
+		},
+		{
+			name:      "no session named",
+			sessionID: "",
+			sessions: []plex.Session{
+				{ID: "s1", MediaItem: plex.MediaItem{ID: "42"}, ViewOffset: 5},
+			},
+			want: api.PlaybackPosition{Playing: false, Paused: false, Offset: 0},
 		},
 	}
 
@@ -296,7 +342,7 @@ func TestPositionReadsPlexWhenAsked(t *testing.T) {
 			auth := mocks.NewMockPlexAuth(t)
 			auth.EXPECT().LiveSessions(mock.Anything).Return(test.sessions, nil).Once()
 
-			position, status := getPosition(t, auth)
+			position, status := getPosition(t, auth, test.sessionID)
 
 			require.Equal(t, fiber.StatusOK, status)
 			assert.Equal(t, test.want, position)
@@ -312,7 +358,7 @@ func TestPositionReportsAPlexItCannotReach(t *testing.T) {
 	auth := mocks.NewMockPlexAuth(t)
 	auth.EXPECT().LiveSessions(mock.Anything).Return(nil, plex.ErrUnauthorized).Once()
 
-	_, status := getPosition(t, auth)
+	_, status := getPosition(t, auth, "s1")
 
 	assert.Equal(t, fiber.StatusBadGateway, status)
 }
