@@ -177,7 +177,7 @@ func TestPreservedHDRIsTaggedForItsTransfer(t *testing.T) {
 		"/out.mp4",
 		10,
 		5,
-		clip.QualityPresets[clip.ClipQualityHigh],
+		highPreset,
 		1,
 		crop.CropRect{},
 	)
@@ -245,7 +245,7 @@ func TestPreservedHDRStaysTenBit(t *testing.T) {
 
 			req := clipEncodeRequest(
 				"ffmpeg", "/in.mkv", "/out.mp4", 10, 5,
-				clip.QualityPresets[clip.ClipQualityHigh], 1, crop.CropRect{},
+				highPreset, 1, crop.CropRect{},
 			)
 			applyColorPlan(&req, test.transfer, test.remap)
 

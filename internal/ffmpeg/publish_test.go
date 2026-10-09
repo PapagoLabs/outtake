@@ -43,7 +43,7 @@ func renderClip(t *testing.T, stub ffmpegtest.Stub) (string, error) {
 		fixture.output,
 		time.Second,
 		5*time.Second,
-		clip.QualityPresets[clip.ClipQualityMedium],
+		clip.DefaultPreset,
 		0,
 		crop.CropRect{},
 	)
@@ -232,7 +232,7 @@ func TestEncodesAbortOnEmptyOutputAndDropSourceMetadata(t *testing.T) {
 	args := recordClipEncode(
 		t,
 		sdrEncodeExec(t),
-		clip.QualityPresets[clip.ClipQualityHigh],
+		highPreset,
 		crop.CropRect{},
 	)
 
@@ -332,7 +332,7 @@ func TestAClipCarriesNoSourceMetadata(t *testing.T) {
 
 	err := NewExecFFmpeg(ffmpegPath, ffprobePath).ExtractClip(
 		t.Context(), src, out, 0, 500*time.Millisecond,
-		clip.QualityPresets[clip.ClipQualityLow], 0, crop.CropRect{},
+		fastPreset, 0, crop.CropRect{},
 	)
 	require.NoError(t, err)
 
@@ -438,7 +438,7 @@ func TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata(t *testing.T) {
 
 	err = NewExecFFmpeg(ffmpegPath, ffprobePath).ExtractClip(
 		t.Context(), src, out, 0, 500*time.Millisecond,
-		clip.QualityPresets[clip.ClipQualityLow], 0, crop.CropRect{},
+		fastPreset, 0, crop.CropRect{},
 	)
 	require.NoError(t, err)
 
@@ -481,7 +481,7 @@ func TestAKeptHDRClipIsHEVCMain10AndKeepsTheSourcesHDR10Metadata(t *testing.T) {
 
 	out := filepath.Join(dir, "clip.mp4")
 	preset := clip.QualityPreset{
-		CRF:         clip.QualityPresets[clip.ClipQualityLow].CRF,
+		CRF:         fastPreset.CRF,
 		Preset:      "ultrafast",
 		AudioKbps:   clip.MinAudioKbps,
 		MaxWidth:    clip.OutputWidth720p,

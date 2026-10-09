@@ -174,14 +174,16 @@ func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 	return profiles, nil
 }
 
-// DefaultClipProfile returns the profile marked default, or Medium built-in.
+// DefaultClipProfile returns the profile marked default. A profile is always
+// marked while any is stored, because the last profile cannot be deleted and
+// a delete assigns a new default.
 //
 // Parameters:
 //   - ctx: Request scope for the read.
 //
 // Returns:
-//   - profile: The default profile, falling back to the Medium built-in.
-//   - err: Non-nil when the read fails or the built-in profile is missing.
+//   - profile: The default profile.
+//   - err: ErrClipProfileNotFound when none is marked, or the read failure.
 func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
@@ -198,12 +200,7 @@ func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 		return ClipProfile{}, fmt.Errorf("default clip profile: %w", err)
 	}
 
-	fallback, getErr := db.GetClipProfile(ctx, string(clip.ClipQualityMedium))
-	if getErr != nil {
-		return ClipProfile{}, fmt.Errorf("default clip profile: %w", getErr)
-	}
-
-	return fallback, nil
+	return ClipProfile{}, fmt.Errorf("default clip profile: %w", ErrClipProfileNotFound)
 }
 
 // SetDefaultClipProfile marks one profile as the default.

@@ -9,17 +9,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestQualityPresets(t *testing.T) {
+// TestDefaultPresetIsThe1080pProfile covers the settings a render falls back
+// on: the 1080p built-in's, which migration 010 stores, converting to SDR.
+func TestDefaultPresetIsThe1080pProfile(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, 28, QualityPresets[ClipQualityLow].CRF)
-	assert.Equal(t, 23, QualityPresets[ClipQualityMedium].CRF)
-	assert.Equal(t, 18, QualityPresets[ClipQualityHigh].CRF)
-	assert.Equal(t, 128, QualityPresets[ClipQualityLow].AudioKbps)
-	assert.Equal(t, 192, QualityPresets[ClipQualityMedium].AudioKbps)
-	assert.Equal(t, 320, QualityPresets[ClipQualityHigh].AudioKbps)
-	assert.Equal(t, OutputWidth720p, QualityPresets[ClipQualityLow].MaxWidth)
-	assert.Equal(t, OutputWidth1080p, QualityPresets[ClipQualityMedium].MaxWidth)
-	assert.Equal(t, OutputWidth2160p, QualityPresets[ClipQualityHigh].MaxWidth)
+
+	assert.Equal(t, QualityPreset{
+		CRF:         20,
+		Preset:      "medium",
+		AudioKbps:   192,
+		MaxWidth:    OutputWidth1080p,
+		PreserveHDR: false,
+	}, DefaultPreset)
 }
 
 func TestNormalizeOutputWidth(t *testing.T) {
@@ -40,7 +41,7 @@ func TestResolvePreset(t *testing.T) {
 		if id == "archive" {
 			return QualityPreset{
 				CRF:       16,
-				Preset:    QualityPresets[ClipQualityHigh].Preset,
+				Preset:    "slow",
 				AudioKbps: 320,
 				MaxWidth:  OutputWidth2160p,
 			}, true
@@ -50,19 +51,26 @@ func TestResolvePreset(t *testing.T) {
 	}
 
 	assert.Equal(t, 16, ResolvePreset("archive", lookup).CRF)
-	assert.Equal(t, QualityPresets[ClipQualityHigh], ResolvePreset("high", lookup))
-	assert.Equal(t, QualityPresets[ClipQualityMedium], ResolvePreset("missing", lookup))
-	assert.Equal(t, QualityPresets[ClipQualityMedium], ResolvePreset("archive", nil))
+	assert.Equal(t, DefaultPreset, ResolvePreset("high", lookup),
+		"an old built-in id is not known without a stored profile")
+	assert.Equal(t, DefaultPreset, ResolvePreset("missing", lookup))
+	assert.Equal(t, DefaultPreset, ResolvePreset("archive", nil))
 }
 
 func TestNormalizePreset(t *testing.T) {
 	t.Parallel()
 
-	high := QualityPresets[ClipQualityHigh]
+	high := QualityPreset{
+		CRF:         18,
+		Preset:      "slow",
+		AudioKbps:   256,
+		MaxWidth:    OutputWidth2160p,
+		PreserveHDR: false,
+	}
 
 	assert.Equal(
 		t,
-		QualityPresets[ClipQualityMedium],
+		DefaultPreset,
 		NormalizePreset(QualityPreset{CRF: 0, Preset: "", AudioKbps: 0, MaxWidth: 0}),
 	)
 	assert.Equal(t, high, NormalizePreset(high))

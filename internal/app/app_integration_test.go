@@ -182,7 +182,7 @@ func storedClip(id, inputPath string, status clip.Status) *clip.Job {
 		MediaTitle: "Integration Movie",
 		MediaType:  clip.DefaultMediaType,
 
-		Quality:   "medium",
+		Quality:   "",
 		StartTime: 2 * time.Second,
 		Duration:  8 - 2,
 
@@ -325,7 +325,7 @@ func createClip(
 		MediaType:  clip.DefaultMediaType,
 		StartTime:  2,
 		Duration:   8 - 2,
-		Quality:    "medium",
+		Quality:    "",
 		ClipType:   string(clip.TypeClip),
 	})
 
@@ -671,7 +671,7 @@ func TestIntegration_CreateRefusesAClipThatCannotBeValidated(t *testing.T) {
 		MediaType:  clip.DefaultMediaType,
 		StartTime:  2,
 		Duration:   8 - 2,
-		Quality:    "medium",
+		Quality:    "",
 		ClipType:   string(clip.TypeClip),
 	})
 

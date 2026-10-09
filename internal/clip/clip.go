@@ -137,10 +137,6 @@ func (clip *Clip) ApplyDefaults() {
 		clip.Type = TypeClip
 	}
 
-	if clip.Quality == "" {
-		clip.Quality = string(ClipQualityMedium)
-	}
-
 	if clip.MediaType == "" {
 		clip.MediaType = DefaultMediaType
 	}

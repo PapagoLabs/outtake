@@ -112,7 +112,7 @@ func TestClipApplyWritesEveryEditableField(t *testing.T) {
 	stored.Apply(Edit{
 		Type:          TypeClip,
 		Name:          "New name",
-		Quality:       string(ClipQualityMedium),
+		Quality:       "profile-1080p",
 		Start:         42345 * time.Millisecond,
 		Length:        8 * time.Second,
 		Width:         720,
@@ -124,7 +124,7 @@ func TestClipApplyWritesEveryEditableField(t *testing.T) {
 
 	assert.Equal(t, TypeClip, stored.Type)
 	assert.Equal(t, "New name", stored.Name)
-	assert.Equal(t, string(ClipQualityMedium), stored.Quality)
+	assert.Equal(t, "profile-1080p", stored.Quality)
 	assert.Equal(t, 42345*time.Millisecond, stored.StartTime)
 	assert.Equal(t, 8*time.Second, stored.Duration)
 	assert.Equal(t, 720, stored.Width)
@@ -162,8 +162,8 @@ func TestClipApplyKeepsOmittedFields(t *testing.T) {
 		{
 			name:     "an edit that names only a profile keeps the stored type and name",
 			stored:   Clip{Type: TypeClip, Name: "Old name", Quality: "archive"},
-			edit:     Edit{Quality: string(ClipQualityMedium)},
-			wantType: TypeClip, wantName: "Old name", wantQuali: string(ClipQualityMedium),
+			edit:     Edit{Quality: "profile-1080p"},
+			wantType: TypeClip, wantName: "Old name", wantQuali: "profile-1080p",
 		},
 	}
 

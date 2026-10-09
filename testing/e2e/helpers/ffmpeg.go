@@ -37,9 +37,6 @@ const (
 
 	// movieType is the media type the generated test video is posted as.
 	movieType = "movie"
-
-	// qualityLow is the built-in low quality profile id.
-	qualityLow = "low"
 )
 
 // OnPath reports whether every named binary is on PATH.

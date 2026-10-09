@@ -6,6 +6,7 @@ package pages
 import (
 	"strconv"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/web/components/badge"
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
@@ -100,7 +101,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 							<p class="font-medium">New profile</p>
 							<p class="text-sm text-muted-foreground">CRF 18–28 is typical. Slower presets take longer and compress more efficiently.</p>
 						</div>
-						@profileFields("new-", "", 23, "medium", 192, 1920, false, props.Presets, props.Widths)
+						@profileFields("new-", "", clip.DefaultPreset.CRF, clip.DefaultPreset.Preset, clip.DefaultPreset.AudioKbps, clip.DefaultPreset.MaxWidth, clip.DefaultPreset.PreserveHDR, props.Presets, props.Widths)
 						<label class="flex items-center gap-2 text-sm">
 							@checkbox.Checkbox(checkbox.Props{Name: "isDefault", Value: "1", Class: "rounded border-input"})
 							Set as default

@@ -62,7 +62,7 @@ func testClipJob(id string, kind clip.Type) *clip.Job {
 
 		StartTime:  0,
 		Duration:   0,
-		Quality:    string(clip.ClipQualityMedium),
+		Quality:    "profile-1080p",
 		AudioIndex: 0,
 
 		CreatedAt: time.Time{},

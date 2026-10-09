@@ -19,6 +19,25 @@ import (
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/tonemap"
 )
 
+// highPreset is a 4K encode at CRF 18 and the slow preset with 320 kbps
+// audio, which the encode argument tests read back.
+var highPreset = clip.QualityPreset{
+	CRF:         18,
+	Preset:      "slow",
+	AudioKbps:   320,
+	MaxWidth:    clip.OutputWidth2160p,
+	PreserveHDR: false,
+}
+
+// fastPreset is a quick 720p encode for the tests that run a real ffmpeg.
+var fastPreset = clip.QualityPreset{
+	CRF:         28,
+	Preset:      "veryfast",
+	AudioKbps:   128,
+	MaxWidth:    clip.OutputWidth720p,
+	PreserveHDR: false,
+}
+
 func recordClipEncode(
 	t *testing.T,
 	execFFmpeg *ExecFFmpeg,
@@ -79,7 +98,7 @@ func TestExecFFmpeg_ExtractClip_MissingInput(t *testing.T) {
 		"/tmp/output.mp4",
 		0,
 		10,
-		clip.QualityPresets[clip.ClipQualityMedium],
+		clip.DefaultPreset,
 		0,
 		crop.CropRect{},
 	)
@@ -98,7 +117,7 @@ func TestExecFFmpeg_ExtractClip_Args(t *testing.T) {
 		fixture.output,
 		10500*time.Millisecond,
 		30*time.Second,
-		clip.QualityPresets[clip.ClipQualityHigh],
+		highPreset,
 		1,
 		crop.CropRect{},
 	)
@@ -115,7 +134,7 @@ func TestExtractClipEncodeArgs(t *testing.T) {
 	args := recordClipEncode(
 		t,
 		sdrEncodeExec(t),
-		clip.QualityPresets[clip.ClipQualityHigh],
+		highPreset,
 		crop.CropRect{},
 	)
 
@@ -139,7 +158,7 @@ func TestExtractClipEncodeArgsCropsBlackBars(t *testing.T) {
 	t.Parallel()
 
 	rect := crop.CropRect{Width: 1920, Height: 804, X: 0, Y: 138}
-	args := recordClipEncode(t, sdrEncodeExec(t), clip.QualityPresets[clip.ClipQualityHigh], rect)
+	args := recordClipEncode(t, sdrEncodeExec(t), highPreset, rect)
 
 	assert.Contains(t, args,
 		rect.Filter()+","+scaleFilter(clip.OutputWidth2160p, scaleFlagsLanczos))
@@ -150,7 +169,7 @@ func TestExtractClipEncodeArgsCropsBlackBars(t *testing.T) {
 func TestExtractClipEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {
 	t.Parallel()
 
-	preset := clip.QualityPresets[clip.ClipQualityHigh]
+	preset := highPreset
 
 	preset.PreserveHDR = false
 
@@ -345,7 +364,7 @@ func TestVideoEncodeArgsPickTheEncoderFromTheColorPlan(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			preset := clip.QualityPresets[clip.ClipQualityHigh]
+			preset := highPreset
 
 			preset.PreserveHDR = test.keep
 

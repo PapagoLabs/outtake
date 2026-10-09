@@ -19,7 +19,6 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
@@ -91,7 +90,7 @@ func sourceInfo(duration time.Duration) library.SourceInfo {
 		Path:     "/media/movie.mkv",
 		Duration: duration,
 		HDR:      true,
-		Quality:  string(clip.ClipQualityHigh),
+		Quality:  "4K HDR",
 		AudioStreams: []library.AudioStream{
 			{Index: 0, Codec: "eac3", Language: "eng", Channels: 6, Layout: "5.1"},
 			{Index: 1, Codec: "aac", Language: "jpn", Channels: 2, Layout: "stereo"},

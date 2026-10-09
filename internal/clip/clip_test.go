@@ -85,7 +85,7 @@ func TestClipApplyDefaults(t *testing.T) {
 	empty := &Clip{}
 	empty.ApplyDefaults()
 	assert.Equal(t, TypeClip, empty.Type)
-	assert.Equal(t, string(ClipQualityMedium), empty.Quality)
+	assert.Empty(t, empty.Quality, "an empty quality names the default profile")
 	assert.Equal(t, DefaultMediaType, empty.MediaType)
 
 	set := &Clip{Type: TypeGIF, Quality: "archive", MediaType: "show"}

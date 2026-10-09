@@ -36,3 +36,22 @@ func TestExecFFmpeg_WithTimeoutFixesTheDeadline(t *testing.T) {
 
 	assert.Equal(t, 200*time.Minute, base.WithTimeout(-time.Second).deadline(10*time.Minute))
 }
+
+// TestExecFFmpeg_EncodeDeadlineGivesHEVCMoreRoom covers the limit for each
+// encoder: an HEVC encode may take sixty times its clip's length, any other
+// encode twenty times, both above the half-hour floor, and a configured
+// ffmpeg-timeout-sec applies to every encoder alike.
+func TestExecFFmpeg_EncodeDeadlineGivesHEVCMoreRoom(t *testing.T) {
+	t.Parallel()
+
+	execFFmpeg := NewExecFFmpeg("sleep", "sleep")
+
+	assert.Equal(t, 600*time.Minute, execFFmpeg.encodeDeadline(10*time.Minute, videoCodecHEVC))
+	assert.Equal(t, 200*time.Minute, execFFmpeg.encodeDeadline(10*time.Minute, videoCodecH264))
+	assert.Equal(t, 30*time.Minute, execFFmpeg.encodeDeadline(time.Second, videoCodecHEVC),
+		"a short HEVC clip gets the floor")
+
+	fixed := execFFmpeg.WithTimeout(5 * time.Minute)
+	assert.Equal(t, 5*time.Minute, fixed.encodeDeadline(10*time.Minute, videoCodecHEVC))
+	assert.Equal(t, 5*time.Minute, fixed.encodeDeadline(10*time.Minute, videoCodecH264))
+}

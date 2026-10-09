@@ -142,21 +142,16 @@ func profileNamed(t *testing.T, service *clipprofile.Service, name string) clipp
 //   - service: The service to read through.
 //
 // Returns:
-//   - found: The profiles whose name is not one of the seeded built-ins.
+//   - found: The profiles whose name is not one of the stored built-ins.
 func namedProfiles(t *testing.T, service *clipprofile.Service) []clipprofile.Profile {
 	t.Helper()
 
-	builtIn := map[string]bool{
-		string(clip.ClipQualityLow):     true,
-		string(clip.ClipQualityMedium):  true,
-		string(clip.ClipQualityHigh):    true,
-		string(clip.ClipQualityHighHDR): true,
-	}
+	builtIn := map[string]bool{"720p": true, "1080p": true, "4K": true, "4K HDR": true}
 
 	found := make([]clipprofile.Profile, 0)
 
 	for _, profile := range service.List(t.Context()) {
-		if !builtIn[profile.ID] {
+		if !builtIn[profile.Name] {
 			found = append(found, profile)
 		}
 	}
@@ -344,8 +339,9 @@ func TestClipProfilesRendersTheBuiltInProfiles(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assert.Contains(t, answer.body, "Clip profiles",
 		"the page is still the settings page, not an error")
-	assert.Contains(t, answer.body, `value="23"`,
-		"the Medium built-in is the seeded default")
+	assert.Contains(t, answer.body, `value="20"`,
+		"the 1080p built-in is the stored default")
+	assert.Contains(t, answer.body, "4K HDR", "the built-ins are named after what they produce")
 
 	seeded := New(profileTestService(t))
 	assert.Empty(t, namedProfiles(t, seeded.profiles),

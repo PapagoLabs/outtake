@@ -11,9 +11,9 @@ import (
 )
 
 // KeepHDR reports a profile's Keep HDR setting and whether the profile was
-// found. A stored profile wins, then a built-in of the same id. Unlike Preset,
-// it never answers with the Medium fallback's setting, so a caller can tell a
-// profile that keeps HDR from one that is gone.
+// found. Unlike Preset, it never answers with the setting of
+// [clip.DefaultPreset], so a caller can tell a profile that keeps HDR from one
+// that is gone.
 //
 // Parameters:
 //   - ctx: Database context.
@@ -22,14 +22,14 @@ import (
 //
 // Returns:
 //   - keep: Whether the profile keeps HDR.
-//   - found: False when no stored or built-in profile has the id, or the
-//     default profile cannot be read.
+//   - found: False when no stored profile has the id, or the default profile
+//     cannot be read.
 //
 //nolint:nonamedreturns // Same-type returns need names.
 func KeepHDR(ctx context.Context, db *database.DB, quality string) (keep, found bool) {
 	if quality == "" {
 		if db == nil {
-			return clip.QualityPresets[clip.ClipQualityMedium].PreserveHDR, true
+			return clip.DefaultPreset.PreserveHDR, true
 		}
 
 		stored, err := db.DefaultClipProfile(ctx)
@@ -41,10 +41,6 @@ func KeepHDR(ctx context.Context, db *database.DB, quality string) (keep, found 
 	}
 
 	if preset, ok := lookupPreset(ctx, db, quality); ok {
-		return preset.PreserveHDR, true
-	}
-
-	if preset, ok := clip.QualityPresets[clip.ClipQuality(quality)]; ok {
 		return preset.PreserveHDR, true
 	}
 
@@ -71,22 +67,23 @@ func Preset(ctx context.Context, db *database.DB, quality string) clip.QualityPr
 	})
 }
 
-// defaultPreset loads the stored default profile, or the built-in medium preset.
+// defaultPreset loads the stored default profile, or [clip.DefaultPreset].
 //
 // Parameters:
 //   - ctx: Database context.
 //   - db: Clip profile store; may be nil.
 //
 // Returns:
-//   - preset: The stored default profile's settings, or the built-in medium preset.
+//   - preset: The stored default profile's settings, or [clip.DefaultPreset]
+//     when there is no database or it cannot be read.
 func defaultPreset(ctx context.Context, db *database.DB) clip.QualityPreset {
 	if db == nil {
-		return clip.QualityPresets[clip.ClipQualityMedium]
+		return clip.DefaultPreset
 	}
 
 	profile, err := db.DefaultClipProfile(ctx)
 	if err != nil {
-		return clip.QualityPresets[clip.ClipQualityMedium]
+		return clip.DefaultPreset
 	}
 
 	return clip.NormalizePreset(profile.QualityPreset())

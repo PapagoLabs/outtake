@@ -118,7 +118,12 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		)
 		execFFmpeg.resolveColor(ctx, &req)
 
-		return execFFmpeg.run(ctx, duration, videoEncodeArgs(&req)...)
+		return runWithin(
+			ctx,
+			duration,
+			execFFmpeg.encodeDeadline(duration, req.encoder),
+			videoEncodeArgs(&req)...,
+		)
 	})
 	if err != nil {
 		return fmt.Errorf(encodeClipErrFmt, err)
@@ -270,7 +275,12 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 		)
 		execFFmpeg.resolveColor(ctx, &req)
 
-		return execFFmpeg.run(ctx, duration, videoEncodeArgs(&req)...)
+		return runWithin(
+			ctx,
+			duration,
+			execFFmpeg.encodeDeadline(duration, req.encoder),
+			videoEncodeArgs(&req)...,
+		)
 	})
 	if runErr != nil {
 		return fmt.Errorf(encodePreviewErrFmt, runErr)

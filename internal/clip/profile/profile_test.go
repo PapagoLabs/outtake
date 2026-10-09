@@ -132,20 +132,11 @@ func fieldsWith(t *testing.T, edit func(*ProfileFields)) ProfileFields {
 	return fields
 }
 
-func TestBuiltinProfiles(t *testing.T) {
-	t.Parallel()
-
-	entries := BuiltinProfiles()
-	require.Len(t, entries, 4)
-	assert.Equal(t, "medium", entries[1].ID)
-	assert.True(t, entries[1].IsDefault)
-}
-
 func TestProfileName(t *testing.T) {
 	t.Parallel()
 
 	options := []ProfileOption{
-		{ID: "medium", Name: "Medium", IsDefault: true},
+		{ID: "profile-1080p", Name: "1080p", IsDefault: true},
 		{ID: "archive", Name: "Archive", IsDefault: false},
 	}
 
@@ -155,29 +146,48 @@ func TestProfileName(t *testing.T) {
 	assert.Empty(t, ProfileName("", nil))
 }
 
+// TestResolveProfile covers the profile a new clip carries: the stored
+// default for an unnamed quality, a stored profile as it stands, and a refusal
+// for any other id, including an old built-in id no profile carries now.
 func TestResolveProfile(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name    string
-		give    string
-		want    string
+		give    func(t *testing.T, store *database.DB) string
+		want    func(t *testing.T, store *database.DB) string
 		wantErr error
 	}{
-		{name: "an unnamed quality takes the stored default", want: "medium"},
+		{
+			name: "an unnamed quality takes the stored default",
+			give: func(*testing.T, *database.DB) string { return "" },
+			want: func(t *testing.T, store *database.DB) string {
+				t.Helper()
+
+				return builtinID(t, store, "1080p")
+			},
+		},
 		{
 			name: "a stored profile is taken as it stands",
-			give: "high",
-			want: "high",
+			give: func(t *testing.T, store *database.DB) string {
+				t.Helper()
+
+				return builtinID(t, store, "4K")
+			},
+			want: func(t *testing.T, store *database.DB) string {
+				t.Helper()
+
+				return builtinID(t, store, "4K")
+			},
 		},
 		{
-			name: "a built-in name that is not stored is still accepted",
-			give: "low",
-			want: "low",
+			name:    "an old built-in id is rejected",
+			give:    func(*testing.T, *database.DB) string { return "low" },
+			wantErr: ErrUnknownProfile,
 		},
 		{
-			name:    "a name that is neither stored nor built in is rejected",
-			give:    "no-such-profile",
+			name:    "an id no stored profile has is rejected",
+			give:    func(*testing.T, *database.DB) string { return "no-such-profile" },
 			wantErr: ErrUnknownProfile,
 		},
 	}
@@ -191,7 +201,7 @@ func TestResolveProfile(t *testing.T) {
 
 			t.Cleanup(func() { _ = store.Close() })
 
-			got, resolveErr := ResolveProfile(t.Context(), store, test.give)
+			got, resolveErr := ResolveProfile(t.Context(), store, test.give(t, store))
 
 			if test.wantErr != nil {
 				require.ErrorIs(t, resolveErr, test.wantErr)
@@ -200,7 +210,7 @@ func TestResolveProfile(t *testing.T) {
 			}
 
 			require.NoError(t, resolveErr)
-			assert.Equal(t, test.want, got)
+			assert.Equal(t, test.want(t, store), got)
 		})
 	}
 }

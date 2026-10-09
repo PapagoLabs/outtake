@@ -24,6 +24,11 @@ const (
 	// the clip plays.
 	timeoutScale = 20
 
+	// hevcTimeoutScale is timeoutScale for an HEVC encode. x265 at the slow
+	// preset ran at about 6.4 times a 4K clip's length on a fast desktop CPU,
+	// so a slower host needs far more room than an H.264 encode does.
+	hevcTimeoutScale = 60
+
 	// waitDelay bounds how long a killed ffmpeg may hold its output open before
 	// the run returns anyway.
 	waitDelay = 10 * time.Second
@@ -75,9 +80,45 @@ func (execFFmpeg *ExecFFmpeg) WithTimeout(timeout time.Duration) *ExecFFmpeg {
 //   - limit: The configured deadline, otherwise the larger of minTimeout and
 //     timeoutScale times the clip length.
 func (execFFmpeg *ExecFFmpeg) deadline(duration time.Duration) time.Duration {
+	return execFFmpeg.scaledDeadline(duration, timeoutScale)
+}
+
+// encodeDeadline returns how long one video encode may take, which depends on
+// its encoder.
+//
+// Parameters:
+//   - duration: Length of the clip the encode renders.
+//   - encoder: The planned video encoder.
+//
+// Returns:
+//   - limit: The configured deadline, otherwise the larger of minTimeout and
+//     hevcTimeoutScale times the clip length for HEVC, or timeoutScale times
+//     it for any other encoder.
+func (execFFmpeg *ExecFFmpeg) encodeDeadline(
+	duration time.Duration,
+	encoder string,
+) time.Duration {
+	if encoder == videoCodecHEVC {
+		return execFFmpeg.scaledDeadline(duration, hevcTimeoutScale)
+	}
+
+	return execFFmpeg.deadline(duration)
+}
+
+// scaledDeadline returns how long a run may take at a given multiple of its
+// clip's length.
+//
+// Parameters:
+//   - duration: Length of the clip the run renders, zero when unknown.
+//   - scale: How many times the clip's length the run may take.
+//
+// Returns:
+//   - limit: The configured deadline, otherwise the larger of minTimeout and
+//     scale times the clip length.
+func (execFFmpeg *ExecFFmpeg) scaledDeadline(duration time.Duration, scale int) time.Duration {
 	if execFFmpeg.timeout > 0 {
 		return execFFmpeg.timeout
 	}
 
-	return max(minTimeout, timeoutScale*duration)
+	return max(minTimeout, time.Duration(scale)*duration)
 }
