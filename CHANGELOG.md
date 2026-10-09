@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Stop hard-wrapping the readmes by @nicholas-fedor in [#394](https://github.com/PapagoLabs/outtake/pull/394)
 - Render an sdr version of hdr clips with the clip by @nicholas-fedor in [#390](https://github.com/PapagoLabs/outtake/pull/390)
 - Make keep hdr a clip profile setting by @nicholas-fedor in [#386](https://github.com/PapagoLabs/outtake/pull/386)
 - Export clips that keep hdr as hevc main 10 by @nicholas-fedor in [#378](https://github.com/PapagoLabs/outtake/pull/378)
