@@ -79,6 +79,8 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 
 	edit := mergeEdit(job, req, jobType, quality)
 
+	edit.PreserveHDR = handler.renderedKeepHDR(ctx, job, edit)
+
 	err = handler.validateEdit(ctx.Context(), job.InputPath, edit)
 	if err != nil {
 		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, err.Error())
@@ -94,6 +96,50 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 	}
 
 	return saved, nil
+}
+
+// renderedKeepHDR takes Keep HDR from the edit's profile when the edit renders
+// the clip again, so the stored value always describes the clip's file. An
+// edit renders when it regenerates, changes the type, or reaches a clip still
+// waiting to render. Any other edit keeps the stored value, and so does one
+// whose profile is gone, such as a stored profile since deleted, rather than
+// taking the Medium fallback's setting.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - job: The stored clip.
+//   - edit: The merged edit.
+//
+// Returns:
+//   - keep: The profile's setting when the edit renders and the profile is
+//     found, otherwise nil.
+func (handler *Handler) renderedKeepHDR(
+	ctx fiber.Ctx,
+	job *clipdom.Job,
+	edit clipdom.Edit,
+) *bool {
+	renders := regenerates(ctx) || edit.Type != job.Type || job.Status == clipdom.StatusPending
+	if !renders {
+		return nil
+	}
+
+	keep, found := profile.KeepHDR(ctx.Context(), handler.db, edit.Quality)
+	if !found {
+		return nil
+	}
+
+	return &keep
+}
+
+// regenerates reports whether the update asked for the clip to render again.
+//
+// Parameters:
+//   - ctx: Request context.
+//
+// Returns:
+//   - regenerate: True when the form posted regenerate.
+func regenerates(ctx fiber.Ctx) bool {
+	return ctx.FormValue("regenerate") == routes.FormChecked
 }
 
 // saveEdit applies an edit through the catalog, rendering the clip again when
@@ -113,7 +159,7 @@ func (handler *Handler) saveEdit(
 	edit clipdom.Edit,
 ) (*clipdom.Job, error) {
 	update := catalog.Update
-	if ctx.FormValue("regenerate") == "1" {
+	if regenerates(ctx) {
 		update = catalog.UpdateAndRegenerate
 	}
 

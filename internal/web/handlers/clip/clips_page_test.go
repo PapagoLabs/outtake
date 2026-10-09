@@ -372,10 +372,9 @@ func TestClipsAsksTheStoreWhetherAFileExists(t *testing.T) {
 	assert.NotContains(t, answer.body, "Missing file")
 }
 
-// TestClipsOffersTheHDRChoiceForAnHDRSource covers the clips page: a card
-// shows the HDR checkbox when its own source is HDR, as on the media page,
-// and not when it is SDR.
-func TestClipsOffersTheHDRChoiceForAnHDRSource(t *testing.T) {
+// TestClipsOffersNoHDRChoice covers the clips page: Keep HDR is the profile's,
+// so no card offers it, whether its source is SDR or HDR.
+func TestClipsOffersNoHDRChoice(t *testing.T) {
 	t.Parallel()
 
 	handler, db := clipPageHandler(t)
@@ -383,18 +382,12 @@ func TestClipsOffersTheHDRChoiceForAnHDRSource(t *testing.T) {
 
 	answer := getClips(t, handler, routes.PathClips, "")
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assert.NotContains(t, answer.body, `name="preserveHdr"`, "an SDR source has no HDR choice")
+	assert.NotContains(t, answer.body, `name="preserveHdr"`)
 
 	handler.sources = hdrSources(t)
 
 	answer = getClips(t, handler, routes.PathClips, "")
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assert.Contains(t, answer.body, `type="checkbox"`)
-	assert.Contains(t, answer.body, `name="preserveHdr"`, "an HDR source offers the HDR choice")
-	assert.NotContains(
-		t,
-		answer.body,
-		`type="hidden" name="preserveHdr"`,
-		"as the checkbox, not a hidden copy",
-	)
+	assert.NotContains(t, answer.body, `name="preserveHdr"`)
+	assert.Contains(t, answer.body, `name="cropBlackBars"`, "trim black bars is still offered")
 }

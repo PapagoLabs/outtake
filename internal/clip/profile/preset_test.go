@@ -234,34 +234,69 @@ func TestLookupPresetReportsAReadFailureAsAMiss(t *testing.T) {
 	assert.Equal(t, emptyPreset, preset)
 }
 
-// TestPresetCarriesTheProfilesKeepHDR covers the default a new clip takes: a
-// stored profile's keep-HDR, or the built-in High's when only built-ins exist.
+// TestPresetCarriesTheProfilesKeepHDR covers the setting a clip takes when it
+// renders: a stored profile's Keep HDR, where only High HDR keeps HDR among
+// the built-ins, both stored and without a database.
 func TestPresetCarriesTheProfilesKeepHDR(t *testing.T) {
 	t.Parallel()
 
 	db := presetDatabase(t)
 
-	assert.True(t, Preset(t.Context(), db, "high").PreserveHDR)
+	assert.True(t, Preset(t.Context(), db, "high-hdr").PreserveHDR)
+	assert.False(t, Preset(t.Context(), db, "high").PreserveHDR, "High converts to SDR")
 	assert.False(t, Preset(t.Context(), db, "medium").PreserveHDR)
 	assert.False(t, Preset(t.Context(), db, "").PreserveHDR, "the default profile is Medium")
-	assert.True(t, Preset(t.Context(), nil, "high").PreserveHDR, "the built-in High keeps HDR")
+	assert.True(t, Preset(t.Context(), nil, "high-hdr").PreserveHDR,
+		"the built-in High HDR keeps HDR")
+	assert.False(t, Preset(t.Context(), nil, "high").PreserveHDR)
 }
 
-// TestKeepsHDRFollowsTheSelectedProfile covers the form default: the chosen
-// profile's keep-HDR, the default profile's for an unknown or empty choice,
-// and false when nothing is offered.
-func TestKeepsHDRFollowsTheSelectedProfile(t *testing.T) {
+// TestBuiltinProfilesOfferOneThatKeepsHDR covers the built-ins without a
+// database: High HDR is the only one that keeps HDR, and Medium is the default.
+func TestBuiltinProfilesOfferOneThatKeepsHDR(t *testing.T) {
 	t.Parallel()
 
-	options := []ProfileOption{
-		{ID: "social", Name: "Social", IsDefault: true, KeepHDR: false},
-		{ID: "edit", Name: "Edit", IsDefault: false, KeepHDR: true},
+	var keeping, defaults []string
+
+	for _, option := range BuiltinProfiles() {
+		if option.KeepHDR {
+			keeping = append(keeping, option.ID)
+		}
+
+		if option.IsDefault {
+			defaults = append(defaults, option.ID)
+		}
 	}
 
-	assert.True(t, KeepsHDR("edit", options))
-	assert.False(t, KeepsHDR("social", options))
-	assert.False(t, KeepsHDR("", options), "an empty choice is the default profile")
-	assert.False(t, KeepsHDR("gone", options), "an unknown choice is the default profile")
-	assert.True(t, KeepsHDR("", []ProfileOption{{ID: "edit", IsDefault: true, KeepHDR: true}}))
-	assert.False(t, KeepsHDR("edit", nil))
+	assert.Equal(t, []string{"high-hdr"}, keeping)
+	assert.Equal(t, []string{"medium"}, defaults)
+}
+
+// TestKeepHDRReportsAProfileThatIsGone covers the lookup an edit uses: a
+// stored profile, a built-in, and the default profile are found, and an id
+// that names neither is reported missing rather than answered with the Medium
+// fallback's setting.
+func TestKeepHDRReportsAProfileThatIsGone(t *testing.T) {
+	t.Parallel()
+
+	db := presetDatabase(t)
+
+	keep, found := KeepHDR(t.Context(), db, "high-hdr")
+	assert.True(t, found)
+	assert.True(t, keep)
+
+	keep, found = KeepHDR(t.Context(), db, "high")
+	assert.True(t, found)
+	assert.False(t, keep)
+
+	keep, found = KeepHDR(t.Context(), db, "")
+	assert.True(t, found, "the default profile")
+	assert.False(t, keep)
+
+	_, found = KeepHDR(t.Context(), db, "deleted-profile")
+	assert.False(t, found)
+
+	keep, found = KeepHDR(t.Context(), nil, "high-hdr")
+	assert.True(t, found, "a built-in is found without a database")
+	assert.True(t, keep)
 }

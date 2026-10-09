@@ -27,20 +27,8 @@ import (
 //   - err: Non-nil when the body or a form mark cannot be read.
 func parseEdit(ctx fiber.Ctx) (clipdom.EditRequest, error) {
 	if strings.Contains(ctx.Get(fiber.HeaderContentType), "json") {
-		var req clipdom.EditRequest
-
-		err := ctx.Bind().Body(&req)
-		if err != nil {
-			return clipdom.EditRequest{}, fmt.Errorf("bind json: %w", err)
-		}
-
-		err = checkMarks(valueOr(req.StartTime, 0), valueOr(req.Duration, 0))
-		if err != nil {
-			//nolint:wrapcheck // The error message names the mark the caller has to correct.
-			return clipdom.EditRequest{}, err
-		}
-
-		return req, nil
+		//nolint:wrapcheck // The error message names what the caller has to correct.
+		return parseJSONEdit(ctx)
 	}
 
 	form, err := ParseRequest(ctx)
@@ -59,12 +47,47 @@ func parseEdit(ctx fiber.Ctx) (clipdom.EditRequest, error) {
 		FPS:           &form.FPS,
 		AudioIndex:    &form.AudioIndex,
 		CropBlackBars: &form.CropBlackBars,
-		PreserveHDR:   form.KeepHDR(),
+		PreserveHDR:   nil,
+		WebSafeColor:  nil,
 	}, nil
 }
 
+// parseJSONEdit binds a JSON clip update, refusing a Keep HDR choice, which
+// belongs to the profile, and negative marks.
+//
+// Parameters:
+//   - ctx: Request context.
+//
+// Returns:
+//   - req: The update, with nil for every field it leaves alone.
+//   - err: Non-nil when the body cannot be read, it chooses Keep HDR, or a mark
+//     is negative.
+func parseJSONEdit(ctx fiber.Ctx) (clipdom.EditRequest, error) {
+	var req clipdom.EditRequest
+
+	err := ctx.Bind().Body(&req)
+	if err != nil {
+		return clipdom.EditRequest{}, fmt.Errorf("bind json: %w", err)
+	}
+
+	err = req.CheckHDRChoice()
+	if err != nil {
+		//nolint:wrapcheck // The error message tells the caller to choose a profile.
+		return clipdom.EditRequest{}, err
+	}
+
+	err = checkMarks(valueOr(req.StartTime, 0), valueOr(req.Duration, 0))
+	if err != nil {
+		//nolint:wrapcheck // The error message names the mark the caller has to correct.
+		return clipdom.EditRequest{}, err
+	}
+
+	return req, nil
+}
+
 // mergeEdit builds the full edit an update makes to a stored clip, taking
-// the stored value for every field the update leaves out.
+// the stored value for every field the update leaves out. Keep HDR is left
+// for the caller, which takes it from the profile only when the edit renders.
 //
 // Parameters:
 //   - job: The stored clip.
@@ -100,7 +123,7 @@ func mergeEdit(
 		FPS:           valueOr(req.FPS, job.FPS),
 		AudioIndex:    valueOr(req.AudioIndex, job.AudioIndex),
 		CropBlackBars: valueOr(req.CropBlackBars, job.CropBlackBars),
-		PreserveHDR:   new(valueOr(req.KeepHDR(), job.PreserveHDR)),
+		PreserveHDR:   nil,
 	}
 }
 

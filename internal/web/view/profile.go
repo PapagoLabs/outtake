@@ -16,7 +16,7 @@ type ClipProfileItem struct {
 	AudioKbps int
 	MaxWidth  int
 	IsDefault bool
-	// KeepHDR is the profile's keep-HDR default for new video clips.
+	// KeepHDR reports whether a video clip rendered with this profile keeps HDR.
 	KeepHDR bool
 }
 

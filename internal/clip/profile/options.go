@@ -15,7 +15,7 @@ type ProfileOption struct {
 	ID        string
 	Name      string
 	IsDefault bool
-	// KeepHDR is the keep-HDR default a new video clip takes from this profile.
+	// KeepHDR reports whether a video clip rendered with this profile keeps HDR.
 	KeepHDR bool
 }
 
@@ -28,12 +28,14 @@ type OutputWidth struct {
 // BuiltinProfiles returns the built-in clip profiles.
 //
 // Returns:
-//   - options: The Low, Medium, and High built-ins, Medium marked default.
+//   - options: The Low, Medium, High, and High HDR built-ins, Medium marked
+//     default. Only High HDR keeps HDR.
 func BuiltinProfiles() []ProfileOption {
 	return []ProfileOption{
 		{ID: string(clip.ClipQualityLow), Name: "Low", IsDefault: false, KeepHDR: false},
 		{ID: string(clip.ClipQualityMedium), Name: "Medium", IsDefault: true, KeepHDR: false},
-		{ID: string(clip.ClipQualityHigh), Name: "High", IsDefault: false, KeepHDR: true},
+		{ID: string(clip.ClipQualityHigh), Name: "High", IsDefault: false, KeepHDR: false},
+		{ID: string(clip.ClipQualityHighHDR), Name: "High HDR", IsDefault: false, KeepHDR: true},
 	}
 }
 
@@ -133,29 +135,4 @@ func ProfileName(id string, options []ProfileOption) string {
 	}
 
 	return id
-}
-
-// KeepsHDR reports the keep-HDR default a new video clip takes from a profile.
-//
-// Parameters:
-//   - id: Selected profile id, empty for the default profile.
-//   - options: Profiles a quality select offers.
-//
-// Returns:
-//   - keep: The selected profile's default, or the default profile's when id
-//     names none of the options, or false when no profile matches either.
-func KeepsHDR(id string, options []ProfileOption) bool {
-	for i := range options {
-		if options[i].ID == id {
-			return options[i].KeepHDR
-		}
-	}
-
-	for i := range options {
-		if options[i].IsDefault {
-			return options[i].KeepHDR
-		}
-	}
-
-	return false
 }

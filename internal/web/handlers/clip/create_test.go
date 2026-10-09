@@ -115,10 +115,10 @@ func bodyText(t *testing.T, resp *http.Response) string {
 	return string(body)
 }
 
-// TestKeepHDRDefaultsToTheChosenProfile covers a new clip whose request made
-// no choice: it takes its profile's default, so High keeps HDR and Medium
-// converts. A choice in the request, current or legacy, wins.
-func TestKeepHDRDefaultsToTheChosenProfile(t *testing.T) {
+// TestKeepHDRFollowsTheProfile covers a clip's Keep HDR, which is its
+// profile's setting: High HDR keeps HDR, and High, Medium, and the default
+// profile convert.
+func TestKeepHDRFollowsTheProfile(t *testing.T) {
 	t.Parallel()
 
 	db, err := database.New(t.TempDir() + "/keep.db")
@@ -128,30 +128,21 @@ func TestKeepHDRDefaultsToTheChosenProfile(t *testing.T) {
 	handler := &Handler{db: db}
 
 	tests := []struct {
-		name string
-		req  api.ClipRequest
-		want bool
+		name    string
+		quality string
+		want    bool
 	}{
-		{name: "High keeps HDR", req: api.ClipRequest{Quality: "high"}, want: true},
-		{name: "Medium converts", req: api.ClipRequest{Quality: "medium"}, want: false},
-		{name: "the default profile converts", req: api.ClipRequest{}, want: false},
-		{
-			name: "a request that keeps HDR wins",
-			req:  api.ClipRequest{Quality: "medium", PreserveHDR: new(true)},
-			want: true,
-		},
-		{
-			name: "a legacy web-safe request converts",
-			req:  api.ClipRequest{Quality: "high", WebSafeColor: new(true)},
-			want: false,
-		},
+		{name: "High HDR keeps HDR", quality: "high-hdr", want: true},
+		{name: "High converts", quality: "high", want: false},
+		{name: "Medium converts", quality: "medium", want: false},
+		{name: "the default profile converts", quality: "", want: false},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, test.want, handler.keepHDR(t.Context(), &test.req))
+			assert.Equal(t, test.want, handler.keepHDR(t.Context(), test.quality))
 		})
 	}
 }

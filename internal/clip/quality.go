@@ -19,7 +19,7 @@ type QualityPreset struct {
 	AudioKbps int
 	MaxWidth  int
 	// PreserveHDR keeps an HDR source's transfer instead of tone mapping it
-	// to SDR. A profile's value is the default for its new video clips.
+	// to SDR. A clip takes its profile's value each time it renders.
 	PreserveHDR bool
 }
 
@@ -41,10 +41,14 @@ const (
 	ClipQualityMedium ClipQuality = "medium"
 	// ClipQualityHigh is the high quality preset.
 	ClipQualityHigh ClipQuality = "high"
+	// ClipQualityHighHDR is the high quality preset that keeps HDR.
+	ClipQualityHighHDR ClipQuality = "high-hdr"
 	// crfLowQuality is the CRF value for low quality.
 	crfLowQuality = 28
 	// crfMediumQuality is the CRF value for medium quality.
 	crfMediumQuality = 23
+	// presetSlow is the slow encoder preset, which both High profiles use.
+	presetSlow = "slow"
 	// crfHighQuality is the CRF value for high quality.
 	crfHighQuality = 18
 	// MinCRF is the lowest allowed CRF.
@@ -80,7 +84,7 @@ var EncoderPresets = []string{
 	"faster",
 	"fast",
 	"medium",
-	"slow",
+	presetSlow,
 	"slower",
 	"veryslow",
 }
@@ -101,7 +105,14 @@ var QualityPresets = map[ClipQuality]QualityPreset{
 	},
 	ClipQualityHigh: {
 		CRF:         crfHighQuality,
-		Preset:      "slow",
+		Preset:      presetSlow,
+		AudioKbps:   audioKbpsHigh,
+		MaxWidth:    OutputWidth2160p,
+		PreserveHDR: false,
+	},
+	ClipQualityHighHDR: {
+		CRF:         crfHighQuality,
+		Preset:      presetSlow,
 		AudioKbps:   audioKbpsHigh,
 		MaxWidth:    OutputWidth2160p,
 		PreserveHDR: true,

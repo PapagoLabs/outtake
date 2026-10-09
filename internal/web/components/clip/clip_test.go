@@ -449,59 +449,50 @@ func TestListToolbar(t *testing.T) {
 }
 
 // TestClipCardPostsBackSettingsItDoesNotShow covers a card rendered without
-// probed audio tracks or an HDR source: saving it must keep the stored track
-// and HDR setting rather than resetting them.
+// probed audio tracks: saving it must keep the stored track rather than reset
+// it.
 func TestClipCardPostsBackSettingsItDoesNotShow(t *testing.T) {
 	t.Parallel()
 
 	item := activeTestItem()
 	item.AudioTracks = nil
 	item.AudioIndex = 2
-	item.SourceHDR = false
-	item.PreserveHDR = true
 
 	var buf strings.Builder
 
 	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
-	body := buf.String()
 
-	assert.Contains(t, body, `<input type="hidden" name="audioIndex" value="2">`)
-	assert.Contains(t, body, `<input type="hidden" name="preserveHdr" value="1">`)
+	assert.Contains(t, buf.String(), `<input type="hidden" name="audioIndex" value="2">`)
 
 	item.AudioTracks = []view.AudioTrackOption{{Index: 0, Label: "English"}}
-	item.SourceHDR = true
-
-	buf.Reset()
-	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
-	body = buf.String()
-
-	assert.NotContains(t, body, `type="hidden" name="audioIndex"`, "the select posts the track")
-	assert.NotContains(t, body, `type="hidden" name="preserveHdr"`, "the checkbox posts the setting")
-
-	item.SourceHDR = false
-	item.PreserveHDR = false
 
 	buf.Reset()
 	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
 
-	assert.NotContains(t, buf.String(), `name="preserveHdr"`, "an unset setting posts as absent")
+	assert.NotContains(t, buf.String(), `type="hidden" name="audioIndex"`, "the select posts the track")
 }
 
-// TestKeepHDRIsOfferedForVideoOnly covers the Keep HDR box: GIFs and
-// screenshots are always SDR, so only a video clip shows it. The form script
-// finds it by its marker to set it from the chosen profile.
-func TestKeepHDRIsOfferedForVideoOnly(t *testing.T) {
+// TestClipCardOffersNoHDRChoice covers Keep HDR as a profile setting: a card
+// for an HDR clip that keeps HDR, or one that converts, posts no HDR field of
+// any kind, so a save never chooses for the profile.
+func TestClipCardOffersNoHDRChoice(t *testing.T) {
 	t.Parallel()
 
-	var buf strings.Builder
+	for _, keep := range []bool{true, false} {
+		item := activeTestItem()
+		item.Status = domainclip.StatusCompleted
+		item.SourceHDR = true
+		item.PreserveHDR = keep
 
-	require.NoError(t, PreserveHDRField(true).Render(t.Context(), &buf))
+		var buf strings.Builder
 
-	body := buf.String()
-	assert.Contains(t, body, `data-export-for="clip"`)
-	assert.Contains(t, body, "Keep HDR")
-	assert.Contains(t, body, "data-keep-hdr-box")
-	assert.Contains(t, body, "checked")
+		require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
+
+		body := buf.String()
+		assert.NotContains(t, body, `name="preserveHdr"`)
+		assert.NotContains(t, body, "Keep HDR")
+		assert.Contains(t, body, `name="cropBlackBars"`, "trim black bars stays a choice")
+	}
 }
 
 // TestClipStatusVersionsTheFileURLByRender covers a clip rendered again:
@@ -529,25 +520,6 @@ func TestClipStatusVersionsTheFileURLByRender(t *testing.T) {
 
 	assert.Contains(t, first, `src="/clips/c1/file?v=1000"`)
 	assert.Contains(t, second, `src="/clips/c1/file?v=2000"`)
-}
-
-// TestClipCardKeepsItsOwnKeepHDRWhenTheProfileChanges covers a saved clip:
-// its form is not marked to follow the profile, so changing the profile on
-// the card leaves the clip's Keep HDR choice as it was saved.
-func TestClipCardKeepsItsOwnKeepHDRWhenTheProfileChanges(t *testing.T) {
-	t.Parallel()
-
-	item := activeTestItem()
-	item.Status = domainclip.StatusCompleted
-	item.SourceHDR = true
-
-	var buf strings.Builder
-
-	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
-
-	body := buf.String()
-	assert.Contains(t, body, "data-export-form")
-	assert.NotContains(t, body, "data-keep-hdr-follows-profile")
 }
 
 // TestClipCardMarksItsPlayerForPlaybackErrors covers the clip card's player:

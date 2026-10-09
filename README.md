@@ -39,7 +39,7 @@
 - Export a video clip, GIF, or screenshot, then preview and download it.
 - Manage named clip profiles (CRF, encoder preset, audio bitrate, max
   resolution, and whether HDR is kept), and optionally **Trim black bars**
-  or **Keep HDR** on each export.
+  on each export.
 
 The server listens on port 8080 by default.
 
@@ -290,14 +290,15 @@ without owners, only the account that signed in last can claim Outtake.
    **Start** and **End** yourself.
 4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or
    **Screenshot**, pick a **Profile**, and optionally **Trim black bars**.
-   For a video clip from an HDR source, **Keep HDR** keeps the source's
-   HDR in a 10-bit HEVC file, which phones, Apple devices, and YouTube take
-   as HDR. Leave it off to tone-map the clip to SDR, which most social sites
-   need. The box starts from the profile: the built-in High keeps HDR, and
-   Low and Medium convert. Set the default per profile under **Clip
-   Profiles**. GIFs and screenshots are always SDR. When your screen does
-   not show HDR, or your browser cannot play HEVC, the preview of an HDR
-   clip is shown in SDR and says so, while the saved clip keeps HDR.
+   The profile decides whether a video clip from an HDR source keeps HDR.
+   The built-in **High HDR** keeps it in a 10-bit HEVC file, which phones,
+   Apple devices, and YouTube take as HDR. **Low**, **Medium**, and
+   **High** tone-map to SDR, which most social sites need. Change it per
+   profile with **Keep HDR** under **Clip Profiles**. A clip takes the
+   setting each time it renders, so regenerate a finished clip to apply a
+   changed profile. GIFs and screenshots are always SDR. When your screen
+   does not show HDR, or your browser cannot play HEVC, the preview of an
+   HDR clip is shown in SDR and says so, while the saved clip keeps HDR.
 5. Choose **Preview** to check the segment, then **Save clip**.
 
 If something is already playing, the dashboard **Live Sessions** list
@@ -343,8 +344,8 @@ is higher quality.
   (`backends.cockroach` or `backends.cnpg`).
 - **"This browser cannot play this clip".** Clips that keep HDR are HEVC,
   which Brave and Chrome on Linux decode only with hardware video
-  decoding. The file is fine: download it, use Firefox, or turn off
-  **Keep HDR** for that clip. Previews are not affected, because a browser
+  decoding. The file is fine: download it, use Firefox, or regenerate
+  the clip with a profile that converts to SDR. Previews are not affected, because a browser
   without HEVC gets an SDR preview. Where Chromium does decode HEVC,
   versions 151 and later draw 10-bit video black on NVIDIA under Wayland,
   and `--ozone-platform=x11` avoids that.

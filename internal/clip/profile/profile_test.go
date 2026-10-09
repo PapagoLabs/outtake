@@ -136,7 +136,7 @@ func TestBuiltinProfiles(t *testing.T) {
 	t.Parallel()
 
 	entries := BuiltinProfiles()
-	require.Len(t, entries, 3)
+	require.Len(t, entries, 4)
 	assert.Equal(t, "medium", entries[1].ID)
 	assert.True(t, entries[1].IsDefault)
 }

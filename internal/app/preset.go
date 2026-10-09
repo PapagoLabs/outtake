@@ -27,7 +27,8 @@ func clipEncodePreset(
 ) clip.QualityPreset {
 	preset := profile.Preset(ctx, db, record.Quality)
 
-	// The profile only seeds a new clip's choice. The clip decides.
+	// The clip carries the Keep HDR it took from its profile when the render
+	// was queued, which stays right if the profile changes or is deleted.
 	preset.PreserveHDR = record.PreserveHDR
 
 	return preset

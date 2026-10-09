@@ -22,7 +22,7 @@ func TestClipProfilesSeeded(t *testing.T) {
 
 	profiles, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
-	require.Len(t, profiles, 3)
+	require.Len(t, profiles, 4)
 	assert.Equal(t, "medium", profiles[0].ID)
 	assert.True(t, profiles[0].IsDefault)
 
@@ -36,8 +36,15 @@ func TestClipProfilesSeeded(t *testing.T) {
 	high, err := db.GetClipProfile(t.Context(), "high")
 	require.NoError(t, err)
 	assert.Equal(t, clip.OutputWidth2160p, high.MaxWidth)
-	assert.True(t, high.KeepHDR, "High keeps HDR for editing projects")
-	assert.True(t, high.QualityPreset().PreserveHDR, "and passes it on to its preset")
+	assert.False(t, high.KeepHDR, "High converts to SDR")
+
+	highHDR, err := db.GetClipProfile(t.Context(), "high-hdr")
+	require.NoError(t, err)
+	assert.Equal(t, "High HDR", highHDR.Name)
+	assert.Equal(t, clip.OutputWidth2160p, highHDR.MaxWidth)
+	assert.Equal(t, high.CRF, highHDR.CRF, "High HDR encodes like High")
+	assert.True(t, highHDR.KeepHDR, "High HDR keeps HDR for editing projects")
+	assert.True(t, highHDR.QualityPreset().PreserveHDR, "and passes it on to its preset")
 	assert.False(t, def.KeepHDR, "Medium converts HDR to SDR for social posts")
 }
 
@@ -101,6 +108,7 @@ func TestDeleteLastClipProfile(t *testing.T) {
 
 	require.NoError(t, db.DeleteClipProfile(t.Context(), "low"))
 	require.NoError(t, db.DeleteClipProfile(t.Context(), "high"))
+	require.NoError(t, db.DeleteClipProfile(t.Context(), "high-hdr"))
 
 	err = db.DeleteClipProfile(t.Context(), "medium")
 	require.ErrorIs(t, err, ErrLastClipProfile)

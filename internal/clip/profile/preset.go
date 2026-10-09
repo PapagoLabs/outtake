@@ -10,6 +10,47 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
+// KeepHDR reports a profile's Keep HDR setting and whether the profile was
+// found. A stored profile wins, then a built-in of the same id. Unlike Preset,
+// it never answers with the Medium fallback's setting, so a caller can tell a
+// profile that keeps HDR from one that is gone.
+//
+// Parameters:
+//   - ctx: Database context.
+//   - db: Clip profile store; may be nil.
+//   - quality: The profile id, empty for the default profile.
+//
+// Returns:
+//   - keep: Whether the profile keeps HDR.
+//   - found: False when no stored or built-in profile has the id, or the
+//     default profile cannot be read.
+//
+//nolint:nonamedreturns // Same-type returns need names.
+func KeepHDR(ctx context.Context, db *database.DB, quality string) (keep, found bool) {
+	if quality == "" {
+		if db == nil {
+			return clip.QualityPresets[clip.ClipQualityMedium].PreserveHDR, true
+		}
+
+		stored, err := db.DefaultClipProfile(ctx)
+		if err != nil {
+			return false, false
+		}
+
+		return stored.KeepHDR, true
+	}
+
+	if preset, ok := lookupPreset(ctx, db, quality); ok {
+		return preset.PreserveHDR, true
+	}
+
+	if preset, ok := clip.QualityPresets[clip.ClipQuality(quality)]; ok {
+		return preset.PreserveHDR, true
+	}
+
+	return false, false
+}
+
 // Preset resolves a stored quality id onto ffmpeg settings, including the
 // profile's keep-HDR default.
 //

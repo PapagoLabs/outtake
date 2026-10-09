@@ -462,7 +462,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 //   - preset: Current encoder preset.
 //   - audioKbps: Current audio bitrate in kbps.
 //   - maxWidth: Current export resolution.
-//   - keepHDR: Whether new video clips from HDR sources keep HDR by default.
+//   - keepHDR: Whether video clips from HDR sources keep HDR.
 //   - presets: Encoder presets to choose from.
 //   - widths: Export resolutions to choose from.
 func profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, keepHDR bool, presets []string, widths []profile.OutputWidth) templ.Component {
@@ -836,7 +836,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, " Keep HDR by default</label><p class=\"text-sm text-muted-foreground\">New video clips from an HDR source keep HDR. Turn it off to convert them to SDR, which most social sites need. Each clip can still change it.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, " Keep HDR</label><p class=\"text-sm text-muted-foreground\">Video clips from an HDR source keep HDR, in a 10-bit HEVC file. Turn it off to convert them to SDR, which most social sites need. A clip takes this setting each time it renders, so a finished clip keeps its file until you regenerate it.</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -76,9 +76,6 @@ const (
 	// QueryPreview is the rendered preview id on a media item page.
 	QueryPreview = "preview"
 
-	// QueryPreserveHDR carries the keep-HDR toggle across the preview redirect.
-	QueryPreserveHDR = "preserveHdr"
-
 	// QueryPreviewSDR marks a preview of an HDR clip that was tone mapped for
 	// an SDR screen.
 	QueryPreviewSDR = "previewSdr"

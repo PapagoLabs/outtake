@@ -82,23 +82,6 @@ func TestPreviewRedirectCarriesAnAbsentMark(t *testing.T) {
 	assert.Equal(t, "0.000", parsed.Get(routes.QueryEnd))
 }
 
-// TestPreviewRedirectCarriesTheKeepHDRToggle covers the redirect back to the
-// form: the Keep HDR box comes back as the preview was asked for.
-func TestPreviewRedirectCarriesTheKeepHDRToggle(t *testing.T) {
-	t.Parallel()
-
-	_, checked := previewRedirectParts(
-		t, previewRedirect(queryPreview(0, 0, "preserveHdr=1"), "preview-1"),
-	)
-
-	assert.Equal(t, routes.FormChecked, checked.Get(routes.QueryPreserveHDR))
-
-	_, absent := previewRedirectParts(t, previewRedirect(queryPreview(0, 0), "preview-1"))
-
-	assert.Equal(t, routes.FormUnchecked, absent.Get(routes.QueryPreserveHDR),
-		"an absent setting is carried as an unchecked box, so the page does not fall back")
-}
-
 // previewRedirectParts reads a preview redirect apart into its path and query.
 //
 // Parameters:
@@ -140,14 +123,13 @@ func queryPreview(start, end float64, extra ...string) api.ClipRequest {
 		fields.Set(name, value)
 	}
 
-	req.PreserveHDR = new(fields.Get(routes.QueryPreserveHDR) == routes.FormChecked)
+	req.PreserveHDR = new(fields.Get("preserveHdr") == routes.FormChecked)
 
 	return req
 }
 
 // TestPreviewRedirectMarksAPreviewShownInSDR covers a preview of an HDR clip
-// tone mapped for an SDR screen: the page is told, so it can say so, and the
-// clip's own Keep HDR choice comes back unchanged for the next save.
+// tone mapped for an SDR screen: the page is told, so it can say so.
 func TestPreviewRedirectMarksAPreviewShownInSDR(t *testing.T) {
 	t.Parallel()
 
@@ -156,8 +138,8 @@ func TestPreviewRedirectMarksAPreviewShownInSDR(t *testing.T) {
 	)
 
 	assert.Equal(t, routes.FormChecked, shown.Get(routes.QueryPreviewSDR))
-	assert.Equal(t, routes.FormChecked, shown.Get(routes.QueryPreserveHDR),
-		"the form keeps HDR, whatever the preview was shown as")
+	assert.NotContains(t, shown, "preserveHdr",
+		"Keep HDR is the profile's, so the form gets no HDR choice back")
 
 	_, plain := previewRedirectParts(t, previewRedirect(queryPreview(0, 0), "preview-1"))
 

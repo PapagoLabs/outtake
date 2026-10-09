@@ -186,7 +186,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				}
 				@card.Content() {
-					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-keep-hdr-follows-profile data-max-dur={ strconv.FormatInt(int64(props.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(props.Duration).FormatSeconds() }>
+					<form id="clip-form" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.FormatInt(int64(props.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(props.Duration).FormatSeconds() }>
 						@csrf.Field()
 						<input type="hidden" name="mediaId" value={ props.ID }/>
 						// The form script marks an HDR screen, so a preview is tone mapped
@@ -271,11 +271,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 								<input id="fps" name="fps" type="number" min="5" max="30" value={ strconv.Itoa(view.GIFFPSOrDefault(props.Export.FPS)) } class={ utils.ControlClass }/>
 							</div>
 						</div>
-						@clipcard.ColorFields(
-							props.Export.CropBlackBars,
-							props.Export.PreserveHDR,
-							props.SourceHDR,
-						)
+						@clipcard.CropBlackBarsField(props.Export.CropBlackBars)
 						<div class="flex gap-3">
 							@button.Button(button.Props{
 								ID:      "preview-button",

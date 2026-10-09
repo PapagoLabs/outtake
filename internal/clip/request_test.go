@@ -7,26 +7,26 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestKeepHDRResolvesTheLegacyField covers callers that still send
-// webSafeColor: it reads as the inverse of preserveHdr, and preserveHdr wins
-// when both are sent.
-func TestKeepHDRResolvesTheLegacyField(t *testing.T) {
+// TestCheckHDRChoiceRefusesEitherField covers Keep HDR as a profile setting:
+// a request or an edit that sends preserveHdr or webSafeColor, with any
+// value, is refused, so a caller is never given a file it did not ask for.
+func TestCheckHDRChoiceRefusesEitherField(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
 		preserve *bool
 		webSafe  *bool
-		want     *bool
+		refused  bool
 	}{
-		{name: "neither", preserve: nil, webSafe: nil, want: nil},
-		{name: "keep", preserve: new(true), webSafe: nil, want: new(true)},
-		{name: "tone map", preserve: new(false), webSafe: nil, want: new(false)},
-		{name: "legacy web-safe on", preserve: nil, webSafe: new(true), want: new(false)},
-		{name: "legacy web-safe off", preserve: nil, webSafe: new(false), want: new(true)},
-		{name: "both", preserve: new(true), webSafe: new(true), want: new(true)},
+		{name: "neither", preserve: nil, webSafe: nil, refused: false},
+		{name: "keep", preserve: new(true), webSafe: nil, refused: true},
+		{name: "tone map", preserve: new(false), webSafe: nil, refused: true},
+		{name: "web-safe on", preserve: nil, webSafe: new(true), refused: true},
+		{name: "web-safe off", preserve: nil, webSafe: new(false), refused: true},
 	}
 
 	for _, test := range tests {
@@ -36,8 +36,15 @@ func TestKeepHDRResolvesTheLegacyField(t *testing.T) {
 			req := Request{PreserveHDR: test.preserve, WebSafeColor: test.webSafe}
 			edit := EditRequest{PreserveHDR: test.preserve, WebSafeColor: test.webSafe}
 
-			assert.Equal(t, test.want, req.KeepHDR())
-			assert.Equal(t, test.want, edit.KeepHDR())
+			if test.refused {
+				require.ErrorIs(t, req.CheckHDRChoice(), ErrHDRIsAProfileSetting)
+				assert.ErrorIs(t, edit.CheckHDRChoice(), ErrHDRIsAProfileSetting)
+
+				return
+			}
+
+			assert.NoError(t, req.CheckHDRChoice())
+			assert.NoError(t, edit.CheckHDRChoice())
 		})
 	}
 }

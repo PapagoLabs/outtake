@@ -17,7 +17,6 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
-	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -61,19 +60,18 @@ func queryForm(t *testing.T, target string, read func(fiber.Ctx) any) any {
 //   - t: The test the request belongs to.
 //   - target: Request target, including any query string.
 //   - defaultCrop: Configured crop-black-bars default.
-//   - defaultPreserve: Configured keep-HDR default.
 //
 // Returns:
 //   - form: The export form the target carries.
 func fromQueryOf(
 	t *testing.T,
 	target string,
-	defaultCrop, defaultPreserve bool,
+	defaultCrop bool,
 ) view.ExportForm {
 	t.Helper()
 
 	form, ok := queryForm(t, target, func(ctx fiber.Ctx) any {
-		return FromQuery(ctx, defaultCrop, defaultPreserve, "The Movie")
+		return FromQuery(ctx, defaultCrop, "The Movie")
 	}).(view.ExportForm)
 	require.True(t, ok)
 
@@ -93,7 +91,7 @@ func mediaItemFormOf(t *testing.T, target string, cfg *config.Config) view.Expor
 	t.Helper()
 
 	form, ok := queryForm(t, target, func(ctx fiber.Ctx) any {
-		return MediaItemForm(ctx, cfg, "The Movie", profile.BuiltinProfiles())
+		return MediaItemForm(ctx, cfg, "The Movie")
 	}).(view.ExportForm)
 	require.True(t, ok)
 
@@ -146,8 +144,6 @@ func TestFromRequestCarriesEveryExportField(t *testing.T) {
 		Width:         480,
 		FPS:           15,
 		CropBlackBars: true,
-		WebSafeColor:  new(true),
-		PreserveHDR:   new(true),
 	})
 
 	assert.Equal(t, view.ExportForm{
@@ -158,8 +154,7 @@ func TestFromRequestCarriesEveryExportField(t *testing.T) {
 		Width:         480,
 		FPS:           15,
 		CropBlackBars: true,
-		PreserveHDR:   true,
-	}, form, "preserveHdr wins over the legacy webSafeColor")
+	}, form)
 }
 
 func TestFromRequestReadsAnAbsentFlagAsOff(t *testing.T) {
@@ -167,8 +162,6 @@ func TestFromRequestReadsAnAbsentFlagAsOff(t *testing.T) {
 
 	form := FromRequest(api.ClipRequest{MediaID: "42"})
 
-	assert.False(t, form.PreserveHDR,
-		"a request that omitted the field did not ask to keep HDR as is")
 	assert.Zero(t, form.AudioIndex)
 	assert.Zero(t, form.Width)
 	assert.Zero(t, form.FPS)
@@ -178,7 +171,7 @@ func TestFromRequestReadsAnAbsentFlagAsOff(t *testing.T) {
 func TestFromQueryFallsBackToTheMediaTitle(t *testing.T) {
 	t.Parallel()
 
-	form := fromQueryOf(t, routes.PathMedia, false, false)
+	form := fromQueryOf(t, routes.PathMedia, false)
 
 	assert.Equal(t, "The Movie", form.Name,
 		"an unvisited form is named after what it would cut")
@@ -223,7 +216,7 @@ func TestFromQueryKeepsAClearedName(t *testing.T) {
 				routes.QueryExportName: {test.give},
 			}.Encode()
 
-			form := fromQueryOf(t, target, false, false)
+			form := fromQueryOf(t, target, false)
 
 			assert.Equal(t, test.want, form.Name, test.reason)
 		})
@@ -241,7 +234,7 @@ func TestFromQueryReadsTheEncodingOptions(t *testing.T) {
 		routes.QueryFPS, "12",
 	)
 
-	form := fromQueryOf(t, target, false, false)
+	form := fromQueryOf(t, target, false)
 
 	assert.Equal(t, clip.TypeGIF, form.Type)
 	assert.Equal(t, "archive", form.Quality)
@@ -259,7 +252,7 @@ func TestFromQueryReadsAMalformedNumberAsUnset(t *testing.T) {
 		routes.QueryFPS, "-",
 	)
 
-	form := fromQueryOf(t, target, false, false)
+	form := fromQueryOf(t, target, false)
 
 	assert.Zero(t, form.AudioIndex, "a field the server cannot read carries no value")
 	assert.Zero(t, form.Width)
@@ -269,45 +262,35 @@ func TestFromQueryReadsAMalformedNumberAsUnset(t *testing.T) {
 func TestFromQueryUsesTheConfiguredToggles(t *testing.T) {
 	t.Parallel()
 
-	both := fromQueryOf(t, routes.PathMedia, true, true)
+	both := fromQueryOf(t, routes.PathMedia, true)
 	assert.True(t, both.CropBlackBars)
-	assert.True(t, both.PreserveHDR)
 
-	neither := fromQueryOf(t, routes.PathMedia, false, false)
+	neither := fromQueryOf(t, routes.PathMedia, false)
 	assert.False(t, neither.CropBlackBars)
-	assert.False(t, neither.PreserveHDR)
 }
 
-func TestFromQueryLetsTheQueryOverrideEachToggle(t *testing.T) {
+func TestFromQueryLetsTheQueryOverrideTheCropToggle(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		giveCrop     string
-		givePreserve string
-		wantCrop     bool
-		wantPreserve bool
+		name     string
+		giveCrop string
+		wantCrop bool
 	}{
 		{
-			name:         "a cleared crop arrives over a configured default of on",
-			giveCrop:     routes.FormUnchecked,
-			givePreserve: routes.FormChecked,
-			wantCrop:     false,
-			wantPreserve: true,
+			name:     "a cleared crop arrives over a configured default of on",
+			giveCrop: routes.FormUnchecked,
+			wantCrop: false,
 		},
 		{
-			name:         "a checked crop arrives over a configured default of off",
-			giveCrop:     routes.FormChecked,
-			givePreserve: routes.FormUnchecked,
-			wantCrop:     true,
-			wantPreserve: false,
+			name:     "a checked crop arrives over a configured default of on",
+			giveCrop: routes.FormChecked,
+			wantCrop: true,
 		},
 		{
-			name:         "an unrecognized value reads as cleared",
-			giveCrop:     "yes",
-			givePreserve: "on",
-			wantCrop:     false,
-			wantPreserve: false,
+			name:     "an unrecognized value reads as cleared",
+			giveCrop: "yes",
+			wantCrop: false,
 		},
 	}
 
@@ -315,15 +298,11 @@ func TestFromQueryLetsTheQueryOverrideEachToggle(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			target := routes.PathMedia + "?" + values(
-				routes.QueryCropBlackBars, test.giveCrop,
-				routes.QueryPreserveHDR, test.givePreserve,
-			)
+			target := routes.PathMedia + "?" + values(routes.QueryCropBlackBars, test.giveCrop)
 
-			form := fromQueryOf(t, target, true, true)
+			form := fromQueryOf(t, target, true)
 
 			assert.Equal(t, test.wantCrop, form.CropBlackBars)
-			assert.Equal(t, test.wantPreserve, form.PreserveHDR)
 		})
 	}
 }
@@ -331,53 +310,10 @@ func TestFromQueryLetsTheQueryOverrideEachToggle(t *testing.T) {
 func TestFromQueryLeavesTheTogglesAloneWhenTheQueryIsSilent(t *testing.T) {
 	t.Parallel()
 
-	form := fromQueryOf(t, routes.PathMedia, true, true)
+	form := fromQueryOf(t, routes.PathMedia, true)
 
 	assert.True(t, form.CropBlackBars,
 		"an absent query parameter is not a submission, so the default stands")
-	assert.True(t, form.PreserveHDR)
-}
-
-// TestMediaItemFormDefaultsKeepHDRFromTheProfile covers the Keep HDR box on a
-// fresh form: it starts from the selected profile, or the default profile,
-// and a carried box overrides it.
-func TestMediaItemFormDefaultsKeepHDRFromTheProfile(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		query string
-		want  bool
-	}{
-		{name: "the default profile converts", query: "", want: false},
-		{name: "High keeps HDR", query: values(routes.QueryQuality, "high"), want: true},
-		{name: "Low converts", query: values(routes.QueryQuality, "low"), want: false},
-		{
-			name:  "a carried box wins",
-			query: values(routes.QueryQuality, "low", routes.QueryPreserveHDR, routes.FormChecked),
-			want:  true,
-		},
-		{
-			name: "a carried empty box wins",
-			query: values(
-				routes.QueryQuality,
-				"high",
-				routes.QueryPreserveHDR,
-				routes.FormUnchecked,
-			),
-			want: false,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			form := mediaItemFormOf(t, routes.PathMedia+"?"+test.query, &config.Config{})
-
-			assert.Equal(t, test.want, form.PreserveHDR)
-		})
-	}
 }
 
 func TestMediaItemFormKeepsTheCarriedNameOverTheConfiguredTitle(t *testing.T) {
@@ -394,7 +330,6 @@ func TestMediaItemFormKeepsTheCarriedNameOverTheConfiguredTitle(t *testing.T) {
 
 	assert.Empty(t, form.Name, "the carried empty name survives the defaults")
 	assert.True(t, form.CropBlackBars)
-	assert.True(t, form.PreserveHDR)
 }
 
 func TestClipWindowReadsBothMarks(t *testing.T) {

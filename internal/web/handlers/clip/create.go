@@ -44,7 +44,7 @@ func (handler *Handler) Create(ctx fiber.Ctx) error {
 		&req,
 		jobType,
 		inputPath,
-		handler.keepHDR(ctx.Context(), &req),
+		handler.keepHDR(ctx.Context(), req.Quality),
 	)
 
 	job.OutputPath = handler.clipPaths.OutputPath(job.ID, job.Type)
@@ -118,18 +118,15 @@ func buildJob(
 	}
 }
 
-// keepHDR decides whether a new clip keeps an HDR source's HDR: the request's
-// choice when it made one, otherwise its profile's default.
+// keepHDR reports whether a clip rendered with a profile keeps an HDR source's
+// HDR, which is the profile's setting.
 //
 // Parameters:
 //   - ctx: Request scope for the profile lookup.
-//   - req: Parsed request, whose quality names the profile.
+//   - quality: The profile id.
 //
 // Returns:
-//   - keep: True when the clip keeps HDR.
-func (handler *Handler) keepHDR(ctx context.Context, req *api.ClipRequest) bool {
-	return api.FlagOrDefault(
-		req.KeepHDR(),
-		clipprofile.Preset(ctx, handler.db, req.Quality).PreserveHDR,
-	)
+//   - keep: True when the profile keeps HDR.
+func (handler *Handler) keepHDR(ctx context.Context, quality string) bool {
+	return clipprofile.Preset(ctx, handler.db, quality).PreserveHDR
 }

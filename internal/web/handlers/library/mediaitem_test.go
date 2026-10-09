@@ -348,8 +348,8 @@ func TestMediaItemStampsEveryCardWithTheSourceInformation(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assert.Equal(t, 2, countOccurrences(answer.body, `name="audioIndex"`),
 		"each card offers the probed audio tracks")
-	assert.Equal(t, 2, countOccurrences(answer.body, `name="preserveHdr"`),
-		"each card offers the keep-HDR toggle the probed transfer needs")
+	assert.Zero(t, countOccurrences(answer.body, `name="preserveHdr"`),
+		"Keep HDR is the profile's, so no card offers it")
 	assert.Equal(t, 2, countOccurrences(answer.body, `name="endTime"`),
 		"each card is stamped with its own end mark")
 }
