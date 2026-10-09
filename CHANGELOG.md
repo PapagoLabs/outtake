@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module golang.org/x/sync to v0.24.0 by @renovate[bot] in [#396](https://github.com/PapagoLabs/outtake/pull/396)
 - Update nicholas-fedor/actionlint-action action to v1.0.19 by @renovate[bot] in [#392](https://github.com/PapagoLabs/outtake/pull/392)
 - Update nicholas-fedor/govulncheck-action action to v1.1.0 by @renovate[bot] in [#388](https://github.com/PapagoLabs/outtake/pull/388)
 - Group mock imports and regenerate every mock by @nicholas-fedor in [#384](https://github.com/PapagoLabs/outtake/pull/384)
