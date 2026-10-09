@@ -10,8 +10,9 @@ package mocks
 import (
 	"context"
 
-	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 )
 
 // NewMockProber creates a new instance of MockProber. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

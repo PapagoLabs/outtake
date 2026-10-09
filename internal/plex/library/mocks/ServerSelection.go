@@ -8,8 +8,9 @@
 package mocks
 
 import (
-	"github.com/PapagoLabs/outtake/internal/plex"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
 // NewMockServerSelection creates a new instance of MockServerSelection. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

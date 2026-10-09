@@ -15,7 +15,7 @@ task test
 task run            # go run . server start
 task templ-watch    # templ proxy → :8080, cmd is server start
 task compose-dev    # docker compose up --build
-task mock           # mockery --config=build/mockery/mockery.yaml
+task mock           # mockery, then goimports over every mocks/ directory
 ```
 
 Validate with `task lint-ci` then `task vet`, not `go build`. Single package: `go test ./internal/ffmpeg -run TestFoo` after `task templ`.
@@ -26,7 +26,7 @@ Server CLI is `outtake server start` (or `go run . server start`), not `serve`. 
 
 `**/*.templ.go` is gitignored. `task templ` is `templ generate` then `goimports -local github.com/PapagoLabs/outtake -w ./internal/web`. Ungrouped imports after generate are fixed by that goimports pass, not by skipping generate.
 
-Do not add templ/goimports hooks to GoReleaser. CI and `task goreleaser*` already generate first. Do not edit Mockery output; regenerate with `task mock`.
+Do not add templ/goimports hooks to GoReleaser. CI and `task goreleaser*` already generate first. Do not edit Mockery output; regenerate with `task mock` and commit everything it writes. Its goimports pass groups the mocks' imports the way `task templ` regroups the web mocks, so the two tasks never undo each other.
 
 CSS: `task tailwind` reads `internal/web/assets/css/input.css`.
 

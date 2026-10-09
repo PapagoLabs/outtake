@@ -28,12 +28,15 @@ tasks:
       - go test -v -count=1 -p 4 -parallel 8 -tags e2e ./testing/e2e/...
 
   mock:
-    desc: Generate test mocks using mockery
+    desc: Generate test mocks using mockery, with imports grouped like the rest of the code
     cmds:
       - mockery --config=build/mockery/mockery.yaml
+      - find internal -type d -name mocks -exec goimports -local github.com/PapagoLabs/outtake -w {} +
     preconditions:
       - sh: "command -v mockery"
         msg: "mockery must be installed (run: task mockery-install)"
+      - sh: "command -v goimports"
+        msg: "goimports must be installed (go install golang.org/x/tools/cmd/goimports@latest)"
 
   lint:
     desc: Run golangci-lint
