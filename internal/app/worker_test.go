@@ -295,6 +295,7 @@ func TestStartQueueRunsARestoredRender(t *testing.T) {
 
 	store := storagemocks.NewMockBlob(t)
 	store.EXPECT().Put(mock.Anything, job.OutputPath).Return(nil).Once()
+	store.EXPECT().DeleteFile(job.SDRPath()).Return(nil).Once()
 	store.EXPECT().DeleteFile(paths.OutputPath(job.ID, clip.TypeGIF)).Return(nil).Once()
 	store.EXPECT().DeleteFile(paths.OutputPath(job.ID, clip.TypeScreenshot)).
 		Return(errStaleOutput).Once()
@@ -617,4 +618,27 @@ func TestPersistProgressRecordsAtMostOnceASecond(t *testing.T) {
 
 		assert.Equal(t, []int{10, 40}, recorded)
 	})
+}
+
+// TestRemoveOtherOutputsRemovesAnOldSDRVersion covers a video clip that became
+// a GIF: its old MP4 and the SDR version beside it both go, along with the
+// screenshot file.
+func TestRemoveOtherOutputsRemovesAnOldSDRVersion(t *testing.T) {
+	t.Parallel()
+
+	paths := blob.NewPaths(t.TempDir())
+
+	job := testClipJob("now-a-gif")
+
+	job.Type = clip.TypeGIF
+	job.OutputPath = paths.OutputPath(job.ID, clip.TypeGIF)
+
+	oldClip := paths.OutputPath(job.ID, clip.TypeClip)
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().DeleteFile(oldClip).Return(nil).Once()
+	store.EXPECT().DeleteFile(clip.SDRPathFor(oldClip)).Return(nil).Once()
+	store.EXPECT().DeleteFile(paths.OutputPath(job.ID, clip.TypeScreenshot)).Return(nil).Once()
+
+	removeOtherOutputs(store, paths, job)
 }

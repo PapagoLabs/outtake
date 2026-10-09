@@ -6,14 +6,27 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 )
+
+// recordedStages stands in for the queue, recording each stage a render
+// reports.
+type recordedStages struct {
+	// mu guards stages.
+	mu sync.Mutex
+	// stages are the reported stages, in order.
+	stages []clip.Stage
+}
 
 // stubInvocationSeparator ends each run's argv in a fake's log.
 const stubInvocationSeparator = "---- stub invocation ----"
@@ -161,4 +174,49 @@ func assertStagedFor(t *testing.T, output, written string) {
 	assert.Equal(t, filepath.Ext(output), filepath.Ext(written), "with the output's extension")
 	assert.FileExists(t, output, "which is published once the render succeeds")
 	assert.NoFileExists(t, written, "and moved, not copied")
+}
+
+// extractWithCrop renders a job as the worker does: the crop is detected
+// once, then the extract runs with it.
+//
+// Parameters:
+//   - t: The test the render belongs to.
+//   - job: The job to render.
+//   - runner: The FFmpeg runner, which may be nil for a job that never runs it.
+//
+// Returns:
+//   - err: The extract's error.
+func extractWithCrop(t *testing.T, job *clip.Job, runner *ffmpeg.ExecFFmpeg) error {
+	t.Helper()
+
+	//nolint:wrapcheck // The test reads the extract's own error.
+	return extractJob(t.Context(), job, runner, nil, detectJobCrop(t.Context(), runner, job))
+}
+
+// SetStage records a reported stage.
+//
+// Parameters:
+//   - _: The clip id, which the record ignores.
+//   - stage: The reported stage.
+//
+// Returns:
+//   - job: Always nil, as for a job the queue no longer has.
+func (recorded *recordedStages) SetStage(_ string, stage clip.Stage) *clip.Job {
+	recorded.mu.Lock()
+	defer recorded.mu.Unlock()
+
+	recorded.stages = append(recorded.stages, stage)
+
+	return nil
+}
+
+// reported returns the stages recorded so far.
+//
+// Returns:
+//   - stages: A copy of the recorded stages.
+func (recorded *recordedStages) reported() []clip.Stage {
+	recorded.mu.Lock()
+	defer recorded.mu.Unlock()
+
+	return slices.Clone(recorded.stages)
 }

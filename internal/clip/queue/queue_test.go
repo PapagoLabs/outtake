@@ -1113,6 +1113,55 @@ func TestSetProgressWritesUnderTheLock(t *testing.T) {
 		"a job the queue does not have has nowhere to record progress")
 }
 
+// TestSetStageStartsTheNextEncodeFromZero covers a render that moves on to
+// its SDR version: the entry records the stage and counts progress again from
+// zero, and a job the queue does not have records nothing.
+func TestSetStageStartsTheNextEncodeFromZero(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Restore(testJob("staged", clip.StatusProcessing))
+	q.SetProgress("staged", 100)
+
+	updated := q.SetStage("staged", clip.StageSDR)
+	require.NotNil(t, updated)
+	assert.Equal(t, clip.StageSDR, updated.Stage)
+	assert.Zero(t, updated.Progress)
+	assert.Equal(t, clip.StageSDR, q.GetJob("staged").Stage, "and so does the entry")
+
+	assert.Nil(t, q.SetStage("never-queued", clip.StageSDR))
+}
+
+// TestASettledRenderLeavesNoStage covers a render that ended during its SDR
+// version: the settled clip carries no stage, so its card shows one state.
+func TestASettledRenderLeavesNoStage(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var q *Queue
+
+		q = NewQueue(1, func(_ context.Context, job *clip.Job) error {
+			q.SetStage(job.ID, clip.StageSDR)
+			q.SetProgress(job.ID, 50)
+
+			return nil
+		})
+
+		q.Start(t.Context())
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(testJob("staged", clip.StatusPending)))
+
+		synctest.Wait()
+
+		job := q.GetJob("staged")
+		require.NotNil(t, job)
+		assert.Equal(t, clip.StatusCompleted, job.Status)
+		assert.Equal(t, clip.StageClip, job.Stage)
+		assert.Equal(t, 100, job.Progress)
+	})
+}
+
 func TestSettleNotifiesTheEntryItRecordedAgainst(t *testing.T) {
 	t.Parallel()
 

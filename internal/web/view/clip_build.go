@@ -48,6 +48,7 @@ func NewClipItem(
 		AudioTracks:   nil,
 		CropBlackBars: job.CropBlackBars,
 		PreserveHDR:   job.PreserveHDR,
+		Stage:         job.Stage,
 		Width:         job.Width,
 		FPS:           job.FPS,
 		MaxDur:        limit,
@@ -62,7 +63,8 @@ func NewClipItem(
 //   - jobs: Renders to show.
 //   - options: Profiles every card offers as a quality choice.
 //   - limit: Longest clip the installation accepts.
-//   - fileExists: Whether a job's output is still on disk.
+//   - fileExists: Whether a file is still stored, asked of each job's output
+//     and of its SDR version when it may have one.
 //
 // Returns:
 //   - items: One page model per clip, in the order the clips were given.
@@ -75,7 +77,11 @@ func NewClipItems(
 	items := make([]ClipItem, 0, len(jobs))
 
 	for _, job := range jobs {
-		items = append(items, NewClipItem(job, options, limit, fileExists(job.OutputPath)))
+		item := NewClipItem(job, options, limit, fileExists(job.OutputPath))
+
+		item.SDRExists = job.MayHaveSDRVersion() && fileExists(job.SDRPath())
+
+		items = append(items, item)
 	}
 
 	return items

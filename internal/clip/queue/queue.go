@@ -461,6 +461,37 @@ func (q *Queue) SetProgress(id string, percent int) *clip.Job {
 	return updated
 }
 
+// SetStage records that a render moved on to another encode, whose progress
+// starts again from zero, and reports it.
+//
+// Parameters:
+//   - id: The clip being rendered.
+//   - stage: The encode now running.
+//
+// Returns:
+//   - job: The updated job, nil when the queue no longer has it.
+func (q *Queue) SetStage(id string, stage clip.Stage) *clip.Job {
+	q.mu.Lock()
+
+	job, ok := q.jobs[id]
+	if !ok {
+		q.mu.Unlock()
+
+		return nil
+	}
+
+	job.Stage = stage
+	job.Progress = 0
+	job.UpdatedAt = time.Now()
+
+	updated := job.Clone()
+	q.mu.Unlock()
+
+	q.notify(id)
+
+	return updated
+}
+
 // SetStatusFunc registers a callback invoked on job status changes.
 //
 // Parameters:
@@ -934,6 +965,7 @@ func (q *Queue) settle(id string, err error) outcome {
 		live.Progress = progressDone
 	}
 
+	live.Stage = clip.StageClip
 	live.UpdatedAt = time.Now()
 
 	if canceled {
@@ -1025,6 +1057,7 @@ func (q *Queue) take(cancel context.CancelFunc) (*clip.Job, bool) {
 	live := q.jobs[id]
 
 	live.Status = clip.StatusProcessing
+	live.Stage = clip.StageClip
 	live.UpdatedAt = time.Now()
 	q.cancels[id] = cancel
 

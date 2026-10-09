@@ -37,6 +37,7 @@ func clipsApp(handler *Handler) *fiber.App {
 	app := fiber.New()
 	app.Get(routes.PathClips, handler.Clips)
 	app.Get("/clips/:id/file", handler.ClipFile)
+	app.Get("/clips/:id/sdr", handler.ClipSDRFile)
 
 	return app
 }
@@ -390,4 +391,84 @@ func TestClipsOffersNoHDRChoice(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assert.NotContains(t, answer.body, `name="preserveHdr"`)
 	assert.Contains(t, answer.body, `name="cropBlackBars"`, "trim black bars is still offered")
+}
+
+// storeHDRClip persists a finished video clip that keeps HDR, with its own
+// file and, when asked, its SDR version beside it.
+//
+// Parameters:
+//   - t: The test the clip belongs to.
+//   - db: Database the clip is stored in.
+//   - id: Identifier the clip is stored under.
+//   - withSDR: Whether the SDR version is stored too.
+func storeHDRClip(t *testing.T, db *database.DB, id string, withSDR bool) {
+	t.Helper()
+
+	job := testClipJob(id, clipdom.TypeClip)
+
+	job.Status = clipdom.StatusCompleted
+	job.PreserveHDR = true
+	job.OutputPath = seedRenderedClip(t, filepath.Join(t.TempDir(), id+".mp4"))
+
+	if withSDR {
+		require.NoError(t, os.WriteFile(job.SDRPath(), []byte("sdr version"), 0o600))
+	}
+
+	require.NoError(t, db.SaveClip(t.Context(), job))
+}
+
+// TestClipSDRFileStreamsTheSDRVersion covers the route a card plays an HDR
+// clip's SDR version from.
+func TestClipSDRFileStreamsTheSDRVersion(t *testing.T) {
+	t.Parallel()
+
+	handler, db := clipPageHandler(t)
+	storeHDRClip(t, db, "hdr", true)
+
+	answer := getClips(t, handler, "/clips/hdr/sdr", "")
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, "sdr version", "the SDR version's bytes are sent")
+}
+
+// TestClipSDRFileRefusesAClipWithNone covers a clip with no SDR version: one
+// that converts to SDR, and an HDR clip rendered before SDR versions existed.
+func TestClipSDRFileRefusesAClipWithNone(t *testing.T) {
+	t.Parallel()
+
+	handler, db := clipPageHandler(t)
+	storeHDRClip(t, db, "older", false)
+
+	converted := testClipJob("converted", clipdom.TypeClip)
+
+	converted.Status = clipdom.StatusCompleted
+	converted.OutputPath = seedRenderedClip(t, filepath.Join(t.TempDir(), "converted.mp4"))
+	require.NoError(t, db.SaveClip(t.Context(), converted))
+
+	assert.Equal(t, fiber.StatusNotFound, getClips(t, handler, "/clips/older/sdr", "").status)
+	assert.Equal(t, fiber.StatusNotFound, getClips(t, handler, "/clips/converted/sdr", "").status)
+}
+
+// TestClipsPlaysTheSDRVersionFirst covers the card of an HDR clip: it starts
+// on the SDR version and names the HDR file for the page script, and a clip
+// with no SDR version is marked so the script can say so.
+func TestClipsPlaysTheSDRVersionFirst(t *testing.T) {
+	t.Parallel()
+
+	handler, db := clipPageHandler(t)
+
+	handler.sources = hdrSources(t)
+
+	storeHDRClip(t, db, "with-sdr", true)
+	storeHDRClip(t, db, "without-sdr", false)
+
+	answer := getClips(t, handler, routes.PathClips, "")
+	require.Equal(t, fiber.StatusOK, answer.status)
+
+	assertBodyContains(t, answer.body, `src="/clips/with-sdr/sdr?v=`, "the SDR version plays first")
+	assertBodyContains(t, answer.body, `data-hdr-src="/clips/with-sdr/file?v=`,
+		"and the HDR file is named for screens that show it")
+	assertBodyContains(t, answer.body, `src="/clips/without-sdr/file?v=`,
+		"a clip with no SDR version plays its own file")
+	assertBodyContains(t, answer.body, "data-sdr-missing", "and is marked as lacking one")
 }

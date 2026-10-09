@@ -270,6 +270,7 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get("/thumbs", guard, thumbHandler.Get)
 	app.Get("/clips/new", guard, libraryHandler.NewClip)
 	app.Get("/clips/:id/file", guard, clipHandler.ClipFile)
+	app.Get("/clips/:id/sdr", guard, clipHandler.ClipSDRFile)
 	app.Get("/clips/:id/row", guard, clipHandler.ClipRow)
 	app.Get(routeClips, guard, clipHandler.Clips)
 	app.Get("/servers", guard, serverHandler.Servers)

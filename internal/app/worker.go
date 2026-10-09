@@ -119,7 +119,7 @@ func startQueue(
 	jobQueue = queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *clip.Job) error {
 		progressCtx := progress.WithProgress(ctx, persistProgress(ctx, job, jobQueue))
 
-		err := processJob(progressCtx, job, runner, db, store)
+		err := processJob(progressCtx, job, runner, db, store, jobQueue)
 		if err != nil {
 			//nolint:wrapcheck // The error already names the step that failed, and the clip shows it as it is.
 			return err
@@ -141,7 +141,8 @@ func startQueue(
 }
 
 // removeOtherOutputs deletes a rendered clip's files for every other type, so
-// a clip whose type changed does not keep the file it rendered before.
+// a clip whose type changed does not keep the files it rendered before,
+// including a video clip's SDR version.
 //
 // Parameters:
 //   - store: The storage backend outputs live in.
@@ -158,9 +159,26 @@ func removeOtherOutputs(store blob.Blob, paths blob.Paths, job *clip.Job) {
 			continue
 		}
 
-		err := store.DeleteFile(stale)
+		removeStaleOutput(store, job.ID, stale)
+	}
+}
+
+// removeStaleOutput deletes a clip's file of another type, and the SDR version
+// beside it when that file was a video clip.
+//
+// Parameters:
+//   - store: The storage backend outputs live in.
+//   - id: The clip's id, for the log.
+//   - stale: The file of the other type.
+func removeStaleOutput(store blob.Blob, id, stale string) {
+	for _, path := range []string{stale, clip.SDRPathFor(stale)} {
+		if path == "" {
+			continue
+		}
+
+		err := store.DeleteFile(path)
 		if err != nil {
-			log.Warn().Err(err).Str("job_id", job.ID).Str("path", stale).
+			log.Warn().Err(err).Str("job_id", id).Str("path", path).
 				Msg("failed to remove an output of another clip type")
 		}
 	}

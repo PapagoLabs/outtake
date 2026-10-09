@@ -167,3 +167,60 @@ func TestClipItemCanPlay(t *testing.T) {
 		})
 	}
 }
+
+// TestClipItemTracksItsSDRVersion covers the card's SDR state: a render in
+// its SDR stage shows that stage, and a playable HDR clip that keeps HDR but
+// has no SDR version is reported as lacking one, and nothing else is.
+func TestClipItemTracksItsSDRVersion(t *testing.T) {
+	t.Parallel()
+
+	rendering := ClipItem{Status: clip.StatusProcessing, Stage: clip.StageSDR}
+	assert.True(t, rendering.RendersSDRVersion())
+
+	first := ClipItem{Status: clip.StatusProcessing, Stage: clip.StageClip}
+	assert.False(t, first.RendersSDRVersion())
+
+	settled := ClipItem{Status: clip.StatusCompleted, Stage: clip.StageSDR}
+	assert.False(t, settled.RendersSDRVersion(), "a finished clip has no running stage")
+
+	older := ClipItem{
+		ClipType:    clip.TypeClip,
+		Status:      clip.StatusCompleted,
+		FileExists:  true,
+		PreserveHDR: true,
+		SourceHDR:   true,
+	}
+	assert.True(t, older.LacksSDRVersion())
+
+	withSDR := older
+
+	withSDR.SDRExists = true
+	assert.False(t, withSDR.LacksSDRVersion())
+
+	converted := older
+
+	converted.PreserveHDR = false
+	assert.False(t, converted.LacksSDRVersion())
+}
+
+// TestNewClipItemsAsksOnlyWhereAnSDRVersionMayBe covers the clips list: a
+// clip that keeps HDR learns whether its SDR version is stored, and no other
+// clip is asked.
+func TestNewClipItemsAsksOnlyWhereAnSDRVersionMayBe(t *testing.T) {
+	t.Parallel()
+
+	keeps := &clip.Job{ID: "a", Type: clip.TypeClip, PreserveHDR: true, OutputPath: "/c/a.mp4"}
+	converts := &clip.Job{ID: "b", Type: clip.TypeClip, OutputPath: "/c/b.mp4"}
+
+	var asked []string
+
+	items := NewClipItems([]*clip.Job{keeps, converts}, nil, time.Minute, func(path string) bool {
+		asked = append(asked, path)
+
+		return true
+	})
+
+	assert.True(t, items[0].SDRExists)
+	assert.False(t, items[1].SDRExists)
+	assert.Equal(t, []string{"/c/a.mp4", "/c/a.sdr.mp4", "/c/b.mp4"}, asked)
+}

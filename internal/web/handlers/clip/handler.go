@@ -156,6 +156,19 @@ func (handler *Handler) resolveNewClip(
 	return inputPath, "", nil
 }
 
+// sdrVersionExists reports whether a clip's SDR version is stored. Only a clip
+// that may have one is asked about, so most cards cost no extra lookup.
+//
+// Parameters:
+//   - ctx: Request scope for a storage lookup.
+//   - job: The clip.
+//
+// Returns:
+//   - exists: True when the SDR version is stored.
+func (handler *Handler) sdrVersionExists(ctx context.Context, job *clipdom.Job) bool {
+	return job.MayHaveSDRVersion() && handler.outputExists(ctx)(job.SDRPath())
+}
+
 // validateEdit checks that an edit may be stored against the source it names.
 //
 // Parameters:

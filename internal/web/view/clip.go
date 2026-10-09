@@ -36,6 +36,11 @@ type ClipItem struct {
 	CropBlackBars bool
 	PreserveHDR   bool
 	SourceHDR     bool
+	// SDRExists reports that the clip's SDR version is stored, so the card
+	// plays it where the clip's HDR file cannot be shown.
+	SDRExists bool
+	// Stage is which encode of a running render Progress counts.
+	Stage         clip.Stage
 	MediaDuration time.Duration
 	Width         int
 	FPS           int
@@ -175,6 +180,30 @@ func (item *ClipItem) GIFWidth() int {
 //   - active: True when status is pending or processing.
 func (item *ClipItem) IsActive() bool {
 	return item.Status == clip.StatusPending || item.Status == clip.StatusProcessing
+}
+
+// LacksSDRVersion reports a playable HDR clip with no SDR version, such as one
+// rendered before SDR versions existed. Its card plays the HDR file and says a
+// regenerate makes one.
+//
+// Returns:
+//   - lacks: True when the clip keeps HDR from an HDR source but has no SDR
+//     version stored.
+func (item *ClipItem) LacksSDRVersion() bool {
+	return item.CanPlay() &&
+		item.ClipType == clip.TypeClip &&
+		item.PreserveHDR &&
+		item.SourceHDR &&
+		!item.SDRExists
+}
+
+// RendersSDRVersion reports that the running render has moved on to the SDR
+// version, so the clip's own encode is done.
+//
+// Returns:
+//   - sdr: True while the SDR version encodes.
+func (item *ClipItem) RendersSDRVersion() bool {
+	return item.IsActive() && item.Stage == clip.StageSDR
 }
 
 // FormatClipCreated renders a clip timestamp for display, or blank when unset.

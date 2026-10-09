@@ -315,6 +315,37 @@
 		}
 	}
 
+	// chooseClipSources moves each HDR clip's player from its SDR version to
+	// the HDR file where the screen shows HDR and the browser decodes HEVC, the
+	// same test the export form applies to previews. A clip with no SDR version
+	// says so where its HDR file cannot be shown. Each player is visited once.
+	function chooseClipSources() {
+		var showsHDR = screenShowsHDR() && playsHEVC();
+		document.querySelectorAll('video[data-hdr-src]').forEach(function (video) {
+			if (video.dataset.sourceChosen) {
+				return;
+			}
+			video.dataset.sourceChosen = '1';
+			if (showsHDR) {
+				video.src = video.getAttribute('data-hdr-src');
+			}
+		});
+		document.querySelectorAll('video[data-sdr-missing]').forEach(function (video) {
+			if (video.dataset.sourceChosen) {
+				return;
+			}
+			video.dataset.sourceChosen = '1';
+			if (showsHDR) {
+				return;
+			}
+			var note = document.createElement('p');
+			note.setAttribute('data-sdr-missing-note', '');
+			note.className = 'mb-2 text-xs text-muted-foreground';
+			note.textContent = 'This clip has no SDR version yet. Regenerate it to make one for this screen.';
+			video.insertAdjacentElement('beforebegin', note);
+		});
+	}
+
 	// explainPlaybackError says why a clip's player stays empty when the
 	// browser cannot decode the file, such as HEVC in Chrome on Linux. The
 	// file itself is fine, so the note points at the download.
@@ -653,6 +684,7 @@
 
 	document.addEventListener('htmx:after:swap', function (event) {
 		bindExportForms();
+		chooseClipSources();
 		syncPaletteButtons();
 		syncNav();
 		bindMediaJump();
@@ -680,5 +712,6 @@
 	syncPaletteButtons();
 	syncNav();
 	bindExportForms();
+	chooseClipSources();
 	bindMediaJump();
 })();

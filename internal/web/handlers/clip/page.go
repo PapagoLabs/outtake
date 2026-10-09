@@ -42,16 +42,53 @@ const (
 //   - err: Non-nil when the clip is missing or the stream fails.
 func (handler *Handler) ClipFile(ctx fiber.Ctx) error {
 	job := catalog.Job(ctx.Context(), handler.clipQueue, handler.db, ctx.Params(routes.ParamID))
-	if job == nil || job.Status != clipdom.StatusCompleted || job.OutputPath == "" {
+	if job == nil || job.Status != clipdom.StatusCompleted {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
-	err := handler.clipStorage.Ensure(ctx.Context(), job.OutputPath)
+	//nolint:wrapcheck // The helper names what it was sending.
+	return handler.sendClipFile(ctx, job.OutputPath)
+}
+
+// ClipSDRFile streams the SDR version of a completed HDR clip, which its card
+// plays on a screen or in a browser that cannot show the clip's own file.
+//
+// Parameters:
+//   - ctx: Request for one clip id.
+//
+// Returns:
+//   - err: Non-nil when the clip or its SDR version is missing, or the stream
+//     fails.
+func (handler *Handler) ClipSDRFile(ctx fiber.Ctx) error {
+	job := catalog.Job(ctx.Context(), handler.clipQueue, handler.db, ctx.Params(routes.ParamID))
+	if job == nil || job.Status != clipdom.StatusCompleted || !job.MayHaveSDRVersion() {
+		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
+	}
+
+	//nolint:wrapcheck // The helper names what it was sending.
+	return handler.sendClipFile(ctx, job.SDRPath())
+}
+
+// sendClipFile streams one of a clip's files, fetching it from storage first
+// when only another instance has it.
+//
+// Parameters:
+//   - ctx: The request.
+//   - path: The file to send, empty when the clip has none.
+//
+// Returns:
+//   - err: Non-nil when the stream fails.
+func (handler *Handler) sendClipFile(ctx fiber.Ctx, path string) error {
+	if path == "" {
+		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
+	}
+
+	err := handler.clipStorage.Ensure(ctx.Context(), path)
 	if err != nil {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
-	err = respond.SendRangedFile(ctx, job.OutputPath)
+	err = respond.SendRangedFile(ctx, path)
 	if err != nil {
 		return fmt.Errorf("send clip file: %w", err)
 	}
@@ -80,6 +117,8 @@ func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
 			handler.outputExists(ctx.Context())(job.OutputPath),
 		)
 
+		item.SDRExists = handler.sdrVersionExists(ctx.Context(), job)
+
 		return clipcard.ClipStatus(item).Render(ctx.Context(), writer)
 	})
 }
@@ -101,7 +140,7 @@ func (handler *Handler) Clips(ctx fiber.Ctx) error {
 		blob.ExistsEach(
 			ctx.Context(),
 			handler.clipStorage.Exists,
-			clipdom.OutputPaths(jobs),
+			append(clipdom.OutputPaths(jobs), clipdom.SDRPaths(jobs)...),
 			blob.ExistsLimit,
 		),
 	)
