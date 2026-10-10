@@ -199,11 +199,11 @@ Outtake only answers requests addressed to an IP address, `localhost`, a name wi
 ## First run
 
 1. Open [http://localhost:8080](http://localhost:8080). Unauthenticated visits redirect to **Login**. The first Plex account to sign in becomes the **owner**, and Outtake refuses every other Plex account.
-2. Choose **Sign in with Plex**. Outtake opens the Plex Auth App in a popup and shows **Waiting for Plex authorization...** until you approve it.
-3. Or paste a token into **Plex Token** and choose **Sign In**.
-4. If Outtake finds exactly one Media Server, it uses that server and continues to the dashboard. Otherwise it opens **Select a Plex server**. Choose **Use this server**, or enter a custom URL such as `https://plex.example.com` and choose **Use this URL**.
+2. Choose **Login With Plex**. Outtake opens the Plex Auth App in a popup and shows **Waiting for Plex…** until you approve it.
+3. Or paste a token into **Plex Token** and choose **Login**.
+4. If Outtake finds exactly one Media Server, it uses that server and continues to the dashboard. Otherwise it opens **Servers**. Choose **Use This Server**, or enter a custom URL such as `https://plex.example.com` and choose **Use This URL**.
 
-You can change servers later under **Settings → Servers**, where **Forget server** stops Outtake from using the current one. **Logout** ends only the session in that browser.
+You can change servers later under **Settings → Servers**, where **Forget Server** stops Outtake from using the current one. **Logout** ends only the session in that browser.
 
 To hand Outtake to a different Plex account, reset the owner and restart:
 
@@ -218,13 +218,13 @@ The reset also forgets the server the old owner chose. The next Plex account to 
 
 1. Open **Media Libraries** (or **Browse Media** on the dashboard).
 2. Search, or browse a library, then **Open** a title. Folders and shows use **Browse** until you reach a playable item.
-3. On the item page, play the title in Plex if you want live markers. When Plex is playing, use **Set start from Plex** and **Set end from Plex**. Pause in Plex first for an exact mark, because a playing client reports its position only every few seconds. You can also type **Start** and **End** yourself.
-4. Under **New export**, set **Export as** to **Video clip**, **GIF**, or **Screenshot**, pick a **Profile**, and optionally **Trim black bars**. The profile decides whether a video clip from an HDR source keeps HDR. The built-in **4K HDR** keeps it in a 10-bit HEVC file, which phones, Apple devices, and YouTube take as HDR. **720p**, **1080p**, and **4K** tone-map to SDR, which most social sites need. Change it per profile with **Keep HDR** under **Clip Profiles**. A clip takes the setting each time it renders, so regenerate a finished clip to apply a changed profile. GIFs and screenshots are always SDR. When your screen does not show HDR, or your browser cannot play HEVC, the preview of an HDR clip is shown in SDR and says so, while the saved clip keeps HDR.
-5. Choose **Preview** to check the segment, then **Save clip**.
+3. On the item page, play the title in Plex if you want live markers. When Plex is playing, use **Set Start From Plex** and **Set End From Plex**. Pause in Plex first for an exact mark, because a playing client reports its position only every few seconds. You can also type **Start** and **End** yourself.
+4. Under **New Export**, set **Export As** to **Video Clip**, **GIF**, or **Screenshot**, pick a **Profile**, and optionally **Trim black bars**. The profile decides whether a video clip from an HDR source keeps HDR. The built-in **4K HDR** keeps it in a 10-bit HEVC file, which phones, Apple devices, and YouTube take as HDR. **720p**, **1080p**, and **4K** tone-map to SDR, which most social sites need. Change it per profile with **HDR** under **Clip Profiles**. A clip takes the setting each time it renders, so regenerate a finished clip to apply a changed profile. GIFs and screenshots are always SDR. When your screen does not show HDR, or your browser cannot play HEVC, the preview of an HDR clip is shown in SDR, and its badge says so, while the saved clip keeps HDR.
+5. Choose **Preview** to check the segment, then **Save**.
 
-If something is already playing, the dashboard **Live Sessions** list includes **Clip now**.
+If something is already playing, the dashboard **Live Sessions** list includes **Clip Now**.
 
-Finished exports appear on the item and on **Clips**. When a job is **completed** and the file is on disk, use **Download**. Progress updates while a job is pending or processing. A video clip that keeps HDR from an HDR source also renders an SDR version, with a second progress bar, and its card plays that version unless your screen shows HDR and your browser plays HEVC. **Maximum Preview Resolution** under **Settings → Previews** caps every preview at 720p, 1080p, or 4K, and a smaller source keeps its own size. It applies to previews rendered after you change it, including the SDR versions of clips rendered afterwards. **Download** always gives you the HDR file. Each player shows a badge in its corner naming what it plays, such as **HDR · 4K** or **SDR · 1080p**.
+Finished exports appear on the item and on **Clips**. When a job is **Completed** and the file is on disk, use **Download**. Progress updates while a job is pending or processing. A video clip that keeps HDR from an HDR source also renders an SDR version, with a second progress bar, and its card plays that version unless your screen shows HDR and your browser plays HEVC. **Maximum Preview Resolution** under **Settings → Previews** caps every preview at 720p, 1080p, or 4K, and a smaller source keeps its own size. It applies to previews rendered after you change it, including the SDR versions of clips rendered afterwards. **Download** always gives you the HDR file. Each player shows a badge in its corner naming what it plays, such as **HDR · 4K** or **SDR · 1080p**.
 
 Named encode settings live under **Settings → Clip Profiles**. Lower CRF is higher quality. The built-ins are named after what they produce: **720p**, **1080p** (the default), **4K**, and **4K HDR**. You can edit, rename, or delete them like your own profiles.
 
@@ -233,12 +233,12 @@ Named encode settings live under **Settings → Clip Profiles**. Lower CRF is hi
 - **Login never finishes.** Approve the Plex popup. If you reach Outtake through a hostname other than localhost, set `OUTTAKE_PUBLIC_BASE_URL` to that URL.
 - **"This Outtake belongs to a different Plex account."** Sign in with the owner's Plex account, or reset the owner (see [First run](#first-run)).
 - **421 Misdirected Request.** You reached Outtake through a host name it does not know. Set `OUTTAKE_PUBLIC_BASE_URL` to the URL you use, or add the host to `OUTTAKE_ALLOWED_HOSTS`.
-- **No Plex servers were discovered.** Use **Custom server URL** on the servers page. Outtake must be able to reach that address.
+- **No Plex servers found.** Use **Custom Server URL** on the servers page. Outtake must be able to reach that address.
 - **No media found.** Select a server first, then search or browse again.
 - **Clips fail or files are missing.** The path Plex reports must be readable. In Docker, mount the library and set `OUTTAKE_PLEX_MEDIA_ROOT` / `OUTTAKE_LOCAL_MEDIA_ROOT` so that path lands on `/media`. On Kubernetes, that mount is the NFS volume in the suggested manifests (or `media.nfs` / `media.existingClaim` on the example chart). Source media only. Clip blobs stay on `OUTTAKE_STORAGE_PATH` or S3, not on the media NFS share. Clip metadata is in the database.
 - **Kubernetes apply fails.** Set the NFS server and path to your Plex library. Replace the `outtake-s3` keys before apply. For `seaweedfs-cnpg`, install the CloudNativePG operator first.
 - **Wrong storage or database backend.** Defaults are `filesystem` and `sqlite`. For S3, set `OUTTAKE_STORAGE_BACKEND=s3` plus the `OUTTAKE_S3_*` keys. For postgres, set `OUTTAKE_DATABASE_BACKEND=postgres` and `OUTTAKE_DATABASE_URL`. The suggested Kubernetes stacks use S3 and postgres. On the example chart, enable at most one blob backend (`backends.seaweedfs` or `backends.rustfs`) and one database backend (`backends.cockroach` or `backends.cnpg`).
-- **"This browser cannot play this clip".** Clips that keep HDR are HEVC, which Brave and Chrome on Linux decode only with hardware video decoding. Their cards play an SDR version instead, so this appears only for an HDR clip rendered before SDR versions existed, whose card says to regenerate it. The file is fine: download it, use Firefox, or regenerate the clip. Previews are not affected, because a browser without HEVC gets an SDR preview. Where Chromium does decode HEVC, versions 151 and later draw 10-bit video black on NVIDIA under Wayland, and `--ozone-platform=x11` avoids that.
+- **"This browser can't play this clip".** Clips that keep HDR are HEVC, which Brave and Chrome on Linux decode only with hardware video decoding. Their cards play an SDR version instead, so this appears only for an HDR clip rendered before SDR versions existed, whose card says to regenerate it. The file is fine: download it, use Firefox, or regenerate the clip. Previews are not affected, because a browser without HEVC gets an SDR preview. Where Chromium does decode HEVC, versions 151 and later draw 10-bit video black on NVIDIA under Wayland, and `--ozone-platform=x11` avoids that.
 - **"This Dolby Vision source has no HDR10 or SDR base layer".** Dolby Vision profile 5, and any other source without a displayable base layer, cannot be exported by ffmpeg with correct colors. Use a copy of the title with an HDR10 base layer.
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and keep them on `PATH`, or set the path variables above. Docker images already include them.
 

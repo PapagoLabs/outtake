@@ -87,7 +87,7 @@ func TestHTMXErrorsCarryTheFlashPartial(t *testing.T) {
 		"htmx is handed the partial it routes to #flash")
 	assert.Equal(t, "none", htmxResp.Header.Get("Hx-Reswap"),
 		"an error must not swap the element that issued the request")
-	assert.Contains(t, string(htmxBody), "invalid csrf token",
+	assert.Contains(t, string(htmxBody), "This page expired. Reload it and try again.",
 		"the partial carries the reason")
 	assert.NotContains(t, string(htmxBody), `"http_error"`,
 		"an htmx request is not answered with the API error envelope")
@@ -144,7 +144,7 @@ func TestCSRFAllowsHTTPSOriginBehindHTTP(t *testing.T) {
 	body, err := io.ReadAll(postResp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusNotFound, postResp.StatusCode, string(body))
-	assert.NotContains(t, string(body), "invalid csrf token")
+	assert.NotContains(t, string(body), "This page expired. Reload it and try again.")
 
 	evilResp := csrfOriginPost(t, application, loginResp, "https://evil.example", token)
 
@@ -155,7 +155,7 @@ func TestCSRFAllowsHTTPSOriginBehindHTTP(t *testing.T) {
 	evilBody, err := io.ReadAll(evilResp.Body)
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusForbidden, evilResp.StatusCode)
-	assert.Contains(t, string(evilBody), "invalid csrf token")
+	assert.Contains(t, string(evilBody), "This page expired. Reload it and try again.")
 }
 
 func TestLogoutRouteRequiresPost(t *testing.T) {

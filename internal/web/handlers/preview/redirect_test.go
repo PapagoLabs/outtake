@@ -128,22 +128,16 @@ func queryPreview(start, end float64, extra ...string) api.ClipRequest {
 	return req
 }
 
-// TestPreviewRedirectMarksAPreviewShownInSDR covers a preview of an HDR clip
-// tone mapped for an SDR screen: the page is told, so it can say so.
-func TestPreviewRedirectMarksAPreviewShownInSDR(t *testing.T) {
+// TestPreviewRedirectCarriesNoHDRChoice covers the redirect back to the form:
+// HDR is the profile's setting, so the form gets no HDR choice back.
+func TestPreviewRedirectCarriesNoHDRChoice(t *testing.T) {
 	t.Parallel()
 
-	_, shown := previewRedirectParts(
-		t, shownInSDR(previewRedirect(queryPreview(0, 0, "preserveHdr=1"), "preview-1")),
+	_, query := previewRedirectParts(
+		t, previewRedirect(queryPreview(0, 0, "preserveHdr=1"), "preview-1"),
 	)
 
-	assert.Equal(t, routes.FormChecked, shown.Get(routes.QueryPreviewSDR))
-	assert.NotContains(t, shown, "preserveHdr",
-		"Keep HDR is the profile's, so the form gets no HDR choice back")
-
-	_, plain := previewRedirectParts(t, previewRedirect(queryPreview(0, 0), "preview-1"))
-
-	assert.Empty(t, plain.Get(routes.QueryPreviewSDR))
+	assert.NotContains(t, query, "preserveHdr")
 }
 
 // TestScreenShowsHDRReadsTheFormOrTheQuery covers the screen flag: the export
@@ -204,7 +198,6 @@ func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 		sourceHDR bool
 		screenHDR bool
 		renders   bool
-		shownSDR  bool
 	}{
 		{
 			name:      "HDR clip on an SDR screen",
@@ -212,7 +205,6 @@ func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 			sourceHDR: true,
 			screenHDR: false,
 			renders:   false,
-			shownSDR:  true,
 		},
 		{
 			name:      "HDR clip on an HDR screen",
@@ -220,7 +212,6 @@ func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 			sourceHDR: true,
 			screenHDR: true,
 			renders:   true,
-			shownSDR:  false,
 		},
 		{
 			name:      "converted clip on an HDR screen",
@@ -228,7 +219,6 @@ func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 			sourceHDR: true,
 			screenHDR: true,
 			renders:   false,
-			shownSDR:  false,
 		},
 		{
 			name:      "converted clip on an SDR screen",
@@ -236,7 +226,6 @@ func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 			sourceHDR: true,
 			screenHDR: false,
 			renders:   false,
-			shownSDR:  false,
 		},
 		{
 			name:      "SDR source under a keep-HDR profile",
@@ -244,7 +233,6 @@ func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 			sourceHDR: false,
 			screenHDR: false,
 			renders:   true,
-			shownSDR:  false,
 		},
 	}
 
@@ -254,10 +242,9 @@ func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 
 			req := api.ClipRequest{MediaID: "42", PreserveHDR: new(test.keep)}
 
-			render, shownSDR := previewRender(req, test.sourceHDR, test.screenHDR)
+			render := previewRender(req, test.sourceHDR, test.screenHDR)
 
 			assert.Equal(t, test.renders, *render.PreserveHDR)
-			assert.Equal(t, test.shownSDR, shownSDR)
 			assert.Equal(t, test.keep, *req.PreserveHDR, "the clip's choice is untouched")
 		})
 	}

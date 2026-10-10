@@ -35,12 +35,32 @@ func TestFormatClipCreated(t *testing.T) {
 	)
 }
 
+// TestClipTypeLabel covers the type names a card shows, matching the type
+// select's options.
 func TestClipTypeLabel(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "Clip", ClipTypeLabel(clip.TypeClip))
+	assert.Equal(t, "Video Clip", ClipTypeLabel(clip.TypeClip))
 	assert.Equal(t, "GIF", ClipTypeLabel(clip.TypeGIF))
 	assert.Equal(t, "Screenshot", ClipTypeLabel(clip.TypeScreenshot))
+}
+
+// TestStatusLabel covers the status badge: each status in header
+// capitalization, with a processing clip read as rendering, and an unknown
+// status shown as it is.
+func TestStatusLabel(t *testing.T) {
+	t.Parallel()
+
+	for status, want := range map[clip.Status]string{
+		clip.StatusPending:    "Pending",
+		clip.StatusProcessing: "Rendering",
+		clip.StatusCompleted:  "Completed",
+		clip.StatusFailed:     "Failed",
+		clip.StatusCancelled:  "Canceled",
+		"paused":              "paused",
+	} {
+		assert.Equal(t, want, StatusLabel(status), string(status))
+	}
 }
 
 func TestClipItemDisplayName(t *testing.T) {

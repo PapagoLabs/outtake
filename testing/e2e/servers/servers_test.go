@@ -21,15 +21,15 @@ var _ = Describe("Servers", func() {
 		It("renders the chooser and its custom URL form", func(ctx SpecContext) {
 			body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/servers"))
 
-			Expect(body).To(ContainSubstring("Plex Servers"))
-			Expect(body).To(ContainSubstring("Select a Plex server"))
+			Expect(body).To(ContainSubstring("<title>Servers - Outtake</title>"))
+			Expect(body).To(ContainSubstring("Custom Server URL"))
 			Expect(body).To(ContainSubstring(`name="customUrl"`))
 		})
 
 		It("reports that nothing was discovered without a session", func(ctx SpecContext) {
 			body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/servers"))
 
-			Expect(body).To(ContainSubstring("No Plex servers were discovered"))
+			Expect(body).To(ContainSubstring("No Plex servers found for this account"))
 		})
 	})
 

@@ -213,7 +213,7 @@
 		// the outcome rather than freezing at the last percentage.
 		cancelEl.addEventListener('htmx:response:error', function () {
 			statusEl.classList.remove('hidden');
-			statusEl.textContent = 'Could not cancel the preview.';
+			statusEl.textContent = 'Couldn\'t cancel the preview';
 		});
 	}
 
@@ -261,7 +261,7 @@
 			.then(function (response) {
 				if (response.status === 404) {
 					// The id is not registered, so polling it will never succeed.
-					giveUp('Preview is no longer available.');
+					giveUp('This preview is gone. Select Preview to render it again.');
 
 					return null;
 				}
@@ -288,15 +288,19 @@
 					stopPolling();
 					clearProgress();
 					statusEl.classList.remove('hidden');
-					statusEl.textContent = state.error
-						? state.status.charAt(0).toUpperCase() + state.status.slice(1) + ': ' + state.error
-						: 'Preview was ' + state.status + '.';
+					// The error moves behind a Details section once errors carry
+					// copyable details. Until then the line names it.
+					if (state.status === 'canceled') {
+						statusEl.textContent = 'Preview canceled';
+					} else {
+						statusEl.textContent = state.error ? 'Preview failed: ' + state.error : 'Preview failed';
+					}
 
 					return;
 				}
 				attempts++;
 				if (exhausted()) {
-					giveUp('Gave up waiting for the preview after ' + maxAttempts + ' attempts.');
+					giveUp('The preview is taking too long. Select Preview to try again.');
 
 					return;
 				}
@@ -311,12 +315,12 @@
 				console.warn('preview poll failed for ' + previewId, error);
 				attempts++;
 				if (exhausted()) {
-					giveUp('Lost contact with the preview server.');
+					giveUp('Lost contact with Outtake. Select Preview to try again.');
 
 					return;
 				}
 				showProgress(0);
-				statusEl.textContent = 'Waiting for the preview server…';
+				statusEl.textContent = 'Reconnecting to Outtake…';
 				schedule(retryIntervalMs);
 			});
 	}

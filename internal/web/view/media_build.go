@@ -14,7 +14,7 @@ import (
 
 const (
 	// crumbLibraries is the first crumb on every media trail.
-	crumbLibraries = "Libraries"
+	crumbLibraries = "Media Libraries"
 
 	// seasonFallback is the crumb title for a season Plex gave no title for.
 	seasonFallback = "Season"

@@ -101,8 +101,8 @@ func TestMediaItemPagePreservesStatusFilter(t *testing.T) {
 	body := buf.String()
 	assert.Contains(t, body, `name="status"`)
 	assert.Contains(t, body, `value="pending"`)
-	assert.Contains(t, body, "No clips match these filters.")
-	assert.NotContains(t, body, "No clips yet.")
+	assert.Contains(t, body, "No clips match these filters")
+	assert.NotContains(t, body, "No clips yet")
 }
 
 func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
@@ -142,7 +142,7 @@ func TestMediaItemPageRendersCarriedExportForm(t *testing.T) {
 	body := buf.String()
 
 	assert.Contains(t, body, `<option value="gif" selected>`)
-	assert.Contains(t, body, `name="name" placeholder="Optional name" value="A named clip"`)
+	assert.Contains(t, body, `name="name" placeholder="Optional" value="A named clip"`)
 	assert.Contains(t, body, `<option value="profile-high" selected>`)
 	assert.Contains(t, body, `<option value="2" selected>`)
 
@@ -170,7 +170,7 @@ func TestMediaItemPageFallsBackToFormDefaults(t *testing.T) {
 	body := buf.String()
 
 	assert.Contains(t, body, `<option value="clip" selected>`)
-	assert.Contains(t, body, `name="name" placeholder="Optional name" value="Movie"`)
+	assert.Contains(t, body, `name="name" placeholder="Optional" value="Movie"`)
 	assert.Contains(t, body, `name="width" type="number" min="120" max="1920" value="480"`)
 	assert.Contains(t, body, `name="fps" type="number" min="5" max="30" value="10"`)
 	assert.NotContains(t, body, `name="cropBlackBars" value="1" checked`)
@@ -192,8 +192,8 @@ func TestMediaItemPageRendersClearedName(t *testing.T) {
 
 	body := buf.String()
 
-	assert.Contains(t, body, `name="name" placeholder="Optional name" class=`)
-	assert.NotContains(t, body, `name="name" placeholder="Optional name" value=`)
+	assert.Contains(t, body, `name="name" placeholder="Optional" class=`)
+	assert.NotContains(t, body, `name="name" placeholder="Optional" value=`)
 	assert.Contains(t, body, `name="mediaTitle" value="Movie"`)
 }
 
@@ -280,7 +280,7 @@ func TestItemClipListOmitsLayout(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "No clips match these filters.")
+	assert.Contains(t, body, "No clips match these filters")
 	assert.NotContains(t, body, "Outtake")
 	assert.NotContains(t, body, `id="clip-list-type"`)
 }
@@ -353,7 +353,7 @@ func TestItemClipListRendersEveryClip(t *testing.T) {
 	assert.Contains(t, body, `id="clip-clip-two"`)
 	assert.Contains(t, body, "Opening")
 	assert.Contains(t, body, "Closing")
-	assert.NotContains(t, body, "No clips match these filters.")
+	assert.NotContains(t, body, "No clips match these filters")
 }
 
 func TestMediaItemPageShowsTheSaveError(t *testing.T) {
@@ -433,35 +433,21 @@ func TestMediaItemPageShowsAShortDuration(t *testing.T) {
 	assert.NotContains(t, body, "02:02:05")
 }
 
-// TestMediaItemPageLabelsAPreviewShownInSDR covers the preview of an HDR clip
-// on an SDR screen: the page says it is shown in SDR and that the saved clip
-// keeps HDR, and says nothing for any other preview.
-func TestMediaItemPageLabelsAPreviewShownInSDR(t *testing.T) {
+// TestMediaItemPageCarriesTheScreenHDRField covers the export form's screen
+// flag: the form carries a field the script marks on an HDR screen, so a
+// preview is tone mapped only where HDR cannot be shown.
+func TestMediaItemPageCarriesTheScreenHDRField(t *testing.T) {
 	t.Parallel()
 
-	for _, shownSDR := range []bool{true, false} {
-		var buf strings.Builder
+	var buf strings.Builder
 
-		err := MediaItemPage(MediaItemPageProps{
-			ID:              "42",
-			Title:           "Movie",
-			MaxDur:          600 * time.Second,
-			PreviewID:       "preview-1",
-			PreviewShownSDR: shownSDR,
-		}).Render(t.Context(), &buf)
-		require.NoError(t, err)
+	err := MediaItemPage(MediaItemPageProps{
+		ID:        "42",
+		Title:     "Movie",
+		MaxDur:    600 * time.Second,
+		PreviewID: "preview-1",
+	}).Render(t.Context(), &buf)
+	require.NoError(t, err)
 
-		body := buf.String()
-		assert.Contains(t, body, `name="screenHdr" value="0" data-screen-hdr`,
-			"the form carries a field the script marks on an HDR screen")
-
-		if shownSDR {
-			assert.Contains(t, body, "data-preview-sdr")
-			assert.Contains(t, body, "The saved clip keeps HDR.")
-
-			continue
-		}
-
-		assert.NotContains(t, body, "data-preview-sdr")
-	}
+	assert.Contains(t, buf.String(), `name="screenHdr" value="0" data-screen-hdr`)
 }

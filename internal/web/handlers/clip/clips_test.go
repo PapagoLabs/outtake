@@ -105,7 +105,7 @@ func TestClipRowReportsAFailedClip(t *testing.T) {
 
 	require.Equal(t, fiber.StatusOK, status)
 	assert.Contains(t, row, "crop detected zero width", "the failure text reaches the card")
-	assert.Contains(t, row, ">failed<", "the status badge says the clip did not render")
+	assert.Contains(t, row, ">Failed<", "the status badge says the clip did not render")
 	assert.NotContains(t, row, ">37%<", "a failed clip reports no live progress")
 }
 
@@ -139,9 +139,9 @@ func TestClipRowReportsACompletedClipWhoseFileIsGone(t *testing.T) {
 	status, row := clipRowRequest(t, handler, "/api/clips/"+"old-clip"+"/row")
 
 	require.Equal(t, fiber.StatusOK, status)
-	assert.Contains(t, row, ">completed<",
+	assert.Contains(t, row, ">Completed<",
 		"the clip did finish, so its status is still completed")
-	assert.Contains(t, row, "Missing file",
+	assert.Contains(t, row, "Missing File",
 		"the card says the file is gone, so the user knows a re-render is needed")
 	assert.NotContains(t, row, "/clips/"+"old-clip"+"/file",
 		"a clip with no file offers no player pointing at it")

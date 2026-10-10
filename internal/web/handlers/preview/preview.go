@@ -111,7 +111,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	req.PreserveHDR = new(handler.keepHDR(ctx, req))
 
 	sourceHDR := handler.sources.DescribePath(ctx.Context(), inputPath).HDR
-	render, shownSDR := previewRender(req, sourceHDR, screenShowsHDR(ctx))
+	render := previewRender(req, sourceHDR, screenShowsHDR(ctx))
 	renderKeepsHDR := api.Flag(render.PreserveHDR)
 	maxWidth := playback.MaxPreviewWidth(ctx.Context(), handler.db)
 
@@ -121,9 +121,6 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	}
 
 	location := previewRedirect(req, previewID)
-	if shownSDR {
-		location = shownInSDR(location)
-	}
 
 	// A preview already rendered for these exact parameters is returned without
 	// touching ffmpeg, so repeating the same selection costs nothing. It is
@@ -173,8 +170,8 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 // previewRender decides what a preview renders. An HDR clip that keeps HDR is
 // tone mapped unless the browser can show an HDR preview, because an HDR
 // preview renders black or washed out on an SDR screen in some browsers, and
-// a browser without an HEVC decoder cannot play it at all. An SDR source has no HDR to show, so its
-// preview is never marked as shown in SDR. The request keeps the clip's own
+// a browser without an HEVC decoder cannot play it at all. The preview's
+// format badge then names what it shows. The request keeps the clip's own
 // choice.
 //
 // Parameters:
@@ -184,16 +181,15 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 //
 // Returns:
 //   - render: The request the preview renders, a copy of req.
-//   - shownSDR: The clip keeps HDR but its preview is tone mapped.
-func previewRender(req api.ClipRequest, sourceHDR, screenHDR bool) (api.ClipRequest, bool) {
+func previewRender(req api.ClipRequest, sourceHDR, screenHDR bool) api.ClipRequest {
 	keep := api.Flag(req.PreserveHDR)
-	shownSDR := keep && sourceHDR && !screenHDR
+	toneMapped := keep && sourceHDR && !screenHDR
 
 	render := req
 
-	render.PreserveHDR = new(keep && !shownSDR)
+	render.PreserveHDR = new(keep && !toneMapped)
 
-	return render, shownSDR
+	return render
 }
 
 // screenShowsHDR reports whether the browser said it can show an HDR preview:

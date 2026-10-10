@@ -86,7 +86,7 @@
 			}
 			stopPolling();
 			statusEl.classList.add('hidden');
-			showError(errorEl, 'The Plex sign-in expired. Sign in again.');
+			showError(errorEl, 'The Plex login expired. Try again.');
 		}, lifetimeMs);
 		pollStatus(id, statusEl, errorEl);
 	}
@@ -100,7 +100,7 @@
 		errorEl.textContent = '';
 		var popup = window.open('about:blank', 'plex-auth', 'popup=yes,width=800,height=740');
 		if (!popup) {
-			showError(errorEl, 'Failed to start Plex sign-in.');
+			showError(errorEl, 'Couldn\'t open the Plex login. Allow pop-ups for this site and try again.');
 			return;
 		}
 		try {
@@ -119,7 +119,7 @@
 			}
 			if (!res.ok || !data.authUrl) {
 				popup.close();
-				showError(errorEl, data.message || 'Failed to start Plex sign-in.');
+				showError(errorEl, data.message || 'Couldn\'t start the Plex login');
 				return;
 			}
 			popup.location.href = data.authUrl;
@@ -131,7 +131,7 @@
 				return;
 			}
 			popup.close();
-			showError(errorEl, 'Failed to start Plex sign-in.');
+			showError(errorEl, 'Couldn\'t start the Plex login');
 		}
 	});
 })();

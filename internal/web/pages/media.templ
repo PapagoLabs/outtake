@@ -31,11 +31,10 @@ func mediaNavActive(libraryID string) string {
 // Parameters:
 //   - props: Media library page state.
 templ Media(props view.MediaProps) {
-	@layout.Layout(layout.Props{Title: "Media Library", Active: mediaNavActive(props.LibraryID), Library: props.LibraryID}) {
+	@layout.Layout(layout.Props{Title: "Media Libraries", Active: mediaNavActive(props.LibraryID), Library: props.LibraryID}) {
 		<div class="flex min-h-0 flex-1 flex-col gap-6">
 			<div class="shrink-0">
-				<h2 class="text-2xl font-bold tracking-tight">Media Library</h2>
-				<p class="text-muted-foreground">Browse and clip media from your Plex library.</p>
+				<h2 class="text-2xl font-bold tracking-tight">Media Libraries</h2>
 			</div>
 			<form hx-get="/media" hx-target="#media-browse" hx-swap="innerHTML" hx-push-url="true" hx-include="#media-list-sort" hx-indicator="#search-indicator" class="flex shrink-0 gap-2">
 				if props.LibraryID != "" {
@@ -45,7 +44,7 @@ templ Media(props view.MediaProps) {
 					@label.Label(label.Props{For: "search", Class: "sr-only"}) {
 						Search
 					}
-					@input.Input(input.Props{ID: "search", Name: "q", Placeholder: "Search media...", Value: props.Query})
+					@input.Input(input.Props{ID: "search", Name: "q", Placeholder: "Search titles", Value: props.Query})
 				</div>
 				<button type="submit" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">
 					Search

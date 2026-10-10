@@ -28,13 +28,13 @@ type Handler struct {
 
 const (
 	// statusWaiting is shown while a PIN is outstanding.
-	statusWaiting = "Waiting for Plex authorization..."
+	statusWaiting = "Waiting for Plex…"
 
 	// statusAuthed is shown after PIN authorization succeeds.
-	statusAuthed = "Authenticated! Redirecting..."
+	statusAuthed = "Login complete. Opening Outtake…"
 
 	// statusRefused is shown when Plex authorized a PIN this installation refuses.
-	statusRefused = "Sign-in refused. Redirecting..."
+	statusRefused = "Login refused"
 
 	// msgPlexTokenRequired is shown when the login form is posted empty.
 	msgPlexTokenRequired = "Plex token is required"

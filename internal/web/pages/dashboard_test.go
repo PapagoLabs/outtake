@@ -50,7 +50,7 @@ func TestDashboardCountsClips(t *testing.T) {
 		assert.Contains(t, body, want)
 	}
 
-	assert.Contains(t, body, "No one is playing anything in Plex right now.")
+	assert.Contains(t, body, "Nothing is playing in Plex")
 	assert.Contains(t, body, "Browse Media")
 	assert.Contains(t, body, "View Clips")
 	assert.Contains(t, body, `data-nav="dashboard"`)
@@ -66,8 +66,8 @@ func TestLiveSessionsEmptyState(t *testing.T) {
 
 	body := buf.String()
 	assert.Contains(t, body, `id="live-sessions"`)
-	assert.Contains(t, body, "No one is playing anything in Plex right now.")
-	assert.NotContains(t, body, "Clip now")
+	assert.Contains(t, body, "Nothing is playing in Plex")
+	assert.NotContains(t, body, "Clip Now")
 }
 
 func TestLiveSessionsOmitsClipNowWithoutAMediaItem(t *testing.T) {
@@ -85,7 +85,7 @@ func TestLiveSessionsOmitsClipNowWithoutAMediaItem(t *testing.T) {
 	body := buf.String()
 	assert.Contains(t, body, "Movie", "a crumb with no link stays plain text")
 	assert.Contains(t, body, "(1995)")
-	assert.NotContains(t, body, "Clip now",
+	assert.NotContains(t, body, "Clip Now",
 		"without a media item there is nothing to clip from")
 	assert.NotContains(t, body, "<a", "a crumb with no URL is not linked")
 }
@@ -124,7 +124,7 @@ func TestLiveSessions(t *testing.T) {
 				"Episode 5",
 				" · ",
 				`href="/media/item/42?start=10.345"`,
-				"Clip now",
+				"Clip Now",
 			},
 		},
 		{

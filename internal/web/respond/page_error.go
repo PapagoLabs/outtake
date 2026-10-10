@@ -73,8 +73,8 @@ func PageError(ctx fiber.Ctx, err error) error {
 func httpErrorCopy(err error) httpErrorView {
 	view := httpErrorView{
 		code:    fiber.StatusInternalServerError,
-		message: "Something went wrong.",
-		title:   "Something went wrong",
+		message: "Something went wrong. Check the Outtake log.",
+		title:   "Something Went Wrong",
 	}
 
 	if ferr, ok := errors.AsType[*fiber.Error](err); ok {
@@ -85,8 +85,8 @@ func httpErrorCopy(err error) httpErrorView {
 	}
 
 	if view.code == fiber.StatusNotFound {
-		view.message = "That page does not exist."
-		view.title = "Page not found"
+		view.message = "That page doesn't exist"
+		view.title = "Page Not Found"
 	}
 
 	return view

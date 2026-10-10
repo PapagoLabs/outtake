@@ -24,8 +24,8 @@ var _ = Describe("Profiles", func() {
 			body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/settings/profiles"))
 
 			Expect(body).To(ContainSubstring("Clip Profiles"))
-			Expect(body).To(ContainSubstring("New profile"))
-			Expect(body).To(ContainSubstring("Add profile"))
+			Expect(body).To(ContainSubstring("New Profile"))
+			Expect(body).To(ContainSubstring("Add Profile"))
 		})
 
 		It("offers every export width", func(ctx SpecContext) {

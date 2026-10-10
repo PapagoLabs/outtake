@@ -181,7 +181,7 @@ func cookieSecure(cfg *config.Config) bool {
 // Returns:
 //   - Forbidden Fiber error.
 func csrfError(_ fiber.Ctx, _ error) error {
-	return fiber.NewError(fiber.StatusForbidden, "invalid csrf token")
+	return fiber.NewError(fiber.StatusForbidden, "This page expired. Reload it and try again.")
 }
 
 // staticConfig returns the static asset middleware configuration.

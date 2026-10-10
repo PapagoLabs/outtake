@@ -28,8 +28,8 @@ func TestPlaybackPanelMarkButtons(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Regexp(t, `js-mark-start[^>]*>Set start from Plex`, body)
-	assert.Regexp(t, `js-mark-end[^>]*>Set end from Plex`, body)
+	assert.Regexp(t, `js-mark-start[^>]*>Set Start From Plex`, body)
+	assert.Regexp(t, `js-mark-end[^>]*>Set End From Plex`, body)
 }
 
 func TestPlaybackPanelMarkOffsetKeepsMilliseconds(t *testing.T) {

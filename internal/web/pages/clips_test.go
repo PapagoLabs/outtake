@@ -35,8 +35,8 @@ func TestClipsToolbar(t *testing.T) {
 	assert.Contains(t, body, `name="status"`)
 	assert.Contains(t, body, `value="pending"`)
 	assert.Contains(t, body, `id="clip-list"`)
-	assert.Contains(t, body, "No clips match these filters.")
-	assert.NotContains(t, body, "No clips yet.")
+	assert.Contains(t, body, "No clips match these filters")
+	assert.NotContains(t, body, "No clips yet")
 }
 
 func TestClipsListOmitsLayout(t *testing.T) {
@@ -54,7 +54,7 @@ func TestClipsListOmitsLayout(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "No clips match these filters.")
+	assert.Contains(t, body, "No clips match these filters")
 	assert.NotContains(t, body, "Outtake")
 	assert.NotContains(t, body, `id="clip-list-type"`)
 }
@@ -74,9 +74,9 @@ func TestClipsEmptyStateWithoutFilters(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "No clips yet. Browse your media library and create your first clip.")
+	assert.Contains(t, body, "No clips yet. Choose a title in Media Libraries to make one.")
 	assert.Contains(t, body, ">Browse Media</a>")
-	assert.NotContains(t, body, "No clips match these filters.")
+	assert.NotContains(t, body, "No clips match these filters")
 	assert.NotContains(t, body, "Showing ",
 		"no status is active, so no filter banner is shown")
 }
@@ -96,9 +96,9 @@ func TestClipsAnnouncesTheActiveStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "Showing pending clips.")
-	assert.Contains(t, body, ">Show all</a>")
-	assert.Contains(t, body, "New from library")
+	assert.Contains(t, body, "Showing pending clips")
+	assert.Contains(t, body, ">Show All</a>")
+	assert.Contains(t, body, "New From Library")
 }
 
 func TestClipsListRendersEveryClip(t *testing.T) {
@@ -120,6 +120,6 @@ func TestClipsListRendersEveryClip(t *testing.T) {
 	assert.Contains(t, body, `id="clip-clip-two"`)
 	assert.Contains(t, body, "Opening")
 	assert.Contains(t, body, "Closing")
-	assert.NotContains(t, body, "No clips yet.")
-	assert.NotContains(t, body, "No clips match these filters.")
+	assert.NotContains(t, body, "No clips yet")
+	assert.NotContains(t, body, "No clips match these filters")
 }

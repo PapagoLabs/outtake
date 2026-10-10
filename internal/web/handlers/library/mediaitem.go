@@ -26,8 +26,8 @@ import (
 )
 
 // mediaLoadFailedMsg is shown when Plex metadata cannot be loaded for a media item.
-const mediaLoadFailedMsg = "Could not load this item from Plex. " +
-	"You can still create a clip if the file is reachable."
+const mediaLoadFailedMsg = "Couldn't load this title from Plex. " +
+	"A clip can still be made if Outtake can read the file."
 
 // MediaItem renders a single media item with a player and its clips.
 //
@@ -45,26 +45,25 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 	window := exportform.ClipWindow(ctx)
 
 	props := pages.MediaItemPageProps{
-		ID:              id,
-		Title:           id,
-		Type:            "",
-		MaxDur:          clip.DurationCap(handler.cfg.MaxClipDur),
-		Clips:           clips,
-		ClipStatus:      query.Status,
-		ClipType:        query.Type,
-		ClipQuery:       query.Query,
-		ClipSort:        query.Sort,
-		Profiles:        profile.SelectableProfiles(ctx.Context(), handler.db),
-		AudioTracks:     view.AudioTrackOptions(source.AudioStreams),
-		Error:           mediaItemError(itemErr, ctx.Query(routes.QueryError)),
-		PreviewID:       ctx.Query(routes.QueryPreview),
-		PreviewShownSDR: routes.IsFormChecked(ctx.Query(routes.QueryPreviewSDR)),
-		StartTime:       window.Start,
-		EndTime:         window.End,
-		Crumbs:          nil,
-		LibraryID:       "",
-		Quality:         source.Quality,
-		SourceHDR:       source.HDR,
+		ID:          id,
+		Title:       id,
+		Type:        "",
+		MaxDur:      clip.DurationCap(handler.cfg.MaxClipDur),
+		Clips:       clips,
+		ClipStatus:  query.Status,
+		ClipType:    query.Type,
+		ClipQuery:   query.Query,
+		ClipSort:    query.Sort,
+		Profiles:    profile.SelectableProfiles(ctx.Context(), handler.db),
+		AudioTracks: view.AudioTrackOptions(source.AudioStreams),
+		Error:       mediaItemError(itemErr, ctx.Query(routes.QueryError)),
+		PreviewID:   ctx.Query(routes.QueryPreview),
+		StartTime:   window.Start,
+		EndTime:     window.End,
+		Crumbs:      nil,
+		LibraryID:   "",
+		Quality:     source.Quality,
+		SourceHDR:   source.HDR,
 	}
 	if itemErr == nil {
 		props.Title = item.DisplayTitle()

@@ -73,14 +73,14 @@ func posterSize(mediaType string) templ.Attributes {
 //   - message: Why the browse is empty.
 func emptyMediaMessage(props view.MediaProps) string {
 	if !props.HasServer {
-		return "No media found. Connect your Plex server and try again."
+		return "No media found. Choose a Plex server under Servers."
 	}
 
 	if props.Query != "" {
-		return `No titles matched "` + props.Query + `".`
+		return `No titles match "` + props.Query + `"`
 	}
 
-	return "This folder is empty."
+	return "This folder is empty"
 }
 
 // showSort reports whether the library root should show the sort control.
@@ -124,9 +124,9 @@ type jumpRail struct {
 
 // One rail per jump-mark kind, widest for a month mark and narrowest for a letter mark.
 var (
-	letterRail = jumpRail{label: "Jump to letter", width: "w-8", kind: jumpKindLetter}
-	yearRail   = jumpRail{label: "Jump to year", width: "w-10", kind: jumpKindYear}
-	monthRail  = jumpRail{label: "Jump to month", width: "w-14", kind: jumpKindMonth}
+	letterRail = jumpRail{label: "Jump to Letter", width: "w-8", kind: jumpKindLetter}
+	yearRail   = jumpRail{label: "Jump to Year", width: "w-10", kind: jumpKindYear}
+	monthRail  = jumpRail{label: "Jump to Month", width: "w-14", kind: jumpKindMonth}
 )
 
 // jumpRailFor returns the jump rail for a sort.
@@ -498,7 +498,7 @@ func mediaCard(item view.MediaItem, sort string) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"flex size-full items-center justify-center rounded-md bg-muted transition-opacity hover:opacity-90\"><span class=\"text-muted-foreground text-sm\">No thumbnail</span></div>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"flex size-full items-center justify-center rounded-md bg-muted transition-opacity hover:opacity-90\"><span class=\"text-muted-foreground text-sm\">No poster</span></div>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -967,7 +967,7 @@ func mediaSortToolbar(props view.MediaProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, ">Title A-Z</option> <option value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, ">Title (A–Z)</option> <option value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -990,7 +990,7 @@ func mediaSortToolbar(props view.MediaProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, ">Title Z-A</option> <option value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, ">Title (Z–A)</option> <option value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1013,7 +1013,7 @@ func mediaSortToolbar(props view.MediaProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, ">Year newest</option> <option value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, ">Year (Newest)</option> <option value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1036,7 +1036,7 @@ func mediaSortToolbar(props view.MediaProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, ">Year oldest</option> <option value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, ">Year (Oldest)</option> <option value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1059,7 +1059,7 @@ func mediaSortToolbar(props view.MediaProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, ">Date added newest</option> <option value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, ">Date Added (Newest)</option> <option value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1082,7 +1082,7 @@ func mediaSortToolbar(props view.MediaProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, ">Date added oldest</option></select></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, ">Date Added (Oldest)</option></select></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1163,7 +1163,7 @@ func letterJumpSelect(props view.MediaProps) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "Jump to")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "Jump To")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

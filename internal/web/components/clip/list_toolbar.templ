@@ -46,14 +46,14 @@ templ ListToolbar(props ListToolbarProps) {
 			}
 			<select id="clip-list-type" name="type" class={ utils.ControlClass }>
 				<option value="" selected?={ props.Type == "" }>All</option>
-				<option value={ string(domainclip.TypeClip) } selected?={ props.Type == domainclip.TypeClip }>Video clip</option>
+				<option value={ string(domainclip.TypeClip) } selected?={ props.Type == domainclip.TypeClip }>Video Clip</option>
 				<option value={ string(domainclip.TypeGIF) } selected?={ props.Type == domainclip.TypeGIF }>GIF</option>
 				<option value={ string(domainclip.TypeScreenshot) } selected?={ props.Type == domainclip.TypeScreenshot }>Screenshot</option>
 			</select>
 		</div>
 		<div class="min-w-48 flex-1">
 			@label.Label(label.Props{For: "clip-list-q", Class: "sr-only"}) {
-				Filter by name
+				Filter by Name
 			}
 			@input.Input(input.Props{ID: "clip-list-q", Name: "q", Type: input.TypeSearch, Placeholder: "Filter by name", Value: props.Query})
 		</div>
@@ -62,12 +62,12 @@ templ ListToolbar(props ListToolbarProps) {
 				Sort
 			}
 			<select id="clip-list-sort" name="sort" class={ utils.ControlClass }>
-				<option value={ view.ClipSortCreatedDesc } selected?={ view.SortSelected(props.Sort, view.ClipSortCreatedDesc, view.ClipSortCreatedDesc) }>Newest created</option>
-				<option value={ view.ClipSortCreatedAsc } selected?={ view.SortSelected(props.Sort, view.ClipSortCreatedAsc, view.ClipSortCreatedDesc) }>Oldest created</option>
-				<option value={ view.ClipSortUpdatedDesc } selected?={ view.SortSelected(props.Sort, view.ClipSortUpdatedDesc, view.ClipSortCreatedDesc) }>Recently modified</option>
-				<option value={ view.ClipSortUpdatedAsc } selected?={ view.SortSelected(props.Sort, view.ClipSortUpdatedAsc, view.ClipSortCreatedDesc) }>Oldest modified</option>
-				<option value={ view.ClipSortNameAsc } selected?={ view.SortSelected(props.Sort, view.ClipSortNameAsc, view.ClipSortCreatedDesc) }>Name A-Z</option>
-				<option value={ view.ClipSortNameDesc } selected?={ view.SortSelected(props.Sort, view.ClipSortNameDesc, view.ClipSortCreatedDesc) }>Name Z-A</option>
+				<option value={ view.ClipSortCreatedDesc } selected?={ view.SortSelected(props.Sort, view.ClipSortCreatedDesc, view.ClipSortCreatedDesc) }>Created (Newest)</option>
+				<option value={ view.ClipSortCreatedAsc } selected?={ view.SortSelected(props.Sort, view.ClipSortCreatedAsc, view.ClipSortCreatedDesc) }>Created (Oldest)</option>
+				<option value={ view.ClipSortUpdatedDesc } selected?={ view.SortSelected(props.Sort, view.ClipSortUpdatedDesc, view.ClipSortCreatedDesc) }>Modified (Newest)</option>
+				<option value={ view.ClipSortUpdatedAsc } selected?={ view.SortSelected(props.Sort, view.ClipSortUpdatedAsc, view.ClipSortCreatedDesc) }>Modified (Oldest)</option>
+				<option value={ view.ClipSortNameAsc } selected?={ view.SortSelected(props.Sort, view.ClipSortNameAsc, view.ClipSortCreatedDesc) }>Name (A–Z)</option>
+				<option value={ view.ClipSortNameDesc } selected?={ view.SortSelected(props.Sort, view.ClipSortNameDesc, view.ClipSortCreatedDesc) }>Name (Z–A)</option>
 			</select>
 		</div>
 		<button type="submit" class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors">

@@ -24,7 +24,7 @@ var _ = Describe("Playback", func() {
 		body := helpers.ReadBody(resp)
 
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		Expect(body).To(ContainSubstring("Play this item in Plex, then mark start and end"))
+		Expect(body).To(ContainSubstring("Play this title in Plex to set the start and end"))
 	})
 
 	It("omits the marking controls while nothing is playing", func(ctx SpecContext) {
@@ -32,8 +32,8 @@ var _ = Describe("Playback", func() {
 			testApp.Do(ctx, http.MethodGet, panelPath("e2e-idle-item")),
 		)
 
-		Expect(body).NotTo(ContainSubstring("Set start from Plex"))
-		Expect(body).NotTo(ContainSubstring("Set end from Plex"))
+		Expect(body).NotTo(ContainSubstring("Set Start From Plex"))
+		Expect(body).NotTo(ContainSubstring("Set End From Plex"))
 	})
 
 	It("renders a panel for a Plex rating key", func(ctx SpecContext) {
@@ -43,7 +43,7 @@ var _ = Describe("Playback", func() {
 		body := helpers.ReadBody(resp)
 
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		Expect(body).To(ContainSubstring("Play this item in Plex, then mark start and end"))
+		Expect(body).To(ContainSubstring("Play this title in Plex to set the start and end"))
 	})
 })
 

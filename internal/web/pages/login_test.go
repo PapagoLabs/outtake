@@ -35,12 +35,12 @@ func TestLoginOffersBothWaysIn(t *testing.T) {
 	body := renderLogin(t, t.Context(), LoginProps{})
 
 	assert.Contains(t, body, `id="plex-login"`, "the Plex popup sign-in is offered")
-	assert.Contains(t, body, "Sign in with Plex")
+	assert.Contains(t, body, "Login With Plex")
 	assert.Contains(t, body, `data-status-url="/api/auth/status"`,
 		"the sign-in script polls the status once the popup is open")
 	assert.NotContains(t, body, `hx-trigger="every`,
 		"a page nobody signs in from asks the server nothing")
-	assert.Contains(t, body, "Waiting for Plex authorization...")
+	assert.Contains(t, body, "Waiting for Plex…")
 	assert.Contains(t, body, `action="/api/auth/login"`,
 		"a manual token can still be posted")
 	assert.Contains(t, body, `name="token"`)
@@ -101,6 +101,6 @@ func TestLoginKeepsTheManualTokenFieldHidden(t *testing.T) {
 
 	assert.Contains(t, body, `id="manual-token"`)
 	assert.Contains(t, body, `type="password"`)
-	assert.Contains(t, body, `placeholder="Enter token manually"`)
+	assert.Contains(t, body, `placeholder="Paste a Plex token"`)
 	assert.Contains(t, body, `<label for="manual-token"`)
 }

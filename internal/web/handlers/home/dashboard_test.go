@@ -150,7 +150,7 @@ func TestDashboardSessionsServesThePollFragment(t *testing.T) {
 	answer := getDashboardSessions(t, handler)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "Clip now",
+	assertBodyContains(t, answer.body, "Clip Now",
 		"a live session has to offer a way back into the item it is playing")
 	assertBodyContains(t, answer.body, routes.ItemURL("42",
 		url.Values{routes.QueryStart: {"900"}}),
@@ -169,7 +169,7 @@ func TestDashboardSessionsIsEmptyWithNothingPlaying(t *testing.T) {
 	answer := getDashboardSessions(t, handler)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyOmits(t, answer.body, "Clip now",
+	assertBodyOmits(t, answer.body, "Clip Now",
 		"a poll that finds nothing must swap the rows out rather than leave stale ones")
 }
 
