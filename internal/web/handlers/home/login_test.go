@@ -4,7 +4,8 @@
 package home
 
 import (
-	"net/url"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +13,9 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // loginApp mounts the login route on an app that carries a session.
@@ -79,17 +82,27 @@ func TestLoginRendersTheSignInPage(t *testing.T) {
 func TestLoginShowsTheCarriedFailure(t *testing.T) {
 	t.Parallel()
 
-	app := loginApp(t, loginHandler(t))
+	app := fiber.New()
+	app.Use(sessionMiddleware(t))
+	app.Post("/fail", func(ctx fiber.Ctx) error {
+		respond.SetFlash(
+			ctx,
+			view.NewNotice("This login expired. Start again from the login page."),
+		)
 
-	cookies := seedTokenFor(t, app, "")
+		return ctx.SendStatus(fiber.StatusNoContent)
+	})
+	app.Get(routes.PathLogin, loginHandler(t).Login)
 
-	target := routes.PathLogin + "?" + url.Values{
-		routes.QueryError: {"No PIN session"},
-	}.Encode()
+	failed, err := app.Test(
+		httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/fail", nil),
+	)
+	require.NoError(t, err)
+	require.NoError(t, failed.Body.Close())
 
-	answer := serveWithCookies(t, app, cookies, target, "")
+	answer := serveWithCookies(t, app, failed.Cookies(), routes.PathLogin, "")
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "No PIN session",
+	assertBodyContains(t, answer.body, "This login expired. Start again from the login page.",
 		"the reason the last attempt failed is what the user has to read")
 }

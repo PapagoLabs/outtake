@@ -4,6 +4,7 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/view"
 	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
@@ -17,16 +18,15 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
 
-// LoginProps carries the Plex authorization URL and the sign-in error.
+// LoginProps carries the Plex authorization URL.
 type LoginProps struct {
 	AuthURL string
-	Error   string
 }
 
 // Login renders the standalone sign-in document.
 //
 // Parameters:
-//   - props: Plex authorization URL and the sign-in error.
+//   - props: Plex authorization URL.
 templ Login(props LoginProps) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark" data-palette="plex" data-palettes={ theme.IDList() }>
@@ -52,7 +52,7 @@ templ Login(props LoginProps) {
 			}
 		>
 			<div class="w-full max-w-md p-8">
-				@flash.Slot("")
+				@flash.Slot(view.FailureFromContext(ctx))
 				@card.Card() {
 					@card.Header(card.HeaderProps{Class: "items-center text-center"}) {
 						<img src={ assets.URL("brand/mascot-128.png") } width="80" height="80" alt="" class="size-20"/>
@@ -61,11 +61,6 @@ templ Login(props LoginProps) {
 						}
 					}
 					@card.Content() {
-						if props.Error != "" {
-							<div class="mb-4 rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
-								{ props.Error }
-							</div>
-						}
 						<div id="plex-error" class="mb-4 hidden rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"></div>
 						@button.Button(button.Props{ID: "plex-login", Type: button.TypeButton, FullWidth: true}) {
 							Login With Plex

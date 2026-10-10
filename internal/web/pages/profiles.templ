@@ -13,7 +13,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/checkbox"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
-	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/input"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
@@ -26,7 +25,6 @@ type ClipProfilesProps struct {
 	Profiles []view.ClipProfileItem
 	Presets  []string
 	Widths   []profile.OutputWidth
-	Error    string
 }
 
 // ClipProfiles renders the stored clip profiles and the new profile form.
@@ -37,7 +35,6 @@ templ ClipProfiles(props ClipProfilesProps) {
 	@layout.Layout(layout.Props{Title: "Clip Profiles", Active: "profiles"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
 			<h2 class="text-2xl font-bold tracking-tight">Clip Profiles</h2>
-			@flash.Banner(props.Error)
 			for _, profile := range props.Profiles {
 				@card.Card() {
 					@card.Content() {

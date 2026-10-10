@@ -3,6 +3,10 @@
 
 package api
 
+import (
+	"errors"
+)
+
 // MediaItemResponse represents a media item in API responses.
 type MediaItemResponse struct {
 	ID           string  `json:"id"`
@@ -36,6 +40,9 @@ type SessionResponse struct {
 type ErrorResponse struct {
 	Error   ErrorCode `json:"error"`
 	Message string    `json:"message"`
+	// Details is the technical report behind the message, for debugging or
+	// an issue, empty when the message says all there is.
+	Details string `json:"details,omitempty"`
 }
 
 // ErrorCode is the machine-readable code an ErrorResponse carries.
@@ -100,3 +107,6 @@ const (
 	// PositionFailed reports a Plex position that could not be read.
 	PositionFailed ErrorCode = "position_failed"
 )
+
+// ErrInvalidBody reports a JSON request body that cannot be decoded.
+var ErrInvalidBody = errors.New("request body is not valid JSON")

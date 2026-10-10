@@ -41,7 +41,7 @@ var _ = Describe("Auth", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Paste a Plex token"))
 		})
 
 		It("refuses a token no Plex account holds", func(ctx SpecContext) {
@@ -53,12 +53,14 @@ var _ = Describe("Auth", func() {
 	})
 
 	Describe("Callback", func() {
-		It("redirects to the login page when no PIN session exists", func(ctx SpecContext) {
+		It("hands the popup back to the login page when no PIN session exists", func(ctx SpecContext) {
 			resp := testApp.Do(ctx, http.MethodGet, "/api/auth/callback")
-			helpers.CloseBody(resp)
+			body := helpers.ReadBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(HavePrefix("/login"))
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			Expect(string(body)).To(ContainSubstring(`data-auth-next="/login"`))
+			Expect(testApp.LandingAt(ctx, resp, "/login")).
+				To(ContainSubstring("This login expired. Start again from the login page."))
 		})
 	})
 

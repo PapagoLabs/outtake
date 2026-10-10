@@ -199,16 +199,17 @@ func (handler *Handler) validateEdit(
 // submitFailure describes a clip the queue would not take.
 //
 // Parameters:
+//   - ctx: Request context.
 //   - err: The failure from the queue.
 //
 // Returns:
 //   - failure: The rejection to report.
-func submitFailure(err error) *clipRejection {
+func submitFailure(ctx fiber.Ctx, err error) *clipRejection {
 	if errors.Is(err, queue.ErrJobActive) {
-		return newRejection(fiber.StatusConflict, api.JobActive, err.Error())
+		return newRejection(fiber.StatusConflict, api.JobActive, respond.Fail(ctx, err))
 	}
 
-	return newRejection(fiber.StatusInternalServerError, api.PersistFailed, err.Error())
+	return newRejection(fiber.StatusInternalServerError, api.PersistFailed, respond.Fail(ctx, err))
 }
 
 // writeJobSubmitError reports a job the queue would not take.
@@ -220,7 +221,7 @@ func submitFailure(err error) *clipRejection {
 // Returns:
 //   - err: The response write result.
 func writeJobSubmitError(ctx fiber.Ctx, err error) error {
-	failure := submitFailure(err)
+	failure := submitFailure(ctx, err)
 
-	return respond.WriteError(ctx, failure.status, failure.code, failure.message)
+	return respond.WriteFailure(ctx, failure.status, failure.code, failure.failure)
 }

@@ -167,7 +167,7 @@ func TestWriteErrorHTMXRedirectsToAFlashBanner(t *testing.T) {
 func TestWriteErrorFormRedirectsToTheReferer(t *testing.T) {
 	t.Parallel()
 
-	app := newTestApp()
+	app := flashTestApp(t)
 	app.Post("/clips", func(ctx fiber.Ctx) error {
 		return WriteError(ctx, fiber.StatusBadRequest, api.InvalidRequest, "bad duration")
 	})
@@ -182,16 +182,16 @@ func TestWriteErrorFormRedirectsToTheReferer(t *testing.T) {
 	defer closeBody(t, resp)
 
 	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
-	assert.Equal(t,
-		"/media/item/42?error=bad+duration&start=30",
-		resp.Header.Get(fiber.HeaderLocation),
-		"a form post goes back to the page it came from with the reason in the query")
+	assert.Equal(t, "/media/item/42?start=30", resp.Header.Get(fiber.HeaderLocation),
+		"a form post goes back to the page it came from, with nothing added to the address")
+	assert.Equal(t, "bad duration", flashAfter(t, app, resp).Message,
+		"the session carries the reason to that page")
 }
 
-func TestWriteErrorFormRedirectsToTheMediaItem(t *testing.T) {
+func TestWriteErrorFormRedirectsToTheDashboard(t *testing.T) {
 	t.Parallel()
 
-	app := newTestApp()
+	app := flashTestApp(t)
 	app.Post("/clips", func(ctx fiber.Ctx) error {
 		return WriteError(ctx, fiber.StatusBadRequest, api.InvalidRequest, "bad duration")
 	})
@@ -205,10 +205,9 @@ func TestWriteErrorFormRedirectsToTheMediaItem(t *testing.T) {
 	defer closeBody(t, resp)
 
 	assert.Equal(t, fiber.StatusSeeOther, resp.StatusCode)
-	assert.Equal(t,
-		"/?error=bad+duration",
-		resp.Header.Get(fiber.HeaderLocation),
-		"a post naming no media and no referer lands on the dashboard with the reason")
+	assert.Equal(t, routes.PathRoot, resp.Header.Get(fiber.HeaderLocation),
+		"a post naming no media and no referer lands on the dashboard")
+	assert.Equal(t, "bad duration", flashAfter(t, app, resp).Message)
 }
 
 func TestWriteNotFound(t *testing.T) {
@@ -457,44 +456,6 @@ func TestHXTargetID(t *testing.T) {
 	}
 }
 
-func TestPathWithError(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name    string
-		give    string
-		message string
-		want    string
-	}{
-		{
-			name:    "a page path gains the error",
-			give:    "/media",
-			message: "bad duration",
-			want:    "/media?error=bad+duration",
-		},
-		{
-			name:    "existing query values are kept",
-			give:    "/media?library=2",
-			message: "bad duration",
-			want:    "/media?error=bad+duration&library=2",
-		},
-		{
-			name:    "an unparseable location falls back to the dashboard",
-			give:    "://bad",
-			message: "bad duration",
-			want:    "/?error=bad+duration",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t, test.want, PathWithError(test.give, test.message))
-		})
-	}
-}
-
 func TestRefererPath(t *testing.T) {
 	t.Parallel()
 
@@ -602,7 +563,7 @@ func TestFormErrorLocation(t *testing.T) {
 		{
 			name:     "a referer wins",
 			referer:  "http://localhost:8080/clips?type=gif",
-			wantPath: "/clips",
+			wantPath: "/clips?type=gif",
 		},
 		{
 			name:     "a posted media id is the next best thing",
@@ -623,7 +584,7 @@ func TestFormErrorLocation(t *testing.T) {
 
 			app := newTestApp()
 			app.Post("/x", func(ctx fiber.Ctx) error {
-				got = FormErrorLocation(ctx, "bad duration")
+				got = FormErrorLocation(ctx)
 
 				return nil
 			})
@@ -645,8 +606,7 @@ func TestFormErrorLocation(t *testing.T) {
 
 			defer closeBody(t, resp)
 
-			assert.Equal(t, test.wantPath, got[:len(test.wantPath)])
-			assert.Contains(t, got, "error=bad+duration")
+			assert.Equal(t, test.wantPath, got)
 		})
 	}
 }

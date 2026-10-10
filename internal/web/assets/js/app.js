@@ -642,13 +642,43 @@
 			if (flash) {
 				flash.remove();
 			}
-			var url = new URL(window.location.href);
-			if (url.searchParams.has('error')) {
-				url.searchParams.delete('error');
-				window.history.replaceState({}, '', url);
-			}
+		}
+		var copy = event.target.closest('.js-copy-details');
+		if (copy) {
+			copyDetails(copy);
 		}
 	});
+
+	// copyDetails puts an error's details on the clipboard. The clipboard
+	// exists only on HTTPS or localhost, so elsewhere the button selects the
+	// text for the reader to copy by hand.
+	function copyDetails(button) {
+		var section = button.closest('[data-error-details]');
+		var text = section && section.querySelector('[data-error-details-text]');
+		if (!text) {
+			return;
+		}
+		if (navigator.clipboard && window.isSecureContext) {
+			navigator.clipboard.writeText(text.textContent).then(function () {
+				button.textContent = 'Copied';
+				setTimeout(function () { button.textContent = 'Copy'; }, 2000);
+			}, function () {
+				selectText(text);
+			});
+
+			return;
+		}
+		selectText(text);
+	}
+
+	// selectText selects an element's text so it can be copied by hand.
+	function selectText(element) {
+		var range = document.createRange();
+		range.selectNodeContents(element);
+		var selection = window.getSelection();
+		selection.removeAllRanges();
+		selection.addRange(range);
+	}
 
 	// A media element's error does not bubble, so it is caught on the way down.
 	document.addEventListener('error', function (event) {

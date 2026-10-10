@@ -15,18 +15,23 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/playback"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
 // previewSettingsApp mounts the preview settings routes.
 //
 // Parameters:
+//   - t: The test the app belongs to.
 //   - handler: The handler under test.
 //
 // Returns:
 //   - app: An app serving the page and its form.
-func previewSettingsApp(handler *Handler) *fiber.App {
+func previewSettingsApp(t *testing.T, handler *Handler) *fiber.App {
+	t.Helper()
+
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Get(routes.PathSettingsPreviews, handler.PreviewSettings)
 	app.Post(routes.PathSettingsPreviews, handler.SavePreviewSettings)
 
@@ -40,7 +45,7 @@ func TestPreviewSettingsOfferTheMaximumResolutions(t *testing.T) {
 
 	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
 
-	answer := serve(t, previewSettingsApp(handler), routes.PathSettingsPreviews, false)
+	answer := serve(t, previewSettingsApp(t, handler), routes.PathSettingsPreviews, false)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, `<option value="1280">720p</option>`, "720p is offered")
@@ -58,7 +63,7 @@ func TestSavePreviewSettingsStoresTheChosenResolution(t *testing.T) {
 	t.Parallel()
 
 	handler, db := pageHandler(t, offlineAuth(t), silentSources(t))
-	app := previewSettingsApp(handler)
+	app := previewSettingsApp(t, handler)
 
 	saved := serveMethod(t, app, http.MethodPost, routes.PathSettingsPreviews, false, "",
 		url.Values{"maxPreviewWidth": {"1280"}}.Encode())
@@ -71,8 +76,9 @@ func TestSavePreviewSettingsStoresTheChosenResolution(t *testing.T) {
 		url.Values{"maxPreviewWidth": {"2560"}}.Encode())
 
 	require.Equal(t, fiber.StatusSeeOther, refused.status)
-	assert.Contains(t, refused.header.Get(fiber.HeaderLocation), routes.QueryError+"=",
-		"the page is told why")
+	assert.Equal(t, routes.PathSettingsPreviews, refused.header.Get(fiber.HeaderLocation))
+	assert.Equal(t, "Choose 720p, 1080p, or 4K",
+		respondtest.FlashForCookies(t, app, refused.cookies).Message, "the page is told why")
 	assert.Equal(t, clip.OutputWidth720p, playback.MaxPreviewWidth(t.Context(), db),
 		"a refused resolution changes nothing")
 }

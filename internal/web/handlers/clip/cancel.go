@@ -12,6 +12,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
+// msgNotRendering is shown when Cancel reaches a clip that is not rendering.
+const msgNotRendering = "This clip isn't rendering"
+
 // Cancel stops a pending or processing clip.
 //
 // Parameters:
@@ -31,7 +34,7 @@ func (handler *Handler) Cancel(ctx fiber.Ctx) error {
 			ctx,
 			fiber.StatusConflict,
 			api.NotCancellable,
-			"clip is not running",
+			msgNotRendering,
 		)
 	}
 

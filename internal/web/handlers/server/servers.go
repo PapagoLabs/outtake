@@ -33,13 +33,12 @@ func (handler *Handler) ForgetServer(ctx fiber.Ctx) error {
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to forget the selected server")
 
-		return respond.RedirectTo(
+		respond.SetFlash(
 			ctx,
-			respond.PathWithError(
-				routes.PathServers,
-				"Outtake could not forget the server. Try again.",
-			),
+			respond.FailWith(ctx, "Outtake couldn't forget the server. Try again.", err),
 		)
+
+		return respond.RedirectTo(ctx, routes.PathServers)
 	}
 
 	return respond.RedirectTo(ctx, routes.PathServers)
@@ -74,7 +73,6 @@ func (handler *Handler) Servers(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Servers(pages.ServersProps{
 			Servers:       view.ServerItems(handler.discoverServers(ctx), current),
-			Error:         ctx.Query(routes.QueryError),
 			Bound:         bound,
 			TokenRejected: handler.auth.TokenRejected(),
 		}).Render(ctx.Context(), writer)
@@ -94,10 +92,14 @@ func (handler *Handler) bindSelectedURL(ctx fiber.Ctx) error {
 	if err != nil {
 		log.Warn().Err(err).Msg("refused a server choice")
 
-		return respond.RedirectTo(
-			ctx,
-			respond.PathWithError(routes.PathServers, choiceRefusal(err)),
-		)
+		failure := respond.FailWith(ctx, choiceRefusal(err), err)
+		if errors.Is(err, identity.ErrInvalidServerURL) {
+			failure = view.NewNotice(choiceRefusal(err))
+		}
+
+		respond.SetFlash(ctx, failure)
+
+		return respond.RedirectTo(ctx, routes.PathServers)
 	}
 
 	err = handler.auth.Select(ctx.Context(), server)
@@ -146,13 +148,13 @@ func (handler *Handler) chosenServer(ctx fiber.Ctx, token string) (plex.Server, 
 func choiceRefusal(err error) string {
 	switch {
 	case errors.Is(err, identity.ErrInvalidServerURL):
-		return "Enter an http or https URL for the Plex server."
+		return "Enter an http or https URL for the Plex server"
 	case errors.Is(err, identity.ErrServerUnreachable):
-		return "Outtake cannot reach that server. Check the address and that Outtake can connect to it."
+		return "Outtake can't reach that server. Check the address."
 	case errors.Is(err, identity.ErrServerNotFound):
-		return "That is not a Plex server on your account."
+		return "That isn't a Plex server on this account"
 	default:
-		return "Outtake could not use that server. Try again."
+		return "Outtake couldn't use that server. Try again."
 	}
 }
 

@@ -17,22 +17,22 @@ import (
 const MaxProfileNameLen = 64
 
 var (
-	// errProfileName reports an empty profile name.
-	errProfileName = errors.New("name is required")
-	// errProfileNameLength reports a name over the length cap.
-	errProfileNameLength = fmt.Errorf("name must be %d characters or fewer", MaxProfileNameLen)
-	// errProfileCRF reports a CRF outside the encoder range.
-	errProfileCRF = fmt.Errorf("crf must be between %d and %d", clip.MinCRF, clip.MaxCRF)
-	// errProfilePreset reports an unrecognized encoder preset.
-	errProfilePreset = errors.New("unknown encoder preset")
-	// errProfileAudio reports an audio bitrate out of range.
-	errProfileAudio = fmt.Errorf(
+	// ErrProfileName reports an empty profile name.
+	ErrProfileName = errors.New("name is required")
+	// ErrProfileNameLength reports a name over the length cap.
+	ErrProfileNameLength = fmt.Errorf("name must be %d characters or fewer", MaxProfileNameLen)
+	// ErrProfileCRF reports a CRF outside the encoder range.
+	ErrProfileCRF = fmt.Errorf("crf must be between %d and %d", clip.MinCRF, clip.MaxCRF)
+	// ErrProfilePreset reports an unrecognized encoder preset.
+	ErrProfilePreset = errors.New("unknown encoder preset")
+	// ErrProfileAudio reports an audio bitrate out of range.
+	ErrProfileAudio = fmt.Errorf(
 		"audio bitrate must be between %d and %d kbps",
 		clip.MinAudioKbps,
 		clip.MaxAudioKbps,
 	)
-	// errProfileWidth reports a max width that is not an export size.
-	errProfileWidth = errors.New("max resolution must be 720p, 1080p, 1440p, or 4K")
+	// ErrProfileWidth reports a max width that is not an export size.
+	ErrProfileWidth = errors.New("max resolution must be 720p, 1080p, 1440p, or 4K")
 )
 
 // ProfileFromFields validates raw profile form fields and builds a clip profile.
@@ -48,30 +48,30 @@ func ProfileFromFields(id string, fields ProfileFields) (Profile, error) {
 	// Name is required and length-capped.
 	name := strings.TrimSpace(fields.Name)
 	if name == "" {
-		return Profile{}, errProfileName
+		return Profile{}, ErrProfileName
 	}
 
 	if len(name) > MaxProfileNameLen {
-		return Profile{}, errProfileNameLength
+		return Profile{}, ErrProfileNameLength
 	}
 
 	crf, ok := profileInt(fields.CRF, clip.ValidCRF)
 	if !ok {
-		return Profile{}, errProfileCRF
+		return Profile{}, ErrProfileCRF
 	}
 
 	if !clip.ValidEncoderPreset(fields.Preset) {
-		return Profile{}, errProfilePreset
+		return Profile{}, ErrProfilePreset
 	}
 
 	audioKbps, ok := profileInt(fields.AudioKbps, clip.ValidAudioKbps)
 	if !ok {
-		return Profile{}, errProfileAudio
+		return Profile{}, ErrProfileAudio
 	}
 
 	maxWidth, ok := profileInt(fields.MaxWidth, clip.ValidOutputWidth)
 	if !ok {
-		return Profile{}, errProfileWidth
+		return Profile{}, ErrProfileWidth
 	}
 
 	now := time.Now().UTC()

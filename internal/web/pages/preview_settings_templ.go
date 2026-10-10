@@ -19,7 +19,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
-	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
@@ -31,8 +30,6 @@ type PreviewSettingsProps struct {
 	MaxPreviewWidth int
 	// MaxPreviewWidths lists the widths the setting offers.
 	MaxPreviewWidths []int
-	// Error is a failed save's message, empty otherwise.
-	Error string
 }
 
 // PreviewSettings renders the settings for clip previews.
@@ -73,10 +70,6 @@ func PreviewSettings(props PreviewSettingsProps) templ.Component {
 			}
 			ctx = templ.InitializeContext(ctx)
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col gap-6 max-w-xl\"><h2 class=\"text-2xl font-bold tracking-tight\">Previews</h2>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = flash.Banner(props.Error).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -169,7 +162,7 @@ func PreviewSettings(props PreviewSettingsProps) templ.Component {
 							var templ_7745c5c3_Var8 string
 							templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(width))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 49, Col: 45}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 45, Col: 45}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
 							if templ_7745c5c3_Err != nil {
@@ -182,7 +175,7 @@ func PreviewSettings(props PreviewSettingsProps) templ.Component {
 							var templ_7745c5c3_Var9 string
 							templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(clip.OutputWidthLabel(width))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 49, Col: 87}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 45, Col: 87}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 							if templ_7745c5c3_Err != nil {
@@ -200,7 +193,7 @@ func PreviewSettings(props PreviewSettingsProps) templ.Component {
 							var templ_7745c5c3_Var10 string
 							templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(width))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 51, Col: 45}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 47, Col: 45}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var10)
 							if templ_7745c5c3_Err != nil {
@@ -213,7 +206,7 @@ func PreviewSettings(props PreviewSettingsProps) templ.Component {
 							var templ_7745c5c3_Var11 string
 							templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(clip.OutputWidthLabel(width))
 							if templ_7745c5c3_Err != nil {
-								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 51, Col: 78}
+								return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/preview_settings.templ`, Line: 47, Col: 78}
 							}
 							_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 							if templ_7745c5c3_Err != nil {

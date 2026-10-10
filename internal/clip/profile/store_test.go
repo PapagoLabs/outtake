@@ -63,7 +63,7 @@ func TestProfilesCreateRejectsInvalidFields(t *testing.T) {
 	_, err := profiles.Create(t.Context(), fieldsWith(t, func(f *ProfileFields) {
 		f.CRF = "99"
 	}))
-	require.ErrorIs(t, err, errProfileCRF)
+	require.ErrorIs(t, err, ErrProfileCRF)
 
 	assert.Len(t, profiles.List(t.Context()), before,
 		"a rejected form stores nothing")

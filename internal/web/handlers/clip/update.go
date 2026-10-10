@@ -25,7 +25,7 @@ import (
 type clipRejection struct {
 	status  int
 	code    api.ErrorCode
-	message string
+	failure view.Failure
 }
 
 // Update saves clip metadata and optionally regenerates the file.
@@ -59,22 +59,30 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 
 	job := handler.lookupJob(ctx.Context(), id)
 	if job == nil {
-		return nil, newRejection(fiber.StatusNotFound, api.NotFound, respond.NotFoundMessage)
+		return nil, newRejection(
+			fiber.StatusNotFound,
+			api.NotFound,
+			view.NewNotice(respond.NotFoundMessage),
+		)
 	}
 
 	req, err := parseEdit(ctx)
 	if err != nil {
-		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, err.Error())
+		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, respond.Fail(ctx, err))
 	}
 
 	quality, err := handler.resolveEditQuality(ctx.Context(), req.Quality, job.Quality)
 	if err != nil {
-		return nil, newRejection(fiber.StatusBadRequest, api.InvalidQuality, err.Error())
+		return nil, newRejection(fiber.StatusBadRequest, api.InvalidQuality, respond.Fail(ctx, err))
 	}
 
 	jobType, err := clipdom.ResolveType(valueOr(req.ClipType, ""), job.Type)
 	if err != nil {
-		return nil, newRejection(fiber.StatusBadRequest, api.InvalidClipType, err.Error())
+		return nil, newRejection(
+			fiber.StatusBadRequest,
+			api.InvalidClipType,
+			respond.Fail(ctx, err),
+		)
 	}
 
 	edit := mergeEdit(job, req, jobType, quality)
@@ -83,16 +91,20 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 
 	err = handler.validateEdit(ctx.Context(), job.InputPath, edit)
 	if err != nil {
-		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, err.Error())
+		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, respond.Fail(ctx, err))
 	}
 
 	saved, err := handler.saveEdit(ctx, id, edit)
 	if errors.Is(err, catalog.ErrClipNotFound) {
-		return nil, newRejection(fiber.StatusNotFound, api.NotFound, respond.NotFoundMessage)
+		return nil, newRejection(
+			fiber.StatusNotFound,
+			api.NotFound,
+			view.NewNotice(respond.NotFoundMessage),
+		)
 	}
 
 	if err != nil {
-		return nil, submitFailure(err)
+		return nil, submitFailure(ctx, err)
 	}
 
 	return saved, nil
@@ -181,13 +193,13 @@ func (handler *Handler) saveEdit(
 //   - err: Non-nil when the response cannot be written.
 func respondWithUpdateFailure(ctx fiber.Ctx, failure *clipRejection) error {
 	if !isBrowserHTMXSubmit(ctx) {
-		return respond.WriteError(ctx, failure.status, failure.code, failure.message)
+		return respond.WriteFailure(ctx, failure.status, failure.code, failure.failure)
 	}
 
 	ctx.Set(routes.HeaderHXReswap, routes.HXTargetNone)
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
-		return flash.OutOfBand(failure.message).Render(ctx.Context(), writer)
+		return flash.OutOfBand(failure.failure).Render(ctx.Context(), writer)
 	})
 }
 
@@ -196,12 +208,12 @@ func respondWithUpdateFailure(ctx fiber.Ctx, failure *clipRejection) error {
 // Parameters:
 //   - status: HTTP status an API caller is told.
 //   - code: Machine-readable API error code.
-//   - message: Human-readable error text.
+//   - failure: What the page shows.
 //
 // Returns:
-//   - failure: The rejection to report.
-func newRejection(status int, code api.ErrorCode, message string) *clipRejection {
-	return &clipRejection{status: status, code: code, message: message}
+//   - rejection: The rejection to report.
+func newRejection(status int, code api.ErrorCode, failure view.Failure) *clipRejection {
+	return &clipRejection{status: status, code: code, failure: failure}
 }
 
 // isBrowserHTMXSubmit reports whether htmx issued a browser form post.

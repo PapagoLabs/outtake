@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/pages"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // Handler adapts the Plex PIN login lifecycle to HTTP.
@@ -37,17 +38,31 @@ const (
 	statusRefused = "Login refused"
 
 	// msgPlexTokenRequired is shown when the login form is posted empty.
-	msgPlexTokenRequired = "Plex token is required"
+	msgPlexTokenRequired = "Paste a Plex token"
 
 	// msgInvalidPlexToken is shown when Plex refuses the token that was typed.
 	msgInvalidPlexToken = "Plex rejected that token. Check it and try again."
 
 	// msgNotOwner is shown when a Plex account other than the owner signs in.
 	msgNotOwner = "This Outtake belongs to a different Plex account. " +
-		"Sign in with the account that set it up."
+		"Login with the account that set it up."
 
-	// msgSignInFailed is shown when sign-in fails for a reason the user cannot fix.
-	msgSignInFailed = "Sign-in failed. Check the Outtake log for details."
+	// msgSignInFailed is shown when the login fails for a reason the user
+	// cannot fix, with the details behind it.
+	msgSignInFailed = "Login failed"
+
+	// msgNoPIN is shown when the Plex popup returns with no login in progress.
+	msgNoPIN = "This login expired. Start again from the login page."
+
+	// msgPINNotApproved is shown when the Plex popup returns before Plex
+	// approved the login.
+	msgPINNotApproved = "Plex hasn't approved this login yet"
+
+	// msgPINUnavailable is shown when Plex cannot be reached to start a login.
+	msgPINUnavailable = "Couldn't reach Plex to start the login"
+
+	// msgLogoutFailed is shown when the session cannot be ended.
+	msgLogoutFailed = "Couldn't logout"
 )
 
 // New creates a new auth handler.
@@ -74,16 +89,15 @@ func (handler *Handler) Callback(ctx fiber.Ctx) error {
 	sess := session.FromContext(ctx)
 	pinID, pinCode := identity.StoredPIN(sess)
 	if pinID == 0 {
-		return respond.RedirectTo(ctx, respond.PathWithError(routes.PathLogin, "No PIN session"))
+		return sendAuthComplete(ctx, routes.PathLogin, view.NewNotice(msgNoPIN))
 	}
 
 	accessToken, err := handler.auth.PollPIN(ctx.Context(), pinID, pinCode)
 	if err != nil {
-		log.Error().Err(err).Msg("failed to poll PIN")
-
-		return respond.RedirectTo(
+		return sendAuthComplete(
 			ctx,
-			respond.PathWithError(routes.PathLogin, "PIN not yet authorized"),
+			routes.PathLogin,
+			respond.FailWith(ctx, msgPINNotApproved, err),
 		)
 	}
 
@@ -93,10 +107,10 @@ func (handler *Handler) Callback(ctx fiber.Ctx) error {
 	if err != nil {
 		log.Warn().Err(err).Msg("refused plex sign-in")
 
-		return sendAuthComplete(ctx, respond.PathWithError(routes.PathLogin, refusalMessage(err)))
+		return sendAuthComplete(ctx, routes.PathLogin, refusal(ctx, err))
 	}
 
-	return sendAuthComplete(ctx, handler.postAuthPath())
+	return sendAuthComplete(ctx, handler.postAuthPath(), view.NewNotice(""))
 }
 
 // Login starts PIN auth or accepts a manual token.
@@ -120,15 +134,19 @@ func (handler *Handler) Login(ctx fiber.Ctx) error {
 	}
 
 	if respond.IsFormRequest(ctx) {
-		return respond.RedirectTo(
-			ctx,
-			respond.PathWithError(routes.PathLogin, msgPlexTokenRequired),
-		)
+		respond.SetFlash(ctx, view.NewNotice(msgPlexTokenRequired))
+
+		return respond.RedirectTo(ctx, routes.PathLogin)
 	}
 
 	pin, err := handler.auth.BeginPIN(ctx.Context())
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadGateway, api.PINFailed, err.Error())
+		return respond.WriteFailure(
+			ctx,
+			fiber.StatusBadGateway,
+			api.PINFailed,
+			respond.FailWith(ctx, msgPINUnavailable, err),
+		)
 	}
 
 	identity.SetStoredPIN(sess, pin.ID, pin.Code)
@@ -150,11 +168,11 @@ func (handler *Handler) Login(ctx fiber.Ctx) error {
 func (*Handler) Logout(ctx fiber.Ctx) error {
 	err := identity.Reset(session.FromContext(ctx))
 	if err != nil {
-		return respond.WriteError(
+		return respond.WriteFailure(
 			ctx,
 			fiber.StatusInternalServerError,
 			api.LogoutFailed,
-			err.Error(),
+			respond.FailWith(ctx, msgLogoutFailed, err),
 		)
 	}
 
@@ -192,10 +210,8 @@ func (handler *Handler) Status(ctx fiber.Ctx) error {
 	if err != nil {
 		log.Warn().Err(err).Msg("refused plex sign-in")
 
-		ctx.Set(
-			routes.HeaderHXRedirect,
-			respond.PathWithError(routes.PathLogin, refusalMessage(err)),
-		)
+		respond.SetFlash(ctx, refusal(ctx, err))
+		ctx.Set(routes.HeaderHXRedirect, routes.PathLogin)
 
 		return respond.SendText(ctx, statusRefused)
 	}
@@ -219,13 +235,9 @@ func (handler *Handler) acceptEnteredToken(ctx fiber.Ctx, accessToken string) er
 	if err != nil {
 		log.Warn().Err(err).Msg("refused entered plex token")
 
-		return wrapAuth(
-			respond.RedirectTo(
-				ctx,
-				respond.PathWithError(routes.PathLogin, refusalMessage(err)),
-			),
-			"refuse sign-in",
-		)
+		respond.SetFlash(ctx, refusal(ctx, err))
+
+		return wrapAuth(respond.RedirectTo(ctx, routes.PathLogin), "refuse sign-in")
 	}
 
 	return wrapAuth(respond.RedirectTo(ctx, handler.postAuthPath()), "finish auth")
@@ -284,6 +296,24 @@ func refusalMessage(err error) string {
 	}
 }
 
+// refusal is what the login page shows for a refused login. A token Plex
+// rejected or an account that is not the owner explains itself. Any other
+// failure carries details.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - err: Why the login was refused.
+//
+// Returns:
+//   - failure: The message, with details for an unexplained failure.
+func refusal(ctx fiber.Ctx, err error) view.Failure {
+	if errors.Is(err, identity.ErrNotAllowed) || errors.Is(err, identity.ErrInvalidToken) {
+		return view.NewNotice(refusalMessage(err))
+	}
+
+	return respond.FailWith(ctx, refusalMessage(err), err)
+}
+
 // postAuthPath returns the next page after authentication.
 //
 // Returns:
@@ -296,17 +326,20 @@ func (handler *Handler) postAuthPath() string {
 	return routes.PathServers
 }
 
-// sendAuthComplete finishes popup or full-page login after Plex authorizes.
+// sendAuthComplete finishes popup or full-page login after Plex answers.
 // The page carries no opener isolation, so the popup reaches the login page
-// that opened it.
+// that opened it, and sends that window on to next. A failure is kept in the
+// session once the popup page has rendered, so the window that opened the
+// popup shows it on next rather than the popup that closes.
 //
 // Parameters:
 //   - ctx: Request context.
 //   - next: Page the browser is sent to once the login is complete.
+//   - failure: What next shows, empty when the login succeeded.
 //
 // Returns:
 //   - err: Wrapped render error, or nil on success.
-func sendAuthComplete(ctx fiber.Ctx, next string) error {
+func sendAuthComplete(ctx fiber.Ctx, next string, failure view.Failure) error {
 	ctx.Set(routes.HeaderOpenerPolicy, routes.OpenerPolicyUnsafeNone)
 
 	err := respond.RenderHTML(ctx, func(writer io.Writer) error {
@@ -315,6 +348,8 @@ func sendAuthComplete(ctx fiber.Ctx, next string) error {
 	if err != nil {
 		return fmt.Errorf("send auth complete: %w", err)
 	}
+
+	respond.SetFlash(ctx, failure)
 
 	return nil
 }

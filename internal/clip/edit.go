@@ -247,7 +247,7 @@ func validateGIF(kind Type, width, fps int) error {
 //   - err: Non-nil when the track cannot exist on the source.
 func validateAudio(kind Type, index int, source Source) error {
 	if index < 0 {
-		return fmt.Errorf("%w: the track must not be negative", ErrNoSuchAudioTrack)
+		return ErrNegativeAudioTrack
 	}
 
 	if kind != TypeClip || !source.Probed || index == 0 {
@@ -255,12 +255,7 @@ func validateAudio(kind Type, index int, source Source) error {
 	}
 
 	if index >= source.AudioTracks {
-		return fmt.Errorf(
-			"%w: track %d was asked for, but the source carries %d",
-			ErrNoSuchAudioTrack,
-			index+1,
-			source.AudioTracks,
-		)
+		return &MissingAudioTrackError{Track: index + 1, Count: source.AudioTracks}
 	}
 
 	return nil

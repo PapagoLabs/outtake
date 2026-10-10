@@ -13,11 +13,12 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/assets"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // renderLogin renders the login page with the context it is handed.
 //
-//nolint:contextcheck // templ renders the page with the context it is given.
+
 func renderLogin(t *testing.T, ctx context.Context, props LoginProps) string {
 	t.Helper()
 
@@ -48,17 +49,19 @@ func TestLoginOffersBothWaysIn(t *testing.T) {
 	assert.Contains(t, body, `src="`+assets.URL("js/login.js")+`"`)
 }
 
-func TestLoginShowsTheSignInError(t *testing.T) {
+// TestLoginShowsTheCarriedFailure covers a refused login: the failure the
+// session carried to the page shows in its banner slot.
+func TestLoginShowsTheCarriedFailure(t *testing.T) {
 	t.Parallel()
 
-	body := renderLogin(t, t.Context(), LoginProps{Error: "Plex rejected that token."})
-
-	assert.Contains(
-		t,
-		body,
-		`<div class="mb-4 rounded-md bg-destructive/10 border `+`border-destructive/20 p-3 text-sm text-destructive">`,
+	ctx := view.ContextWithFailure(
+		t.Context(),
+		view.NewNotice("Plex rejected that token. Check it and try again."),
 	)
-	assert.Contains(t, body, ">Plex rejected that token.</div>")
+	body := renderLogin(t, ctx, LoginProps{})
+
+	assert.Contains(t, body, `<div id="flash">`)
+	assert.Contains(t, body, "Plex rejected that token. Check it and try again.")
 }
 
 func TestLoginOmitsTheErrorBannerWhenThereIsNoError(t *testing.T) {
@@ -66,7 +69,7 @@ func TestLoginOmitsTheErrorBannerWhenThereIsNoError(t *testing.T) {
 
 	body := renderLogin(t, t.Context(), LoginProps{AuthURL: "https://plex.tv/link"})
 
-	assert.NotContains(t, body, ">Plex rejected that token.<")
+	assert.NotContains(t, body, "js-flash")
 	assert.Contains(t, body, `<div id="plex-error" class="mb-4 hidden`,
 		"the placeholder the sign-in script writes into is always rendered")
 }

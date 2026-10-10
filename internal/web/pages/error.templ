@@ -6,6 +6,7 @@ package pages
 import (
 	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
+	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 )
@@ -14,6 +15,9 @@ import (
 type ErrorPageProps struct {
 	Title   string
 	Message string
+	// Details is the technical report behind an unexpected failure, empty for
+	// one the message explains in full.
+	Details string
 	Status  int
 }
 
@@ -38,6 +42,9 @@ templ ErrorPage(props ErrorPageProps) {
 				<img src={ assets.URL("brand/mascot-128.png") } width="64" height="64" alt="" class="size-16 mx-auto"/>
 				<h1 class="text-2xl font-bold tracking-tight">{ props.Title }</h1>
 				<p class="text-muted-foreground">{ props.Message }</p>
+				<div class="text-left">
+					@flash.Details(props.Details)
+				</div>
 				<a href="/" class="inline-flex self-center items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90">
 					Back to Outtake
 				</a>

@@ -144,13 +144,20 @@ func TestClipProfilesOffersMakeDefaultOnANonDefaultProfile(t *testing.T) {
 func TestClipProfilesShowsTheSaveError(t *testing.T) {
 	t.Parallel()
 
-	body := renderClipProfiles(t, ClipProfilesProps{
-		Error:   "That profile name is already taken.",
+	var buf strings.Builder
+
+	ctx := view.ContextWithFailure(
+		identity.ContextWithCSRFToken(t.Context(), "profile-csrf"),
+		view.NewNotice("A profile with that name already exists"),
+	)
+	require.NoError(t, ClipProfiles(ClipProfilesProps{
 		Presets: testPresets(),
 		Widths:  testWidths(),
-	})
+	}).Render(ctx, &buf))
 
-	assert.Contains(t, body, "That profile name is already taken.")
+	body := buf.String()
+	assert.Contains(t, body, "A profile with that name already exists",
+		"the layout's banner shows the failure the session carried")
 	assert.Contains(t, body, `id="flash"`)
 }
 

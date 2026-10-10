@@ -310,6 +310,51 @@ func sleep(ctx context.Context, interval time.Duration) {
 	}
 }
 
+// Landing follows a redirect to the page it names, carrying the session the
+// request and its response used, and returns that page's body. A failure a
+// form post left in the session shows in the page's banner.
+//
+// Parameters:
+//   - ctx: Request context, canceled when the spec ends.
+//   - resp: The redirect.
+//
+// Returns:
+//   - body: The page the redirect lands on.
+func (a *App) Landing(ctx context.Context, resp *http.Response) string {
+	ginkgo.GinkgoHelper()
+
+	return a.LandingAt(ctx, resp, resp.Header.Get("Location"))
+}
+
+// LandingAt opens a page with the session a response left, and returns that
+// page's body. It follows a hand-off that sends the browser on from a script,
+// such as the Plex popup's, which no Location header names.
+//
+// Parameters:
+//   - ctx: Request context, canceled when the spec ends.
+//   - resp: The response whose session is carried.
+//   - path: The page to open.
+//
+// Returns:
+//   - body: The page at path.
+func (a *App) LandingAt(ctx context.Context, resp *http.Response, path string) string {
+	ginkgo.GinkgoHelper()
+
+	req := a.newRequest(ctx, http.MethodGet, path, "", nil)
+
+	if resp.Request != nil {
+		for _, cookie := range resp.Request.Cookies() {
+			req.AddCookie(cookie)
+		}
+	}
+
+	for _, cookie := range resp.Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	return string(ReadBody(a.send(req)))
+}
+
 // ReadBody reads a response body and closes it.
 //
 // Parameters:

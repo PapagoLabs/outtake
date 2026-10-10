@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -163,4 +164,51 @@ func TestDeleteDefaultPromotesAnother(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, def.IsDefault)
 	assert.NotEqual(t, ids["1080p"], def.ID)
+}
+
+// TestSaveClipProfileRefusesADuplicateName covers the unique name: saving a
+// second profile under a name another profile has is refused with
+// ErrDuplicateClipProfileName, read from the driver's constraint code, and the
+// first profile stays as it was.
+func TestSaveClipProfileRefusesADuplicateName(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/profiles-duplicate.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	err = db.SaveClipProfile(t.Context(), ClipProfile{
+		ID:        "copy-of-1080p",
+		Name:      "1080p",
+		CRF:       24,
+		Preset:    "fast",
+		AudioKbps: 128,
+		MaxWidth:  clip.OutputWidth1080p,
+		IsDefault: false,
+		KeepHDR:   false,
+		CreatedAt: now,
+		UpdatedAt: now,
+	})
+	require.ErrorIs(t, err, ErrDuplicateClipProfileName)
+
+	builtIn, err := db.GetClipProfile(t.Context(), builtinIDs(t, db)["1080p"])
+	require.NoError(t, err)
+	assert.Equal(t, 20, builtIn.CRF, "the profile that had the name is untouched")
+
+	_, err = db.GetClipProfile(t.Context(), "copy-of-1080p")
+	require.ErrorIs(t, err, ErrClipProfileNotFound)
+}
+
+// TestIsUniqueViolationNeedsADriverCode covers the check itself: an error
+// without a driver's constraint code, such as a libsql one, is not read as a
+// duplicate.
+func TestIsUniqueViolationNeedsADriverCode(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, isUniqueViolation(nil))
+	assert.False(t, isUniqueViolation(ErrClipProfileNotFound))
+	assert.True(t, isUniqueViolation(&pgconn.PgError{Code: pgUniqueViolation}))
+	assert.False(t, isUniqueViolation(&pgconn.PgError{Code: "23503"}))
 }

@@ -26,7 +26,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	identitymocks "github.com/PapagoLabs/outtake/internal/plex/identity/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type authAnswer struct {
@@ -56,11 +58,8 @@ const pinToken = "pin-token"
 func sessionApp(t *testing.T) *fiber.App {
 	t.Helper()
 
-	middleware, store := session.NewWithStore(session.Config{})
-	require.NotNil(t, store)
-
 	app := fiber.New()
-	app.Use(middleware)
+	respondtest.Sessions(t, app)
 
 	return app
 }
@@ -339,22 +338,24 @@ func pendingPIN() map[string]any {
 	}
 }
 
-// flashOf reads the path and flash text a redirect carries.
+// flashOf reads the path a redirect lands on and the failure the browser's
+// session carries to it.
 //
 // Parameters:
 //   - t: The test the redirect belongs to.
+//   - browser: The browser that followed the request.
 //   - location: The redirect target.
 //
 // Returns:
 //   - path: The path the redirect lands on.
-//   - flash: The flash text, empty when none was carried.
-func flashOf(t *testing.T, location string) (string, string) {
+//   - flash: The failure's message, empty when none was carried.
+func flashOf(t *testing.T, browser *authBrowser, location string) (string, string) {
 	t.Helper()
 
 	parsed, err := url.Parse(location)
 	require.NoError(t, err)
 
-	return parsed.Path, parsed.Query().Get(routes.QueryError)
+	return parsed.Path, respondtest.FlashForCookies(t, browser.app, browser.cookies).Message
 }
 
 func TestNewKeepsTheServiceItWasGiven(t *testing.T) {
@@ -377,7 +378,7 @@ func TestLoginSendsAnAlreadyAuthenticatedBrowserToTheDashboard(t *testing.T) {
 
 	answer := browser.do(http.MethodPost, "/api/auth/login", "", false)
 
-	path, _ := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	path, _ := flashOf(t, browser, answer.header.Get(fiber.HeaderLocation))
 	assert.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathRoot, path,
 		"a browser that already holds a token has nothing to log in to")
@@ -395,7 +396,7 @@ func TestLoginRejectsATokenPlexWillNotAccept(t *testing.T) {
 
 	answer := browser.do(http.MethodPost, "/api/auth/login", form, false)
 
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	path, flash := flashOf(t, browser, answer.header.Get(fiber.HeaderLocation))
 	assert.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathLogin, path)
 	assert.Equal(t, msgInvalidPlexToken, flash,
@@ -469,35 +470,40 @@ func TestLoginTellsThePageHowLongThePINLasts(t *testing.T) {
 func TestCallbackRejectsASessionWithNoPENDINGPIN(t *testing.T) {
 	t.Parallel()
 
-	app := authApp(t)
+	app := sessionApp(t)
 	app.Get("/api/auth/callback", authHandler(t, nil, nil).Callback)
 
 	browser := newBrowser(t, app)
 
 	answer := browser.do(http.MethodGet, "/api/auth/callback", "", false)
 
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
-	assert.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, routes.PathLogin, path)
-	assert.Equal(t, "No PIN session", flash)
+	_, flash := flashOf(t, browser, "")
+	assert.Equal(t, fiber.StatusOK, answer.status, "the popup hand-off page renders")
+	assert.Contains(t, answer.body, `data-auth-next="`+routes.PathLogin+`"`,
+		"the hand-off sends the window that opened the popup to the login page")
+	assert.Equal(t, msgNoPIN, flash)
 }
 
 func TestCallbackReportsAPINThatIsNotYetAuthorized(t *testing.T) {
 	t.Parallel()
 
-	app := authApp(t)
-	app.Get("/api/auth/callback", authHandler(t, nil, nil).Callback)
+	app := sessionApp(t)
+	app.Get("/api/auth/callback", liveHandler(t, newPlexTV(t, nil), ownerStore(t)).Callback)
 
 	browser := newBrowser(t, app)
 
-	seedSession(t, browser, pendingPIN())
+	// The fake plex.tv knows no PIN 9999, so the poll finds no approval.
+	seedSession(t, browser, map[string]any{
+		identity.SessionKeyPinID:   9999,
+		identity.SessionKeyPinCode: "PIN-CODE",
+	})
 
 	answer := browser.do(http.MethodGet, "/api/auth/callback", "", false)
 
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
-	assert.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, routes.PathLogin, path)
-	assert.Equal(t, "PIN not yet authorized", flash,
+	_, flash := flashOf(t, browser, "")
+	assert.Equal(t, fiber.StatusOK, answer.status, "the popup hand-off page renders")
+	assert.Contains(t, answer.body, `data-auth-next="`+routes.PathLogin+`"`)
+	assert.Equal(t, msgPINNotApproved, flash,
 		"the browser is told to wait rather than that the login is broken")
 }
 
@@ -735,7 +741,7 @@ func TestLoginSignsTheOwnerInWithAnEnteredToken(t *testing.T) {
 		false,
 	)
 
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	path, flash := flashOf(t, browser, answer.header.Get(fiber.HeaderLocation))
 	assert.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathServers, path, "no server is bound yet, so the owner picks one")
 	assert.Empty(t, flash)
@@ -758,7 +764,7 @@ func TestLoginExplainsWhyAnotherAccountIsRefused(t *testing.T) {
 		false,
 	)
 
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	path, flash := flashOf(t, browser, answer.header.Get(fiber.HeaderLocation))
 	assert.Equal(t, routes.PathLogin, path)
 	assert.Equal(t, msgNotOwner, flash)
 }
@@ -778,8 +784,11 @@ func TestCallbackSendsARefusedAccountBackToTheLoginPage(t *testing.T) {
 	answer := browser.do(http.MethodGet, "/api/auth/callback", "", false)
 
 	assert.Equal(t, fiber.StatusOK, answer.status, "the popup hand-off page still renders")
-	assert.Contains(t, answer.body, url.QueryEscape(msgNotOwner),
-		"the hand-off sends the opener to the login page with the reason")
+	assert.Contains(t, answer.body, `data-auth-next="`+routes.PathLogin+`"`,
+		"the hand-off sends the opener to the login page")
+
+	_, flash := flashOf(t, browser, "")
+	assert.Equal(t, msgNotOwner, flash, "the session carries the reason to that page")
 }
 
 func TestCallbackSignsTheOwnerIn(t *testing.T) {
@@ -824,7 +833,7 @@ func TestStatusRedirectsARefusedAccountToTheLoginPage(t *testing.T) {
 
 	answer := browser.do(http.MethodGet, "/api/auth/status", "", true)
 
-	path, flash := flashOf(t, answer.header.Get("Hx-Redirect"))
+	path, flash := flashOf(t, browser, answer.header.Get("Hx-Redirect"))
 	assert.Equal(t, statusRefused, answer.body)
 	assert.Equal(t, routes.PathLogin, path)
 	assert.Equal(t, msgNotOwner, flash)
@@ -847,7 +856,7 @@ func TestSendAuthCompleteReportsARenderFailure(t *testing.T) {
 
 	app := authApp(t)
 	app.Get("/done", func(ctx fiber.Ctx) error {
-		return sendAuthComplete(ctx, routes.PathRoot)
+		return sendAuthComplete(ctx, routes.PathRoot, view.NewNotice(""))
 	})
 
 	browser := newBrowser(t, app)
@@ -882,7 +891,7 @@ func TestSendAuthCompleteRendersTheHandoff(t *testing.T) {
 
 	app := sessionApp(t)
 	app.Get("/done", func(ctx fiber.Ctx) error {
-		return sendAuthComplete(ctx, routes.PathRoot)
+		return sendAuthComplete(ctx, routes.PathRoot, view.NewNotice(""))
 	})
 
 	browser := newBrowser(t, app)

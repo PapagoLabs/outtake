@@ -72,11 +72,11 @@ func (handler *Handler) Position(ctx fiber.Ctx) error {
 
 	sessions, err := handler.auth.LiveSessions(readCtx)
 	if err != nil {
-		return respond.WriteError(
+		return respond.WriteFailure(
 			ctx,
 			fiber.StatusBadGateway,
 			api.PositionFailed,
-			"the Plex position could not be read",
+			respond.FailWith(ctx, "Couldn't read the Plex position", err),
 		)
 	}
 

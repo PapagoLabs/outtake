@@ -39,6 +39,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -61,6 +62,8 @@ type previewResponse struct {
 	status   int
 	location string
 	failure  errorResponse
+	// flash is the failure a form post left for the page it returns to.
+	flash string
 }
 
 func previewTestHandler(t *testing.T, limit int) (*Handler, *blob.Storage) {
@@ -663,6 +666,7 @@ func postPreview(
 	t.Helper()
 
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Post("/api/clips/preview", handler.Preview)
 
 	req := httptest.NewRequestWithContext(
@@ -678,6 +682,7 @@ func postPreview(
 	resp := previewResponse{
 		status:   raw.StatusCode,
 		location: raw.Header.Get(fiber.HeaderLocation),
+		flash:    respondtest.Flash(t, app, raw).Message,
 	}
 
 	if resp.status >= fiber.StatusBadRequest {
@@ -927,7 +932,7 @@ func TestPreviewRejectsAnUnbindableRequest(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.status)
 
 	assert.Equal(t, api.InvalidRequest, resp.failure.Error)
-	assert.Contains(t, resp.failure.Message, "bind json")
+	assert.Equal(t, "The request body isn't valid JSON", resp.failure.Message)
 }
 
 func TestPreviewRejectsAMediaIDThatDoesNotResolve(t *testing.T) {
@@ -952,7 +957,7 @@ func TestPreviewRejectsAMediaIDThatDoesNotResolve(t *testing.T) {
 
 			assert.Equal(t, fiber.StatusBadRequest, resp.status)
 			assert.Equal(t, api.MediaPathUnresolved, resp.failure.Error)
-			assert.Contains(t, resp.failure.Message, library.ErrNoServer.Error())
+			assert.Equal(t, "Choose a Plex server under Servers first", resp.failure.Message)
 		})
 	}
 }
@@ -973,7 +978,7 @@ func TestPreviewRejectsASourceItCannotRead(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.status)
 
 	assert.Equal(t, api.MediaPathUnresolved, resp.failure.Error)
-	assert.Contains(t, resp.failure.Message, clippreview.ErrSourceUnreadable.Error(),
+	assert.Contains(t, resp.failure.Message, "Outtake can't read this title's file",
 		"the failure names the source rather than the request")
 }
 
@@ -1004,11 +1009,12 @@ func TestPreviewRedirectsAFormPostWithAnUnreadableMark(t *testing.T) {
 			mediaID := sourceFile(t)
 			form.Set("mediaId", mediaID)
 
-			path, query := postPreviewForm(t, handler, form).redirect(t)
+			resp := postPreviewForm(t, handler, form)
+			path, _ := resp.redirect(t)
 
 			assert.Equal(t, "/media/item/"+mediaID, path,
 				"the form post returns to the page it came from")
-			assert.Contains(t, query.Get(routes.QueryError), "must be a timecode")
+			assert.Contains(t, resp.flash, "as a time, such as 00:01:23.456")
 		})
 	}
 }
@@ -1020,10 +1026,10 @@ func TestPreviewRedirectsAFormPostForAnUnresolvableSource(t *testing.T) {
 
 	resp := postPreviewForm(t, handler, previewWindowForm("9999", 0, 10))
 
-	path, query := resp.redirect(t)
+	path, _ := resp.redirect(t)
 
 	assert.Equal(t, "/media/item/9999", path, "the form post names the page it came from")
-	assert.Contains(t, query.Get(routes.QueryError), library.ErrNoServer.Error())
+	assert.Equal(t, "Choose a Plex server under Servers first", resp.flash)
 }
 
 func TestPreviewRefusesWhenTheQueueIsFull(t *testing.T) {
@@ -1043,7 +1049,7 @@ func TestPreviewRefusesWhenTheQueueIsFull(t *testing.T) {
 	assert.Equal(t, fiber.StatusTooManyRequests, resp.status)
 
 	assert.Equal(t, api.PreviewBusy, resp.failure.Error)
-	assert.Equal(t, clippreview.ErrBusy.Error(), resp.failure.Message)
+	assert.Equal(t, "Too many previews are rendering. Try again shortly.", resp.failure.Message)
 }
 
 func TestPreviewRedirectsAFormPostRefusedByAFullQueue(t *testing.T) {
@@ -1055,10 +1061,10 @@ func TestPreviewRedirectsAFormPostRefusedByAFullQueue(t *testing.T) {
 
 	resp := postPreviewForm(t, handler, previewWindowForm("7", 0, 10))
 
-	path, query := resp.redirect(t)
+	path, _ := resp.redirect(t)
 
 	assert.Equal(t, "/media/item/7", path, "the form post returns to the page it came from")
-	assert.Contains(t, query.Get(routes.QueryError), clippreview.ErrBusy.Error())
+	assert.Equal(t, "Too many previews are rendering. Try again shortly.", resp.flash)
 }
 
 func TestPreviewFileReportsAnAbsentPublishedPreview(t *testing.T) {
@@ -1089,22 +1095,22 @@ func TestPreviewRefusesASelectionAClipCouldNotHave(t *testing.T) {
 		{
 			name:   "a window longer than the configured cap",
 			body:   func(source string) string { return previewBody(source, 0, 30, 0) },
-			reason: "must be between 0 and 20 seconds",
+			reason: "A clip can be at most 20s",
 		},
 		{
 			name:   "a window past the end of the source",
 			body:   func(source string) string { return previewBody(source, 115, 10, 0) },
-			reason: "the media is only",
+			reason: "is past the end of the title",
 		},
 		{
 			name:   "an audio track the source does not carry",
 			body:   func(source string) string { return previewBody(source, 0, 10, 3) },
-			reason: "no such audio track",
+			reason: "This title has no audio track",
 		},
 		{
 			name:   "a negative start",
 			body:   func(source string) string { return previewBody(source, -5, 10, 0) },
-			reason: "the start must not be negative",
+			reason: "The start can't be negative",
 		},
 	}
 

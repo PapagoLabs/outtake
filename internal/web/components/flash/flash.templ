@@ -4,45 +4,70 @@
 // Package flash renders dismissible error banners and HTMX error partials.
 package flash
 
-// Banner renders a dismissible error banner, or nothing for an empty message.
+import "github.com/PapagoLabs/outtake/internal/web/view"
+
+// Banner renders a dismissible error banner with its Details section, or
+// nothing for an empty failure.
 //
 // Parameters:
-//   - message: Banner text.
-templ Banner(message string) {
-	if message != "" {
-		<div class="js-flash rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive flex items-start justify-between gap-3">
-			<span>{ message }</span>
-			<button type="button" class="js-flash-dismiss text-xs underline" aria-label="Dismiss">Dismiss</button>
+//   - failure: The message and its details.
+templ Banner(failure view.Failure) {
+	if !failure.Empty() {
+		<div class="js-flash flex flex-col gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+			<div class="flex items-start justify-between gap-3">
+				<span>{ failure.Message }</span>
+				<button type="button" class="js-flash-dismiss text-xs underline">Dismiss</button>
+			</div>
+			@Details(failure.Details)
 		</div>
 	}
 }
 
-// Slot renders the banner target that HTMX swaps a message into.
+// Details renders an error's technical details in a collapsed section, as
+// selectable text with a copy button, or nothing when there are none. The text
+// stays selectable by hand where the browser offers no clipboard, such as a
+// page opened over plain HTTP on a LAN address.
 //
 // Parameters:
-//   - message: Banner text.
-templ Slot(message string) {
+//   - details: The technical report.
+templ Details(details string) {
+	if details != "" {
+		<details class="text-xs text-foreground" data-error-details>
+			<summary class="cursor-pointer select-none text-muted-foreground">Details</summary>
+			<div class="mt-2 flex flex-col gap-2">
+				<pre class="select-all whitespace-pre-wrap break-all rounded-md bg-muted p-2 font-mono" data-error-details-text>{ details }</pre>
+				<button type="button" class="js-copy-details self-start rounded-md border px-2 py-1 font-medium hover:bg-accent">Copy</button>
+			</div>
+		</details>
+	}
+}
+
+// Slot renders the banner target that HTMX swaps a failure into.
+//
+// Parameters:
+//   - failure: The failure the page opens with, empty for none.
+templ Slot(failure view.Failure) {
 	<div id="flash">
-		@Banner(message)
+		@Banner(failure)
 	</div>
 }
 
 // Partial renders the banner for an HTMX error response targeting the slot.
 //
 // Parameters:
-//   - message: Banner text.
-templ Partial(message string) {
+//   - failure: The message and its details.
+templ Partial(failure view.Failure) {
 	<template hx type="partial" hx-target="#flash">
-		@Banner(message)
+		@Banner(failure)
 	</template>
 }
 
 // OutOfBand renders the banner as an out-of-band swap of the flash slot.
 //
 // Parameters:
-//   - message: Banner text.
-templ OutOfBand(message string) {
+//   - failure: The message and its details.
+templ OutOfBand(failure view.Failure) {
 	<div id="flash" hx-swap-oob="true">
-		@Banner(message)
+		@Banner(failure)
 	</div>
 }

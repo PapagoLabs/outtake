@@ -10,16 +10,14 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
-	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-// ServersProps carries the discovered servers and the selection error.
+// ServersProps carries the discovered servers.
 type ServersProps struct {
 	Servers []view.ServerItem
-	Error   string
 	// Bound is true when a server is in use, which offers to forget it.
 	Bound bool
 	// TokenRejected reports that the bound server refuses its stored token.
@@ -94,7 +92,6 @@ templ Servers(props ServersProps) {
 	@layout.Layout(layout.Props{Title: "Servers", Active: "servers"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
 			<h2 class="text-2xl font-bold tracking-tight">Servers</h2>
-			@flash.Banner(props.Error)
 			if props.Bound && props.TokenRejected {
 				@TokenRejectedNotice()
 			}

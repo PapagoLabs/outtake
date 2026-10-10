@@ -35,34 +35,34 @@ func TestProfileFromFields(t *testing.T) {
 		{
 			name:    "a missing name",
 			give:    fieldsWith(t, func(f *ProfileFields) { f.Name = "  " }),
-			wantErr: errProfileName,
+			wantErr: ErrProfileName,
 		},
 		{
 			name: "an over-long name",
 			give: fieldsWith(t, func(f *ProfileFields) {
 				f.Name = strings.Repeat("a", MaxProfileNameLen+1)
 			}),
-			wantErr: errProfileNameLength,
+			wantErr: ErrProfileNameLength,
 		},
 		{
 			name:    "a CRF outside the range",
 			give:    fieldsWith(t, func(f *ProfileFields) { f.CRF = "99" }),
-			wantErr: errProfileCRF,
+			wantErr: ErrProfileCRF,
 		},
 		{
 			name:    "an unknown encoder preset",
 			give:    fieldsWith(t, func(f *ProfileFields) { f.Preset = "turbo" }),
-			wantErr: errProfilePreset,
+			wantErr: ErrProfilePreset,
 		},
 		{
 			name:    "an audio bitrate out of range",
 			give:    fieldsWith(t, func(f *ProfileFields) { f.AudioKbps = "12" }),
-			wantErr: errProfileAudio,
+			wantErr: ErrProfileAudio,
 		},
 		{
 			name:    "a resolution that is not an export size",
 			give:    fieldsWith(t, func(f *ProfileFields) { f.MaxWidth = "1000" }),
-			wantErr: errProfileWidth,
+			wantErr: ErrProfileWidth,
 		},
 	}
 

@@ -10,6 +10,7 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/timecode"
@@ -67,7 +68,7 @@ func parseJSONEdit(ctx fiber.Ctx) (clipdom.EditRequest, error) {
 
 	err := ctx.Bind().Body(&req)
 	if err != nil {
-		return clipdom.EditRequest{}, fmt.Errorf("bind json: %w", err)
+		return clipdom.EditRequest{}, fmt.Errorf("bind json: %w: %w", api.ErrInvalidBody, err)
 	}
 
 	err = req.CheckHDRChoice()

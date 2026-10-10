@@ -53,7 +53,7 @@ var _ = Describe("Servers", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("js-flash"))
 		})
 
 		It("redirects with an error when the posted URL is unusable", func(ctx SpecContext) {
@@ -63,7 +63,7 @@ var _ = Describe("Servers", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("js-flash"))
 		})
 	})
 })

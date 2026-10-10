@@ -40,6 +40,10 @@ var (
 
 	// ErrLastClipProfile is returned when deleting the only remaining profile.
 	ErrLastClipProfile = errors.New("cannot delete the last clip profile")
+
+	// ErrDuplicateClipProfileName is returned when another profile already
+	// has the name, which the name column keeps unique.
+	ErrDuplicateClipProfileName = errors.New("a clip profile with that name already exists")
 )
 
 // SaveClipProfile inserts or replaces a clip profile.
@@ -88,7 +92,8 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 		profile.UpdatedAt,
 	)
 	if err != nil {
-		return fmt.Errorf("save clip profile: %w", err)
+		//nolint:wrapcheck // The helper wraps the write's error with what was being done.
+		return clipProfileWriteError(err)
 	}
 
 	if profile.IsDefault {
@@ -389,4 +394,21 @@ func scanClipProfile(row scannable) (ClipProfile, error) {
 	profile.KeepHDR = keepHDR != 0
 
 	return profile, nil
+}
+
+// clipProfileWriteError wraps a failed profile write, naming a name another
+// profile already has.
+//
+// Parameters:
+//   - err: The write's error.
+//
+// Returns:
+//   - wrapped: ErrDuplicateClipProfileName for a duplicate name, otherwise the
+//     write's error, each with what was being done.
+func clipProfileWriteError(err error) error {
+	if isUniqueViolation(err) {
+		return fmt.Errorf("save clip profile: %w: %w", ErrDuplicateClipProfileName, err)
+	}
+
+	return fmt.Errorf("save clip profile: %w", err)
 }

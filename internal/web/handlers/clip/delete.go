@@ -13,6 +13,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
+// msgDeleteFailed is shown when a clip or its files cannot be removed.
+const msgDeleteFailed = "Couldn't delete the clip. Check the Outtake log."
+
 // Delete handles the delete clip request.
 //
 // Parameters:
@@ -35,11 +38,11 @@ func (handler *Handler) Delete(ctx fiber.Ctx) error {
 	if err != nil {
 		handler.reinstateClip(ctx, job)
 
-		return respond.WriteError(
+		return respond.WriteFailure(
 			ctx,
 			fiber.StatusInternalServerError,
 			api.DeleteFailed,
-			err.Error(),
+			respond.FailWith(ctx, msgDeleteFailed, err),
 		)
 	}
 
@@ -55,11 +58,11 @@ func (handler *Handler) Delete(ctx fiber.Ctx) error {
 			// it canceled would hide a finished file the delete did not remove.
 			handler.restoreClip(ctx, job)
 
-			return respond.WriteError(
+			return respond.WriteFailure(
 				ctx,
 				fiber.StatusInternalServerError,
 				api.DeleteFailed,
-				fileErr.Error(),
+				respond.FailWith(ctx, msgDeleteFailed, fileErr),
 			)
 		}
 	}
