@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/clipperhouse/uax29/v2 to v2.7.0 by @renovate[bot] in [#441](https://github.com/PapagoLabs/outtake/pull/441)
 - Update module github.com/mattn/go-runewidth to v0.0.31 by @renovate[bot] in [#438](https://github.com/PapagoLabs/outtake/pull/438)
 - Update module github.com/knadh/koanf/v2 to v2.3.8 by @renovate[bot] in [#437](https://github.com/PapagoLabs/outtake/pull/437)
 - Update module github.com/knadh/koanf/providers/structs to v1.0.1 by @renovate[bot] in [#433](https://github.com/PapagoLabs/outtake/pull/433)
