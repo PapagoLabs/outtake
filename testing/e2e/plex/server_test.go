@@ -160,16 +160,6 @@ var _ = Describe("Plex server", func() {
 		})
 	})
 
-	Describe("GetSessions", func() {
-		It("returns the account sessions", func(ctx SpecContext) {
-			client := helpers.PlexClient(testApp.Token, helpers.PlexTVBaseURL, 30*time.Second)
-
-			sessions, err := client.GetSessions(ctx)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(sessions).NotTo(BeNil())
-		})
-	})
-
 	Describe("DiscoverServers", func() {
 		It("discovers the servers the token reaches", func(ctx SpecContext) {
 			client := helpers.PlexClient(testApp.Token, helpers.PlexTVBaseURL, 30*time.Second)

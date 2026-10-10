@@ -4,6 +4,7 @@
 package plex
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -14,6 +15,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/fasthttp"
+
+	fiberClient "github.com/gofiber/fiber/v3/client"
 )
 
 func TestNewClient(t *testing.T) {
@@ -108,16 +111,67 @@ func TestDecodeResponse_Error(t *testing.T) {
 		BaseURL:  "",
 	})
 
-	c.baseURL, _ = url.Parse(ts.URL)
-
-	resp, err := c.doRequest(t.Context(), "/", "")
+	// GeneratePIN posts without requestPlex, so decodeResponse checks the
+	// status itself.
+	resp, err := c.httpClient.Get(ts.URL+"/", fiberClient.Config{})
 	require.NoError(t, err)
 
 	var data map[string]any
 
 	err = c.decodeResponse(resp, &data)
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrPlexError)
 	assert.Contains(t, err.Error(), "400")
+}
+
+// TestPlexTVStatus covers the mapping every plex.tv call shares: a success
+// passes, a 401 reports the refused token, and any other failure status is a
+// Plex error.
+func TestPlexTVStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		status       int
+		wantErr      error
+		unauthorized bool
+	}{
+		{name: "ok", status: http.StatusOK, wantErr: nil, unauthorized: false},
+		{name: "created", status: http.StatusCreated, wantErr: nil, unauthorized: false},
+		{
+			name:         "unauthorized",
+			status:       http.StatusUnauthorized,
+			wantErr:      ErrPlexError,
+			unauthorized: true,
+		},
+		{
+			name:         "not found",
+			status:       http.StatusNotFound,
+			wantErr:      ErrPlexError,
+			unauthorized: false,
+		},
+		{
+			name:         "server error",
+			status:       http.StatusBadGateway,
+			wantErr:      ErrPlexError,
+			unauthorized: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := plexTVStatus(test.status)
+			if test.wantErr == nil {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.ErrorIs(t, err, test.wantErr)
+			assert.Equal(t, test.unauthorized, errors.Is(err, ErrUnauthorized))
+		})
+	}
 }
 
 func TestGeneratePIN(t *testing.T) {

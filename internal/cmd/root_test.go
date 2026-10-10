@@ -4,16 +4,22 @@
 package cmd
 
 import (
+	"bytes"
+	"errors"
 	"io"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/metadata"
 )
+
+// errRunFailed is the failure the probe command returns while running.
+var errRunFailed = errors.New("run failed")
 
 // executeCLI runs the CLI with the process arguments and streams replaced.
 //
@@ -105,4 +111,52 @@ func TestExecuteWrapsAnUnknownSubcommand(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "execute:")
 	assert.Contains(t, stderr, "not-a-command")
+}
+
+// TestSilenceUsageOnRunErrors covers when the usage text is printed: a
+// mistyped flag still shows it, and an error the command returns while
+// running does not.
+func TestSilenceUsageOnRunErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantErr   error
+		wantUsage bool
+	}{
+		{name: "run error", args: []string{"probe"}, wantErr: errRunFailed, wantUsage: false},
+		{name: "unknown flag", args: []string{"probe", "--nope"}, wantErr: nil, wantUsage: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			root := &cobra.Command{Use: "outtake"}
+			root.AddCommand(&cobra.Command{
+				Use: "probe",
+				RunE: func(*cobra.Command, []string) error {
+					return errRunFailed
+				},
+			})
+
+			silenceUsageOnRunErrors(root)
+
+			var output bytes.Buffer
+
+			root.SetOut(&output)
+			root.SetErr(&output)
+			root.SetArgs(test.args)
+
+			err := root.Execute()
+			require.Error(t, err)
+
+			if test.wantErr != nil {
+				require.ErrorIs(t, err, test.wantErr)
+			}
+
+			assert.Equal(t, test.wantUsage, strings.Contains(output.String(), "Usage:"))
+		})
+	}
 }

@@ -247,23 +247,6 @@ func TestIntegration_GetMediaPath_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, plex.ErrNoFilePathFound)
 }
 
-func TestIntegration_GetSessions(t *testing.T) {
-	t.Parallel()
-
-	c := newTestClient(t, newTestServer(t, `<?xml version="1.0" encoding="UTF-8"?>
-			<MediaContainer size="1">
-				<Video title="Now Playing" duration="3600000">
-					<Session id="sess-123"/>
-				</Video>
-			</MediaContainer>`))
-
-	sessions, err := c.GetSessions(t.Context())
-	require.NoError(t, err)
-	require.Len(t, sessions, 1)
-	assert.InEpsilon(t, 3600.0, sessions[0].Duration, 0.01)
-	assert.Equal(t, "Now Playing", sessions[0].Title)
-}
-
 func TestIntegration_DiscoverServers(t *testing.T) {
 	t.Parallel()
 

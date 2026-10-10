@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -43,9 +44,6 @@ const (
 
 	// defaultTimeout is the HTTP client timeout when none is configured.
 	defaultTimeout = 30 * time.Second
-
-	// errorStatusThreshold is the first HTTP status treated as an error.
-	errorStatusThreshold = 400
 
 	// defaultScheme is the plex.tv URL scheme.
 	defaultScheme = "https"
@@ -193,8 +191,9 @@ func newPlexClient(cfg ClientConfig, httpClient, thumbClient *fiberClient.Client
 // Returns:
 //   - err: Non-nil for a failure status, an empty body, or invalid JSON.
 func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
-	if resp.StatusCode() >= errorStatusThreshold {
-		return fmt.Errorf("%w %d: %s", ErrPlexError, resp.StatusCode(), string(resp.Body()))
+	err := plexTVStatus(resp.StatusCode())
+	if err != nil {
+		return fmt.Errorf("plex.tv answer: %w", err)
 	}
 
 	if target == nil {
@@ -206,7 +205,7 @@ func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 		return errEmptyBody
 	}
 
-	err := json.Unmarshal(body, target)
+	err = json.Unmarshal(body, target)
 	if err != nil {
 		return fmt.Errorf("decode response: %w", err)
 	}
@@ -222,8 +221,9 @@ func (*Client) decodeResponse(resp *fiberClient.Response, target any) error {
 //   - rawQuery: Encoded query string, or empty for none.
 //
 // Returns:
-//   - resp: The Plex response, with its status unexamined.
-//   - err: Non-nil when the request could not be executed.
+//   - resp: The Plex response, which answered with a success status.
+//   - err: Non-nil when the request could not be executed or Plex answered
+//     with a failure status.
 func (client *Client) doRequest(
 	ctx context.Context,
 	path, rawQuery string,
@@ -247,8 +247,10 @@ func (client *Client) doRequest(
 //     cannot be decoded by the XML parsers.
 //
 // Returns:
-//   - resp: The Plex response, with its status unexamined.
-//   - err: Non-nil when the request could not be executed.
+//   - resp: The Plex response, which answered with a success status.
+//   - err: Non-nil when the request could not be executed. A failure status
+//     wraps ErrPlexError, and a 401 also wraps ErrUnauthorized, so no error
+//     page reaches a decoder.
 func (client *Client) requestPlex(
 	ctx context.Context,
 	path, rawQuery, accept string,
@@ -277,5 +279,29 @@ func (client *Client) requestPlex(
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
 
+	err = plexTVStatus(resp.StatusCode())
+	if err != nil {
+		return nil, fmt.Errorf("plex.tv answer: %w", err)
+	}
+
 	return resp, nil
+}
+
+// plexTVStatus turns a plex.tv failure status into an error.
+//
+// Parameters:
+//   - status: The HTTP status plex.tv answered with.
+//
+// Returns:
+//   - err: Nil for a success status. A failure wraps ErrPlexError, and a 401
+//     also wraps ErrUnauthorized.
+func plexTVStatus(status int) error {
+	switch {
+	case status == http.StatusUnauthorized:
+		return fmt.Errorf("%w %d: %w", ErrPlexError, status, ErrUnauthorized)
+	case status >= http.StatusBadRequest:
+		return fmt.Errorf("%w %d", ErrPlexError, status)
+	default:
+		return nil
+	}
 }

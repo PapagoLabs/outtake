@@ -493,44 +493,6 @@ func (client *Client) SearchMedia(ctx context.Context, query string) ([]MediaIte
 	return items, nil
 }
 
-// GetSessions fetches active sessions using the Plex.tv API.
-//
-// Parameters:
-//   - ctx: Cancellation and deadline for the request.
-//
-// Returns:
-//   - sessions: The plex.tv playback sessions.
-//   - err: Non-nil when the plex.tv request or decode fails.
-func (client *Client) GetSessions(ctx context.Context) ([]Session, error) {
-	resp, err := client.requestPlex(ctx, "/status/sessions", "", acceptXML)
-	if err != nil {
-		return nil, fmt.Errorf("get sessions: %w", err)
-	}
-
-	body := resp.Body()
-	if len(body) == 0 {
-		return nil, nil
-	}
-
-	entries, err := plextv.Sessions(body)
-	if err != nil {
-		return nil, fmt.Errorf("decode sessions: %w", err)
-	}
-
-	sessions := make([]Session, 0, len(entries))
-	for _, entry := range entries {
-		sessions = append(sessions, Session{
-			ID:         entry.PlaybackID(),
-			MediaItem:  mediaItemFromEntry(entry.Media(), ""),
-			Title:      entry.Title,
-			Duration:   float64(entry.Duration) / scaleMsToS,
-			ViewOffset: float64(entry.ViewOffset) / scaleMsToS,
-		})
-	}
-
-	return sessions, nil
-}
-
 // MapPlexType maps Plex type strings to standardized types.
 //
 // Parameters:

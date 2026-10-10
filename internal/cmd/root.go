@@ -31,10 +31,33 @@ func Execute() error {
 	rootCmd.AddCommand(owner.NewCommand())
 	rootCmd.AddCommand(version.NewCommand())
 
+	silenceUsageOnRunErrors(rootCmd)
+
 	err := rootCmd.Execute()
 	if err != nil {
 		return fmt.Errorf("execute: %w", err)
 	}
 
 	return nil
+}
+
+// silenceUsageOnRunErrors keeps the usage text for a mistyped command, flag,
+// or argument, which cobra reports before a command runs, and leaves it out of
+// an error the command returns while running, such as a data directory it
+// cannot write.
+//
+// Parameters:
+//   - command: The command whose tree is wrapped.
+func silenceUsageOnRunErrors(command *cobra.Command) {
+	if run := command.RunE; run != nil {
+		command.RunE = func(cmd *cobra.Command, args []string) error {
+			cmd.SilenceUsage = true
+
+			return run(cmd, args)
+		}
+	}
+
+	for _, child := range command.Commands() {
+		silenceUsageOnRunErrors(child)
+	}
 }
