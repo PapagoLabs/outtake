@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the documentation site with the app's theme and screenshots by @nicholas-fedor in [#446](https://github.com/PapagoLabs/outtake/pull/446)
 - Add a maximum preview resolution and format badges by @nicholas-fedor in [#400](https://github.com/PapagoLabs/outtake/pull/400)
 
 ### Changed
