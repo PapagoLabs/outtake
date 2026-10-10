@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/PapagoLabs/outtake/internal/api"
+	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/testing/e2e/helpers"
 )
 
@@ -40,9 +41,9 @@ var _ = Describe("Clips", func() {
 
 			clip := helpers.DecodeClip(body)
 			Expect(clip.ID).NotTo(BeEmpty())
-			Expect(clip.Status).To(Equal("pending"))
+			Expect(clip.Status).To(Equal(clipdom.StatusPending))
 			Expect(clip.MediaID).To(Equal(mediaID))
-			Expect(clip.ClipType).To(Equal("clip"))
+			Expect(clip.ClipType).To(Equal(clipdom.TypeClip))
 		})
 
 		It("rejects a zero duration", func(ctx SpecContext) {
@@ -94,8 +95,12 @@ var _ = Describe("Clips", func() {
 			)
 
 			Expect(clip.ID).To(Equal(clipID))
+			// The test video is a second long, so the render may already be done.
 			Expect(clip.Status).To(Or(
-				Equal("pending"), Equal("processing"), Equal("failed"),
+				Equal(clipdom.StatusPending),
+				Equal(clipdom.StatusProcessing),
+				Equal(clipdom.StatusCompleted),
+				Equal(clipdom.StatusFailed),
 			))
 		})
 
@@ -127,7 +132,7 @@ var _ = Describe("Clips", func() {
 				helpers.ReadBody(testApp.Do(ctx, http.MethodGet, helpers.ClipStatusPath(clipID))),
 			)
 
-			Expect(clip.Status).To(Equal("completed"))
+			Expect(clip.Status).To(Equal(clipdom.StatusCompleted))
 			Expect(clip.Error).To(BeEmpty())
 		})
 	})
@@ -156,7 +161,7 @@ var _ = Describe("Clips", func() {
 			// Either answer is correct; what is asserted is that a refusal names
 			// the reason rather than falling through to an empty download.
 			if resp.StatusCode == http.StatusConflict {
-				Expect(helpers.DecodeError(body).Error).To(Equal("not_ready"))
+				Expect(helpers.DecodeError(body).Error).To(Equal(api.NotReady))
 
 				return
 			}

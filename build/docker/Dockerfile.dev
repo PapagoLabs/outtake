@@ -22,6 +22,7 @@ RUN go mod download
 COPY . .
 RUN go tool templ generate
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o outtake .
+RUN mkdir -p /data/output
 
 FROM scratch
 
@@ -32,6 +33,10 @@ COPY --from=ffmpeg /ffmpeg /usr/bin/ffmpeg
 COPY --from=ffmpeg /ffprobe /usr/bin/ffprobe
 
 EXPOSE 8080
+
+# A new named volume takes the ownership of the image's /data, so the server
+# can create its database and output directory there as uid 1000.
+COPY --from=builder --chown=1000:1000 /data /data
 
 VOLUME ["/data"]
 

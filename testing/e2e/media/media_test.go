@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/testing/e2e/helpers"
 )
 
@@ -22,7 +23,7 @@ var _ = Describe("Media", func() {
 			body := helpers.ReadBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest))
-			Expect(helpers.DecodeError(body).Error).To(Equal("missing_query"))
+			Expect(helpers.DecodeError(body).Error).To(Equal(api.MissingQuery))
 		})
 
 		It("returns a media list for a query", func(ctx SpecContext) {

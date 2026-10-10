@@ -92,8 +92,8 @@ const (
 	// numWorkers is the clip worker count.
 	numWorkers = 2
 
-	// maxConcurrentPreviews is the preview render concurrency. It has to be
-	// positive: the preview gate admits nothing when it is left at zero.
+	// maxConcurrentPreviews is the preview render concurrency, so specs that
+	// render previews side by side do not wait on one another.
 	maxConcurrentPreviews = 2
 
 	// maxClipDuration is the longest clip the suite asks for.
@@ -105,9 +105,13 @@ const (
 
 // The HTTP paths the suite talks to.
 const (
-	// HealthPath is the health endpoint, which is also the safe request the
-	// suite mints CSRF tokens from.
+	// HealthPath is the health endpoint. It is mounted before the session
+	// middleware, so it opens no session and mints no CSRF token.
 	HealthPath = "/api/healthz"
+
+	// HandshakePath is the safe request the suite opens a session and mints a
+	// CSRF token from.
+	HandshakePath = "/login"
 
 	// ClipsPath is the clip collection API path.
 	ClipsPath = "/api/clips"
