@@ -112,7 +112,23 @@ tasks:
   clean:
     desc: Clean build artifacts
     cmds:
-      - rm -rf bin/
+      - rm -rf bin/ docs/public docs/resources/_gen
+
+  docs:
+    desc: Regenerate the CLI reference under docs/content/cli-reference
+    cmds:
+      - rm -rf docs/content/cli-reference
+      - go run ./tools/docgen -out ./docs/content/cli-reference
+
+  docs:build:
+    desc: Build the documentation site into docs/public
+    cmds:
+      - hugo --source docs --gc --minify
+
+  docs:serve:
+    desc: Preview the documentation site with live reload
+    cmds:
+      - hugo server --source docs
 
   templ:
     desc: Run templ

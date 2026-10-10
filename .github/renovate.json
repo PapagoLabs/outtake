@@ -21,12 +21,20 @@
       "enabled": true
     },
     {
-      "description": "A new major version of a Go module is a new module path, so it only becomes a requirement when a direct dependency imports it. Mockery is excluded because go.mod marks the tool as indirect.",
+      "description": "A new major version of a Go module is a new module path, so it only becomes a requirement when a direct dependency imports it. Mockery is excluded because go.mod marks the tool as indirect. The docs module is excluded because its Hugo modules are all indirect.",
       "matchManagers": ["gomod"],
+      "matchFileNames": ["go.mod"],
       "matchDepTypes": ["indirect"],
       "matchUpdateTypes": ["major"],
       "matchPackageNames": ["!github.com/vektra/mockery/v3"],
       "enabled": false
+    },
+    {
+      "description": "Group the Hugo modules of the documentation site",
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["docs/go.mod"],
+      "groupName": "docs hugo modules",
+      "semanticCommitType": "docs"
     },
     {
       "description": "Automerge non-major updates",

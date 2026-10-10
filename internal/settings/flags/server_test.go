@@ -62,7 +62,7 @@ func TestListenBind(t *testing.T) {
 	flag := flagSet.Lookup(FlagListen)
 	require.NotNil(t, flag)
 	assert.Empty(t, flag.DefValue)
-	assert.Equal(t, "Listen address (overrides config file)", flag.Usage)
+	assert.Equal(t, "Listen address, which overrides OUTTAKE_LISTEN_ADDR", flag.Usage)
 	assert.Empty(t, listen.Addr)
 }
 

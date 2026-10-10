@@ -21,6 +21,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tursodatabase/libsql-client-go v0.0.0-20260528064733-9d5d30a29a60
 	github.com/valyala/fasthttp v1.75.0
+	go.yaml.in/yaml/v4 v4.0.0-rc.6
 	golang.org/x/net v0.61.0
 	golang.org/x/sync v0.24.0
 	modernc.org/sqlite v1.60.1

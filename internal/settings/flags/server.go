@@ -34,5 +34,10 @@ func (listen *Listen) Apply(cfg *config.Config) {
 // Parameters:
 //   - flagSet: The flag set to attach the override to.
 func (listen *Listen) Bind(flagSet *pflag.FlagSet) {
-	flagSet.StringVar(&listen.Addr, FlagListen, "", "Listen address (overrides config file)")
+	flagSet.StringVar(
+		&listen.Addr,
+		FlagListen,
+		"",
+		"Listen address, which overrides OUTTAKE_LISTEN_ADDR",
+	)
 }

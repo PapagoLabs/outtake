@@ -4,8 +4,10 @@
 package config
 
 import (
+	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,6 +16,10 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 )
+
+// configurationPage is the documentation site's page that lists every
+// environment variable.
+const configurationPage = "../../../docs/content/setup/configuration.md"
 
 func TestLoad(t *testing.T) {
 	t.Parallel()
@@ -317,4 +323,21 @@ func TestRemapMediaPathMapsWindowsPaths(t *testing.T) {
 	linux.PlexMediaRoot = ""
 	assert.Equal(t, "/media/data/x.mkv", linux.RemapMediaPath("//data/x.mkv"),
 		"a Linux path that starts with two slashes is not a UNC share")
+}
+
+// TestConfigurationPageNamesEveryVariable keeps the documentation in step with
+// the settings: every environment variable outtake reads must appear on the
+// site's Configuration page.
+func TestConfigurationPageNamesEveryVariable(t *testing.T) {
+	t.Parallel()
+
+	page, err := os.ReadFile(configurationPage)
+	require.NoError(t, err)
+
+	for _, key := range envKeys() {
+		variable := "OUTTAKE_" + strings.ToUpper(strings.ReplaceAll(key, "-", "_"))
+
+		assert.Contains(t, string(page), "`"+variable+"`",
+			"docs/content/setup/configuration.md does not document %s", variable)
+	}
 }

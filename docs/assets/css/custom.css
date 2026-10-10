@@ -1,0 +1,42 @@
+/* The Plex palette, the web app's default theme, in its dark scheme. */
+
+:root,
+.dark {
+  --primary-hue: 41deg;
+  --primary-saturation: 89%;
+  --primary-lightness: 47%;
+
+  --hx-color-dark: oklch(0.222 0 0);
+
+  --hx-color-gray-50: oklch(0.985 0 0);
+  --hx-color-gray-100: oklch(0.97 0 0);
+  --hx-color-gray-200: oklch(0.922 0 0);
+  --hx-color-gray-300: oklch(0.87 0 0);
+  --hx-color-gray-400: oklch(0.715 0 0);
+  --hx-color-gray-500: oklch(0.556 0 0);
+  --hx-color-gray-600: oklch(0.439 0 0);
+  --hx-color-gray-700: oklch(0.371 0 0);
+  --hx-color-gray-800: oklch(0.285 0 0);
+  --hx-color-gray-900: oklch(0.24 0 0);
+}
+
+html {
+  color-scheme: dark;
+}
+
+/* Hextra fades the table of contents into its own #111 background. */
+.hextra-toc [class*="shadow-[0_-12px_16px_#111]"] {
+  box-shadow: 0 -12px 16px var(--hx-color-dark) !important;
+}
+
+/* Screenshots share the page's background, so a border sets them apart. */
+.content img {
+  border: 1px solid var(--hx-color-gray-700);
+  border-radius: 0.5rem;
+}
+
+/* The landing page has no .content wrapper, so its screenshot is styled here. */
+.hextra-max-page-width > #content img {
+  border: 1px solid var(--hx-color-gray-700);
+  border-radius: 0.5rem;
+}

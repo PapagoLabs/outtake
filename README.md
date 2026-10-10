@@ -17,44 +17,29 @@
 </div>
 <!-- markdownlint-restore -->
 
-## Table of Contents
+![The Outtake Clips page, listing video clips, a GIF, and a screenshot, each with its status and settings](docs/static/images/screenshots/clips.png)
 
-- [What it does](#what-it-does)
-- [Requirements](#requirements)
-- [Install](#install)
-  - [Docker Compose](#docker-compose)
-  - [Kubernetes](#kubernetes)
-- [Configuration](#configuration)
-- [First run](#first-run)
-- [Make a clip](#make-a-clip)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
-- [Contributing](#contributing)
+Outtake is a self-hosted web app for the media in your Plex libraries. Log in with Plex, open a title, mark where the clip starts and ends, and download a video clip, GIF, or screenshot.
+
+**Documentation: [outtake.papagolabs.com](https://outtake.papagolabs.com/)**
 
 ## What it does
 
-- Sign in with Plex (or paste a token).
+- Log in with Plex, or paste a token.
 - Browse libraries, search titles, and open an item.
-- Mark start and end from live Plex playback, or type the times yourself.
+- Mark the start and end from live Plex playback, or type the times yourself.
 - Export a video clip, GIF, or screenshot, then preview and download it.
-- Manage named clip profiles (CRF, encoder preset, audio bitrate, max resolution, and whether HDR is kept), and optionally **Trim black bars** on each export.
+- Keep named clip profiles for the quality, encoder preset, audio bitrate, maximum resolution, and whether HDR is kept, and optionally trim black bars on each export.
+- Keep HDR in 10-bit HEVC for phones, Apple devices, and YouTube, or tone-map it to SDR for everywhere else.
 
-The server listens on port 8080 by default.
+| | |
+| --- | --- |
+| ![A screenshot clip open to its preview, with its settings](docs/static/images/screenshots/clip-card.png) | ![The Clip Profiles page](docs/static/images/screenshots/clip-profiles.png) |
+| ![The dashboard, with clip counts and live Plex sessions](docs/static/images/screenshots/dashboard.png) | ![The Appearance page, with six color palettes](docs/static/images/screenshots/appearance.png) |
 
-## Requirements
+## Quick start
 
-- A Plex account and a Plex Media Server that Outtake can reach.
-- Read access to the media files Plex reports (on the host, or mounted into Docker).
-- **Docker images** ship static `ffmpeg` and `ffprobe`.
-- A **host binary** needs `ffmpeg` and `ffprobe` on `PATH` (or set `OUTTAKE_FFMPEG_PATH` and `OUTTAKE_FFPROBE_PATH`). Use FFmpeg 8 or later, built with libx264, libx265, and zimg. Earlier versions copy HDR metadata into SDR clips and write HEVC files some players refuse.
-
-## Install
-
-Two deploy modes: **Docker Compose** is the local filesystem + SQLite path. **Kubernetes** is for clusters. You point NFS (or an existing claim) at Plex media. Clips and metadata do not live on that share.
-
-### Docker Compose
-
-Images are published as `ghcr.io/papagolabs/outtake` and `papagolabs/outtake`. This matches [`examples/docker/docker-compose.yaml`](examples/docker/docker-compose.yaml):
+Outtake needs a Plex Media Server it can reach and read access to the media files Plex plays. The image ships FFmpeg. Save this as `docker-compose.yaml`:
 
 ```yaml
 services:
@@ -78,171 +63,31 @@ volumes:
   outtake-data:
 ```
 
-Point `OUTTAKE_MEDIA_PATH` at the directory that contains the files Plex plays, then start the stack:
+Point `OUTTAKE_MEDIA_PATH` at the directory that holds the files Plex plays, then start it:
 
 ```bash
 export OUTTAKE_MEDIA_PATH=/path/to/your/media
 docker compose up -d
 ```
 
-Then open [http://localhost:8080](http://localhost:8080).
+Open [http://localhost:8080](http://localhost:8080) and choose **Login With Plex**. The first Plex account to log in owns Outtake.
 
-Compose defaults to filesystem blobs and SQLite. Clips land on `OUTTAKE_STORAGE_PATH` (the `/data` volume), not on the media bind. [`docker-compose.yml`](docker-compose.yml) is the same local path when you build from source.
+## Documentation
 
-If Plex reports a different filesystem prefix than that mount, also set `OUTTAKE_PLEX_MEDIA_ROOT` (see [Configuration](#configuration)).
+- [Setup](https://outtake.papagolabs.com/setup/): installing Outtake and configuring it
+  - [Install](https://outtake.papagolabs.com/setup/install/): Docker Compose, Docker, a build from source, or a host binary
+  - [Configuration](https://outtake.papagolabs.com/setup/configuration/): every `OUTTAKE_` variable, media paths, and host names
+  - [Storage and Databases](https://outtake.papagolabs.com/setup/storage/): files, S3, SQLite, and Postgres
+  - [Kubernetes](https://outtake.papagolabs.com/setup/kubernetes/): example manifests and an example Helm chart
+- [Guide](https://outtake.papagolabs.com/guide/): using Outtake once it is running
+  - [Logging In and Servers](https://outtake.papagolabs.com/guide/logging-in/): the owner account and the server Outtake uses
+  - [Making Clips](https://outtake.papagolabs.com/guide/making-clips/): marking a selection, exporting it, and managing clips
+  - [Profiles and Settings](https://outtake.papagolabs.com/guide/profiles/): quality, size, HDR, previews, and appearance
+  - [HDR and Playback](https://outtake.papagolabs.com/guide/hdr/): when clips keep HDR and what your browser plays
+- [Troubleshooting](https://outtake.papagolabs.com/troubleshooting/): fixes for common problems and how to report one
+- [CLI Reference](https://outtake.papagolabs.com/cli-reference/): every command and flag
 
-### Docker
-
-```bash
-docker run -d \
-  --name outtake \
-  -p 8080:8080 \
-  -v outtake-data:/data \
-  -v /path/to/your/media:/media:ro \
-  -e OUTTAKE_LOCAL_MEDIA_ROOT=/media \
-  -e OUTTAKE_PUBLIC_BASE_URL=http://localhost:8080 \
-  ghcr.io/papagolabs/outtake:latest
-```
-
-The image entrypoint is `/outtake`. The default command is `server start`.
-
-### Binary
-
-Tagged [GitHub Releases](https://github.com/PapagoLabs/outtake/releases) are not published yet. When they are, unpack the `outtake` archive for your OS, install ffmpeg and ffprobe, and run:
-
-```bash
-./outtake server start
-```
-
-The server binds `0.0.0.0:8080` by default. Override with `--listen` or `OUTTAKE_LISTEN_ADDR`. On Linux, the database and exports default to `~/.local/share/outtake/`.
-
-Until a release exists, use Docker or Compose.
-
-### Local image from source
-
-From a repository checkout, copy [`.env.example`](.env.example) to `.env`, set `OUTTAKE_MEDIA_PATH`, and build:
-
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-This uses `build/docker/Dockerfile.dev` and also bundles ffmpeg and ffprobe.
-
-### Kubernetes
-
-There is no Helm repo or OCI chart. Cluster examples live under [`examples/kubernetes/`](examples/kubernetes/).
-
-Suggested stacks (Outtake + SeaweedFS + a database, NFS for Plex media only):
-
-- [`examples/kubernetes/seaweedfs-cnpg/`](examples/kubernetes/seaweedfs-cnpg/) SeaweedFS + CloudNativePG. Install the CloudNativePG operator first.
-- [`examples/kubernetes/seaweedfs-cockroach/`](examples/kubernetes/seaweedfs-cockroach/) SeaweedFS + a development-only single-node Cockroach (`--insecure`). Do not use that Cockroach topology in production.
-
-Set `nfs.example.internal` and `/export/plex` to your Plex media NFS. Clip blobs stay on S3. They do **not** live on the media NFS share. Replace the `outtake-s3` keys (and the matching `config.json` identity) before apply:
-
-```bash
-kubectl apply -k examples/kubernetes/seaweedfs-cnpg
-```
-
-or
-
-```bash
-kubectl apply -k examples/kubernetes/seaweedfs-cockroach
-```
-
-An example Helm chart is in [`examples/kubernetes/helm/outtake`](examples/kubernetes/helm/outtake). Values and optional chart backends are in that chart [README](examples/kubernetes/helm/outtake/README.md). Do not `helm repo add`.
-
-The only site input is Plex media: NFS in the suggested manifests, or `media.nfs` / `media.existingClaim` on the chart. Defaults match Compose (`filesystem` and `sqlite`) unless you enable a backend. The image is `ghcr.io/papagolabs/outtake:latest` (no tagged release yet).
-
-## Configuration
-
-Outtake reads `OUTTAKE_*` environment variables. Compose files also use `OUTTAKE_MEDIA_PATH` for the host library bind (that name is not an application setting).
-
-Docker images store the SQLite database and filesystem exports under `/data` (`outtake.db` and `output/`). The example compose file keeps that volume as `outtake-data`. Clip blobs use `OUTTAKE_STORAGE_PATH` (or S3 when `OUTTAKE_STORAGE_BACKEND=s3`). Clip metadata lives in the database (`OUTTAKE_DATABASE_PATH` or `OUTTAKE_DATABASE_URL`). `OUTTAKE_LOCAL_MEDIA_ROOT` and `OUTTAKE_PLEX_MEDIA_ROOT` are **source media only**, not the clip store, and not Kubernetes media NFS.
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `OUTTAKE_LISTEN_ADDR` | Address the web server binds | `0.0.0.0:8080` (images use `:8080`) |
-| `OUTTAKE_PUBLIC_BASE_URL` | URL Plex should return to after sign-in | derived from the listen address, or `http://localhost:8080` in images |
-| `OUTTAKE_ALLOWED_HOSTS` | More host names Outtake answers to, separated by commas. A leading dot covers a whole domain (`.example.com`). `*` turns the host check off | unset |
-| `OUTTAKE_DATABASE_BACKEND` | `sqlite` or `postgres` | `sqlite` |
-| `OUTTAKE_DATABASE_PATH` | SQLite database file | `~/.local/share/outtake/outtake.db` (images use `/data/outtake.db`) |
-| `OUTTAKE_DATABASE_URL` | Postgres/pgx DSN (when backend is `postgres`) | unset |
-| `OUTTAKE_STORAGE_BACKEND` | `filesystem` or `s3` | `filesystem` |
-| `OUTTAKE_STORAGE_PATH` | Filesystem blobs, or S3 scratch, not Plex media / NFS | `~/.local/share/outtake/output` (images use `/data/output`) |
-| `OUTTAKE_S3_ENDPOINT` | S3-compatible API endpoint | unset |
-| `OUTTAKE_S3_BUCKET` | S3 bucket | unset |
-| `OUTTAKE_S3_REGION` | S3 region | `us-east-1` |
-| `OUTTAKE_S3_ACCESS_KEY` | S3 access key | unset |
-| `OUTTAKE_S3_SECRET_KEY` | S3 secret key | unset |
-| `OUTTAKE_S3_USE_PATH_STYLE` | Path-style S3 URLs (typical for SeaweedFS / RustFS) | `true` |
-| `OUTTAKE_LOCAL_MEDIA_ROOT` | Local directory that should contain Plex files (container mount is usually `/media`). Source media only | unset (compose examples set `/media`) |
-| `OUTTAKE_PLEX_MEDIA_ROOT` | Prefix Plex reports for those files, replaced by `OUTTAKE_LOCAL_MEDIA_ROOT`. Source media only | unset |
-| `OUTTAKE_FFMPEG_PATH` | `ffmpeg` binary | `ffmpeg` (images use `/usr/bin/ffmpeg`) |
-| `OUTTAKE_FFPROBE_PATH` | `ffprobe` binary | `ffprobe` (images use `/usr/bin/ffprobe`) |
-| `OUTTAKE_FFMPEG_TIMEOUT_SEC` | Longest one ffmpeg run may take, in seconds. `0` allows 20 times the clip's length, 60 times for the HEVC encode of a clip that keeps HDR from an HDR source, and at least 30 minutes | `0` |
-| `OUTTAKE_MAX_CLIP_DUR` | Maximum clip duration in seconds | `600` |
-| `OUTTAKE_CROP_BLACK_BARS` | Default for **Trim black bars** | `false` |
-| `OUTTAKE_SESSION_POLL_SEC` | How often to poll live Plex playback | `10` |
-| `OUTTAKE_NUM_WORKERS` | Background clip workers | `2` |
-| `OUTTAKE_MAX_CONCURRENT_PREVIEWS` | How many previews render at once. A value below `1` means `1` | `2` |
-| `OUTTAKE_LOG_LEVEL` | `debug`, `info`, `warn`, or `error` | `info` |
-| `OUTTAKE_PLEX_SERVER_URL` | Optional Plex Media Server URL | unset |
-| `OUTTAKE_PLEX_TOKEN` | Optional Plex token (browser sign-in does not need this) | unset |
-| `OUTTAKE_PLEX_CLIENT_ID` | Plex client identifier | generated on first start and kept in the database |
-
-Plex gives Outtake absolute file paths. If those paths are not readable as-is (typical in Docker), set `OUTTAKE_LOCAL_MEDIA_ROOT` to the mount. When `OUTTAKE_PLEX_MEDIA_ROOT` is also set, that prefix is stripped and the remainder is joined under the local root. When only the local root is set, the Plex path is joined under that mount.
-
-If you open Outtake from another host, set `OUTTAKE_PUBLIC_BASE_URL` to the URL you type in the browser so Plex sign-in can return.
-
-Outtake only answers requests addressed to an IP address, `localhost`, a name with no dots (`nas`), a private name (`nas.local`, `*.lan`, `*.home`, `*.home.arpa`, `*.internal`), the host in `OUTTAKE_PUBLIC_BASE_URL`, or a host listed in `OUTTAKE_ALLOWED_HOSTS`. Any other host gets `421 Misdirected Request`. That keeps a web page on another site from reaching your Outtake through DNS rebinding.
-
-## First run
-
-1. Open [http://localhost:8080](http://localhost:8080). Unauthenticated visits redirect to **Login**. The first Plex account to sign in becomes the **owner**, and Outtake refuses every other Plex account.
-2. Choose **Login With Plex**. Outtake opens the Plex Auth App in a popup and shows **Waiting for Plex…** until you approve it.
-3. Or paste a token into **Plex Token** and choose **Login**.
-4. If Outtake finds exactly one Media Server, it uses that server and continues to the dashboard. Otherwise it opens **Servers**. Choose **Use This Server**, or enter a custom URL such as `https://plex.example.com` and choose **Use This URL**.
-
-You can change servers later under **Settings → Servers**, where **Forget Server** stops Outtake from using the current one. **Logout** ends only the session in that browser.
-
-To hand Outtake to a different Plex account, reset the owner and restart:
-
-```bash
-docker exec outtake /outtake owner reset
-docker restart outtake
-```
-
-The reset also forgets the server the old owner chose. The next Plex account to sign in becomes the owner. If you upgraded from a version without owners, only the account that signed in last can claim Outtake.
-
-## Make a clip
-
-1. Open **Media Libraries** (or **Browse Media** on the dashboard).
-2. Search, or browse a library, then **Open** a title. Folders and shows use **Browse** until you reach a playable item.
-3. On the item page, play the title in Plex if you want live markers. When Plex is playing, use **Set Start From Plex** and **Set End From Plex**. Pause in Plex first for an exact mark, because a playing client reports its position only every few seconds. You can also type **Start** and **End** yourself.
-4. Under **New Export**, set **Export As** to **Video Clip**, **GIF**, or **Screenshot**, pick a **Profile**, and optionally **Trim black bars**. The profile decides whether a video clip from an HDR source keeps HDR. The built-in **4K HDR** keeps it in a 10-bit HEVC file, which phones, Apple devices, and YouTube take as HDR. **720p**, **1080p**, and **4K** tone-map to SDR, which most social sites need. Change it per profile with **HDR** under **Clip Profiles**. A clip takes the setting each time it renders, so regenerate a finished clip to apply a changed profile. GIFs and screenshots are always SDR. When your screen does not show HDR, or your browser cannot play HEVC, the preview of an HDR clip is shown in SDR, and its badge says so, while the saved clip keeps HDR.
-5. Choose **Preview** to check the segment, then **Save**.
-
-If something is already playing, the dashboard **Live Sessions** list includes **Clip Now**.
-
-Finished exports appear on the item and on **Clips**. When a job is **Completed** and the file is on disk, use **Download**. Progress updates while a job is pending or processing. A video clip that keeps HDR from an HDR source also renders an SDR version, with a second progress bar, and its card plays that version unless your screen shows HDR and your browser plays HEVC. **Maximum Preview Resolution** under **Settings → Previews** caps every preview at 720p, 1080p, or 4K, and a smaller source keeps its own size. It applies to previews rendered after you change it, including the SDR versions of clips rendered afterwards. **Download** always gives you the HDR file. Each player shows a badge in its corner naming what it plays, such as **HDR · 4K** or **SDR · 1080p**.
-
-Named encode settings live under **Settings → Clip Profiles**. Lower CRF is higher quality. The built-ins are named after what they produce: **720p**, **1080p** (the default), **4K**, and **4K HDR**. You can edit, rename, or delete them like your own profiles.
-
-## Troubleshooting
-
-- **Login never finishes.** Approve the Plex popup. If you reach Outtake through a hostname other than localhost, set `OUTTAKE_PUBLIC_BASE_URL` to that URL.
-- **"This Outtake belongs to a different Plex account."** Login with the owner's Plex account, or reset the owner (see [First run](#first-run)).
-- **421 Misdirected Request.** You reached Outtake through a host name it does not know. Set `OUTTAKE_PUBLIC_BASE_URL` to the URL you use, or add the host to `OUTTAKE_ALLOWED_HOSTS`.
-- **No Plex servers found.** Use **Custom Server URL** on the servers page. Outtake must be able to reach that address.
-- **No media found.** Select a server first, then search or browse again.
-- **Clips fail or files are missing.** The path Plex reports must be readable. In Docker, mount the library and set `OUTTAKE_PLEX_MEDIA_ROOT` / `OUTTAKE_LOCAL_MEDIA_ROOT` so that path lands on `/media`. On Kubernetes, that mount is the NFS volume in the suggested manifests (or `media.nfs` / `media.existingClaim` on the example chart). Source media only. Clip blobs stay on `OUTTAKE_STORAGE_PATH` or S3, not on the media NFS share. Clip metadata is in the database.
-- **Kubernetes apply fails.** Set the NFS server and path to your Plex library. Replace the `outtake-s3` keys before apply. For `seaweedfs-cnpg`, install the CloudNativePG operator first.
-- **Wrong storage or database backend.** Defaults are `filesystem` and `sqlite`. For S3, set `OUTTAKE_STORAGE_BACKEND=s3` plus the `OUTTAKE_S3_*` keys. For postgres, set `OUTTAKE_DATABASE_BACKEND=postgres` and `OUTTAKE_DATABASE_URL`. The suggested Kubernetes stacks use S3 and postgres. On the example chart, enable at most one blob backend (`backends.seaweedfs` or `backends.rustfs`) and one database backend (`backends.cockroach` or `backends.cnpg`).
-- **"This browser can't play this clip".** Clips that keep HDR are HEVC, which Brave and Chrome on Linux decode only with hardware video decoding. Their cards play an SDR version instead, so this appears only for an HDR clip rendered before SDR versions existed, whose card says to regenerate it. The file is fine: download it, use Firefox, or regenerate the clip. Previews are not affected, because a browser without HEVC gets an SDR preview. Where Chromium does decode HEVC, versions 151 and later draw 10-bit video black on NVIDIA under Wayland, and `--ozone-platform=x11` avoids that.
-- **"This Dolby Vision file can't be exported with correct colors".** Dolby Vision profile 5, and any other source without a displayable base layer, cannot be exported by ffmpeg with correct colors. Use a copy of the title with an HDR10 base layer.
-- **Reporting a problem.** An error that needs more than its message has a **Details** section under it. Open it and use **Copy**, or select the text, and paste it into the issue. Its `ref` matches the line Outtake wrote to its log for the same failure. Details show only when you are logged in.
-- **ffmpeg / ffprobe errors on a host binary.** Install both tools and keep them on `PATH`, or set the path variables above. Docker images already include them.
+The site's source is under [`docs/`](docs/).
 
 ## License
 

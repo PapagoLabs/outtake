@@ -353,7 +353,24 @@ func durationSeconds(from reflect.Type, data any) (float64, bool) {
 // Returns:
 //   - err: Wrapped error naming the key that could not be bound.
 func bindEnv(viperInstance *viper.Viper) error {
-	keys := []string{
+	for _, key := range envKeys() {
+		err := viperInstance.BindEnv(key)
+		if err != nil {
+			return fmt.Errorf("bind env %s: %w", key, err)
+		}
+	}
+
+	return nil
+}
+
+// envKeys lists the settings read from OUTTAKE_* environment variables. A
+// key maps to its variable by upper-casing it and replacing each hyphen with
+// an underscore, so "listen-addr" is OUTTAKE_LISTEN_ADDR.
+//
+// Returns:
+//   - keys: Every setting key bound to an environment variable.
+func envKeys() []string {
+	return []string{
 		"listen-addr",
 		"database-path",
 		"database-backend",
@@ -384,15 +401,6 @@ func bindEnv(viperInstance *viper.Viper) error {
 		"plex-media-root",
 		"local-media-root",
 	}
-
-	for _, key := range keys {
-		err := viperInstance.BindEnv(key)
-		if err != nil {
-			return fmt.Errorf("bind env %s: %w", key, err)
-		}
-	}
-
-	return nil
 }
 
 // AllowedHostList splits AllowedHosts into the entries it lists.
