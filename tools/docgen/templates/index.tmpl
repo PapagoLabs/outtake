@@ -1,0 +1,48 @@
+---
+title: {{ yaml .Title }}
+description: {{ yaml .Description }}
+weight: 10
+type: docs
+---
+
+Complete command reference for {{ .Name }}, generated from the program itself.
+{{- if .Long }}
+
+{{ .Long }}
+{{- end }}
+
+## Commands
+
+| Command | Description |
+| --- | --- |
+{{- range .Sections }}
+{{- range .SubCommands }}
+| [{{ .Name }}]({{ .URL }}) | {{ cell .Description }} |
+{{- end }}
+{{- end }}
+{{- if .Examples }}
+
+## Examples
+{{- range .Examples }}
+{{- if .Title }}
+
+### {{ .Title }}
+{{- end }}
+
+```bash
+{{ .Code }}
+```
+{{- end }}
+{{- end }}
+{{- if .Flags }}
+
+## Global options
+
+Every command accepts these flags.
+
+| Flag | Short | Default | Type | Description |
+| --- | --- | --- | --- | --- |
+{{- range .Flags }}
+| {{ code (print "--" .Name) }} | {{ if .Shorthand }}{{ code (print "-" .Shorthand) }}{{ end }} | {{ defaultVal . | cell }} | {{ cell .Type }} | {{ cell .Usage }} |
+{{- end }}
+{{- end }}

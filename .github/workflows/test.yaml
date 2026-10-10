@@ -9,6 +9,9 @@ on:
       - go.mod
       - go.sum
       - internal/**
+      - tools/**
+      - docs/content/cli-reference/**
+      - docs/content/setup/configuration.md
       - build/ci/**
 
 permissions:

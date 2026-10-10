@@ -20,6 +20,33 @@ import (
 // Returns:
 //   - error: Non-nil when a command fails.
 func Execute() error {
+	rootCmd := newRoot()
+
+	silenceUsageOnRunErrors(rootCmd)
+
+	err := rootCmd.Execute()
+	if err != nil {
+		return fmt.Errorf("execute: %w", err)
+	}
+
+	return nil
+}
+
+// DocRoot builds the command tree the binary runs, for the CLI reference.
+// Building it reads no configuration and touches no file or network, because
+// every command does its work only when it runs.
+//
+// Returns:
+//   - root: The root command with every subcommand attached.
+func DocRoot() *cobra.Command {
+	return newRoot()
+}
+
+// newRoot builds the outtake command tree.
+//
+// Returns:
+//   - root: The root command with every subcommand attached.
+func newRoot() *cobra.Command {
 	rootCmd := &cobra.Command{}
 
 	rootCmd.Use = "outtake"
@@ -31,14 +58,7 @@ func Execute() error {
 	rootCmd.AddCommand(owner.NewCommand())
 	rootCmd.AddCommand(version.NewCommand())
 
-	silenceUsageOnRunErrors(rootCmd)
-
-	err := rootCmd.Execute()
-	if err != nil {
-		return fmt.Errorf("execute: %w", err)
-	}
-
-	return nil
+	return rootCmd
 }
 
 // silenceUsageOnRunErrors keeps the usage text for a mistyped command, flag,
