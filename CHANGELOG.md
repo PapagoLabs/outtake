@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/knadh/koanf/v2 to v2.3.8 by @renovate[bot] in [#437](https://github.com/PapagoLabs/outtake/pull/437)
 - Update module github.com/knadh/koanf/providers/structs to v1.0.1 by @renovate[bot] in [#433](https://github.com/PapagoLabs/outtake/pull/433)
 - Update module github.com/knadh/koanf/providers/posflag to v1.0.2 by @renovate[bot] in [#432](https://github.com/PapagoLabs/outtake/pull/432)
 - Update module github.com/knadh/koanf/parsers/yaml to v1.1.1 by @renovate[bot] in [#426](https://github.com/PapagoLabs/outtake/pull/426)
