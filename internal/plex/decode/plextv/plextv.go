@@ -21,23 +21,6 @@ type Media struct {
 	Type      string `xml:"type,attr"`
 }
 
-// Session is a plex.tv XML playback session entry.
-type Session struct {
-	Info       sessionInfo `xml:"Session"`
-	RatingKey  string      `xml:"ratingKey,attr"`
-	Key        string      `xml:"key,attr"`
-	Title      string      `xml:"title,attr"`
-	Type       string      `xml:"type,attr"`
-	Duration   int64       `xml:"duration,attr"`
-	ViewOffset int64       `xml:"viewOffset,attr"`
-	Thumb      string      `xml:"thumb,attr"`
-}
-
-// sessionInfo is the nested Session element.
-type sessionInfo struct {
-	ID string `xml:"id,attr"`
-}
-
 // Device is a plex.tv XML device from /api/resources.
 type Device struct {
 	Name             string       `xml:"name,attr"`
@@ -80,12 +63,6 @@ type searchResponse struct {
 	Directory []Directory `xml:"Directory"`
 }
 
-// sessionResponse is the /status/sessions envelope.
-type sessionResponse struct {
-	XMLName xml.Name  `xml:"MediaContainer"`
-	Video   []Session `xml:"Video"`
-}
-
 // Devices unmarshals a plex.tv device-discovery envelope.
 //
 // Parameters:
@@ -125,25 +102,6 @@ func Search(body []byte) ([]Media, []Directory, error) {
 	return data.Video, data.Directory, nil
 }
 
-// Sessions unmarshals a plex.tv sessions envelope.
-//
-// Parameters:
-//   - body: Raw XML bytes.
-//
-// Returns:
-//   - sessions: Playback sessions.
-//   - err: Non-nil when body is not valid plex.tv XML.
-func Sessions(body []byte) ([]Session, error) {
-	var data sessionResponse
-
-	err := xml.Unmarshal(body, &data)
-	if err != nil {
-		return nil, fmt.Errorf("decode sessions: %w", err)
-	}
-
-	return data.Video, nil
-}
-
 // ID prefers ratingKey, then the metadata id in key.
 //
 // Returns:
@@ -154,27 +112,4 @@ func (entry Media) ID() string {
 	}
 
 	return key.ID(entry.Key)
-}
-
-// Media converts a session entry into a media listing entry.
-//
-// Returns:
-//   - media: A Media value with the session identity fields.
-func (entry Session) Media() Media {
-	return Media{
-		RatingKey: entry.RatingKey,
-		Key:       entry.Key,
-		Title:     entry.Title,
-		Duration:  entry.Duration,
-		Thumb:     entry.Thumb,
-		Type:      entry.Type,
-	}
-}
-
-// PlaybackID returns the nested session identifier.
-//
-// Returns:
-//   - id: The plex.tv session id.
-func (entry Session) PlaybackID() string {
-	return entry.Info.ID
 }

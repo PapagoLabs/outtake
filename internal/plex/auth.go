@@ -6,7 +6,6 @@ package plex
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strconv"
 
@@ -121,10 +120,6 @@ func (client *Client) ValidateToken(ctx context.Context) (bool, *UserResponse, e
 	resp, err := client.doRequest(ctx, "/api/v2/user", "")
 	if err != nil {
 		return false, nil, fmt.Errorf("validate token: %w", err)
-	}
-
-	if resp.StatusCode() == http.StatusUnauthorized {
-		return false, nil, ErrUnauthorized
 	}
 
 	var user UserResponse

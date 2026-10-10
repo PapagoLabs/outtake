@@ -4,6 +4,9 @@
 package plex
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -371,43 +374,6 @@ func TestGetMediaPath(t *testing.T) {
 	assert.Equal(t, "/media/movies/Test Movie.mkv", path)
 }
 
-func TestGetSessions(t *testing.T) {
-	t.Parallel()
-
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(http.StatusOK)
-
-		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
-			<MediaContainer size="1">
-				<Video title="Now Playing" duration="3600000">
-					<Session id="sess-123"/>
-				</Video>
-			</MediaContainer>`))
-	}))
-
-	defer ts.Close()
-
-	c := NewClient(
-		ClientConfig{
-			Product:  productName,
-			ClientID: "test",
-			Token:    "srv-token",
-			Timeout:  5 * time.Second,
-			BaseURL:  "",
-		},
-	)
-
-	c.baseURL.Scheme = httpScheme
-	c.baseURL.Host = ts.Listener.Addr().String()
-
-	sessions, err := c.GetSessions(t.Context())
-	require.NoError(t, err)
-	require.Len(t, sessions, 1)
-	assert.InEpsilon(t, 3600.0, sessions[0].Duration, 0.01)
-	assert.Equal(t, "Now Playing", sessions[0].Title)
-}
-
 func TestDiscoverServers(t *testing.T) {
 	t.Parallel()
 
@@ -684,6 +650,74 @@ func TestSearchMedia_Errors(t *testing.T) {
 
 			assert.Empty(t, items)
 		})
+	}
+}
+
+// TestPlexTVCallsReportAFailureStatus covers the XML plex.tv calls against
+// plex.tv's own error page: each reports the status as ErrPlexError, and a 401
+// as ErrUnauthorized, rather than decoding the page as data.
+func TestPlexTVCallsReportAFailureStatus(t *testing.T) {
+	t.Parallel()
+
+	calls := []struct {
+		name string
+		call func(ctx context.Context, client *Client) error
+	}{
+		{
+			name: "discover servers",
+			call: func(ctx context.Context, client *Client) error {
+				_, err := client.DiscoverServers(ctx)
+				if err != nil {
+					return fmt.Errorf("discover servers: %w", err)
+				}
+
+				return nil
+			},
+		},
+		{
+			name: "search media",
+			call: func(ctx context.Context, client *Client) error {
+				_, err := client.SearchMedia(ctx, "alpha")
+				if err != nil {
+					return fmt.Errorf("search media: %w", err)
+				}
+
+				return nil
+			},
+		},
+	}
+
+	statuses := []struct {
+		name         string
+		status       int
+		unauthorized bool
+	}{
+		{name: "unauthorized", status: http.StatusUnauthorized, unauthorized: true},
+		{name: "not found", status: http.StatusNotFound, unauthorized: false},
+	}
+
+	for _, call := range calls {
+		for _, status := range statuses {
+			t.Run(call.name+" "+status.name, func(t *testing.T) {
+				t.Parallel()
+
+				ts := httptest.NewServer(
+					http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+						w.Header().Set("Content-Type", "application/xml")
+						w.WriteHeader(status.status)
+
+						_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+						<hash><error>Not Found</error></hash>`))
+					}),
+				)
+				defer ts.Close()
+
+				err := call.call(t.Context(), testPlexTVClient(t, ts))
+				require.ErrorIs(t, err, ErrPlexError)
+				assert.Equal(t, status.unauthorized, errors.Is(err, ErrUnauthorized))
+				assert.NotContains(t, err.Error(), "decode")
+			})
+		}
 	}
 }
 
