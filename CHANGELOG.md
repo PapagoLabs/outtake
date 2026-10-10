@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/jedib0t/go-pretty/v6 to v6.8.3 by @renovate[bot] in [#447](https://github.com/PapagoLabs/outtake/pull/447)
 - Update module github.com/huandu/xstrings to v1.6.2 by @renovate[bot] in [#442](https://github.com/PapagoLabs/outtake/pull/442)
 - Update module github.com/clipperhouse/uax29/v2 to v2.7.0 by @renovate[bot] in [#441](https://github.com/PapagoLabs/outtake/pull/441)
 - Update module github.com/mattn/go-runewidth to v0.0.31 by @renovate[bot] in [#438](https://github.com/PapagoLabs/outtake/pull/438)
