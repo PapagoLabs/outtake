@@ -74,11 +74,8 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@09d6b02946f54492f3d3dcb9729f5b792f220b40 #v0.3.1020
-
       - name: Generate templ
-        run: templ generate
+        run: go tool templ generate
 
       - name: Run govulncheck
         id: govulncheck
