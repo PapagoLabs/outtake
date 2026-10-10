@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Show plain error messages with copyable details by @nicholas-fedor in [#416](https://github.com/PapagoLabs/outtake/pull/416)
 - Name the built-in profiles by resolution with generated ids by @nicholas-fedor in [#402](https://github.com/PapagoLabs/outtake/pull/402)
 - Stop hard-wrapping the readmes by @nicholas-fedor in [#394](https://github.com/PapagoLabs/outtake/pull/394)
 - Render an sdr version of hdr clips with the clip by @nicholas-fedor in [#390](https://github.com/PapagoLabs/outtake/pull/390)
