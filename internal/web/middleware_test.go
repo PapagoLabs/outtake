@@ -235,7 +235,7 @@ func TestCSRFErrorReportsForbidden(t *testing.T) {
 
 	require.ErrorAs(t, err, &fiberErr)
 	assert.Equal(t, fiber.StatusForbidden, fiberErr.Code)
-	assert.Equal(t, "invalid csrf token", fiberErr.Message)
+	assert.Equal(t, "This page expired. Reload it and try again.", fiberErr.Message)
 }
 
 func TestCSRFMiddlewareAnswersAMissingTokenThroughTheErrorHandler(t *testing.T) {

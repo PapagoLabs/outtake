@@ -97,7 +97,7 @@ func TestPlaybackReportsTheLivePosition(t *testing.T) {
 	answer := getPlayback(t, handler)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "Plex is at",
+	assertBodyContains(t, answer.body, "Plex is playing at",
 		"the live position is what the panel exists to report")
 	assertBodyContains(t, answer.body, `data-offset="900.000"`,
 		"the mark buttons carry the position they would mark")
@@ -115,9 +115,9 @@ func TestPlaybackAsksForPlaybackWithNothingCached(t *testing.T) {
 	answer := getPlayback(t, handler)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "Play this item in Plex",
+	assertBodyContains(t, answer.body, "Play this title in Plex",
 		"with nothing playing the panel says so")
-	assertBodyOmits(t, answer.body, "Plex is at",
+	assertBodyOmits(t, answer.body, "Plex is playing at",
 		"a panel that reported a position with nothing playing would be lying")
 }
 
@@ -134,7 +134,7 @@ func TestPlaybackSkipsASessionOnAnotherItem(t *testing.T) {
 	answer := getPlayback(t, handler)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "Play this item in Plex",
+	assertBodyContains(t, answer.body, "Play this title in Plex",
 		"a session on another item says nothing about this one")
 }
 
@@ -223,8 +223,8 @@ func TestPlaybackAdvisesPausingWhilePlaying(t *testing.T) {
 	answer := getPlayback(t, handler)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "Plex is at", "a playing position is reported")
-	assertBodyContains(t, answer.body, "Pause in Plex for an exact mark.",
+	assertBodyContains(t, answer.body, "Plex is playing at", "a playing position is reported")
+	assertBodyContains(t, answer.body, "Pause in Plex for an exact position",
 		"a playing position lags the client, so pausing is advised")
 }
 

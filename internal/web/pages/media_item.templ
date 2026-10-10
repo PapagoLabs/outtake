@@ -68,9 +68,6 @@ type MediaItemPageProps struct {
 	AudioTracks []view.AudioTrackOption
 	Error       string
 	PreviewID   string
-	// PreviewShownSDR marks a preview of an HDR clip tone mapped for an SDR
-	// screen, which the page labels.
-	PreviewShownSDR bool
 	StartTime       time.Duration
 	EndTime     time.Duration
 	Export      view.ExportForm
@@ -117,10 +114,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 			@card.Card() {
 				@card.Header() {
 					@card.Title() {
-						Plex playback
-					}
-					@card.Description() {
-						Watch in Plex on any client. Outtake reads the current position.
+						Plex Playback
 					}
 				}
 				@card.Content() {
@@ -128,72 +122,68 @@ templ MediaItemPage(props MediaItemPageProps) {
 				}
 			}
 			if props.PreviewID != "" {
-				@player.Frame() {
-					// The page script fills the badge in once the preview's status reports
-					// what the finished file holds.
-					@player.Badge(player.BadgeProps{
-						ID:         "preview-format",
-						Plays:      "preview",
-						Hidden:     true,
-						Attributes: templ.Attributes{"role": "status"},
-					})
-					<video
-						id="preview-video"
-						class="w-full rounded-md bg-black"
-						controls
-						preload="metadata"
-						data-preview-id={ props.PreviewID }
-						data-preview-start={ timecode.FromDuration(props.StartTime).FormatSeconds() }
-					></video>
-				}
-				<div class="mt-3 flex items-center gap-3">
-					@progress.Progress(progress.Props{
-						ID:    "preview-progress",
-						Max:   100,
-						Value: 0,
-						Size:  progress.SizeSm,
-						Class: "hidden flex-1",
-					})
-					@button.Button(button.Props{
-						ID:      "preview-cancel",
-						Type:    button.TypeButton,
-						Variant: button.VariantOutline,
-						Size:    button.SizeSm,
-						Class:   "hidden",
-						Attributes: map[string]any{
-							"hx-delete":  "/api/clips/preview/" + props.PreviewID,
-							"hx-swap":    "none",
-							"hx-disable": "this",
-						},
-					}) {
-						Cancel
+				// One column, so the page gap sits once between the preview and the
+				// cards around it rather than between each of its rows.
+				<div class="flex flex-col gap-3" data-preview-block>
+					@player.Frame() {
+						// The page script fills the badge in once the preview's status reports
+						// what the finished file holds.
+						@player.Badge(player.BadgeProps{
+							ID:         "preview-format",
+							Plays:      "preview",
+							Hidden:     true,
+							Attributes: templ.Attributes{"role": "status"},
+						})
+						<video
+							id="preview-video"
+							class="w-full rounded-md bg-black"
+							controls
+							preload="metadata"
+							data-preview-id={ props.PreviewID }
+							data-preview-start={ timecode.FromDuration(props.StartTime).FormatSeconds() }
+						></video>
 					}
-					@button.Button(button.Props{
-						ID:      "preview-set-end",
-						Type:    button.TypeButton,
-						Variant: button.VariantOutline,
-						Size:    button.SizeSm,
-						Class:   "hidden",
-					}) {
-						Set end here
-					}
-				</div>
-				<p id="preview-status" class="mt-2 text-sm text-muted-foreground" role="status" aria-live="polite">
-					Rendering preview…
-				</p>
-				if props.PreviewShownSDR {
-					<p class="mt-1 text-sm text-muted-foreground" data-preview-sdr>
-						Shown in SDR, because this screen does not show HDR. The saved clip keeps HDR.
+					<div class="flex items-center gap-3">
+						@progress.Progress(progress.Props{
+							ID:    "preview-progress",
+							Max:   100,
+							Value: 0,
+							Size:  progress.SizeSm,
+							Class: "hidden flex-1",
+						})
+						@button.Button(button.Props{
+							ID:      "preview-cancel",
+							Type:    button.TypeButton,
+							Variant: button.VariantOutline,
+							Size:    button.SizeSm,
+							Class:   "hidden",
+							Attributes: map[string]any{
+								"hx-delete":  "/api/clips/preview/" + props.PreviewID,
+								"hx-swap":    "none",
+								"hx-disable": "this",
+							},
+						}) {
+							Cancel
+						}
+						@button.Button(button.Props{
+							ID:      "preview-set-end",
+							Type:    button.TypeButton,
+							Variant: button.VariantOutline,
+							Size:    button.SizeSm,
+							Class:   "hidden",
+						}) {
+							Set End Here
+						}
+					</div>
+					<p id="preview-status" class="text-sm text-muted-foreground" role="status" aria-live="polite">
+						Rendering preview…
 					</p>
-				}
+				</div>
 			}
 			@card.Card() {
 				@card.Header() {
 					@card.Title() {
-						New export
-					}
-					@card.Description() {
-						Set start and end from Plex, preview the segment, then save.
+						New Export
 					}
 				}
 				@card.Content() {
@@ -207,19 +197,19 @@ templ MediaItemPage(props MediaItemPageProps) {
 						<input type="hidden" name="mediaType" value={ props.Type }/>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "clipType"}) {
-								Export as
+								Export As
 							}
 							<select id="clipType" name="clipType" class={ utils.ControlClass }>
-								<option value={ string(clip.TypeClip) } selected?={ exportTypeIs(props.Export.Type, clip.TypeClip) }>Video clip</option>
+								<option value={ string(clip.TypeClip) } selected?={ exportTypeIs(props.Export.Type, clip.TypeClip) }>Video Clip</option>
 								<option value={ string(clip.TypeGIF) } selected?={ exportTypeIs(props.Export.Type, clip.TypeGIF) }>GIF</option>
 								<option value={ string(clip.TypeScreenshot) } selected?={ exportTypeIs(props.Export.Type, clip.TypeScreenshot) }>Screenshot</option>
 							</select>
 						</div>
 						<div class="flex flex-col gap-2">
 							@label.Label(label.Props{For: "name"}) {
-								Clip name
+								Name
 							}
-							@input.Input(input.Props{ID: "name", Name: "name", Placeholder: "Optional name", Value: props.Export.Name})
+							@input.Input(input.Props{ID: "name", Name: "name", Placeholder: "Optional", Value: props.Export.Name})
 						</div>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2">
@@ -251,7 +241,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 						</div>
 						<input type="hidden" id="duration" name="duration" value="10"/>
 						// The rendered window travels with the form, so a plain Preview finds it in the cache.
-						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label id="duration-label">{ timecode.FromDuration(props.EndTime - props.StartTime).Short() }</span> (max { timecode.FromDuration(props.MaxDur).Short() }) <span data-duration-warning id="duration-warning" role="status" aria-live="polite" class="sr-only"></span></p>
+						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Length: <span data-duration-label id="duration-label">{ timecode.FromDuration(props.EndTime - props.StartTime).Short() }</span> (maximum { timecode.FromDuration(props.MaxDur).Short() }) <span data-duration-warning id="duration-warning" role="status" aria-live="polite" class="sr-only"></span></p>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2" data-export-for="clip">
 								@label.Label(label.Props{For: "quality"}) {
@@ -262,21 +252,21 @@ templ MediaItemPage(props MediaItemPageProps) {
 							if len(props.AudioTracks) > 0 {
 								<div class="flex flex-col gap-2" data-export-for="clip">
 									@label.Label(label.Props{For: "audioIndex"}) {
-										Audio track
+										Audio Track
 									}
 									@quality.AudioSelect("audioIndex", props.AudioTracks, props.Export.AudioIndex)
 								</div>
 							}
 							<div class="flex flex-col gap-2" data-export-for="gif">
 								@label.Label(label.Props{For: "width"}) {
-									GIF width (px)
+									GIF Width (px)
 								}
 								// These bounds mirror the server-side GIF width limits, which change for their own reasons.
 								<input id="width" name="width" type="number" min="120" max="1920" value={ strconv.Itoa(view.GIFWidthOrDefault(props.Export.Width)) } class={ utils.ControlClass }/>
 							</div>
 							<div class="flex flex-col gap-2" data-export-for="gif">
 								@label.Label(label.Props{For: "fps"}) {
-									GIF frames per second
+									GIF Frame Rate (fps)
 								}
 								// These bounds mirror the server-side GIF frame rate limits.
 								<input id="fps" name="fps" type="number" min="5" max="30" value={ strconv.Itoa(view.GIFFPSOrDefault(props.Export.FPS)) } class={ utils.ControlClass }/>
@@ -307,14 +297,14 @@ templ MediaItemPage(props MediaItemPageProps) {
 									"data-invalid-css": invalidSubmitClass,
 								},
 							}) {
-								Save clip
+								Save
 							}
 						</div>
 					</form>
 				}
 			}
 			<div class="flex flex-col gap-4">
-				<h3 class="text-lg font-semibold">Clips from this item</h3>
+				<h3 class="text-lg font-semibold">Clips From This Title</h3>
 				@clipcard.ListToolbar(clipcard.ListToolbarProps{
 					Action:  "/media/item/" + props.ID + "/clips",
 					Target:  "item-clip-list",
@@ -343,9 +333,9 @@ templ MediaItemPage(props MediaItemPageProps) {
 templ ItemClipList(items []view.ClipItem, filtered bool) {
 	if len(items) == 0 {
 		if filtered {
-			<p class="text-sm text-muted-foreground">No clips match these filters.</p>
+			<p class="text-sm text-muted-foreground">No clips match these filters</p>
 		} else {
-			<p class="text-sm text-muted-foreground">No clips yet.</p>
+			<p class="text-sm text-muted-foreground">No clips yet</p>
 		}
 	}
 	for _, item := range items {

@@ -55,7 +55,7 @@ func TestServersMarksTheServerInUse(t *testing.T) {
 	assert.Contains(t, body, "ring-2")
 	assert.Contains(t, body, "ring-sidebar-primary")
 	assert.Contains(t, body, `aria-current="true"`)
-	assert.Contains(t, body, ">In use</span>")
+	assert.Contains(t, body, ">In Use</span>")
 
 	assert.Equal(t, 1, strings.Count(body, "ring-sidebar-primary"),
 		"only the server in use is ringed in the sidebar accent")
@@ -72,11 +72,11 @@ func TestServersActiveRowOffersNoAction(t *testing.T) {
 
 	body := renderServers(t, atticServer(), basementServer())
 
-	assert.Contains(t, body, "disabled>Already in use</button>",
+	assert.Contains(t, body, "disabled>In Use</button>",
 		"the server in use explains why it cannot be chosen")
-	assert.Contains(t, body, `type="submit">Use this server</button>`,
+	assert.Contains(t, body, `type="submit">Use This Server</button>`,
 		"a server that is not in use stays selectable")
-	assert.Equal(t, 1, strings.Count(body, "Use this server"),
+	assert.Equal(t, 1, strings.Count(body, "Use This Server"),
 		"only the server that is not in use offers the switch action")
 }
 
@@ -105,7 +105,7 @@ func TestServersKeepsCustomURLSection(t *testing.T) {
 	body := renderServers(t, atticServer())
 
 	assert.Contains(t, body, `name="customUrl"`)
-	assert.Contains(t, body, "Use this URL")
+	assert.Contains(t, body, "Use This URL")
 }
 
 func TestServersEmptyState(t *testing.T) {
@@ -113,7 +113,7 @@ func TestServersEmptyState(t *testing.T) {
 
 	body := renderServers(t)
 
-	assert.Contains(t, body, "No Plex servers were discovered for this account.")
+	assert.Contains(t, body, "No Plex servers found for this account")
 	assert.NotContains(t, body, "ring-sidebar-primary")
 	assert.NotContains(t, body, `aria-current="true"`)
 }

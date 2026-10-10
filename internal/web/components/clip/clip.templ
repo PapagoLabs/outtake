@@ -147,7 +147,7 @@ templ renderProgress(label string, percent int) {
 templ clipFileBadge(item view.ClipItem) {
 	if !item.IsActive() && !item.FileExists && item.Status != domainclip.StatusCancelled {
 		@badge.Badge(badge.Props{Variant: badge.VariantOutline}) {
-			Missing file
+			Missing File
 		}
 	}
 }
@@ -171,7 +171,7 @@ templ ClipStatus(item view.ClipItem) {
 				<div class="flex flex-wrap items-center gap-2">
 					<span class="font-medium">{ item.DisplayName() }</span>
 					@badge.Badge(badge.Props{Variant: statusBadgeVariant(item.Status)}) {
-						{ item.Status }
+						{ view.StatusLabel(item.Status) }
 					}
 					@clipFileBadge(item)
 				</div>
@@ -205,7 +205,7 @@ templ ClipStatus(item view.ClipItem) {
 				hx-target={ "#clip-" + item.ID }
 				hx-swap="delete"
 				hx-disable="this"
-				hx-confirm="Delete this clip? This cannot be undone."
+				hx-confirm="Delete this clip? This can't be undone."
 				class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
 			>
 				Delete
@@ -216,7 +216,7 @@ templ ClipStatus(item view.ClipItem) {
 		}
 		if item.RendersSDRVersion() {
 			@renderProgress("Clip", 100)
-			@renderProgress("SDR version", item.Progress)
+			@renderProgress("Preview", item.Progress)
 		} else if item.IsActive() {
 			@renderProgress("", item.Progress)
 		}
@@ -238,7 +238,7 @@ templ ClipStatus(item view.ClipItem) {
 					Regenerate
 				</button>
 				<button type="submit" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
-					Save metadata
+					Save Changes
 				</button>
 			}
 			if item.CanPlay() {
@@ -268,7 +268,7 @@ templ ClipCard(item view.ClipItem) {
 								Type
 							}
 							<select id={ "type-" + item.ID } name="clipType" class={ utils.ControlClass }>
-								<option value={ string(domainclip.TypeClip) } selected?={ item.ClipType == domainclip.TypeClip }>Video clip</option>
+								<option value={ string(domainclip.TypeClip) } selected?={ item.ClipType == domainclip.TypeClip }>Video Clip</option>
 								<option value={ string(domainclip.TypeGIF) } selected?={ item.ClipType == domainclip.TypeGIF }>GIF</option>
 								<option value={ string(domainclip.TypeScreenshot) } selected?={ item.ClipType == domainclip.TypeScreenshot }>Screenshot</option>
 							</select>
@@ -315,7 +315,7 @@ templ ClipCard(item view.ClipItem) {
 						if len(item.AudioTracks) > 0 {
 							<div class="flex flex-col gap-2" data-export-for="clip">
 								@label.Label(label.Props{For: "audio-" + item.ID}) {
-									Audio track
+									Audio Track
 								}
 								@quality.AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
 							</div>
@@ -325,20 +325,20 @@ templ ClipCard(item view.ClipItem) {
 						}
 						<div class="flex flex-col gap-2" data-export-for="gif">
 							@label.Label(label.Props{For: "width-" + item.ID}) {
-								GIF width (px)
+								GIF Width (px)
 							}
 							// These bounds mirror the server-side GIF width limits, which change for their own reasons.
 							<input id={ "width-" + item.ID } name="width" type="number" min="120" max="1920" value={ strconv.Itoa(item.GIFWidth()) } class={ utils.ControlClass }/>
 						</div>
 						<div class="flex flex-col gap-2" data-export-for="gif">
 							@label.Label(label.Props{For: "fps-" + item.ID}) {
-								GIF frames per second
+								GIF Frame Rate (fps)
 							}
 							// These bounds mirror the server-side GIF frame rate limits.
 							<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class={ utils.ControlClass }/>
 						</div>
 					</div>
-					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Duration: <span data-duration-label>{ timecode.FromDuration(item.Duration).Short() }</span> (max { timecode.FromDuration(item.MaxDur).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
+					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Length: <span data-duration-label>{ timecode.FromDuration(item.Duration).Short() }</span> (maximum { timecode.FromDuration(item.MaxDur).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
 					@CropBlackBarsField(item.CropBlackBars)
 				</form>
 			}

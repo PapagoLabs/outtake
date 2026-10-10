@@ -35,7 +35,7 @@ func TestMediaResultsEmptyLibraryHidesChooser(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "This folder is empty.")
+	assert.Contains(t, body, "This folder is empty")
 	assert.NotContains(t, body, ">Browse<")
 }
 
@@ -61,7 +61,7 @@ func TestMediaResultsEmptyFolderHidesChooser(t *testing.T) {
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "This folder is empty.")
+	assert.Contains(t, body, "This folder is empty")
 	assert.Contains(t, body, "Show")
 	assert.NotContains(t, body, ">Browse<")
 }
@@ -96,7 +96,7 @@ func TestMediaBrowseLibraryRoot(t *testing.T) {
 	assert.Contains(t, body, `hx-target="#media-browse"`)
 	assert.Contains(t, body, `hx-include="closest form"`)
 	assert.NotContains(t, body, `change from:select`)
-	assert.Contains(t, body, `aria-label="Jump to letter"`)
+	assert.Contains(t, body, `aria-label="Jump to Letter"`)
 	assert.Contains(t, body, `data-jump-key="M"`)
 	assert.Contains(t, body, `id="media-prev"`)
 	assert.Contains(t, body, "before=43")
@@ -145,7 +145,7 @@ func TestMediaBrowseShowsYearsForYearSort(t *testing.T) {
 
 	body := buf.String()
 	assert.Contains(t, body, `id="media-list-sort"`)
-	assert.Contains(t, body, `aria-label="Jump to year"`)
+	assert.Contains(t, body, `aria-label="Jump to Year"`)
 	assert.Contains(t, body, `data-jump-kind="year"`)
 	assert.Contains(t, body, `id="media-list-letter"`)
 	assert.Contains(t, body, `data-jump="1995"`)
@@ -176,7 +176,7 @@ func TestMediaBrowseOmitsLettersOnSearch(t *testing.T) {
 
 	body := buf.String()
 	assert.NotContains(t, body, `id="media-list-sort"`)
-	assert.NotContains(t, body, `aria-label="Jump to letter"`)
+	assert.NotContains(t, body, `aria-label="Jump to Letter"`)
 	assert.NotContains(t, body, `id="media-list-letter"`)
 	assert.NotContains(t, body, `id="media-more"`)
 }
@@ -202,7 +202,7 @@ func TestMediaBrowseOmitsLettersOnParent(t *testing.T) {
 
 	body := buf.String()
 	assert.NotContains(t, body, `id="media-list-sort"`)
-	assert.NotContains(t, body, `aria-label="Jump to letter"`)
+	assert.NotContains(t, body, `aria-label="Jump to Letter"`)
 	assert.NotContains(t, body, `id="media-more"`)
 }
 
@@ -226,7 +226,7 @@ func TestMediaBrowseParentInfiniteScroll(t *testing.T) {
 
 	body := buf.String()
 	assert.NotContains(t, body, `id="media-list-sort"`)
-	assert.NotContains(t, body, `aria-label="Jump to letter"`)
+	assert.NotContains(t, body, `aria-label="Jump to Letter"`)
 	assert.Contains(t, body, `id="media-more"`)
 	assert.Contains(t, body, "parent=9")
 }

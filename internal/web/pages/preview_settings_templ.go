@@ -225,7 +225,7 @@ func PreviewSettings(props PreviewSettingsProps) templ.Component {
 							}
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</select><p class=\"text-sm text-muted-foreground\">Set the maximum video resolution for previews.</p></div><div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</select><p class=\"text-sm text-muted-foreground\">Set the maximum video resolution for previews</p></div><div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

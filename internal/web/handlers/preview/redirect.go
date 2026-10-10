@@ -31,18 +31,6 @@ func previewRedirect(req api.ClipRequest, previewID string) string {
 	)
 }
 
-// shownInSDR marks a preview redirect as the tone mapped preview of an HDR
-// clip, so the page can say so.
-//
-// Parameters:
-//   - location: A redirect from previewRedirect, which always carries a query.
-//
-// Returns:
-//   - marked: The redirect with the SDR marker added.
-func shownInSDR(location string) string {
-	return location + "&" + routes.QueryPreviewSDR + "=" + routes.FormChecked
-}
-
 // previewRedirectURL builds the media item location that carries a rendered
 // preview and the submitted export form back to the form.
 //

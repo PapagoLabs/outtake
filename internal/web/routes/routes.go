@@ -79,10 +79,6 @@ const (
 	// QueryPreview is the rendered preview id on a media item page.
 	QueryPreview = "preview"
 
-	// QueryPreviewSDR marks a preview of an HDR clip that was tone mapped for
-	// an SDR screen.
-	QueryPreviewSDR = "previewSdr"
-
 	// QueryScreenHDR is the form field and query parameter that says the
 	// browser can show an HDR preview: its screen shows HDR and it decodes
 	// HEVC Main 10.

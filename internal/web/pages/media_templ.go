@@ -72,7 +72,7 @@ func Media(props view.MediaProps) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex min-h-0 flex-1 flex-col gap-6\"><div class=\"shrink-0\"><h2 class=\"text-2xl font-bold tracking-tight\">Media Library</h2><p class=\"text-muted-foreground\">Browse and clip media from your Plex library.</p></div><form hx-get=\"/media\" hx-target=\"#media-browse\" hx-swap=\"innerHTML\" hx-push-url=\"true\" hx-include=\"#media-list-sort\" hx-indicator=\"#search-indicator\" class=\"flex shrink-0 gap-2\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex min-h-0 flex-1 flex-col gap-6\"><div class=\"shrink-0\"><h2 class=\"text-2xl font-bold tracking-tight\">Media Libraries</h2></div><form hx-get=\"/media\" hx-target=\"#media-browse\" hx-swap=\"innerHTML\" hx-push-url=\"true\" hx-include=\"#media-list-sort\" hx-indicator=\"#search-indicator\" class=\"flex shrink-0 gap-2\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -84,7 +84,7 @@ func Media(props view.MediaProps) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.LibraryID)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media.templ`, Line: 42, Col: 64}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/media.templ`, Line: 41, Col: 64}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 				if templ_7745c5c3_Err != nil {
@@ -121,7 +121,7 @@ func Media(props view.MediaProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = input.Input(input.Props{ID: "search", Name: "q", Placeholder: "Search media...", Value: props.Query}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = input.Input(input.Props{ID: "search", Name: "q", Placeholder: "Search titles", Value: props.Query}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -139,7 +139,7 @@ func Media(props view.MediaProps) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = layout.Layout(layout.Props{Title: "Media Library", Active: mediaNavActive(props.LibraryID), Library: props.LibraryID}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = layout.Layout(layout.Props{Title: "Media Libraries", Active: mediaNavActive(props.LibraryID), Library: props.LibraryID}).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

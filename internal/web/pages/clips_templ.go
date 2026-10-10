@@ -78,7 +78,7 @@ func Clips(props ClipsProps) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col gap-6\"><div class=\"flex items-center justify-between gap-4\"><div><h2 class=\"text-2xl font-bold tracking-tight\">Clips</h2><p class=\"text-muted-foreground\">Manage your generated video clips, GIFs, and screenshots.</p></div><a href=\"/media\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent\">New from library</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"flex flex-col gap-6\"><div class=\"flex items-center justify-between gap-4\"><h2 class=\"text-2xl font-bold tracking-tight\">Clips</h2><a href=\"/media\" class=\"inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent\">New From Library</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -102,13 +102,13 @@ func Clips(props ClipsProps) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.Status)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clips.templ`, Line: 60, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clips.templ`, Line: 57, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " clips. <a href=\"/clips\" class=\"underline hover:text-foreground\">Show all</a></p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, " clips <a href=\"/clips\" class=\"underline hover:text-foreground\">Show All</a></p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -190,12 +190,12 @@ func ClipsList(props ClipsProps) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					if clipsFiltered(props) {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p>No clips match these filters.</p>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p>No clips match these filters</p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p>No clips yet. Browse your media library and create your first clip.</p><a href=\"/media\" class=\"mt-4 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors\">Browse Media</a>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p>No clips yet. Choose a title in Media Libraries to make one.</p><a href=\"/media\" class=\"mt-4 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors\">Browse Media</a>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

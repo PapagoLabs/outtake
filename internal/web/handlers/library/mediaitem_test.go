@@ -4,6 +4,7 @@
 package library
 
 import (
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -203,7 +204,7 @@ func TestMediaItemFallsBackToTheIDWhenPlexCannotBeReached(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, ">42<",
 		"with no metadata the id is the only title the page has")
-	assertBodyContains(t, answer.body, mediaLoadFailedMsg,
+	assertBodyContains(t, answer.body, html.EscapeString(mediaLoadFailedMsg),
 		"the user is told the item could not be read, and that a clip may still work")
 	assertBodyOmits(t, answer.body, "Test Movie",
 		"nothing was read, so there is no Plex title to show")
@@ -245,7 +246,7 @@ func TestMediaItemPrefersAFlashOverALoadFailure(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, "Media Path Unresolved",
 		"the flash the post left behind is what the page shows")
-	assertBodyOmits(t, answer.body, mediaLoadFailedMsg,
+	assertBodyOmits(t, answer.body, html.EscapeString(mediaLoadFailedMsg),
 		"a form failure the user caused outranks the load notice")
 }
 

@@ -32,7 +32,6 @@ templ Dashboard(props DashboardProps) {
 		<div class="flex flex-col gap-6">
 			<div>
 				<h2 class="text-2xl font-bold tracking-tight">Dashboard</h2>
-				<p class="text-muted-foreground">Overview of your media clipping activity.</p>
 			</div>
 			<div class="grid gap-4 md:grid-cols-4">
 				<a href="/clips" class="block">
@@ -102,7 +101,7 @@ templ LiveSessions(sessions []view.SessionItem, tokenRejected bool) {
 			@TokenRejectedNotice()
 		}
 		if len(sessions) == 0 && !tokenRejected {
-			<p class="text-sm text-muted-foreground">No one is playing anything in Plex right now.</p>
+			<p class="text-sm text-muted-foreground">Nothing is playing in Plex</p>
 		}
 		for _, sess := range sessions {
 			@card.Card() {
@@ -133,7 +132,7 @@ templ LiveSessions(sessions []view.SessionItem, tokenRejected bool) {
 								href={ templ.SafeURL(sess.ResumeURL()) }
 								class="inline-flex shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium hover:bg-primary/90 transition-colors"
 							>
-								Clip now
+								Clip Now
 							</a>
 						}
 					</div>
@@ -147,6 +146,6 @@ templ LiveSessions(sessions []view.SessionItem, tokenRejected bool) {
 // Outtake stored for it, and how to recover.
 templ TokenRejectedNotice() {
 	<p role="status" class="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-token-rejected>
-		Plex refused the token saved for this server. Sign out and sign in again to refresh it, or forget the server on the <a href="/servers" class="underline">Servers</a> page and select it again.
+		Plex rejected the saved login for this server. Logout and login again, or forget the server under <a href="/servers" class="underline">Servers</a> and choose it again.
 	</p>
 }

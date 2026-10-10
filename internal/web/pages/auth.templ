@@ -23,7 +23,7 @@ templ AuthComplete(next string) {
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<title>Signed in - Outtake</title>
+			<title>Login Complete - Outtake</title>
 			@brand.IconHead()
 			<script src={ assets.URL("js/theme.js") }></script>
 			<link href={ assets.URL("css/output.css") } rel="stylesheet"/>
@@ -37,7 +37,7 @@ templ AuthComplete(next string) {
 		>
 			<div class="w-full max-w-md p-8">
 				@flash.Slot("")
-				<p>Signed in. You can close this window.</p>
+				<p>Login complete. Close this window to continue.</p>
 			</div>
 			<script src={ utils.ScriptURL("/assets/js/auth-complete.js") }></script>
 		</body>

@@ -58,7 +58,7 @@ func TestClipCardPollDoesNotCoverEditForm(t *testing.T) {
 	require.Positive(t, finishedStatusAt)
 	require.Positive(t, finishedGridAt)
 
-	for _, action := range []string{"Regenerate", "Save metadata", "/api/clips/c1/download"} {
+	for _, action := range []string{"Regenerate", "Save Changes", "/api/clips/c1/download"} {
 		at := strings.Index(finishedBody, action)
 		require.Positive(t, at, action)
 		assert.Less(t, at, finishedGridAt, action+" must sit inside the polled region")
@@ -161,7 +161,7 @@ func TestClipStatusSwapsActionButtons(t *testing.T) {
 	finishedBody := finished.String()
 	assert.NotContains(t, finishedBody, "Cancel", "a finished clip cannot be cancelled")
 	assert.Contains(t, finishedBody, "Regenerate")
-	assert.Contains(t, finishedBody, "Save metadata")
+	assert.Contains(t, finishedBody, "Save Changes")
 	assert.Contains(t, finishedBody, "/api/clips/c1/download")
 }
 
@@ -177,7 +177,7 @@ func TestClipStatusCarriesEverythingThatChanges(t *testing.T) {
 	require.NoError(t, ClipStatus(progressing).Render(t.Context(), &active))
 
 	activeBody := active.String()
-	assert.Contains(t, activeBody, string(domainclip.StatusProcessing))
+	assert.Contains(t, activeBody, ">Rendering<", "a processing clip reads as rendering")
 	assert.Contains(t, activeBody, "boom")
 	assert.Contains(t, activeBody, "40%")
 	assert.Contains(t, activeBody, `hx-get="/clips/c1/row"`)
@@ -256,7 +256,7 @@ func TestClipCard(t *testing.T) {
 			name: "completed with file",
 			contains: []string{
 				"Archive",
-				"Video clip",
+				"Video Clip",
 				"/clips/c1/file",
 				"Regenerate",
 				"<details",
@@ -286,7 +286,7 @@ func TestClipCard(t *testing.T) {
 			tweak: func(item *view.ClipItem) {
 				item.FileExists = false
 			},
-			contains: []string{"Missing file"},
+			contains: []string{"Missing File"},
 			notContains: []string{
 				"On disk",
 				"<video",
@@ -300,7 +300,7 @@ func TestClipCard(t *testing.T) {
 				item.FileExists = false
 				item.Error = "ffmpeg exited 1"
 			},
-			contains:    []string{"failed", "Missing file", "ffmpeg exited 1"},
+			contains:    []string{">Failed<", "Missing File", "ffmpeg exited 1"},
 			notContains: []string{"On disk", "hx-trigger"},
 		},
 		{
@@ -309,9 +309,9 @@ func TestClipCard(t *testing.T) {
 				item.Status = domainclip.StatusCancelled
 				item.FileExists = false
 			},
-			contains: []string{string(domainclip.StatusCancelled)},
+			contains: []string{">Canceled<"},
 			notContains: []string{
-				"Missing file",
+				"Missing File",
 				"On disk",
 				"hx-trigger",
 			},
@@ -332,7 +332,7 @@ func TestClipCard(t *testing.T) {
 				`name="endTime"`,
 				`value="640"`,
 				`value="12"`,
-				"GIF width (px)",
+				"GIF Width (px)",
 				`name="cropBlackBars"`,
 			},
 			notContains: []string{"<video"},
@@ -372,7 +372,7 @@ func TestClipCard(t *testing.T) {
 				"<video",
 				"<img",
 				"On disk",
-				"Missing file",
+				"Missing File",
 			},
 		},
 		{
@@ -560,12 +560,12 @@ func TestClipStatusShowsBothEncodesDuringTheSDRVersion(t *testing.T) {
 	sdr := render(domainclip.StageSDR, 30)
 	assert.Equal(t, 2, strings.Count(sdr, "data-render-progress"))
 	assert.Contains(t, sdr, "Clip: 100%")
-	assert.Contains(t, sdr, "SDR version: 30%")
+	assert.Contains(t, sdr, "Preview: 30%")
 
 	first := render(domainclip.StageClip, 40)
 	assert.Equal(t, 1, strings.Count(first, "data-render-progress"))
 	assert.Contains(t, first, "40%")
-	assert.NotContains(t, first, "SDR version")
+	assert.NotContains(t, first, "Preview:")
 }
 
 // TestClipStatusNamesWhatThePlayerPlays covers the format badges: a clip with

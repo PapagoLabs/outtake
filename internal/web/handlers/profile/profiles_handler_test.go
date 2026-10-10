@@ -326,9 +326,9 @@ func TestClipProfilesRendersTheStoredProfiles(t *testing.T) {
 	assert.Contains(t, answer.body, "Default", "the default profile says so")
 	assert.Contains(t, answer.body, `name="preset"`, "the form offers the encoder presets")
 	assert.Contains(t, answer.body, "4K", "the form offers every export resolution")
-	assert.Contains(t, answer.body, `name="keepHdr"`, "the form offers the Keep HDR setting")
-	assert.Contains(t, answer.body, "Keep HDR")
-	assert.NotContains(t, answer.body, "Keep HDR by default", "it is the setting, not a default")
+	assert.Contains(t, answer.body, `name="keepHdr"`, "the form offers the HDR setting")
+	assert.Contains(t, answer.body, "Enable to maintain HDR quality from supported sources",
+		"the HDR setting says what it does")
 }
 
 func TestClipProfilesRendersTheBuiltInProfiles(t *testing.T) {
@@ -337,7 +337,7 @@ func TestClipProfilesRendersTheBuiltInProfiles(t *testing.T) {
 	answer := getProfiles(t, New(profileTestService(t)), routes.PathSettingsProfiles)
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assert.Contains(t, answer.body, "Clip profiles",
+	assert.Contains(t, answer.body, "Clip Profiles",
 		"the page is still the settings page, not an error")
 	assert.Contains(t, answer.body, `value="20"`,
 		"the 1080p built-in is the stored default")

@@ -63,14 +63,14 @@ func posterSize(mediaType string) templ.Attributes {
 //   - message: Why the browse is empty.
 func emptyMediaMessage(props view.MediaProps) string {
 	if !props.HasServer {
-		return "No media found. Connect your Plex server and try again."
+		return "No media found. Choose a Plex server under Servers."
 	}
 
 	if props.Query != "" {
-		return `No titles matched "` + props.Query + `".`
+		return `No titles match "` + props.Query + `"`
 	}
 
-	return "This folder is empty."
+	return "This folder is empty"
 }
 
 // showSort reports whether the library root should show the sort control.
@@ -114,9 +114,9 @@ type jumpRail struct {
 
 // One rail per jump-mark kind, widest for a month mark and narrowest for a letter mark.
 var (
-	letterRail = jumpRail{label: "Jump to letter", width: "w-8", kind: jumpKindLetter}
-	yearRail   = jumpRail{label: "Jump to year", width: "w-10", kind: jumpKindYear}
-	monthRail  = jumpRail{label: "Jump to month", width: "w-14", kind: jumpKindMonth}
+	letterRail = jumpRail{label: "Jump to Letter", width: "w-8", kind: jumpKindLetter}
+	yearRail   = jumpRail{label: "Jump to Year", width: "w-10", kind: jumpKindYear}
+	monthRail  = jumpRail{label: "Jump to Month", width: "w-14", kind: jumpKindMonth}
 )
 
 // jumpRailFor returns the jump rail for a sort.
@@ -368,7 +368,7 @@ templ mediaCard(item view.MediaItem, sort string) {
 					} else {
 						@aspectratio.AspectRatio(thumbAspect(item.Type)) {
 							<div class="flex size-full items-center justify-center rounded-md bg-muted transition-opacity hover:opacity-90">
-								<span class="text-muted-foreground text-sm">No thumbnail</span>
+								<span class="text-muted-foreground text-sm">No Poster</span>
 							</div>
 						}
 					}
@@ -465,12 +465,12 @@ templ mediaSortToolbar(props view.MediaProps) {
 				hx-include="closest form"
 				class={ utils.ControlClass }
 			>
-				<option value={ view.MediaSortTitleAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortTitleAsc, view.MediaSortTitleAsc) }>Title A-Z</option>
-				<option value={ view.MediaSortTitleDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortTitleDesc, view.MediaSortTitleAsc) }>Title Z-A</option>
-				<option value={ view.MediaSortYearDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortYearDesc, view.MediaSortTitleAsc) }>Year newest</option>
-				<option value={ view.MediaSortYearAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortYearAsc, view.MediaSortTitleAsc) }>Year oldest</option>
-				<option value={ view.MediaSortAddedDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortAddedDesc, view.MediaSortTitleAsc) }>Date added newest</option>
-				<option value={ view.MediaSortAddedAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortAddedAsc, view.MediaSortTitleAsc) }>Date added oldest</option>
+				<option value={ view.MediaSortTitleAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortTitleAsc, view.MediaSortTitleAsc) }>Title (A–Z)</option>
+				<option value={ view.MediaSortTitleDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortTitleDesc, view.MediaSortTitleAsc) }>Title (Z–A)</option>
+				<option value={ view.MediaSortYearDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortYearDesc, view.MediaSortTitleAsc) }>Year (Newest)</option>
+				<option value={ view.MediaSortYearAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortYearAsc, view.MediaSortTitleAsc) }>Year (Oldest)</option>
+				<option value={ view.MediaSortAddedDesc } selected?={ view.SortSelected(props.Sort, view.MediaSortAddedDesc, view.MediaSortTitleAsc) }>Date Added (Newest)</option>
+				<option value={ view.MediaSortAddedAsc } selected?={ view.SortSelected(props.Sort, view.MediaSortAddedAsc, view.MediaSortTitleAsc) }>Date Added (Oldest)</option>
 			</select>
 		</div>
 	</form>
@@ -487,7 +487,7 @@ templ letterJumpSelect(props view.MediaProps) {
 			<input type="hidden" name="sort" value={ props.Sort }/>
 		}
 		@label.Label(label.Props{For: "media-list-letter"}) {
-			Jump to
+			Jump To
 		}
 		<select
 			id="media-list-letter"

@@ -26,7 +26,7 @@ func TestAuthCompleteCarriesTheNextPage(t *testing.T) {
 	assert.Contains(t, page, `data-auth-next="/servers"`)
 	assert.Contains(t, page, "/assets/js/auth-complete.js",
 		"the page hands the opener back through the shared script")
-	assert.Contains(t, page, "You can close this window.")
+	assert.Contains(t, page, "Close this window to continue.")
 }
 
 func TestAuthCompleteCarriesTheCSRFToken(t *testing.T) {

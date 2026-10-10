@@ -27,9 +27,9 @@ var _ = Describe("Pages", func() {
 		},
 		Entry("dashboard", "/", "<title>Dashboard - Outtake</title>"),
 		Entry("clips", "/clips", "<title>Clips - Outtake</title>"),
-		Entry("media", "/media", "<title>Media Library - Outtake</title>"),
-		Entry("servers", "/servers", "<title>Plex Servers - Outtake</title>"),
-		Entry("login", "/login", "Sign in with your Plex account"),
+		Entry("media", "/media", "<title>Media Libraries - Outtake</title>"),
+		Entry("servers", "/servers", "<title>Servers - Outtake</title>"),
+		Entry("login", "/login", "<title>Login - Outtake</title>"),
 	)
 
 	It("renders the dashboard shell", func(ctx SpecContext) {

@@ -36,10 +36,7 @@ type ClipProfilesProps struct {
 templ ClipProfiles(props ClipProfilesProps) {
 	@layout.Layout(layout.Props{Title: "Clip Profiles", Active: "profiles"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
-			<div>
-				<h2 class="text-2xl font-bold tracking-tight">Clip profiles</h2>
-				<p class="text-muted-foreground">Named encode settings used when creating video clips. Lower CRF is higher quality.</p>
-			</div>
+			<h2 class="text-2xl font-bold tracking-tight">Clip Profiles</h2>
 			@flash.Banner(props.Error)
 			for _, profile := range props.Profiles {
 				@card.Card() {
@@ -65,7 +62,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 										Variant: button.VariantOutline,
 										Form:    "default-" + profile.ID,
 									}) {
-										Make default
+										Make Default
 									}
 								}
 								if len(props.Profiles) > 1 {
@@ -86,7 +83,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 							</form>
 						}
 						if len(props.Profiles) > 1 {
-							<form id={ "delete-" + profile.ID } action={ templ.SafeURL("/settings/profiles/" + profile.ID + "/delete") } method="POST" data-confirm="Delete this profile? This cannot be undone.">
+							<form id={ "delete-" + profile.ID } action={ templ.SafeURL("/settings/profiles/" + profile.ID + "/delete") } method="POST" data-confirm="Delete this profile? This can't be undone.">
 								@csrf.Field()
 							</form>
 						}
@@ -97,17 +94,14 @@ templ ClipProfiles(props ClipProfilesProps) {
 				@card.Content() {
 					<form action="/settings/profiles" method="POST" class="flex flex-col gap-4">
 						@csrf.Field()
-						<div>
-							<p class="font-medium">New profile</p>
-							<p class="text-sm text-muted-foreground">CRF 18–28 is typical. Slower presets take longer and compress more efficiently.</p>
-						</div>
+						<p class="font-medium">New Profile</p>
 						@profileFields("new-", "", clip.DefaultPreset.CRF, clip.DefaultPreset.Preset, clip.DefaultPreset.AudioKbps, clip.DefaultPreset.MaxWidth, clip.DefaultPreset.PreserveHDR, props.Presets, props.Widths)
 						<label class="flex items-center gap-2 text-sm">
 							@checkbox.Checkbox(checkbox.Props{Name: "isDefault", Value: "1", Class: "rounded border-input"})
 							Set as default
 						</label>
 						@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Class: "self-start"}) {
-							Add profile
+							Add Profile
 						}
 					</form>
 				}
@@ -141,10 +135,11 @@ templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, ma
 				CRF
 			}
 			@input.Input(input.Props{ID: idPrefix + "crf", Name: "crf", Type: input.TypeNumber, Value: strconv.Itoa(crf), Attributes: map[string]any{"min": "0", "max": "51"}})
+			<p class="text-sm text-muted-foreground">Lower values mean higher quality and larger files. 18 to 28 is typical.</p>
 		</div>
 		<div class="flex flex-col gap-2">
 			@label.Label(label.Props{For: idPrefix + "preset"}) {
-				Encoder preset
+				Encoder Preset
 			}
 			<select id={ idPrefix + "preset" } name="preset" class={ utils.ControlClass }>
 				for _, option := range presets {
@@ -155,16 +150,17 @@ templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, ma
 					}
 				}
 			</select>
+			<p class="text-sm text-muted-foreground">Slower presets take longer and make smaller files</p>
 		</div>
 		<div class="flex flex-col gap-2">
 			@label.Label(label.Props{For: idPrefix + "audio"}) {
-				Audio bitrate (kbps)
+				Audio Bitrate (kbps)
 			}
 			@input.Input(input.Props{ID: idPrefix + "audio", Name: "audioKbps", Type: input.TypeNumber, Value: strconv.Itoa(audioKbps), Attributes: map[string]any{"min": "64", "max": "640"}})
 		</div>
 		<div class="flex flex-col gap-2">
 			@label.Label(label.Props{For: idPrefix + "width"}) {
-				Max resolution
+				Maximum Resolution
 			}
 			<select id={ idPrefix + "width" } name="maxWidth" class={ utils.ControlClass }>
 				for _, option := range widths {
@@ -179,7 +175,7 @@ templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, ma
 	</div>
 	<label class="flex items-center gap-2 text-sm">
 		@checkbox.Checkbox(checkbox.Props{ID: idPrefix + "keephdr", Name: "keepHdr", Value: "1", Checked: keepHDR, Class: "rounded border-input"})
-		Keep HDR
+		HDR
 	</label>
-	<p class="text-sm text-muted-foreground">Video clips from an HDR source keep HDR, in a 10-bit HEVC file. Turn it off to convert them to SDR, which most social sites need. A clip takes this setting each time it renders, so a finished clip keeps its file until you regenerate it.</p>
+	<p class="text-sm text-muted-foreground">Enable to maintain HDR quality from supported sources</p>
 }

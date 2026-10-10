@@ -59,9 +59,6 @@ templ Login(props LoginProps) {
 						@card.Title() {
 							Outtake
 						}
-						@card.Description() {
-							Sign in with your Plex account to start creating clips.
-						}
 					}
 					@card.Content() {
 						if props.Error != "" {
@@ -71,10 +68,10 @@ templ Login(props LoginProps) {
 						}
 						<div id="plex-error" class="mb-4 hidden rounded-md bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive"></div>
 						@button.Button(button.Props{ID: "plex-login", Type: button.TypeButton, FullWidth: true}) {
-							Sign in with Plex
+							Login With Plex
 						}
 						<div id="auth-status" class="mt-4 hidden text-center text-sm text-muted-foreground" role="status" data-status-url="/api/auth/status">
-							Waiting for Plex authorization...
+							Waiting for Plex…
 						</div>
 						<div class="relative my-4">
 							<div class="absolute inset-0 flex items-center"><div class="w-full border-t"></div></div>
@@ -86,10 +83,10 @@ templ Login(props LoginProps) {
 								@label.Label(label.Props{For: "manual-token"}) {
 									Plex Token
 								}
-								@input.Input(input.Props{ID: "manual-token", Name: "token", Type: "password", Placeholder: "Enter token manually"})
+								@input.Input(input.Props{ID: "manual-token", Name: "token", Type: "password", Placeholder: "Paste a Plex token"})
 							</div>
 							@button.Button(button.Props{Type: button.TypeSubmit, FullWidth: true}) {
-								Sign In
+								Login
 							}
 						</form>
 					}

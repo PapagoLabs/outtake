@@ -122,7 +122,7 @@ func GIFFPSOrDefault(fps int) int {
 //   - clipType: Clip type recorded for the clip.
 //
 // Returns:
-//   - label: The display name, or Clip for a type that is neither kind.
+//   - label: The display name, or Video Clip for a type that is neither kind.
 func ClipTypeLabel(clipType clip.Type) string {
 	switch clipType {
 	case clip.TypeGIF:
@@ -130,7 +130,33 @@ func ClipTypeLabel(clipType clip.Type) string {
 	case clip.TypeScreenshot:
 		return "Screenshot"
 	default:
-		return "Clip"
+		return "Video Clip"
+	}
+}
+
+// StatusLabel is the user-facing name for a clip's status, as its badge
+// shows it. A processing clip reads as rendering, the word the export form
+// and the preview use.
+//
+// Parameters:
+//   - status: The clip's status.
+//
+// Returns:
+//   - label: The badge text, or the status itself for one it does not name.
+func StatusLabel(status clip.Status) string {
+	switch status {
+	case clip.StatusPending:
+		return "Pending"
+	case clip.StatusProcessing:
+		return "Rendering"
+	case clip.StatusCompleted:
+		return "Completed"
+	case clip.StatusFailed:
+		return "Failed"
+	case clip.StatusCancelled:
+		return "Canceled"
+	default:
+		return string(status)
 	}
 }
 

@@ -255,10 +255,10 @@
 		// bounds it, and an 11 hour start on a 2 hour film is a legal clip length.
 		if (start < 0) {
 			startWhy = 'min 0s';
-			reasons.push('The start cannot be negative.');
+			reasons.push('The start can\'t be negative.');
 		} else if (mediaDur > 0 && start >= mediaDur) {
 			startWhy = 'max ' + formatDuration(mediaDur);
-			reasons.push('The start is past the end of the media, which is ' + formatDuration(mediaDur) + '.');
+			reasons.push('The start is past the end of the title, which is ' + formatDuration(mediaDur) + '.');
 		}
 		if (!single) {
 			// The end's binding limit is whichever arrives first, the length cap or
@@ -266,7 +266,7 @@
 			var ceiling = mediaDur > 0 ? Math.min(start + maxDur, mediaDur) : start + maxDur;
 			if (mediaDur > 0 && end > mediaDur) {
 				endWhy = 'max ' + formatDuration(mediaDur);
-				reasons.push('The end is past the end of the media, which is ' + formatDuration(mediaDur) + '.');
+				reasons.push('The end is past the end of the title, which is ' + formatDuration(mediaDur) + '.');
 			} else if (dur > maxDur) {
 				endWhy = 'max ' + formatDuration(maxDur);
 				reasons.push('The selection is longer than the maximum of ' + formatDuration(maxDur) + '.');
@@ -363,7 +363,7 @@
 			var note = document.createElement('p');
 			note.setAttribute('data-sdr-missing-note', '');
 			note.className = 'mb-2 text-xs text-muted-foreground';
-			note.textContent = 'This clip has no SDR version yet. Regenerate it to make one for this screen.';
+			note.textContent = 'Regenerate this clip to make a preview this screen can play';
 			playerFrame(video).insertAdjacentElement('beforebegin', note);
 		});
 	}
@@ -379,7 +379,7 @@
 		note.setAttribute('data-playback-error', '');
 		note.setAttribute('role', 'status');
 		note.className = 'mt-2 text-sm text-destructive';
-		note.textContent = 'This browser cannot play this clip. Download it to watch it in a video player.';
+		note.textContent = 'This browser can\'t play this clip. Download it to watch it.';
 		video.insertAdjacentElement('afterend', note);
 	}
 

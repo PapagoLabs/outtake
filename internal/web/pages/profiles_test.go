@@ -49,7 +49,7 @@ func TestClipProfilesRendersTheNewProfileForm(t *testing.T) {
 	})
 
 	assert.Contains(t, body, `<form action="/settings/profiles" method="POST"`)
-	assert.Contains(t, body, "New profile")
+	assert.Contains(t, body, "New Profile")
 	assert.Contains(t, body, `id="new-name"`)
 	assert.Contains(t, body, `name="name"`)
 	assert.Contains(
@@ -62,7 +62,7 @@ func TestClipProfilesRendersTheNewProfileForm(t *testing.T) {
 	assert.Contains(t, body, `<option value="medium" selected>medium</option>`)
 	assert.Contains(t, body, `<option value="1920" selected>1080p</option>`)
 	assert.Contains(t, body, "Set as default")
-	assert.Contains(t, body, "Add profile")
+	assert.Contains(t, body, "Add Profile")
 	assert.Contains(t, body, `<input type="hidden" name="_csrf" value="profile-csrf">`)
 }
 
@@ -111,7 +111,7 @@ func TestClipProfilesMarksTheDefaultProfile(t *testing.T) {
 	})
 
 	assert.Contains(t, body, ">Default</span>")
-	assert.NotContains(t, body, "Make default")
+	assert.NotContains(t, body, "Make Default")
 	assert.NotContains(t, body, `id="default-profile-archive"`)
 	assert.NotContains(t, body, "Delete",
 		"the only profile cannot be deleted, since one must remain")
@@ -130,7 +130,7 @@ func TestClipProfilesOffersMakeDefaultOnANonDefaultProfile(t *testing.T) {
 	})
 
 	assert.NotContains(t, body, ">Default</span>")
-	assert.Contains(t, body, "Make default")
+	assert.Contains(t, body, "Make Default")
 	assert.Contains(t, body, `form="default-profile-archive"`)
 	assert.Contains(t, body, `id="default-profile-archive"`)
 	assert.Contains(t, body, `action="/settings/profiles/profile-archive/default"`)
@@ -138,7 +138,7 @@ func TestClipProfilesOffersMakeDefaultOnANonDefaultProfile(t *testing.T) {
 	assert.Contains(t, body, "Delete",
 		"with more than one profile the last one can be removed")
 	assert.Contains(t, body, `form="delete-profile-archive"`)
-	assert.Contains(t, body, `data-confirm="Delete this profile? This cannot be undone."`)
+	assert.Contains(t, body, `data-confirm="Delete this profile? This can't be undone."`)
 }
 
 func TestClipProfilesShowsTheSaveError(t *testing.T) {
@@ -163,7 +163,7 @@ func TestClipProfilesOmitsTheSaveErrorBannerWhenThereIsNone(t *testing.T) {
 	})
 
 	assert.NotContains(t, body, "js-flash")
-	assert.Contains(t, body, "New profile",
+	assert.Contains(t, body, "New Profile",
 		"the new profile form is offered even with nothing stored")
 }
 

@@ -70,7 +70,7 @@ func TestLoginRendersTheSignInPage(t *testing.T) {
 	answer := serveWithCookies(t, app, cookies, routes.PathLogin, "")
 
 	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "Sign in with Plex",
+	assertBodyContains(t, answer.body, "Login With Plex",
 		"the page has to offer the Plex sign-in a user can start")
 	assertBodyContains(t, answer.body, `name="token"`,
 		"a user with no plex.tv access still has to be able to paste a token")

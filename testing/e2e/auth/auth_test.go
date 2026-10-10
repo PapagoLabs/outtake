@@ -68,7 +68,7 @@ var _ = Describe("Auth", func() {
 			body := helpers.ReadBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
-			Expect(string(body)).To(ContainSubstring("Waiting for Plex authorization..."))
+			Expect(string(body)).To(ContainSubstring("Waiting for Plex…"))
 		})
 	})
 

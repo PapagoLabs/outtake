@@ -772,7 +772,7 @@ func TestPageErrorRendersAPageForABrowser(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
 	assert.Equal(t, contentTypeHTML, resp.Header.Get(fiber.HeaderContentType))
-	assert.Contains(t, bodyText(t, resp), "That page does not exist.")
+	assert.Contains(t, bodyText(t, resp), "That page doesn&#39;t exist")
 }
 
 func TestPageErrorAnswersAnHTMXFlash(t *testing.T) {
@@ -792,7 +792,7 @@ func TestPageErrorAnswersAnHTMXFlash(t *testing.T) {
 	defer closeBody(t, resp)
 
 	assert.Equal(t, fiber.StatusNotFound, resp.StatusCode)
-	assert.Contains(t, bodyText(t, resp), "That page does not exist.",
+	assert.Contains(t, bodyText(t, resp), "That page doesn&#39;t exist",
 		"a swap takes the banner rather than the whole page")
 }
 
