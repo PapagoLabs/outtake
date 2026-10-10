@@ -20,13 +20,20 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/respond"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 type profileAnswer struct {
 	status   int
 	location string
 	body     string
+	// flash is the failure the response left for the next page.
+	flash view.Failure
+	// cookies carry the session the response used.
+	cookies []*http.Cookie
 }
 
 // profileTestService builds a clip profile service over a throwaway database.
@@ -185,12 +192,16 @@ func idOfNamedProfile(t *testing.T, service *clipprofile.Service, name string) s
 // profileApp mounts the profiles routes on a fresh app.
 //
 // Parameters:
+//   - t: The test the app belongs to.
 //   - handler: The handler under test.
 //
 // Returns:
 //   - app: The app the routes are mounted on.
-func profileApp(handler *Handler) *fiber.App {
+func profileApp(t *testing.T, handler *Handler) *fiber.App {
+	t.Helper()
+
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Get(routes.PathSettingsProfiles, handler.ClipProfiles)
 	app.Post(routes.PathSettingsProfiles, handler.CreateClipProfile)
 	app.Post(routes.PathSettingsProfiles+"/:id", handler.UpdateClipProfile)
@@ -212,7 +223,7 @@ func profileApp(handler *Handler) *fiber.App {
 func getProfiles(t *testing.T, handler *Handler, target string) profileAnswer {
 	t.Helper()
 
-	return send(t, profileApp(handler), http.MethodGet, target, "")
+	return send(t, profileApp(t, handler), http.MethodGet, target, "")
 }
 
 // postProfile serves one profile edit request.
@@ -228,7 +239,7 @@ func getProfiles(t *testing.T, handler *Handler, target string) profileAnswer {
 func postProfile(t *testing.T, handler *Handler, path, form string) profileAnswer {
 	t.Helper()
 
-	return send(t, profileApp(handler), http.MethodPost, path, form)
+	return send(t, profileApp(t, handler), http.MethodPost, path, form)
 }
 
 // send issues one request against a mounted app.
@@ -268,27 +279,12 @@ func send(t *testing.T, app *fiber.App, method, target, form string) profileAnsw
 		status:   resp.StatusCode,
 		location: resp.Header.Get(fiber.HeaderLocation),
 		body:     string(body),
+		flash:    respondtest.Flash(t, app, resp),
+		cookies:  resp.Cookies(),
 	}
 }
 
-// flashOf reads the flash text a redirect carries back to the page.
-//
-// Parameters:
-//   - t: The test the redirect belongs to.
-//   - location: The redirect target.
-//
-// Returns:
-//   - flash: The flash text, empty when none was carried.
-func flashOf(t *testing.T, location string) string {
-	t.Helper()
-
-	parsed, err := url.Parse(location)
-	require.NoError(t, err)
-
-	return parsed.Query().Get(routes.QueryError)
-}
-
-// pathOf reads the path a redirect target names, without its flash query.
+// pathOf reads the path a redirect target names.
 //
 // Parameters:
 //   - t: The test the redirect belongs to.
@@ -351,14 +347,35 @@ func TestClipProfilesRendersTheBuiltInProfiles(t *testing.T) {
 func TestClipProfilesShowsTheCarriedFailure(t *testing.T) {
 	t.Parallel()
 
-	target := routes.PathSettingsProfiles + "?" + url.Values{
-		routes.QueryError: {"create clip profile: validate profile: name is required"},
-	}.Encode()
+	app := profileApp(t, New(profileTestService(t)))
 
-	answer := getProfiles(t, New(profileTestService(t)), target)
+	failed := send(
+		t,
+		app,
+		http.MethodPost,
+		routes.PathSettingsProfiles,
+		url.Values{"name": {""}}.Encode(),
+	)
+	require.Equal(t, "Enter a name", failed.flash.Message)
 
-	require.Equal(t, fiber.StatusOK, answer.status)
-	assert.Contains(t, answer.body, "name is required",
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		routes.PathSettingsProfiles,
+		nil,
+	)
+	for _, cookie := range failed.cookies {
+		req.AddCookie(cookie)
+	}
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "Enter a name",
 		"the reason the edit failed is what the user has to read")
 }
 
@@ -373,7 +390,7 @@ func TestCreateClipProfileStoresThePostedProfile(t *testing.T) {
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathSettingsProfiles, answer.location,
 		"a clean edit lands back on the settings page with no flash")
-	assert.Empty(t, flashOf(t, answer.location))
+	assert.Empty(t, answer.flash.Message)
 
 	stored := profileNamed(t, service, "Archive")
 	assert.Equal(t, 18, stored.CRF)
@@ -404,8 +421,8 @@ func TestCreateClipProfileReportsAnInvalidPost(t *testing.T) {
 	assert.Equal(t, routes.PathSettingsProfiles, pathOf(t, answer.location))
 	assert.Equal(
 		t,
-		"create clip profile: validate profile: name is required",
-		flashOf(t, answer.location),
+		"Enter a name",
+		answer.flash.Message,
 		"the failure the service reported reaches the user",
 	)
 	assert.Empty(t, namedProfiles(t, service), "nothing was stored")
@@ -426,7 +443,7 @@ func TestCreateClipProfileReportsAnUnusableEncoderSetting(t *testing.T) {
 		}.Encode())
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Contains(t, flashOf(t, answer.location), "crf must be between",
+	assert.Contains(t, answer.flash.Message, "CRF must be 0 to 51",
 		"the message names the field the user has to correct")
 	assert.Empty(t, namedProfiles(t, service))
 }
@@ -450,7 +467,7 @@ func TestUpdateClipProfileSavesOverAnExistingProfile(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Empty(t, flashOf(t, answer.location))
+	assert.Empty(t, answer.flash.Message)
 	assert.Empty(t, idOfNamedProfile(t, service, "Archive"),
 		"the edit renamed the profile rather than adding one")
 	assert.Len(t, namedProfiles(t, service), 1)
@@ -485,7 +502,7 @@ func TestUpdateClipProfileCarriesTheDefaultOverTheForm(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Empty(t, flashOf(t, answer.location))
+	assert.Empty(t, answer.flash.Message)
 
 	assert.True(t, profileNamed(t, service, "Draft").IsDefault,
 		"an edit restates the encode settings, not which profile is the default")
@@ -503,7 +520,7 @@ func TestUpdateClipProfileReportsAnUnknownProfile(t *testing.T) {
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathSettingsProfiles, pathOf(t, answer.location))
-	assert.Contains(t, flashOf(t, answer.location), "clip profile not found",
+	assert.Contains(t, answer.flash.Message, "That profile no longer exists",
 		"the reason the edit failed is what the user has to read")
 }
 
@@ -525,7 +542,7 @@ func TestUpdateClipProfileReportsAnInvalidPost(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Contains(t, flashOf(t, answer.location), "unknown encoder preset")
+	assert.Contains(t, answer.flash.Message, "Choose an encoder preset from the list")
 
 	unchanged := profileNamed(t, service, "Archive")
 	assert.Equal(t, id, unchanged.ID, "the stored profile is untouched")
@@ -547,7 +564,7 @@ func TestDeleteClipProfileRemovesAProfile(t *testing.T) {
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathSettingsProfiles, pathOf(t, answer.location))
-	assert.Empty(t, flashOf(t, answer.location))
+	assert.Empty(t, answer.flash.Message)
 
 	assert.Empty(t, idOfNamedProfile(t, service, "Draft"))
 	assert.NotEmpty(t, idOfNamedProfile(t, service, "Archive"),
@@ -568,7 +585,7 @@ func TestDeleteClipProfileReportsAStoreItCannotReach(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Contains(t, flashOf(t, answer.location), "delete clip profile",
+	assert.Equal(t, respond.MessageUnexpected, answer.flash.Message,
 		"a delete that could not run is reported rather than reported as a success")
 }
 
@@ -584,7 +601,7 @@ func TestDeleteClipProfileReportsAnUnknownProfile(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Contains(t, flashOf(t, answer.location), "clip profile not found")
+	assert.Contains(t, answer.flash.Message, "That profile no longer exists")
 }
 
 func TestSetDefaultClipProfileMovesTheFlag(t *testing.T) {
@@ -601,7 +618,7 @@ func TestSetDefaultClipProfileMovesTheFlag(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Empty(t, flashOf(t, answer.location))
+	assert.Empty(t, answer.flash.Message)
 
 	assert.True(t, profileNamed(t, service, "Draft").IsDefault)
 	assert.False(t, profileNamed(t, service, "Archive").IsDefault,
@@ -623,14 +640,15 @@ func TestSetDefaultClipProfileReportsAnUnknownProfile(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Contains(t, flashOf(t, answer.location), "clip profile not found",
+	assert.Contains(t, answer.flash.Message, "That profile no longer exists",
 		"a default that was never set is reported rather than silently ignored")
 }
 
-func TestRedirectToProfilesCarriesTheFailureOnTheQuery(t *testing.T) {
+func TestRedirectToProfilesCarriesTheFailureInTheSession(t *testing.T) {
 	t.Parallel()
 
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Get(routes.PathSettingsProfiles, func(ctx fiber.Ctx) error {
 		return redirectToProfiles(ctx, assert.AnError)
 	})
@@ -638,13 +656,15 @@ func TestRedirectToProfilesCarriesTheFailureOnTheQuery(t *testing.T) {
 	answer := send(t, app, http.MethodGet, routes.PathSettingsProfiles, "")
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, assert.AnError.Error(), flashOf(t, answer.location))
+	assert.Equal(t, routes.PathSettingsProfiles, answer.location, "the address carries nothing")
+	assert.Equal(t, respond.MessageUnexpected, answer.flash.Message)
 }
 
-func TestRedirectToProfilesSendsACleanEditWithoutAQuery(t *testing.T) {
+func TestRedirectToProfilesSendsACleanEditWithoutAFailure(t *testing.T) {
 	t.Parallel()
 
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Get(routes.PathSettingsProfiles, func(ctx fiber.Ctx) error {
 		return redirectToProfiles(ctx, nil)
 	})
@@ -652,8 +672,8 @@ func TestRedirectToProfilesSendsACleanEditWithoutAQuery(t *testing.T) {
 	answer := send(t, app, http.MethodGet, routes.PathSettingsProfiles, "")
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, routes.PathSettingsProfiles, answer.location,
-		"nothing to report means no flash is carried")
+	assert.Equal(t, routes.PathSettingsProfiles, answer.location)
+	assert.True(t, answer.flash.Empty(), "nothing to report means no failure is carried")
 }
 
 func TestStoredProfileKeepsItsCreationStampAcrossAnEdit(t *testing.T) {

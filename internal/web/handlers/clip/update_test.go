@@ -138,17 +138,17 @@ func TestUpdateSwapsARejectionIntoTheFlashSlot(t *testing.T) {
 		{
 			name:   "a profile id that names no profile",
 			form:   updateMarks("00:00:30.000", "00:00:50.000", "no-such-profile"),
-			reason: "unknown clip profile",
+			reason: "That profile no longer exists. Choose another.",
 		},
 		{
 			name:   "a selection past the end of the source",
 			form:   updateMarks("11:00:00.000", "11:00:20.000", ""),
-			reason: "outside the media",
+			reason: "is past the end of the title",
 		},
 		{
 			name:   "a clip type the job cannot become",
 			form:   staleType,
-			reason: "clip type must be one of",
+			reason: "Choose Video Clip, GIF, or Screenshot",
 		},
 	}
 
@@ -212,7 +212,7 @@ func TestUpdateKeepsJSONForAnAPICaller(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusBadRequest, answer.status, "the status is unchanged")
 	assert.JSONEq(t,
-		`{"error":"invalid_quality","message":"apply quality: unknown clip profile"}`,
+		`{"error":"invalid_quality","message":"That profile no longer exists. Choose another."}`,
 		answer.body, "the JSON body is unchanged")
 	assert.Empty(t, answer.header.Get(routes.HeaderHXReswap),
 		"an API caller is given no swap instructions")
@@ -272,7 +272,12 @@ func TestUpdateKeepsAMalformedMarkOutOfTheRow(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusOK, answer.status,
 		"a rejection the page has to show cannot carry an error status")
-	assert.Contains(t, answer.body, "timecode", "the reason names what the field wanted")
+	assert.Contains(
+		t,
+		answer.body,
+		"as a time, such as 00:01:23.456",
+		"the reason names what the field wanted",
+	)
 	assert.NotContains(t, answer.body, "must be between", "a bad mark is not a range error")
 
 	stored, err := db.GetClip(t.Context(), "stored")
@@ -468,7 +473,7 @@ func TestUpdateRefusesANegativeMark(t *testing.T) {
 
 			answer := postUpdate(t, handler, apiJSONRequest(t, body))
 			assert.Equal(t, fiber.StatusBadRequest, answer.status)
-			assert.Contains(t, answer.body, "must not be negative")
+			assert.Contains(t, answer.body, "can't be negative")
 
 			stored, err := db.GetClip(t.Context(), "stored")
 			require.NoError(t, err)

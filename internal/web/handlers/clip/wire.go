@@ -104,7 +104,7 @@ func parseJSONRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 
 	err := ctx.Bind().Body(&req)
 	if err != nil {
-		return api.ClipRequest{}, fmt.Errorf("bind json: %w", err)
+		return api.ClipRequest{}, fmt.Errorf("bind json: %w: %w", api.ErrInvalidBody, err)
 	}
 
 	err = req.CheckHDRChoice()
@@ -133,11 +133,11 @@ func parseJSONRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 //   - err: Non-nil when either mark is negative.
 func checkMarks(start, length float64) error {
 	if start < 0 {
-		return fmt.Errorf("%w: the start must not be negative", clipdom.ErrRangeOutsideMedia)
+		return clipdom.ErrNegativeStart
 	}
 
 	if length < 0 {
-		return fmt.Errorf("%w: the length must not be negative", clipdom.ErrInvalidDuration)
+		return clipdom.ErrNegativeLength
 	}
 
 	return nil
@@ -160,10 +160,7 @@ func formDuration(ctx fiber.Ctx, name, label string) (time.Duration, error) {
 
 	tc, err := timecode.Parse(value)
 	if err != nil || spacesOnly {
-		return 0, fmt.Errorf(
-			"%w: the %s must be a timecode such as 00:01:23.456, not %q",
-			timecode.ErrInvalidTimecode, label, value,
-		)
+		return 0, &timecode.FieldError{Field: label, Value: value}
 	}
 
 	return tc.Duration(), nil

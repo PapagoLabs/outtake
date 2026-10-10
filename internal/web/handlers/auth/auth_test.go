@@ -17,6 +17,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/identity/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -36,6 +37,7 @@ func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 
 	handler := testAuth(nil)
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Post("/api/auth/login", handler.Login)
 
 	req := httptest.NewRequestWithContext(
@@ -56,7 +58,7 @@ func TestAuthLoginFormWithoutTokenRedirects(t *testing.T) {
 	parsed, err := url.Parse(resp.Header.Get("Location"))
 	require.NoError(t, err)
 	assert.Equal(t, routes.PathLogin, parsed.Path)
-	assert.Equal(t, msgPlexTokenRequired, parsed.Query().Get(routes.QueryError))
+	assert.Equal(t, msgPlexTokenRequired, respondtest.Flash(t, app, resp).Message)
 }
 
 func TestAuthLogoutRedirectsToLogin(t *testing.T) {

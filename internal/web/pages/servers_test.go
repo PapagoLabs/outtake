@@ -123,14 +123,16 @@ func TestServersShowsTheSelectionError(t *testing.T) {
 
 	var buf strings.Builder
 
+	ctx := view.ContextWithFailure(t.Context(), view.NewNotice("Outtake can't reach that server"))
+
 	err := Servers(ServersProps{
 		Servers: []view.ServerItem{atticServer()},
-		Error:   "That server did not answer.",
-	}).Render(t.Context(), &buf)
+	}).Render(ctx, &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
-	assert.Contains(t, body, "That server did not answer.")
+	assert.Contains(t, body, "Outtake can&#39;t reach that server",
+		"the layout's banner shows the failure the session carried")
 	assert.Contains(t, body, "js-flash")
 	assert.Contains(t, body, "Attic", "the discovered servers are still listed")
 }

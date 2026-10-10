@@ -231,7 +231,7 @@ Named encode settings live under **Settings → Clip Profiles**. Lower CRF is hi
 ## Troubleshooting
 
 - **Login never finishes.** Approve the Plex popup. If you reach Outtake through a hostname other than localhost, set `OUTTAKE_PUBLIC_BASE_URL` to that URL.
-- **"This Outtake belongs to a different Plex account."** Sign in with the owner's Plex account, or reset the owner (see [First run](#first-run)).
+- **"This Outtake belongs to a different Plex account."** Login with the owner's Plex account, or reset the owner (see [First run](#first-run)).
 - **421 Misdirected Request.** You reached Outtake through a host name it does not know. Set `OUTTAKE_PUBLIC_BASE_URL` to the URL you use, or add the host to `OUTTAKE_ALLOWED_HOSTS`.
 - **No Plex servers found.** Use **Custom Server URL** on the servers page. Outtake must be able to reach that address.
 - **No media found.** Select a server first, then search or browse again.
@@ -239,7 +239,8 @@ Named encode settings live under **Settings → Clip Profiles**. Lower CRF is hi
 - **Kubernetes apply fails.** Set the NFS server and path to your Plex library. Replace the `outtake-s3` keys before apply. For `seaweedfs-cnpg`, install the CloudNativePG operator first.
 - **Wrong storage or database backend.** Defaults are `filesystem` and `sqlite`. For S3, set `OUTTAKE_STORAGE_BACKEND=s3` plus the `OUTTAKE_S3_*` keys. For postgres, set `OUTTAKE_DATABASE_BACKEND=postgres` and `OUTTAKE_DATABASE_URL`. The suggested Kubernetes stacks use S3 and postgres. On the example chart, enable at most one blob backend (`backends.seaweedfs` or `backends.rustfs`) and one database backend (`backends.cockroach` or `backends.cnpg`).
 - **"This browser can't play this clip".** Clips that keep HDR are HEVC, which Brave and Chrome on Linux decode only with hardware video decoding. Their cards play an SDR version instead, so this appears only for an HDR clip rendered before SDR versions existed, whose card says to regenerate it. The file is fine: download it, use Firefox, or regenerate the clip. Previews are not affected, because a browser without HEVC gets an SDR preview. Where Chromium does decode HEVC, versions 151 and later draw 10-bit video black on NVIDIA under Wayland, and `--ozone-platform=x11` avoids that.
-- **"This Dolby Vision source has no HDR10 or SDR base layer".** Dolby Vision profile 5, and any other source without a displayable base layer, cannot be exported by ffmpeg with correct colors. Use a copy of the title with an HDR10 base layer.
+- **"This Dolby Vision file can't be exported with correct colors".** Dolby Vision profile 5, and any other source without a displayable base layer, cannot be exported by ffmpeg with correct colors. Use a copy of the title with an HDR10 base layer.
+- **Reporting a problem.** An error that needs more than its message has a **Details** section under it. Open it and use **Copy**, or select the text, and paste it into the issue. Its `ref` matches the line Outtake wrote to its log for the same failure. Details show only when you are logged in.
 - **ffmpeg / ffprobe errors on a host binary.** Install both tools and keep them on `PATH`, or set the path variables above. Docker images already include them.
 
 ## License

@@ -5,6 +5,7 @@
 package layout
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/view"
 	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
@@ -200,7 +201,7 @@ templ Layout(props Props) {
 					data-nav={ props.Active }
 					data-library={ props.Library }
 				>
-					@flash.Slot("")
+					@flash.Slot(view.FailureFromContext(ctx))
 					{ children... }
 				</main>
 			</div>

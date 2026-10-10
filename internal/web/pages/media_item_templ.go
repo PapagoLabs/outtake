@@ -275,7 +275,7 @@ func MediaItemPage(props MediaItemPageProps) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = flash.Banner(props.Error).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = flash.Banner(view.NewNotice(props.Error)).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

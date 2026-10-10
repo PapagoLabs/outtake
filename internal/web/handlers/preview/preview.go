@@ -32,7 +32,10 @@ type Handler struct {
 
 const (
 	// messagePreviewNotRunning explains a cancel that changed nothing.
-	messagePreviewNotRunning = "preview is not running"
+	messagePreviewNotRunning = "This preview isn't rendering"
+
+	// messagePreviewGone explains a preview id nothing is registered under.
+	messagePreviewGone = "This preview is gone. Select Preview to render it again."
 )
 
 // New returns a preview handler wired to the supplied collaborators.
@@ -73,7 +76,7 @@ func (handler *Handler) CancelPreview(ctx fiber.Ctx) error {
 	// Existence is checked separately from running, so an id nothing was ever
 	// registered under is not reported as a render that already finished.
 	if _, known := handler.previews.Status(id); !known {
-		return respond.WriteNotFound(ctx)
+		return respond.WriteError(ctx, fiber.StatusNotFound, api.NotFound, messagePreviewGone)
 	}
 
 	if !handler.previews.Cancel(id) {
@@ -98,12 +101,17 @@ func (handler *Handler) CancelPreview(ctx fiber.Ctx) error {
 func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	req, err := clips.ParseRequest(ctx)
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadRequest, api.InvalidRequest, err.Error())
+		return respond.WriteFailure(
+			ctx,
+			fiber.StatusBadRequest,
+			api.InvalidRequest,
+			respond.Fail(ctx, err),
+		)
 	}
 
 	inputPath, code, err := handler.resolveSelection(ctx.Context(), req)
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadRequest, code, err.Error())
+		return respond.WriteFailure(ctx, fiber.StatusBadRequest, code, respond.Fail(ctx, err))
 	}
 
 	// The id is derived from what the render does, so an SDR screen never
@@ -112,12 +120,16 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 
 	sourceHDR := handler.sources.DescribePath(ctx.Context(), inputPath).HDR
 	render := previewRender(req, sourceHDR, screenShowsHDR(ctx))
-	renderKeepsHDR := api.Flag(render.PreserveHDR)
 	maxWidth := playback.MaxPreviewWidth(ctx.Context(), handler.db)
 
 	previewID, err := clippreview.RequestID(render, inputPath, maxWidth)
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadRequest, api.MediaPathUnresolved, err.Error())
+		return respond.WriteFailure(
+			ctx,
+			fiber.StatusBadRequest,
+			api.MediaPathUnresolved,
+			respond.Fail(ctx, err),
+		)
 	}
 
 	location := previewRedirect(req, previewID)
@@ -132,35 +144,12 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		return respond.RedirectTo(ctx, location)
 	}
 
-	// The render detaches from this request, so the values it needs are captured
-	// by the closure rather than read from the context after the response has
-	// been written. None of them change once the request is parsed.
-	//
-	// Admission and registration happen together inside the service, so a burst
-	// of clicks cannot each observe the same headroom and collectively overshoot
-	// the limit.
-	admitted := handler.previews.Submit(
-		ctx.Context(),
-		previewID,
-		func(renderCtx context.Context) error {
-			return handler.previews.RenderInto(
-				renderCtx,
-				previewID,
-				inputPath,
-				render,
-				renderKeepsHDR,
-				maxWidth,
-			)
-		},
-	)
-	// A service that is closing refuses like a full one, and the client can
-	// ask again once the server is back.
-	if admitted == clippreview.RefusedFull || admitted == clippreview.RefusedClosed {
+	if !handler.admitRender(ctx, previewID, inputPath, render, maxWidth) {
 		return respond.WriteError(
 			ctx,
 			fiber.StatusTooManyRequests,
 			api.PreviewBusy,
-			clippreview.ErrBusy.Error(),
+			respond.MessageFor(clippreview.ErrBusy),
 		)
 	}
 
@@ -247,7 +236,7 @@ func (handler *Handler) PreviewFile(ctx fiber.Ctx) error {
 func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	view, ok := handler.previews.Status(ctx.Params(routes.ParamID))
 	if !ok {
-		return respond.WriteNotFound(ctx)
+		return respond.WriteError(ctx, fiber.StatusNotFound, api.NotFound, messagePreviewGone)
 	}
 
 	payload := fiber.Map{
@@ -272,6 +261,50 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	}
 
 	return respond.WriteJSON(ctx, fiber.StatusOK, payload)
+}
+
+// admitRender submits a preview's render to the service.
+//
+// The render detaches from this request, so the values it needs are captured
+// by the closure rather than read from the context after the response has
+// been written. None of them change once the request is parsed. Admission and
+// registration happen together inside the service, so a burst of clicks
+// cannot each observe the same headroom and collectively overshoot the limit.
+//
+// Parameters:
+//   - ctx: The preview request.
+//   - previewID: The id the preview is published under.
+//   - inputPath: The resolved source.
+//   - render: The request the preview renders.
+//   - maxWidth: The widest the preview is scaled.
+//
+// Returns:
+//   - admitted: False when the service is full or closing, which the client
+//     can ask again once it has room.
+func (handler *Handler) admitRender(
+	ctx fiber.Ctx,
+	previewID, inputPath string,
+	render api.ClipRequest,
+	maxWidth int,
+) bool {
+	renderKeepsHDR := api.Flag(render.PreserveHDR)
+
+	admitted := handler.previews.Submit(
+		ctx.Context(),
+		previewID,
+		func(renderCtx context.Context) error {
+			return handler.previews.RenderInto(
+				renderCtx,
+				previewID,
+				inputPath,
+				render,
+				renderKeepsHDR,
+				maxWidth,
+			)
+		},
+	)
+
+	return admitted != clippreview.RefusedFull && admitted != clippreview.RefusedClosed
 }
 
 // keepHDR reports whether the clip keeps HDR, which is its profile's setting.

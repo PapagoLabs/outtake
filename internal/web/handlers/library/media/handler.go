@@ -80,7 +80,7 @@ func (handler *Handler) Search(ctx fiber.Ctx) error {
 			ctx,
 			fiber.StatusBadRequest,
 			api.MissingQuery,
-			"search query is required",
+			"Enter something to search for",
 		)
 	}
 
@@ -99,11 +99,11 @@ func (handler *Handler) Search(ctx fiber.Ctx) error {
 		ctx.Query(routes.QueryLibrary),
 	)
 	if err != nil {
-		return respond.WriteError(
+		return respond.WriteFailure(
 			ctx,
 			fiber.StatusInternalServerError,
 			api.SearchFailed,
-			err.Error(),
+			respond.FailWith(ctx, "Couldn't search Plex", err),
 		)
 	}
 

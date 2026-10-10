@@ -250,7 +250,7 @@ func TestSearchRequiresAQuery(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusBadRequest, got.status)
 	assert.JSONEq(t,
-		`{"error":"missing_query","message":"search query is required"}`, got.body)
+		`{"error":"missing_query","message":"Enter something to search for"}`, got.body)
 }
 
 func TestSearchReturnsAnEmptyListWithNoServerBound(t *testing.T) {
@@ -283,7 +283,8 @@ func TestSearchReportsAFailedSearch(t *testing.T) {
 	assert.Equal(t, fiber.StatusInternalServerError, got.status)
 	assert.Contains(t, got.body, "search_failed",
 		"the code names the operation that failed")
-	assert.Contains(t, got.body, "500", "the reason carries what the PMS said")
+	assert.Contains(t, got.body, "Couldn't search Plex",
+		"the caller is told in plain words, and the log keeps what the PMS said")
 }
 
 func TestSearchReportsAMalformedResponse(t *testing.T) {

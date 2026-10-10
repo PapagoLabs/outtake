@@ -16,10 +16,10 @@ import (
 
 const (
 	// msgNotReady explains why a clip cannot be downloaded yet.
-	msgNotReady = "clip is not ready for download"
+	msgNotReady = "This clip isn't ready yet"
 
 	// msgFileMissing explains that the output is not on disk.
-	msgFileMissing = "output file not found on disk"
+	msgFileMissing = "This clip's file is missing. Regenerate it."
 )
 
 // Download handles the download clip request.

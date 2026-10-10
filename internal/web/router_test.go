@@ -354,8 +354,8 @@ func TestNewRefusesASecondPlexAccount(t *testing.T) {
 	got := intruder.submit(t, "/api/auth/login", url.Values{"token": {otherToken}})
 
 	require.Equal(t, fiber.StatusSeeOther, got.status)
-	assert.True(t, strings.HasPrefix(got.location, "/login?"),
-		"the second account is sent back to the login page, not %q", got.location)
+	assert.Equal(t, "/login", got.location,
+		"the second account is sent back to the login page, which the session tells why")
 	assert.Equal(t, "/login", intruder.request(t, http.MethodGet, "/").location,
 		"the refused account holds no session")
 }

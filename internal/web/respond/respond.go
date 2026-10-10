@@ -17,6 +17,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 const (
@@ -39,8 +40,8 @@ const (
 	skipFileCache = -1 * time.Nanosecond
 )
 
-// NotFoundMessage is the copy shown for a resource nothing is registered under.
-const NotFoundMessage = "clip not found"
+// NotFoundMessage is the copy shown for a clip nothing is registered under.
+const NotFoundMessage = "This clip no longer exists"
 
 // WriteJSON writes a JSON response and wraps Fiber errors.
 //
@@ -89,19 +90,36 @@ func SendRangedFile(ctx fiber.Ctx, path string) error {
 	return nil
 }
 
-// WriteError writes a JSON error payload, or redirects HTML form posts.
+// WriteError answers a refusal its message explains in full, with no details.
 //
 // Parameters:
 //   - ctx: Request context.
 //   - status: HTTP status code.
 //   - code: Machine-readable API error code.
-//   - message: Human-readable error text.
+//   - message: The plain message.
 //
 // Returns:
 //   - Wrapped write or redirect error.
 func WriteError(ctx fiber.Ctx, status int, code api.ErrorCode, message string) error {
+	return WriteFailure(ctx, status, code, view.NewNotice(message))
+}
+
+// WriteFailure answers a failed request: a flash banner for htmx, a redirect
+// that carries the failure in the session for a form post or a link the
+// browser followed, such as Download, and a JSON error for an API caller,
+// whose code stays the contract.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - status: HTTP status code.
+//   - code: Machine-readable API error code.
+//   - failure: The plain message and its details.
+//
+// Returns:
+//   - Wrapped write or redirect error.
+func WriteFailure(ctx fiber.Ctx, status int, code api.ErrorCode, failure view.Failure) error {
 	if IsHTMXRequest(ctx) {
-		err := WriteHTMXFlash(ctx, status, message)
+		err := WriteHTMXFlash(ctx, status, failure)
 		if err != nil {
 			return fmt.Errorf("write htmx flash: %w", err)
 		}
@@ -109,13 +127,16 @@ func WriteError(ctx fiber.Ctx, status int, code api.ErrorCode, message string) e
 		return nil
 	}
 
-	if IsFormRequest(ctx) {
-		return RedirectTo(ctx, FormErrorLocation(ctx, message))
+	if IsFormRequest(ctx) || isPageNavigation(ctx) {
+		SetFlash(ctx, failure)
+
+		return RedirectTo(ctx, FormErrorLocation(ctx))
 	}
 
 	return WriteJSON(ctx, status, api.ErrorResponse{
 		Error:   code,
-		Message: message,
+		Message: failure.Message,
+		Details: failure.Details,
 	})
 }
 
@@ -135,11 +156,11 @@ func WriteNotFound(ctx fiber.Ctx) error {
 // Parameters:
 //   - ctx: Request context.
 //   - status: HTTP status code.
-//   - message: Flash text.
+//   - failure: The message and its details.
 //
 // Returns:
 //   - Wrapped render error.
-func WriteHTMXFlash(ctx fiber.Ctx, status int, message string) error {
+func WriteHTMXFlash(ctx fiber.Ctx, status int, failure view.Failure) error {
 	ctx.Status(status)
 
 	// A browser control such as the delete button swaps on any status other
@@ -150,7 +171,7 @@ func WriteHTMXFlash(ctx fiber.Ctx, status int, message string) error {
 	}
 
 	return RenderHTML(ctx, func(writer io.Writer) error {
-		return flash.Partial(message).Render(ctx.Context(), writer)
+		return flash.Partial(failure).Render(ctx.Context(), writer)
 	})
 }
 
@@ -174,6 +195,19 @@ func IsHTMXRequest(ctx fiber.Ctx) bool {
 //   - True when the Content-Type says JSON.
 func isJSONRequest(ctx fiber.Ctx) bool {
 	return strings.Contains(ctx.Get(fiber.HeaderContentType), "json")
+}
+
+// isPageNavigation reports whether the browser followed a link, which asks
+// for a page, rather than a script fetching data.
+//
+// Parameters:
+//   - ctx: Request context.
+//
+// Returns:
+//   - navigation: True for a GET whose Accept header asks for HTML.
+func isPageNavigation(ctx fiber.Ctx) bool {
+	return ctx.Method() == fiber.MethodGet &&
+		strings.Contains(ctx.Get(fiber.HeaderAccept), "text/html")
 }
 
 // IsFormRequest reports whether the request is urlencoded form data.
@@ -273,25 +307,25 @@ func QueryValue(raw, name string) string {
 	return parsed.Query().Get(name)
 }
 
-// FormErrorLocation returns the HTML page that should show a form error.
+// FormErrorLocation returns the HTML page that should show a form error,
+// which the session carries there.
 //
 // Parameters:
 //   - ctx: Request context.
-//   - message: Flash text carried in the redirect query.
 //
 // Returns:
-//   - location: A path-only location carrying the encoded error.
-func FormErrorLocation(ctx fiber.Ctx, message string) string {
+//   - location: A path-only location.
+func FormErrorLocation(ctx fiber.Ctx) string {
 	referer := ctx.Get(fiber.HeaderReferer)
 	if referer != "" {
-		return PathWithError(RefererPath(referer), message)
+		return RefererPath(referer)
 	}
 
 	if mediaID := ctx.FormValue(formFieldMediaID); mediaID != "" {
-		return PathWithError(routes.ItemURL(mediaID, nil), message)
+		return routes.ItemURL(mediaID, nil)
 	}
 
-	return PathWithError(routes.PathRoot, message)
+	return routes.PathRoot
 }
 
 // RefererOrFallback prefers the page a form was submitted from.
@@ -309,30 +343,6 @@ func RefererOrFallback(ctx fiber.Ctx, fallback string) string {
 	}
 
 	return fallback
-}
-
-// PathWithError appends an encoded error query to a path-only location.
-//
-// Parameters:
-//   - location: Path-only redirect target.
-//   - message: Flash text to carry in the query.
-//
-// Returns:
-//   - location: The location with the encoded error query, or the dashboard when
-//     the input cannot be parsed.
-func PathWithError(location, message string) string {
-	parsed, err := url.Parse(location)
-	if err != nil || parsed.Path == "" {
-		parsed, err = url.Parse(routes.PathRoot)
-		if err != nil {
-			return routes.PathRoot
-		}
-	}
-
-	query := parsed.Query()
-	query.Set(routes.QueryError, message)
-
-	return parsed.Path + "?" + query.Encode()
 }
 
 // RefererPath keeps only the path and query of a Referer URL.
@@ -406,7 +416,10 @@ func SendStatusCode(ctx fiber.Ctx, status int) error {
 	return nil
 }
 
-// RenderHTML writes a templ component and wraps render errors.
+// RenderHTML writes a templ component and wraps render errors. A full page
+// takes the failure a redirect left in the session, so its banner slot shows
+// it once. An htmx fragment leaves it, so a background poll never takes it
+// from the page it was meant for.
 //
 // Parameters:
 //   - ctx: Request context, whose Content-Type header is set to HTML.
@@ -416,6 +429,10 @@ func SendStatusCode(ctx fiber.Ctx, status int) error {
 //   - err: Wrapped render error, or nil on success.
 func RenderHTML(ctx fiber.Ctx, render func(w io.Writer) error) error {
 	ctx.Set(fiber.HeaderContentType, contentTypeHTML)
+
+	if !IsHTMXRequest(ctx) {
+		takeFlash(ctx)
+	}
 
 	err := render(ctx.Response().BodyWriter())
 	if err != nil {

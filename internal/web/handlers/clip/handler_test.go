@@ -580,7 +580,7 @@ func TestCreateSwapsARejectionIntoTheFlash(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, status)
 	assert.Contains(t, body, `hx-target="#flash"`,
 		"the rejection is swapped into the flash slot the page already has")
-	assert.Contains(t, body, "unknown clip profile",
+	assert.Contains(t, body, "That profile no longer exists. Choose another.",
 		"the reason the clip was refused reaches the page")
 	assert.NotContains(t, body, api.InvalidQuality,
 		"the flash carries the reason, which is what the page has to read")

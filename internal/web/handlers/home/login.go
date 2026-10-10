@@ -31,7 +31,6 @@ func (*Handler) Login(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Login(pages.LoginProps{
 			AuthURL: ctx.Query("authUrl"),
-			Error:   ctx.Query(routes.QueryError),
 		}).Render(ctx.Context(), writer)
 	})
 }

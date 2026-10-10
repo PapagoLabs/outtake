@@ -25,6 +25,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -160,7 +161,7 @@ func TestCancelRefusesAClipThatIsNotRunning(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusConflict, answer.status)
 	assert.Contains(t, answer.body, api.NotCancellable)
-	assert.Contains(t, answer.body, "clip is not running")
+	assert.Contains(t, answer.body, "This clip isn't rendering")
 }
 
 func TestCancelTellsHTMXToRefreshThePage(t *testing.T) {
@@ -383,30 +384,64 @@ func clipStatus(t *testing.T, handler *Handler, id string) clipAnswer {
 	return clipAnswer{status: resp.StatusCode, body: string(body)}
 }
 
+// submitFailureIn runs submitFailure inside a request, which it builds its
+// message from.
+//
+// Parameters:
+//   - t: The test the request belongs to.
+//   - err: The failure from the queue.
+//
+// Returns:
+//   - rejection: What submitFailure built.
+func submitFailureIn(t *testing.T, err error) *clipRejection {
+	t.Helper()
+
+	var failure *clipRejection
+
+	app := fiber.New()
+	app.Post("/x", func(ctx fiber.Ctx) error {
+		failure = submitFailure(ctx, err)
+
+		return nil
+	})
+
+	resp, testErr := app.Test(
+		httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/x", nil),
+	)
+	require.NoError(t, testErr)
+	require.NoError(t, resp.Body.Close())
+
+	return failure
+}
+
 func TestSubmitFailureNamesAnAlreadyActiveClip(t *testing.T) {
 	t.Parallel()
 
-	failure := submitFailure(queue.ErrJobActive)
+	failure := submitFailureIn(t, queue.ErrJobActive)
 
 	assert.Equal(t, fiber.StatusConflict, failure.status)
 	assert.Equal(t, api.JobActive, failure.code)
-	assert.Contains(t, failure.message, queue.ErrJobActive.Error())
+	assert.Equal(
+		t,
+		"This clip is rendering. Wait for it or cancel it first.",
+		failure.failure.Message,
+	)
 }
 
 func TestSubmitFailureWrapsAnyOtherRejection(t *testing.T) {
 	t.Parallel()
 
-	failure := submitFailure(assert.AnError)
+	failure := submitFailureIn(t, assert.AnError)
 
 	assert.Equal(t, fiber.StatusInternalServerError, failure.status)
 	assert.Equal(t, api.PersistFailed, failure.code)
-	assert.Equal(t, assert.AnError.Error(), failure.message)
+	assert.Equal(t, respond.MessageUnexpected, failure.failure.Message)
 }
 
 func TestSubmitFailureSeesAJobActiveWrappedInContext(t *testing.T) {
 	t.Parallel()
 
-	failure := submitFailure(wrapActive(t))
+	failure := submitFailureIn(t, wrapActive(t))
 
 	assert.Equal(t, fiber.StatusConflict, failure.status,
 		"the queue wraps ErrJobActive with the id it refused, and that still counts")
@@ -436,7 +471,7 @@ func TestWriteJobSubmitErrorSwapsTheRejectionIntoTheFlash(t *testing.T) {
 
 	assert.Contains(t, string(body), `hx-target="#flash"`,
 		"the page has to show the rejection somewhere it can already reach")
-	assert.Contains(t, string(body), queue.ErrJobActive.Error())
+	assert.Contains(t, string(body), "This clip is rendering. Wait for it or cancel it first.")
 }
 
 // wrapActive builds the queue's own ErrJobActive wrapper.

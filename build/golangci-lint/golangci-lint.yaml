@@ -3762,6 +3762,7 @@ linters:
         # returning one directly has nothing left to add.
         - .WriteJSON(
         - .WriteError(
+        - .WriteFailure(
         - .WriteHTMXFlash(
         - .WriteNotFound(
         - .RedirectTo(

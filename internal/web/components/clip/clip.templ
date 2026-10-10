@@ -242,7 +242,7 @@ templ ClipStatus(item view.ClipItem) {
 				</button>
 			}
 			if item.CanPlay() {
-				<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } download class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+				<a href={ templ.SafeURL("/api/clips/" + item.ID + "/download") } class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
 					Download
 				</a>
 			}

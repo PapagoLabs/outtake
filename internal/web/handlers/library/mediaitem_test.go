@@ -5,6 +5,7 @@ package library
 
 import (
 	"html"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,6 +25,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/respond"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
@@ -232,6 +235,9 @@ func TestMediaItemCarriesTheExportWindow(t *testing.T) {
 		"the end mark the page was opened with is prefilled")
 }
 
+// TestMediaItemPrefersAFlashOverALoadFailure covers a form failure carried
+// to a media page whose metadata cannot be loaded: the layout's banner shows
+// the failure, and the load notice stays out of the way.
 func TestMediaItemPrefersAFlashOverALoadFailure(t *testing.T) {
 	t.Parallel()
 
@@ -240,193 +246,68 @@ func TestMediaItemPrefersAFlashOverALoadFailure(t *testing.T) {
 
 	handler, _ := pageHandler(t, offlineAuth(t), sources)
 
-	answer := getItem(t, handler,
-		routes.PathItemPrefix+"42?"+routes.QueryError+"=Media+Path+Unresolved")
+	app := fiber.New()
+	respondtest.Sessions(t, app)
+	app.Post("/fail", func(ctx fiber.Ctx) error {
+		respond.SetFlash(ctx, view.NewNotice("Choose a Plex server under Servers first"))
 
-	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, "Media Path Unresolved",
-		"the flash the post left behind is what the page shows")
-	assertBodyOmits(t, answer.body, html.EscapeString(mediaLoadFailedMsg),
+		return ctx.SendStatus(fiber.StatusNoContent)
+	})
+	app.Get(routes.PathItemPrefix+":"+routes.ParamID, handler.MediaItem)
+
+	failed, err := app.Test(
+		httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/fail", nil),
+	)
+	require.NoError(t, err)
+	require.NoError(t, failed.Body.Close())
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		routes.PathItemPrefix+"42",
+		nil,
+	)
+	for _, cookie := range failed.Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+	assertBodyContains(t, string(body), "Choose a Plex server under Servers first",
+		"the failure the post left behind is what the page shows")
+	assertBodyOmits(t, string(body), html.EscapeString(mediaLoadFailedMsg),
 		"a form failure the user caused outranks the load notice")
 }
 
-func TestMediaItemNamesTheExportFormFromTheMediaTitle(t *testing.T) {
-	t.Parallel()
-
-	stub := startPMS(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/library/metadata/42" {
-			_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
-		{"ratingKey":"42","title":"Test Movie","type":"movie","duration":7200000,
-		 "year":1999,"librarySectionID":"1",
-		 "Media":[{"Part":[{"file":"/movies/test.mkv"}]}]}
-	]}}`))
-
-			return
-		}
-
-		_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[
-		{"key":"1","title":"Movies","type":"movie"},
-		{"key":"2","title":"TV Shows","type":"show"}
-	]}}`))
-	})
-
-	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Client().Return(stub.client, stub.server, true)
-
-	sources := mocks.NewMockMediaDescriber(t)
-	sources.EXPECT().DescribePath(mock.Anything, "/movies/test.mkv").Return(library.SourceInfo{})
-
-	handler, _ := pageHandler(t, auth, sources)
-
-	answer := getItem(t, handler, routes.PathItemPrefix+"42")
-
-	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, `name="name"`,
-		"the export form is rendered")
-	assertBodyContains(t, answer.body, `value="Test Movie (1999)" class="`,
-		"the export form is prefilled from the media title, which is only "+
-			"resolved before the form is built")
-}
-
-func TestMediaItemClipsRendersTheListFragment(t *testing.T) {
-	t.Parallel()
-
-	sources := mocks.NewMockMediaDescriber(t)
-	sources.EXPECT().
-		Describe(mock.Anything, "42").
-		Return(sourceInfo(2 * time.Hour))
-
-	handler, db := pageHandler(t, offlineAuth(t), sources)
-	storeClip(t, db, clipJob("old-clip", clip.StatusProcessing))
-
-	answer := serve(t, mediaItemApp(handler), routes.PathItemPrefix+"42/clips", true)
-
-	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, `id="clip-`+"old-clip"+`"`,
-		"the fragment is the clip cards the page swaps in")
-	assertBodyContains(t, answer.body, `data-media-dur="7200.000"`,
-		"the card is stamped with the probed source length")
-}
-
-func TestMediaItemClipsFiltersThroughTheListQuery(t *testing.T) {
-	t.Parallel()
-
-	sources := mocks.NewMockMediaDescriber(t)
-	sources.EXPECT().Describe(mock.Anything, "42").Return(library.SourceInfo{})
-
-	handler, db := pageHandler(t, offlineAuth(t), sources)
-	storeClip(t, db, clipJob("done", clip.StatusCompleted))
-	storeClip(t, db, clipJob("busy", clip.StatusProcessing))
-
-	answer := serve(
-		t,
-		mediaItemApp(handler),
-		routes.PathItemPrefix+"42/clips?status=completed",
-		true,
-	)
-
-	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, `id="clip-done"`,
-		"the requested status is in the fragment")
-	assertBodyOmits(t, answer.body, `id="clip-busy"`,
-		"a status filter has to narrow the list the page swaps in")
-}
-
-func TestMediaItemStampsEveryCardWithTheSourceInformation(t *testing.T) {
-	t.Parallel()
-
-	sources := mocks.NewMockMediaDescriber(t)
-	sources.EXPECT().
-		Describe(mock.Anything, "42").
-		Return(sourceInfo(3 * time.Hour))
-
-	handler, db := pageHandler(t, offlineAuth(t), sources)
-	storeClip(t, db, clipJob("first", clip.StatusProcessing))
-	storeClip(t, db, clipJob("second", clip.StatusProcessing))
-
-	answer := serve(t, mediaItemApp(handler), routes.PathItemPrefix+"42/clips", true)
-
-	require.Equal(t, fiber.StatusOK, answer.status)
-	assert.Equal(t, 2, countOccurrences(answer.body, `name="audioIndex"`),
-		"each card offers the probed audio tracks")
-	assert.Zero(t, countOccurrences(answer.body, `name="preserveHdr"`),
-		"Keep HDR is the profile's, so no card offers it")
-	assert.Equal(t, 2, countOccurrences(answer.body, `name="endTime"`),
-		"each card is stamped with its own end mark")
-}
-
-func TestMediaItemClipsRendersAGIFCard(t *testing.T) {
-	t.Parallel()
-
-	gif := testClipJob("animated", clip.TypeGIF)
-
-	gif.Status = clip.StatusProcessing
-
-	handler, db := pageHandler(t, offlineAuth(t), silentSources(t))
-	storeClip(t, db, gif)
-
-	answer := serve(t, mediaItemApp(handler), routes.PathItemPrefix+"42/clips", true)
-
-	require.Equal(t, fiber.StatusOK, answer.status)
-	assertBodyContains(t, answer.body, `data-export-for="gif"`,
-		"a GIF card offers the width and frame rate a video clip has no use for")
-}
-
-func TestNewClipSendsAnEmptyMediaIDToTheBrowser(t *testing.T) {
-	t.Parallel()
-
-	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	answer := serve(t, mediaItemApp(handler), "/media/new", false)
-
-	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, routes.PathMedia, answer.header.Get(fiber.HeaderLocation),
-		"with no media id there is no item page to open")
-}
-
-func TestNewClipCarriesAStartMark(t *testing.T) {
-	t.Parallel()
-
-	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	answer := serve(t, mediaItemApp(handler),
-		"/media/new?mediaId=42&"+routes.QueryStart+"=12.5",
-		false)
-
-	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, routes.PathItemPrefix+"42?"+routes.QueryStart+"=12.5",
-		answer.header.Get(fiber.HeaderLocation),
-		"the mark the user set has to survive the hop to the editor")
-}
-
-func TestNewClipCarriesNoMarkWhenNoneWasSet(t *testing.T) {
-	t.Parallel()
-
-	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
-
-	answer := serve(t, mediaItemApp(handler),
-		"/media/new?mediaId=42",
-		false)
-
-	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, routes.PathItemPrefix+"42", answer.header.Get(fiber.HeaderLocation),
-		"an empty mark is not worth carrying, so the item page is asked for plainly")
-}
-
-func TestMediaItemErrorPrefersTheFlash(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "clip name is required",
-		mediaItemError(assert.AnError, "clip name is required"),
-		"the message the user caused is the one they have to act on")
-}
-
+// TestMediaItemErrorFallsBackToTheLoadNotice covers the notice on its own:
+// a failed load shows it, and an item that loaded has nothing to say.
 func TestMediaItemErrorFallsBackToTheLoadNotice(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, mediaLoadFailedMsg, mediaItemError(assert.AnError, ""))
-	assert.Empty(t, mediaItemError(nil, ""),
-		"an item that loaded and left no flash has nothing to say")
+	var failed, loaded string
+
+	app := fiber.New()
+	respondtest.Sessions(t, app)
+	app.Get("/x", func(ctx fiber.Ctx) error {
+		failed = mediaItemError(ctx, assert.AnError)
+		loaded = mediaItemError(ctx, nil)
+
+		return nil
+	})
+
+	resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/x", nil))
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	assert.Equal(t, mediaLoadFailedMsg, failed)
+	assert.Empty(t, loaded, "an item that loaded and left no flash has nothing to say")
 }
 
 func TestLoadMediaItemReportsNoServerBound(t *testing.T) {
@@ -594,4 +475,167 @@ func TestMediaItemProbesNothingForAnItemWithoutAFile(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, "Test Show",
 		"the page still renders what Plex reported")
+}
+
+func TestMediaItemClipsFiltersThroughTheListQuery(t *testing.T) {
+	t.Parallel()
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().Describe(mock.Anything, "42").Return(library.SourceInfo{})
+
+	handler, db := pageHandler(t, offlineAuth(t), sources)
+	storeClip(t, db, clipJob("done", clip.StatusCompleted))
+	storeClip(t, db, clipJob("busy", clip.StatusProcessing))
+
+	answer := serve(
+		t,
+		mediaItemApp(handler),
+		routes.PathItemPrefix+"42/clips?status=completed",
+		true,
+	)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, `id="clip-done"`,
+		"the requested status is in the fragment")
+	assertBodyOmits(t, answer.body, `id="clip-busy"`,
+		"a status filter has to narrow the list the page swaps in")
+}
+
+func TestMediaItemClipsRendersAGIFCard(t *testing.T) {
+	t.Parallel()
+
+	gif := testClipJob("animated", clip.TypeGIF)
+
+	gif.Status = clip.StatusProcessing
+
+	handler, db := pageHandler(t, offlineAuth(t), silentSources(t))
+	storeClip(t, db, gif)
+
+	answer := serve(t, mediaItemApp(handler), routes.PathItemPrefix+"42/clips", true)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, `data-export-for="gif"`,
+		"a GIF card offers the width and frame rate a video clip has no use for")
+}
+
+func TestMediaItemClipsRendersTheListFragment(t *testing.T) {
+	t.Parallel()
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().
+		Describe(mock.Anything, "42").
+		Return(sourceInfo(2 * time.Hour))
+
+	handler, db := pageHandler(t, offlineAuth(t), sources)
+	storeClip(t, db, clipJob("old-clip", clip.StatusProcessing))
+
+	answer := serve(t, mediaItemApp(handler), routes.PathItemPrefix+"42/clips", true)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, `id="clip-`+"old-clip"+`"`,
+		"the fragment is the clip cards the page swaps in")
+	assertBodyContains(t, answer.body, `data-media-dur="7200.000"`,
+		"the card is stamped with the probed source length")
+}
+
+func TestMediaItemNamesTheExportFormFromTheMediaTitle(t *testing.T) {
+	t.Parallel()
+
+	stub := startPMS(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/library/metadata/42" {
+			_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
+		{"ratingKey":"42","title":"Test Movie","type":"movie","duration":7200000,
+		 "year":1999,"librarySectionID":"1",
+		 "Media":[{"Part":[{"file":"/movies/test.mkv"}]}]}
+	]}}`))
+
+			return
+		}
+
+		_, _ = w.Write([]byte(`{"MediaContainer":{"Directory":[
+		{"key":"1","title":"Movies","type":"movie"},
+		{"key":"2","title":"TV Shows","type":"show"}
+	]}}`))
+	})
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().DescribePath(mock.Anything, "/movies/test.mkv").Return(library.SourceInfo{})
+
+	handler, _ := pageHandler(t, auth, sources)
+
+	answer := getItem(t, handler, routes.PathItemPrefix+"42")
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, `name="name"`,
+		"the export form is rendered")
+	assertBodyContains(t, answer.body, `value="Test Movie (1999)" class="`,
+		"the export form is prefilled from the media title, which is only "+
+			"resolved before the form is built")
+}
+
+func TestMediaItemStampsEveryCardWithTheSourceInformation(t *testing.T) {
+	t.Parallel()
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().
+		Describe(mock.Anything, "42").
+		Return(sourceInfo(3 * time.Hour))
+
+	handler, db := pageHandler(t, offlineAuth(t), sources)
+	storeClip(t, db, clipJob("first", clip.StatusProcessing))
+	storeClip(t, db, clipJob("second", clip.StatusProcessing))
+
+	answer := serve(t, mediaItemApp(handler), routes.PathItemPrefix+"42/clips", true)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.Equal(t, 2, countOccurrences(answer.body, `name="audioIndex"`),
+		"each card offers the probed audio tracks")
+	assert.Zero(t, countOccurrences(answer.body, `name="preserveHdr"`),
+		"Keep HDR is the profile's, so no card offers it")
+	assert.Equal(t, 2, countOccurrences(answer.body, `name="endTime"`),
+		"each card is stamped with its own end mark")
+}
+
+func TestNewClipCarriesAStartMark(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
+
+	answer := serve(t, mediaItemApp(handler),
+		"/media/new?mediaId=42&"+routes.QueryStart+"=12.5",
+		false)
+
+	require.Equal(t, fiber.StatusSeeOther, answer.status)
+	assert.Equal(t, routes.PathItemPrefix+"42?"+routes.QueryStart+"=12.5",
+		answer.header.Get(fiber.HeaderLocation),
+		"the mark the user set has to survive the hop to the editor")
+}
+
+func TestNewClipCarriesNoMarkWhenNoneWasSet(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
+
+	answer := serve(t, mediaItemApp(handler),
+		"/media/new?mediaId=42",
+		false)
+
+	require.Equal(t, fiber.StatusSeeOther, answer.status)
+	assert.Equal(t, routes.PathItemPrefix+"42", answer.header.Get(fiber.HeaderLocation),
+		"an empty mark is not worth carrying, so the item page is asked for plainly")
+}
+
+func TestNewClipSendsAnEmptyMediaIDToTheBrowser(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
+
+	answer := serve(t, mediaItemApp(handler), "/media/new", false)
+
+	require.Equal(t, fiber.StatusSeeOther, answer.status)
+	assert.Equal(t, routes.PathMedia, answer.header.Get(fiber.HeaderLocation),
+		"with no media id there is no item page to open")
 }

@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/PapagoLabs/outtake/internal/timecode"
 )
 
 // Selection is the window of a source a clip renders.
@@ -64,15 +62,11 @@ func (selection Selection) Validate(kind Type, limit time.Duration) error {
 	}
 
 	if selection.Length <= 0 {
-		return fmt.Errorf("%w: the range must be longer than zero", ErrInvalidDuration)
+		return ErrEmptyRange
 	}
 
 	if selection.Length > limit {
-		return fmt.Errorf(
-			"%w: must be between 0 and %v seconds",
-			ErrInvalidDuration,
-			limit.Seconds(),
-		)
+		return &SelectionTooLongError{Limit: limit}
 	}
 
 	return nil
@@ -87,7 +81,7 @@ func (selection Selection) Validate(kind Type, limit time.Duration) error {
 //   - err: Non-nil when the selection reaches past the end of the source.
 func (selection Selection) WithinSource(kind Type) error {
 	if selection.Start < 0 {
-		return fmt.Errorf("%w: the start must not be negative", ErrRangeOutsideMedia)
+		return ErrNegativeStart
 	}
 
 	if selection.SourceLength <= 0 {
@@ -95,22 +89,16 @@ func (selection Selection) WithinSource(kind Type) error {
 	}
 
 	if selection.Start >= selection.SourceLength {
-		return fmt.Errorf(
-			"%w: the start is %s but the media is only %s long",
-			ErrRangeOutsideMedia,
-			timecode.FromDuration(selection.Start).Short(),
-			timecode.FromDuration(selection.SourceLength).Short(),
-		)
+		return &PastSourceEndError{
+			Edge:         MarkStart,
+			Mark:         selection.Start,
+			SourceLength: selection.SourceLength,
+		}
 	}
 
 	end := selection.Start + BoundedLength(kind, selection.Length)
 	if end > selection.SourceLength {
-		return fmt.Errorf(
-			"%w: the end is %s but the media is only %s long",
-			ErrRangeOutsideMedia,
-			timecode.FromDuration(end).Short(),
-			timecode.FromDuration(selection.SourceLength).Short(),
-		)
+		return &PastSourceEndError{Edge: MarkEnd, Mark: end, SourceLength: selection.SourceLength}
 	}
 
 	return nil

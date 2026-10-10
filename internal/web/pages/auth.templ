@@ -4,6 +4,7 @@
 package pages
 
 import (
+	"github.com/PapagoLabs/outtake/internal/web/view"
 	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/components/brand"
@@ -36,7 +37,7 @@ templ AuthComplete(next string) {
 			data-auth-next={ next }
 		>
 			<div class="w-full max-w-md p-8">
-				@flash.Slot("")
+				@flash.Slot(view.FailureFromContext(ctx))
 				<p>Login complete. Close this window to continue.</p>
 			</div>
 			<script src={ utils.ScriptURL("/assets/js/auth-complete.js") }></script>

@@ -31,6 +31,8 @@ type pageAnswer struct {
 	status int
 	header http.Header
 	body   string
+	// cookies carry the session the response used.
+	cookies []*http.Cookie
 }
 
 // pageHandler wires a pages handler around the given collaborators.
@@ -183,7 +185,12 @@ func serveMethod(
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	return pageAnswer{status: resp.StatusCode, header: resp.Header, body: string(body)}
+	return pageAnswer{
+		status:  resp.StatusCode,
+		header:  resp.Header,
+		body:    string(body),
+		cookies: resp.Cookies(),
+	}
 }
 
 // assertBodyContains reports whether a rendered page contains a fragment. A full
@@ -331,5 +338,10 @@ func serveWithCookies(
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 
-	return pageAnswer{status: resp.StatusCode, header: resp.Header, body: string(body)}
+	return pageAnswer{
+		status:  resp.StatusCode,
+		header:  resp.Header,
+		body:    string(body),
+		cookies: resp.Cookies(),
+	}
 }

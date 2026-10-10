@@ -45,7 +45,6 @@ func (handler *Handler) ClipProfiles(ctx fiber.Ctx) error {
 			Profiles: view.ClipProfileItems(handler.profiles.List(ctx.Context())),
 			Presets:  clipprofile.EncoderPresets(),
 			Widths:   clipprofile.OutputWidths(),
-			Error:    ctx.Query(routes.QueryError),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -140,12 +139,11 @@ func profileFields(ctx fiber.Ctx) clipprofile.ProfileFields {
 // Returns:
 //   - err: The redirect result.
 func redirectToProfiles(ctx fiber.Ctx, err error) error {
-	target := routes.PathSettingsProfiles
 	if err != nil {
-		target = respond.PathWithError(target, err.Error())
+		respond.SetFlash(ctx, respond.Fail(ctx, err))
 	}
 
-	redirectErr := respond.RedirectTo(ctx, target)
+	redirectErr := respond.RedirectTo(ctx, routes.PathSettingsProfiles)
 	if redirectErr != nil {
 		return fmt.Errorf("redirect to profiles: %w", redirectErr)
 	}

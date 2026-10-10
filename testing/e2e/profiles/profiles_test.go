@@ -60,7 +60,7 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Enter a name"))
 		})
 
 		It("redirects with an error when the CRF is out of range", func(ctx SpecContext) {
@@ -68,7 +68,7 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("CRF must be 0 to 51"))
 		})
 
 		It("redirects with an error when the preset is unknown", func(ctx SpecContext) {
@@ -76,7 +76,7 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Choose an encoder preset from the list"))
 		})
 
 		It("redirects with an error when the width is not an export size", func(ctx SpecContext) {
@@ -88,7 +88,7 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Choose a maximum resolution from the list"))
 		})
 	})
 
@@ -101,7 +101,7 @@ var _ = Describe("Profiles", func() {
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
 			Expect(resp.Header.Get("Location")).To(HavePrefix("/settings/profiles"))
-			Expect(resp.Header.Get("Location")).NotTo(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).NotTo(ContainSubstring("js-flash"))
 		})
 
 		It("redirects with an error for an unknown profile", func(ctx SpecContext) {
@@ -110,7 +110,7 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("That profile no longer exists"))
 		})
 	})
 
@@ -124,7 +124,7 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).NotTo(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).NotTo(ContainSubstring("js-flash"))
 
 			body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/settings/profiles"))
 			Expect(body).NotTo(ContainSubstring("E2E Deleted Profile"))
@@ -138,7 +138,7 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusFound))
-			Expect(resp.Header.Get("Location")).To(ContainSubstring("error="))
+			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("That profile no longer exists"))
 		})
 	})
 })
@@ -169,8 +169,8 @@ func createProfile(ctx SpecContext, name string) string {
 	helpers.CloseBody(resp)
 
 	Expect(resp.StatusCode).To(Equal(http.StatusFound))
-	Expect(resp.Header.Get("Location")).NotTo(
-		ContainSubstring("error="),
+	Expect(testApp.Landing(ctx, resp)).NotTo(
+		ContainSubstring("js-flash"),
 		"the %q profile stored without an error",
 		name,
 	)

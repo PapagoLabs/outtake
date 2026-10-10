@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/server/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -76,8 +77,11 @@ var boundServer = plex.Server{
 
 // Returns:
 //   - app: The app the routes are mounted on.
-func serversApp(handler *Handler) *fiber.App {
+func serversApp(t *testing.T, handler *Handler) *fiber.App {
+	t.Helper()
+
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Get(routes.PathServers, handler.Servers)
 	app.Post(routes.PathServers+"/select", handler.SelectServer)
 
@@ -126,7 +130,7 @@ func sessionAppWithRoutes(
 func getServers(t *testing.T, handler *Handler) pageAnswer {
 	t.Helper()
 
-	return serve(t, serversApp(handler), routes.PathServers, false)
+	return serve(t, serversApp(t, handler), routes.PathServers, false)
 }
 
 // selectServer serves one server selection request.
@@ -141,26 +145,28 @@ func getServers(t *testing.T, handler *Handler) pageAnswer {
 func selectServer(t *testing.T, handler *Handler, form string) pageAnswer {
 	t.Helper()
 
-	return serveMethod(t, serversApp(handler), http.MethodPost, routes.PathServers+"/select",
+	return serveMethod(t, serversApp(t, handler), http.MethodPost, routes.PathServers+"/select",
 		false, form)
 }
 
-// flashOf reads the path and flash text a redirect carries.
+// flashOf reads the path a redirect lands on and the failure the session
+// carries to it.
 //
 // Parameters:
 //   - t: The test the redirect belongs to.
-//   - location: The redirect target.
+//   - app: The app, which respondtest.Sessions set up.
+//   - answer: The redirect.
 //
 // Returns:
 //   - path: The path the redirect lands on.
-//   - flash: The flash text, empty when none was carried.
-func flashOf(t *testing.T, location string) (string, string) {
+//   - flash: The failure's message, empty when none was carried.
+func flashOf(t *testing.T, app *fiber.App, answer pageAnswer) (string, string) {
 	t.Helper()
 
-	parsed, err := url.Parse(location)
+	parsed, err := url.Parse(answer.header.Get(fiber.HeaderLocation))
 	require.NoError(t, err)
 
-	return parsed.Path, parsed.Query().Get(routes.QueryError)
+	return parsed.Path, respondtest.FlashForCookies(t, app, answer.cookies).Message
 }
 
 // discoveredAuth builds an authentication whose Plex account lists one server.
@@ -298,11 +304,12 @@ func TestForgetServerReturnsToTheServerPicker(t *testing.T) {
 	auth.EXPECT().ForgetServer(mock.Anything).Return(nil).Once()
 
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Post("/servers/forget", pageHandler(t, auth, silentSources(t)).ForgetServer)
 
 	answer := serveMethod(t, app, http.MethodPost, "/servers/forget", false, "")
 
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	path, flash := flashOf(t, app, answer)
 	assert.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathServers, path, "the owner picks the next server")
 	assert.Empty(t, flash)
@@ -316,13 +323,14 @@ func TestForgetServerReportsAServerItCouldNotForget(t *testing.T) {
 	auth.EXPECT().ForgetServer(mock.Anything).Return(errSelectFailed).Once()
 
 	app := fiber.New()
+	respondtest.Sessions(t, app)
 	app.Post("/servers/forget", pageHandler(t, auth, silentSources(t)).ForgetServer)
 
 	answer := serveMethod(t, app, http.MethodPost, "/servers/forget", false, "")
 
-	path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+	path, flash := flashOf(t, app, answer)
 	assert.Equal(t, routes.PathServers, path)
-	assert.NotEmpty(t, flash, "the owner is told the server was not forgotten")
+	assert.Equal(t, "Outtake couldn't forget the server. Try again.", flash)
 }
 
 func TestSelectServerBindsTheChosenConnection(t *testing.T) {
@@ -389,10 +397,10 @@ func TestSelectServerExplainsARefusedChoice(t *testing.T) {
 		err  error
 		want string
 	}{
-		"not on the account": {err: identity.ErrServerNotFound, want: "not a Plex server on your account"},
-		"unreachable":        {err: identity.ErrServerUnreachable, want: "cannot reach that server"},
-		"not http":           {err: identity.ErrInvalidServerURL, want: "http or https URL"},
-		"anything else":      {err: errListFailed, want: "could not use that server"},
+		"not on the account": {err: identity.ErrServerNotFound, want: "That isn't a Plex server on this account"},
+		"unreachable":        {err: identity.ErrServerUnreachable, want: "Outtake can't reach that server. Check the address."},
+		"not http":           {err: identity.ErrInvalidServerURL, want: "Enter an http or https URL for the Plex server"},
+		"anything else":      {err: errListFailed, want: "Outtake couldn't use that server. Try again."},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -403,12 +411,13 @@ func TestSelectServerExplainsARefusedChoice(t *testing.T) {
 			auth.EXPECT().ChooseCustomURL(mock.Anything, mock.Anything, mock.Anything).
 				Return(plex.EmptyServer(), test.err).Once()
 
-			answer := selectServer(t, pageHandler(t, auth, silentSources(t)),
+			app := serversApp(t, pageHandler(t, auth, silentSources(t)))
+			answer := serveMethod(t, app, http.MethodPost, routes.PathServers+"/select", false,
 				url.Values{"customUrl": {"https://plex.example.com"}}.Encode())
 
-			path, flash := flashOf(t, answer.header.Get(fiber.HeaderLocation))
+			path, flash := flashOf(t, app, answer)
 			assert.Equal(t, routes.PathServers, path, "a refused choice stays on the picker")
-			assert.Contains(t, flash, test.want)
+			assert.Equal(t, test.want, flash)
 		})
 	}
 }

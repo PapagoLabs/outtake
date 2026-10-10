@@ -4,8 +4,14 @@
 package database
 
 import (
+	"errors"
 	"strconv"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgconn"
+	"modernc.org/sqlite"
+
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 // dialect identifies the SQL dialect used by a connection.
@@ -17,6 +23,9 @@ const (
 	// dialectPostgres is the dialect spoken by the Postgres backend.
 	dialectPostgres
 )
+
+// pgUniqueViolation is the Postgres error code for a unique constraint.
+const pgUniqueViolation = "23505"
 
 const (
 	// BackendSQLite is the default libsql/SQLite backend.
@@ -103,4 +112,26 @@ func rewritePlaceholders(query string) string {
 	}
 
 	return builder.String()
+}
+
+// isUniqueViolation reports whether a write broke a unique constraint, read
+// from the driver's error code rather than its message. The SQLite and
+// Postgres drivers report a code. A libsql error carries none, so it reads as
+// another failure.
+//
+// Parameters:
+//   - err: The write's error, which may be nil.
+//
+// Returns:
+//   - violated: True when a unique constraint refused the write.
+func isUniqueViolation(err error) bool {
+	if sqliteErr, ok := errors.AsType[*sqlite.Error](err); ok {
+		return sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE
+	}
+
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
+		return pgErr.Code == pgUniqueViolation
+	}
+
+	return false
 }

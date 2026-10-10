@@ -27,7 +27,6 @@ func (handler *Handler) PreviewSettings(ctx fiber.Ctx) error {
 		return pages.PreviewSettings(pages.PreviewSettingsProps{
 			MaxPreviewWidth:  playback.MaxPreviewWidth(ctx.Context(), handler.db),
 			MaxPreviewWidths: playback.MaxPreviewWidths(),
-			Error:            ctx.Query(routes.QueryError),
 		}).Render(ctx.Context(), writer)
 	})
 }
@@ -41,14 +40,12 @@ func (handler *Handler) PreviewSettings(ctx fiber.Ctx) error {
 // Returns:
 //   - err: Redirect error, or nil on success.
 func (handler *Handler) SavePreviewSettings(ctx fiber.Ctx) error {
-	target := routes.PathSettingsPreviews
-
 	err := playback.SaveMaxPreviewWidth(ctx.Context(), handler.db, ctx.FormValue("maxPreviewWidth"))
 	if err != nil {
-		target = respond.PathWithError(target, err.Error())
+		respond.SetFlash(ctx, respond.Fail(ctx, err))
 	}
 
-	err = respond.RedirectTo(ctx, target)
+	err = respond.RedirectTo(ctx, routes.PathSettingsPreviews)
 	if err != nil {
 		return fmt.Errorf("redirect to preview settings: %w", err)
 	}

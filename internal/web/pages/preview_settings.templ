@@ -10,7 +10,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/button"
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
-	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/components/label"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
@@ -22,8 +21,6 @@ type PreviewSettingsProps struct {
 	MaxPreviewWidth int
 	// MaxPreviewWidths lists the widths the setting offers.
 	MaxPreviewWidths []int
-	// Error is a failed save's message, empty otherwise.
-	Error string
 }
 
 // PreviewSettings renders the settings for clip previews.
@@ -34,7 +31,6 @@ templ PreviewSettings(props PreviewSettingsProps) {
 	@layout.Layout(layout.Props{Title: "Previews", Active: "previews"}) {
 		<div class="flex flex-col gap-6 max-w-xl">
 			<h2 class="text-2xl font-bold tracking-tight">Previews</h2>
-			@flash.Banner(props.Error)
 			@card.Card() {
 				@card.Content() {
 					<form action="/settings/previews" method="POST" class="flex flex-col gap-4">

@@ -110,7 +110,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				</p>
 			</div>
-			@flash.Banner(props.Error)
+			@flash.Banner(view.NewNotice(props.Error))
 			@card.Card() {
 				@card.Header() {
 					@card.Title() {

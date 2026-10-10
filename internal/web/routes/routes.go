@@ -55,9 +55,6 @@ const (
 	// QueryEnd is the New export end mark on a media item page.
 	QueryEnd = "end"
 
-	// QueryError is the flash-error parameter on HTML pages.
-	QueryError = "error"
-
 	// QueryExportName carries the New export clip name across a redirect.
 	QueryExportName = "exportName"
 

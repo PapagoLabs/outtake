@@ -56,7 +56,7 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 		ClipSort:    query.Sort,
 		Profiles:    profile.SelectableProfiles(ctx.Context(), handler.db),
 		AudioTracks: view.AudioTrackOptions(source.AudioStreams),
-		Error:       mediaItemError(itemErr, ctx.Query(routes.QueryError)),
+		Error:       mediaItemError(ctx, itemErr),
 		PreviewID:   ctx.Query(routes.QueryPreview),
 		StartTime:   window.Start,
 		EndTime:     window.End,
@@ -228,22 +228,20 @@ func parseClipListQuery(ctx fiber.Ctx) catalog.ClipListQuery {
 	})
 }
 
-// mediaItemError prefers a form-flash query over a Plex metadata load failure.
+// mediaItemError is the notice the page shows when Plex metadata cannot be
+// loaded. A form failure the session carries to the page outranks it, and the
+// layout's banner shows that one instead.
 //
 // Parameters:
+//   - ctx: The page request, whose session may hold a form failure.
 //   - itemErr: Error from the Plex metadata load, which may be nil.
-//   - queryErr: Flash text carried in the request query.
 //
 // Returns:
-//   - message: The flash text, the load-failure notice, or an empty string.
-func mediaItemError(itemErr error, queryErr string) string {
-	if queryErr != "" {
-		return queryErr
+//   - message: The load-failure notice, or an empty string.
+func mediaItemError(ctx fiber.Ctx, itemErr error) string {
+	if itemErr == nil || respond.HasFlash(ctx) {
+		return ""
 	}
 
-	if itemErr != nil {
-		return mediaLoadFailedMsg
-	}
-
-	return ""
+	return mediaLoadFailedMsg
 }

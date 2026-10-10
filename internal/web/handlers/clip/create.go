@@ -17,6 +17,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
 
+// msgSaveFailed is shown when a new clip cannot be stored.
+const msgSaveFailed = "Couldn't save the clip. Check the Outtake log."
+
 // Create handles the create clip request.
 //
 // Parameters:
@@ -27,17 +30,27 @@ import (
 func (handler *Handler) Create(ctx fiber.Ctx) error {
 	req, err := ParseRequest(ctx)
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadRequest, api.InvalidRequest, err.Error())
+		return respond.WriteFailure(
+			ctx,
+			fiber.StatusBadRequest,
+			api.InvalidRequest,
+			respond.Fail(ctx, err),
+		)
 	}
 
 	jobType, err := clipdom.ResolveType(req.ClipType, "")
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadRequest, api.InvalidClipType, err.Error())
+		return respond.WriteFailure(
+			ctx,
+			fiber.StatusBadRequest,
+			api.InvalidClipType,
+			respond.Fail(ctx, err),
+		)
 	}
 
 	inputPath, failCode, err := handler.resolveNewClip(ctx, &req, jobType)
 	if err != nil {
-		return respond.WriteError(ctx, fiber.StatusBadRequest, failCode, err.Error())
+		return respond.WriteFailure(ctx, fiber.StatusBadRequest, failCode, respond.Fail(ctx, err))
 	}
 
 	job := buildJob(
@@ -53,11 +66,11 @@ func (handler *Handler) Create(ctx fiber.Ctx) error {
 
 	err = handler.db.SaveClip(ctx.Context(), job)
 	if err != nil {
-		return respond.WriteError(
+		return respond.WriteFailure(
 			ctx,
 			fiber.StatusInternalServerError,
 			api.PersistFailed,
-			err.Error(),
+			respond.FailWith(ctx, msgSaveFailed, err),
 		)
 	}
 
