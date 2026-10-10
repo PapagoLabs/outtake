@@ -13,9 +13,10 @@ tasks:
       - go build -o ./bin/outtake .
 
   test:
-    desc: Run tests
+    desc: Run tests under the race detector and gate the hand-written code's coverage
     cmds:
-      - go test -v ./...
+      - go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
+      - build/ci/coverage-gate.sh coverage.out
 
   test-e2e:
     desc: Run e2e tests (requires FFmpeg and Plex credentials)
@@ -30,13 +31,8 @@ tasks:
   mock:
     desc: Generate test mocks using mockery, with imports grouped like the rest of the code
     cmds:
-      - mockery --config=build/mockery/mockery.yaml
-      - find internal -type d -name mocks -exec goimports -local github.com/PapagoLabs/outtake -w {} +
-    preconditions:
-      - sh: "command -v mockery"
-        msg: "mockery must be installed (run: task mockery-install)"
-      - sh: "command -v goimports"
-        msg: "goimports must be installed (go install golang.org/x/tools/cmd/goimports@latest)"
+      - go tool mockery --config=build/mockery/mockery.yaml
+      - find internal -type d -name mocks -exec go tool goimports -local github.com/PapagoLabs/outtake -w {} +
 
   lint:
     desc: Run golangci-lint
@@ -120,13 +116,13 @@ tasks:
   templ:
     desc: Run templ
     cmds:
-      - templ generate
-      - goimports -local github.com/PapagoLabs/outtake -w ./internal/web
+      - go tool templ generate
+      - go tool goimports -local github.com/PapagoLabs/outtake -w ./internal/web
 
   templ-watch:
     desc: Run templ with integrated server and hot reload
     cmds:
-      - templ generate --watch --proxy="http://localhost:8080" --cmd="go run . server start" --open-browser=false
+      - go tool templ generate --watch --proxy="http://localhost:8080" --cmd="go run . server start" --open-browser=false
 
   theme-css:
     desc: Generate palette CSS from the theme catalog

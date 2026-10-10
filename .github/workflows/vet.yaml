@@ -38,11 +38,11 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Install templ
-        run: go install github.com/a-h/templ/cmd/templ@v0.3.1020
-
+      # Vet the output of templ generate alone, without the goimports pass, so a
+      # template that imports a package it never uses fails here as it would
+      # fail the image build.
       - name: Generate templ
-        run: templ generate
+        run: go tool templ generate
 
       - name: Vet
         run: go vet ./...

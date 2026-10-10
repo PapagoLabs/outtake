@@ -11,7 +11,7 @@ task templ          # required before lint/test/vet
 task lint           # golangci-lint --fix
 task lint-ci        # no --fix (what CI runs)
 task vet
-task test
+task test           # -race over ./..., then the coverage gate
 task run            # go run . server start
 task templ-watch    # templ proxy → :8080, cmd is server start
 task compose-dev    # docker compose up --build
@@ -24,7 +24,9 @@ Server CLI is `outtake server start` (or `go run . server start`), not `serve`. 
 
 ## Generated code
 
-`**/*.templ.go` is gitignored. `task templ` is `templ generate` then `goimports -local github.com/PapagoLabs/outtake -w ./internal/web`. Ungrouped imports after generate are fixed by that goimports pass, not by skipping generate.
+templ, goimports, and mockery are `go tool` dependencies pinned in `go.mod`, so the Taskfile, the workflows, and `Dockerfile.dev` all run the same versions through `go tool`. Never `go install` them or call them `@latest`.
+
+The generated `*_templ.go` files are committed. `task templ` is `go tool templ generate` then `go tool goimports -local github.com/PapagoLabs/outtake -w ./internal/web`. Ungrouped imports after generate are fixed by that goimports pass, not by skipping generate. The pass also drops an import a template no longer uses, which `templ generate` alone keeps, so remove it from the `.templ` file: `Dockerfile.dev` and `vet.yaml` run `templ generate` without goimports and fail on it.
 
 Do not add templ/goimports hooks to GoReleaser. CI and `task goreleaser*` already generate first. Do not edit Mockery output; regenerate with `task mock` and commit everything it writes. Its goimports pass groups the mocks' imports the way `task templ` regroups the web mocks, so the two tasks never undo each other.
 
@@ -42,7 +44,7 @@ Three tiers. Keep a test in the lowest tier that can prove the thing.
 
 ## CI coverage gate
 
-`.github/workflows/test.yaml` measures coverage one package at a time and aggregates; a single merged `-coverprofile` across `./...` cannot be summed. The gate reads only the **hand-written** bucket and excludes `**/mocks/**` and `*_templ.go`, which are scaffolding. Raise the floor as coverage improves; never lower it. It also runs the suite under `-race`.
+`task test` and `.github/workflows/test.yaml` run `go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...`, then `build/ci/coverage-gate.sh coverage.out`. The gate leaves `**/mocks/**` and `*_templ.go` out of the total, because they are scaffolding, and fails when the hand-written code is below the floor the script sets. Raise the floor as coverage improves. Never lower it.
 
 ## E2E
 
@@ -71,7 +73,7 @@ A handler answers a failure with `respond.WriteFailure` and a `view.Failure`: a 
 
 ## CI
 
-Workflows call templ, goimports, and goreleaser directly, not Taskfile. Go lint is `.github/workflows/lint-go.yaml` (no `lint.yaml`). lint-go / test / vet / security are pull_request + path filters, not push. `lint-gh.yaml` only on `.github/workflows/**`. Stable release: exact `vX.Y.Z` tags, `cancel-in-progress: false`. Changelog: git-cliff via `update-changelog.yaml` on `main`.
+Workflows run templ and goimports through `go tool`, and goreleaser through its action, not through Taskfile. Go lint is `.github/workflows/lint-go.yaml` (no `lint.yaml`). lint-go / test / vet / security are pull_request + path filters, not push. `lint-gh.yaml` only on `.github/workflows/**`. Stable release: exact `vX.Y.Z` tags, `cancel-in-progress: false`. Changelog: git-cliff via `update-changelog.yaml` on `main`.
 
 ## Domain
 
