@@ -3951,6 +3951,12 @@ linters:
 
     # Excluding configuration per-path, per-linter, per-text and per-source.
     rules:
+      # The e2e helpers ReadBody and CloseBody close every response the suite
+      # reads, and bodyclose cannot follow a close inside a helper.
+      - path: ^testing/e2e/
+        linters:
+          - bodyclose
+
       # Exclude some linters from running on tests files.
       - path: _test\.go
         linters:
@@ -4283,8 +4289,9 @@ run:
 
   # List of build tags, all linters use it.
   # Default: []
-  # build-tags:
-  #     - mytag
+  # The e2e suite under testing/e2e builds only with the e2e tag.
+  build-tags:
+    - e2e
 
   # If set, we pass it to "go list -mod={option}". From "go help modules":
   # If invoked with -mod=readonly, the go command is disallowed from the implicit

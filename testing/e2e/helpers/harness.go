@@ -74,6 +74,7 @@ const (
 	// resolver both branch on it, so every spec depends on it being e2e: with it
 	// the pages are reachable without a session, and a media id may be a local
 	// file path rather than a Plex rating key.
+	//nolint:goconst // The app's environment, which only shares its value with dirName.
 	Environment = "e2e"
 )
 
@@ -150,13 +151,30 @@ func New() *App {
 	return &App{}
 }
 
+// AfterSuite closes the application and removes the temporary directory.
+func (harness *App) AfterSuite() {
+	ginkgo.GinkgoHelper()
+
+	if harness.Application != nil {
+		harness.Application.Close()
+	}
+
+	if harness.Listener != nil {
+		_ = harness.Listener.Close()
+	}
+
+	if harness.Dir != "" {
+		_ = os.RemoveAll(harness.Dir)
+	}
+}
+
 // BeforeSuite loads the e2e environment, reserves a listen address, wires the
 // application, and generates the test video when ffmpeg is available.
 //
 // Every suite package calls this from its own BeforeSuite, because a compiled
 // test binary carries exactly one Ginkgo suite and therefore its own suite
 // lifecycle.
-func (a *App) BeforeSuite() {
+func (harness *App) BeforeSuite() {
 	ginkgo.GinkgoHelper()
 
 	loaded, err := LoadEnv()
@@ -164,128 +182,45 @@ func (a *App) BeforeSuite() {
 
 	loaded.Report()
 
-	a.reserve()
-	a.FFmpegOK = OnPath(ffmpegBin, ffprobeBin)
-	a.resolvePlex()
+	harness.reserve()
 
-	cfg := a.config()
-	a.BaseURL = "http://" + cfg.ListenAddr
+	harness.FFmpegOK = OnPath(ffmpegBin, ffprobeBin)
+	harness.resolvePlex()
+
+	cfg := harness.config()
+
+	harness.BaseURL = "http://" + cfg.ListenAddr
 
 	logging.InitFromConfig(cfg)
 
 	application, err := app.New(cfg)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "build the e2e application")
 
-	a.Application = application
+	harness.Application = application
 
-	if a.FFmpegOK {
-		video, videoErr := GenerateTestVideo(context.Background(), a.MediaDir)
+	if harness.FFmpegOK {
+		video, videoErr := GenerateTestVideo(context.Background(), harness.MediaDir)
 		gomega.Expect(videoErr).NotTo(
 			gomega.HaveOccurred(),
 			"generate the e2e test video",
 		)
 
-		a.TestVideo = video
+		harness.TestVideo = video
 	}
 }
 
-// AfterSuite closes the application and removes the temporary directory.
-func (a *App) AfterSuite() {
+// SkipWithoutFFmpeg skips the calling spec when ffmpeg is not on PATH.
+//
+// Returns:
+//   - nothing; the calling spec is abandoned when the binaries are missing.
+func (harness *App) SkipWithoutFFmpeg() {
 	ginkgo.GinkgoHelper()
 
-	if a.Application != nil {
-		a.Application.Close()
-	}
-
-	if a.Listener != nil {
-		_ = a.Listener.Close()
-	}
-
-	if a.Dir != "" {
-		_ = os.RemoveAll(a.Dir)
-	}
-}
-
-// reserve creates the suite's temporary tree and binds the loopback listener
-// that pins the application under test to one known address.
-func (a *App) reserve() {
-	ginkgo.GinkgoHelper()
-
-	dir, err := os.MkdirTemp("", tempPrefix)
-	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "create the e2e working directory")
-
-	listener, err := (&net.ListenConfig{}).Listen(context.Background(), listenNetwork, listenAddr)
-	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "reserve the e2e listen address")
-
-	a.Dir = dir
-	a.MediaDir = filepath.Join(dir, "media")
-	a.Listener = listener
-}
-
-// config builds the configuration the application under test is wired from. The
-// listen address comes from the reserved listener, so the configuration and the
-// advertised base URL are the same value by construction.
-func (a *App) config() *config.Config {
-	return &config.Config{
-		ListenAddr:            a.Listener.Addr().String(),
-		DatabasePath:          filepath.Join(a.Dir, "outtake.db"),
-		StoragePath:           filepath.Join(a.Dir, "storage"),
-		FFmpegPath:            ResolveBinary(ffmpegBin),
-		FFprobePath:           ResolveBinary(ffprobeBin),
-		LogLevel:              "error",
-		Env:                   Environment,
-		SessionPoll:           sessionPollSeconds * time.Second,
-		NumWorkers:            numWorkers,
-		MaxConcurrentPreviews: maxConcurrentPreviews,
-		MaxClipDur:            maxClipDuration,
-		CropBlackBars:         false,
-		PlexServerURL:         os.Getenv(ServerURLEnv),
-		PlexToken:             a.Token,
-		PlexClientID:          ClientID,
-	}
-}
-
-// resolvePlex records whether usable Plex credentials were supplied and builds
-// the server they name. Missing credentials are not an error: they only mean
-// the Plex-dependent specs skip.
-func (a *App) resolvePlex() {
-	ginkgo.GinkgoHelper()
-
-	token := strings.TrimSpace(os.Getenv(TokenEnv))
-	serverURL := strings.TrimSpace(os.Getenv(ServerURLEnv))
-
-	var missing []string
-	if token == "" {
-		missing = append(missing, TokenEnv)
-	}
-
-	if serverURL == "" {
-		missing = append(missing, ServerURLEnv)
-	}
-
-	if len(missing) > 0 {
-		a.PlexReason = fmt.Sprintf(
-			"Plex credentials unavailable: %s is not set; export it or add it to %s",
-			strings.Join(missing, " and "),
-			EnvLocation(),
-		)
-
+	if harness.FFmpegOK {
 		return
 	}
 
-	server, ok := plex.ServerFromURL(serverURL, token)
-	if !ok {
-		a.PlexReason = fmt.Sprintf(
-			"Plex credentials unavailable: %s is not a usable Plex server URL",
-			ServerURLEnv,
-		)
-
-		return
-	}
-
-	a.PlexOK = true
-	a.Token = token
-	a.Server = server
+	ginkgo.Skip("ffmpeg and ffprobe are not on PATH, so no clip or preview can be rendered")
 }
 
 // SkipWithoutPlex skips the calling spec when Plex credentials were not
@@ -296,28 +231,97 @@ func (a *App) resolvePlex() {
 //
 // Returns:
 //   - nothing; the calling spec is abandoned when the credentials are missing.
-func (a *App) SkipWithoutPlex() {
+func (harness *App) SkipWithoutPlex() {
 	ginkgo.GinkgoHelper()
 
-	if a.PlexOK {
+	if harness.PlexOK {
 		return
 	}
 
-	ginkgo.Skip(a.PlexReason)
+	ginkgo.Skip(harness.PlexReason)
 }
 
-// SkipWithoutFFmpeg skips the calling spec when ffmpeg is not on PATH.
-//
-// Returns:
-//   - nothing; the calling spec is abandoned when the binaries are missing.
-func (a *App) SkipWithoutFFmpeg() {
+// config builds the configuration the application under test is wired from. The
+// listen address comes from the reserved listener, so the configuration and the
+// advertised base URL are the same value by construction.
+func (harness *App) config() *config.Config {
+	return &config.Config{
+		ListenAddr:            harness.Listener.Addr().String(),
+		DatabasePath:          filepath.Join(harness.Dir, "outtake.db"),
+		StoragePath:           filepath.Join(harness.Dir, "storage"),
+		FFmpegPath:            ResolveBinary(ffmpegBin),
+		FFprobePath:           ResolveBinary(ffprobeBin),
+		LogLevel:              "error",
+		Env:                   Environment,
+		SessionPoll:           sessionPollSeconds * time.Second,
+		NumWorkers:            numWorkers,
+		MaxConcurrentPreviews: maxConcurrentPreviews,
+		MaxClipDur:            maxClipDuration,
+		CropBlackBars:         false,
+		PlexServerURL:         os.Getenv(ServerURLEnv),
+		PlexToken:             harness.Token,
+		PlexClientID:          ClientID,
+	}
+}
+
+// reserve creates the suite's temporary tree and binds the loopback listener
+// that pins the application under test to one known address.
+func (harness *App) reserve() {
 	ginkgo.GinkgoHelper()
 
-	if a.FFmpegOK {
+	dir, err := os.MkdirTemp("", tempPrefix)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "create the e2e working directory")
+
+	listener, err := (&net.ListenConfig{}).Listen(context.Background(), listenNetwork, listenAddr)
+	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "reserve the e2e listen address")
+
+	harness.Dir = dir
+	harness.MediaDir = filepath.Join(dir, "media")
+	harness.Listener = listener
+}
+
+// resolvePlex records whether usable Plex credentials were supplied and builds
+// the server they name. Missing credentials are not an error: they only mean
+// the Plex-dependent specs skip.
+func (harness *App) resolvePlex() {
+	ginkgo.GinkgoHelper()
+
+	token := strings.TrimSpace(os.Getenv(TokenEnv))
+	serverURL := strings.TrimSpace(os.Getenv(ServerURLEnv))
+
+	var missing []string
+
+	if token == "" {
+		missing = append(missing, TokenEnv)
+	}
+
+	if serverURL == "" {
+		missing = append(missing, ServerURLEnv)
+	}
+
+	if len(missing) > 0 {
+		harness.PlexReason = fmt.Sprintf(
+			"Plex credentials unavailable: %s is not set; export it or add it to %s",
+			strings.Join(missing, " and "),
+			EnvLocation(),
+		)
+
 		return
 	}
 
-	ginkgo.Skip("ffmpeg and ffprobe are not on PATH, so no clip or preview can be rendered")
+	server, ok := plex.ServerFromURL(serverURL, token)
+	if !ok {
+		harness.PlexReason = fmt.Sprintf(
+			"Plex credentials unavailable: %s is not a usable Plex server URL",
+			ServerURLEnv,
+		)
+
+		return
+	}
+
+	harness.PlexOK = true
+	harness.Token = token
+	harness.Server = server
 }
 
 // PlexClient returns a Plex client branded for the suite.

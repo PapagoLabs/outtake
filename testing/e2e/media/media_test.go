@@ -58,6 +58,7 @@ var _ = Describe("Media", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
 			var sessions []map[string]any
+
 			Expect(json.Unmarshal(body, &sessions)).To(Succeed())
 			Expect(sessions).NotTo(BeNil())
 		})

@@ -10,7 +10,7 @@ Taskfile, not Make. golangci config: `build/golangci-lint/golangci-lint.yaml`.
 task templ          # required before lint/test/vet
 task lint           # golangci-lint --fix
 task lint-ci        # no --fix (what CI runs)
-task vet
+task vet            # go vet, then go vet -tags e2e over testing/e2e
 task test           # -race over ./..., then the coverage gate
 task run            # go run . server start
 task templ-watch    # templ proxy → :8080, cmd is server start
@@ -75,7 +75,7 @@ A handler answers a failure with `respond.WriteFailure` and a `view.Failure`: a 
 
 ## CI
 
-Workflows run templ and goimports through `go tool`, and goreleaser through its action, not through Taskfile. Go lint is `.github/workflows/lint-go.yaml` (no `lint.yaml`). lint-go / test / vet / security are pull_request + path filters, not push. `lint-gh.yaml` only on `.github/workflows/**`. Stable release: exact `vX.Y.Z` tags, `cancel-in-progress: false`. Changelog: git-cliff via `update-changelog.yaml` on `main`.
+Workflows run templ and goimports through `go tool`, and goreleaser through its action, not through Taskfile. Go lint is `.github/workflows/lint-go.yaml` (no `lint.yaml`). lint-go / test / vet / security are pull_request + path filters, not push. lint-go and vet also watch `testing/**`, because the golangci-lint config builds with the `e2e` tag and `vet.yaml` vets the suite with `-tags e2e`, so e2e code is linted and compiled on every PR that touches it, although the suite itself runs only locally. `lint-gh.yaml` only on `.github/workflows/**`. Stable release: exact `vX.Y.Z` tags, `cancel-in-progress: false`. Changelog: git-cliff via `update-changelog.yaml` on `main`.
 
 ## Domain
 

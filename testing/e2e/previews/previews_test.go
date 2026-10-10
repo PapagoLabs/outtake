@@ -169,10 +169,10 @@ func previewIDFrom(location string) string {
 
 // statusPath builds the status endpoint for one preview.
 func statusPath(previewID string) string {
-	return fmt.Sprintf("/api/clips/preview/%s", previewID)
+	return "/api/clips/preview/" + previewID
 }
 
 // filePath builds the published preview file path for one preview.
 func filePath(previewID string) string {
-	return fmt.Sprintf("/previews/%s", previewID)
+	return "/previews/" + previewID
 }

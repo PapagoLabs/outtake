@@ -6,7 +6,6 @@
 package helpers
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -34,7 +33,7 @@ func TestCSRFHandshakeIsRequired(t *testing.T) {
 	t.Parallel()
 
 	application := newProbeApp(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	postStatus := func(token string, cookies []*http.Cookie) int {
 		req, reqErr := http.NewRequestWithContext(
@@ -143,7 +142,7 @@ func handshakeFor(t *testing.T, application *app.App) (string, []*http.Cookie) {
 	t.Helper()
 
 	req, err := http.NewRequestWithContext(
-		context.Background(),
+		t.Context(),
 		http.MethodGet,
 		"http://127.0.0.1:8080"+HandshakePath,
 		http.NoBody,

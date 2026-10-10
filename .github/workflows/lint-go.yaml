@@ -8,6 +8,7 @@ on:
       - go.mod
       - go.sum
       - internal/**
+      - testing/**
 
 permissions:
   contents: read

@@ -20,13 +20,21 @@ import (
 var _ = Describe("Plex errors", func() {
 	Describe("Unreachable server", func() {
 		It("fails to ping", func(ctx SpecContext) {
-			client := helpers.PlexClient("invalid-token-12345", "http://192.0.2.1:32400", 5*time.Second)
+			client := helpers.PlexClient(
+				"invalid-token-12345",
+				"http://192.0.2.1:32400",
+				5*time.Second,
+			)
 
 			Expect(client.Ping(ctx, unreachableServer())).To(HaveOccurred())
 		})
 
 		It("fails to list libraries", func(ctx SpecContext) {
-			client := helpers.PlexClient("invalid-token-12345", "http://192.0.2.1:32400", 5*time.Second)
+			client := helpers.PlexClient(
+				"invalid-token-12345",
+				"http://192.0.2.1:32400",
+				5*time.Second,
+			)
 
 			_, err := client.GetLibraries(ctx, unreachableServer())
 			Expect(err).To(HaveOccurred())
@@ -35,7 +43,11 @@ var _ = Describe("Plex errors", func() {
 
 	Describe("Invalid token", func() {
 		It("rejects a token no account holds", func(ctx SpecContext) {
-			client := helpers.PlexClient("invalid-token-12345", helpers.PlexTVBaseURL, 30*time.Second)
+			client := helpers.PlexClient(
+				"invalid-token-12345",
+				helpers.PlexTVBaseURL,
+				30*time.Second,
+			)
 
 			valid, _, err := client.ValidateToken(ctx)
 			Expect(err).To(HaveOccurred())

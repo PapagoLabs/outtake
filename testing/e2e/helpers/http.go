@@ -51,13 +51,13 @@ const (
 //
 // Returns:
 //   - resp: Response the router produced.
-func (a *App) Do(ctx context.Context, method, path string) *http.Response {
+func (harness *App) Do(ctx context.Context, method, path string) *http.Response {
 	ginkgo.GinkgoHelper()
 
-	req := a.newRequest(ctx, method, path, "", nil)
-	a.authorize(req)
+	req := harness.newRequest(ctx, method, path, "", nil)
+	harness.authorize(req)
 
-	return a.send(req)
+	return harness.send(req)
 }
 
 // DoBody sends a request carrying a body, using the content type given.
@@ -71,17 +71,17 @@ func (a *App) Do(ctx context.Context, method, path string) *http.Response {
 //
 // Returns:
 //   - resp: Response the router produced.
-func (a *App) DoBody(
+func (harness *App) DoBody(
 	ctx context.Context,
 	method, path, contentType string,
 	body io.Reader,
 ) *http.Response {
 	ginkgo.GinkgoHelper()
 
-	req := a.newRequest(ctx, method, path, contentType, body)
-	a.authorize(req)
+	req := harness.newRequest(ctx, method, path, contentType, body)
+	harness.authorize(req)
 
-	return a.send(req)
+	return harness.send(req)
 }
 
 // PostJSON posts a JSON document to path.
@@ -93,13 +93,13 @@ func (a *App) DoBody(
 //
 // Returns:
 //   - resp: Response the router produced.
-func (a *App) PostJSON(ctx context.Context, path string, body any) *http.Response {
+func (harness *App) PostJSON(ctx context.Context, path string, body any) *http.Response {
 	ginkgo.GinkgoHelper()
 
 	encoded, err := json.Marshal(body)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "encode the %s request body", path)
 
-	return a.DoBody(ctx, http.MethodPost, path, contentTypeJSON, bytes.NewReader(encoded))
+	return harness.DoBody(ctx, http.MethodPost, path, contentTypeJSON, bytes.NewReader(encoded))
 }
 
 // PostForm posts urlencoded form values to path.
@@ -111,10 +111,10 @@ func (a *App) PostJSON(ctx context.Context, path string, body any) *http.Respons
 //
 // Returns:
 //   - resp: Response the router produced.
-func (a *App) PostForm(ctx context.Context, path string, values url.Values) *http.Response {
+func (harness *App) PostForm(ctx context.Context, path string, values url.Values) *http.Response {
 	ginkgo.GinkgoHelper()
 
-	return a.DoBody(
+	return harness.DoBody(
 		ctx,
 		http.MethodPost,
 		path,
@@ -133,10 +133,10 @@ func (a *App) PostForm(ctx context.Context, path string, values url.Values) *htt
 //
 // Returns:
 //   - id: Identifier of the created clip job.
-func (a *App) CreateClip(ctx context.Context, mediaID, title string) string {
+func (harness *App) CreateClip(ctx context.Context, mediaID, title string) string {
 	ginkgo.GinkgoHelper()
 
-	resp := a.PostJSON(ctx, ClipsPath, api.ClipRequest{
+	resp := harness.PostJSON(ctx, ClipsPath, api.ClipRequest{
 		MediaID:    mediaID,
 		MediaTitle: title,
 		MediaType:  movieType,
@@ -165,7 +165,7 @@ func (a *App) CreateClip(ctx context.Context, mediaID, title string) string {
 //   - jobID: Identifier of the clip job to poll.
 //   - expected: Status the wait is looking for.
 //   - timeout: How long the wait keeps polling.
-func (a *App) WaitForClipStatus(
+func (harness *App) WaitForClipStatus(
 	ctx context.Context,
 	jobID, expected string,
 	timeout time.Duration,
@@ -176,7 +176,7 @@ func (a *App) WaitForClipStatus(
 	deadline := time.Now().Add(timeout)
 
 	for {
-		clip := DecodeClip(ReadBody(a.Do(ctx, http.MethodGet, path)))
+		clip := DecodeClip(ReadBody(harness.Do(ctx, http.MethodGet, path)))
 
 		if string(clip.Status) == expected {
 			return
@@ -204,7 +204,7 @@ func (a *App) WaitForClipStatus(
 }
 
 // newRequest builds a request against the reserved base URL.
-func (a *App) newRequest(
+func (harness *App) newRequest(
 	ctx context.Context,
 	method, path, contentType string,
 	body io.Reader,
@@ -215,7 +215,7 @@ func (a *App) newRequest(
 		body = http.NoBody
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, a.BaseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, method, harness.BaseURL+path, body)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "build the %s %s request", method, path)
 
 	if contentType != "" {
@@ -226,10 +226,10 @@ func (a *App) newRequest(
 }
 
 // send passes a request through the application and returns its response.
-func (a *App) send(req *http.Request) *http.Response {
+func (harness *App) send(req *http.Request) *http.Response {
 	ginkgo.GinkgoHelper()
 
-	resp, err := a.Application.Test(req)
+	resp, err := harness.Application.Test(req)
 	gomega.Expect(err).NotTo(gomega.HaveOccurred(), "%s %s", req.Method, req.URL.Path)
 
 	return resp
@@ -241,14 +241,14 @@ func (a *App) send(req *http.Request) *http.Response {
 // cookies with the token in the CSRF header. The composition root's Test entry
 // point keeps no cookie jar between requests, so each unsafe request opens its
 // own session.
-func (a *App) authorize(req *http.Request) {
+func (harness *App) authorize(req *http.Request) {
 	ginkgo.GinkgoHelper()
 
 	if !needsCSRFToken(req.Method) {
 		return
 	}
 
-	token, cookies := a.mintCSRF(req.Context())
+	token, cookies := harness.mintCSRF(req.Context())
 	if token == "" {
 		return
 	}
@@ -269,10 +269,10 @@ func (a *App) authorize(req *http.Request) {
 // Returns:
 //   - token: The session's token, empty when the response carried none.
 //   - cookies: The session and CSRF cookies the response set.
-func (a *App) mintCSRF(ctx context.Context) (string, []*http.Cookie) {
+func (harness *App) mintCSRF(ctx context.Context) (string, []*http.Cookie) {
 	ginkgo.GinkgoHelper()
 
-	resp := a.send(a.newRequest(ctx, http.MethodGet, HandshakePath, "", nil))
+	resp := harness.send(harness.newRequest(ctx, http.MethodGet, HandshakePath, "", nil))
 	defer CloseBody(resp)
 
 	cookies := resp.Cookies()
@@ -323,10 +323,10 @@ func sleep(ctx context.Context, interval time.Duration) {
 //
 // Returns:
 //   - body: The page the redirect lands on.
-func (a *App) Landing(ctx context.Context, resp *http.Response) string {
+func (harness *App) Landing(ctx context.Context, resp *http.Response) string {
 	ginkgo.GinkgoHelper()
 
-	return a.LandingAt(ctx, resp, resp.Header.Get("Location"))
+	return harness.LandingAt(ctx, resp, resp.Header.Get("Location"))
 }
 
 // LandingAt opens a page with the session a response left, and returns that
@@ -340,10 +340,10 @@ func (a *App) Landing(ctx context.Context, resp *http.Response) string {
 //
 // Returns:
 //   - body: The page at path.
-func (a *App) LandingAt(ctx context.Context, resp *http.Response, path string) string {
+func (harness *App) LandingAt(ctx context.Context, resp *http.Response, path string) string {
 	ginkgo.GinkgoHelper()
 
-	req := a.newRequest(ctx, http.MethodGet, path, "", nil)
+	req := harness.newRequest(ctx, http.MethodGet, path, "", nil)
 
 	if resp.Request != nil {
 		for _, cookie := range resp.Request.Cookies() {
@@ -355,7 +355,7 @@ func (a *App) LandingAt(ctx context.Context, resp *http.Response, path string) s
 		req.AddCookie(cookie)
 	}
 
-	return string(ReadBody(a.send(req)))
+	return string(ReadBody(harness.send(req)))
 }
 
 // ReadBody reads a response body and closes it.
@@ -399,6 +399,7 @@ func DecodeClip(body []byte) api.ClipResponse {
 	ginkgo.GinkgoHelper()
 
 	var clip api.ClipResponse
+
 	gomega.Expect(json.Unmarshal(body, &clip)).To(gomega.Succeed(), "decode the clip response")
 
 	return clip
@@ -415,6 +416,7 @@ func DecodeList(body []byte) api.MediaListResponse {
 	ginkgo.GinkgoHelper()
 
 	var list api.MediaListResponse
+
 	gomega.Expect(
 		json.Unmarshal(body, &list),
 	).To(gomega.Succeed(), "decode the media list response")
@@ -433,6 +435,7 @@ func DecodeError(body []byte) api.ErrorResponse {
 	ginkgo.GinkgoHelper()
 
 	var failure api.ErrorResponse
+
 	gomega.Expect(
 		json.Unmarshal(body, &failure),
 	).To(gomega.Succeed(), "decode the error response")
@@ -451,6 +454,7 @@ func DecodeObject(body []byte) map[string]any {
 	ginkgo.GinkgoHelper()
 
 	var object map[string]any
+
 	gomega.Expect(json.Unmarshal(body, &object)).To(gomega.Succeed(), "decode the JSON object")
 
 	return object
