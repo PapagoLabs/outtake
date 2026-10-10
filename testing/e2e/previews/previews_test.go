@@ -113,7 +113,7 @@ func submitPreview(ctx SpecContext) string {
 	})
 	helpers.CloseBody(resp)
 
-	Expect(resp.StatusCode).To(Equal(http.StatusFound))
+	Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 
 	location := resp.Header.Get("Location")
 	Expect(location).To(ContainSubstring("preview="))

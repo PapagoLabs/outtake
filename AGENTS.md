@@ -50,6 +50,8 @@ Three tiers. Keep a test in the lowest tier that can prove the thing.
 
 There is no `testing/integration` tree. `task test-e2e` runs the e2e suite.
 
+CSRF tokens live in the session, so the harness opens a session for every unsafe request: a GET on `helpers.HandshakePath` (`/login`) mints the token, and the request carries that session's cookies with the token in the CSRF header. `/api/healthz` is mounted before the session middleware and mints nothing. Redirects answer 303 See Other. Compare typed values with their domain constants, such as `clip.StatusCompleted` or `api.NotReady`, and asset URLs with `assets.URL`.
+
 ## Docs
 
 No Markdown file is hard-wrapped, including READMEs, this file, and docs: every paragraph and list item is one line, and the viewer wraps it. Code blocks, tables, and the centered HTML header keep their own lines.

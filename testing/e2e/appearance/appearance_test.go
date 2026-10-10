@@ -15,12 +15,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
 	"github.com/PapagoLabs/outtake/testing/e2e/helpers"
 )
 
-// palettePattern matches each palette button the page renders.
-var palettePattern = regexp.MustCompile(`data-palette="([^"]+)"`)
+// palettePattern matches each palette button the page renders, and not the
+// page's own data-palette attribute.
+var palettePattern = regexp.MustCompile(`class="js-palette[^"]*"\s+data-palette="([^"]+)"`)
 
 var _ = Describe("Appearance", func() {
 	It("renders the appearance page", func(ctx SpecContext) {
@@ -48,6 +50,6 @@ var _ = Describe("Appearance", func() {
 		body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/settings/appearance"))
 
 		Expect(body).To(ContainSubstring(`data-palettes=`))
-		Expect(body).To(ContainSubstring(`src="/assets/js/theme.js"`))
+		Expect(body).To(ContainSubstring(`src="` + assets.URL("js/theme.js") + `"`))
 	})
 })

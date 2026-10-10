@@ -17,7 +17,8 @@ FROM ${FFMPEG_IMAGE} AS ffmpeg
 FROM --platform=$BUILDPLATFORM ${BASE_IMAGE} AS builder
 
 RUN apk add --no-cache ca-certificates tzdata \
-    && adduser -D -u 1000 -g 1000 appuser
+    && adduser -D -u 1000 -g 1000 appuser \
+    && mkdir -p /data/output
 
 FROM scratch
 
@@ -39,6 +40,10 @@ COPY --from=ffmpeg --chmod=0755 /ffprobe /usr/bin/ffprobe
 COPY --chmod=0755 ${TARGETPLATFORM}/outtake /outtake
 
 EXPOSE 8080
+
+# A new named volume takes the ownership of the image's /data, so the server
+# can create its database and output directory there as uid 1000.
+COPY --from=builder --chown=1000:1000 /data /data
 
 VOLUME ["/data"]
 

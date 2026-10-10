@@ -44,7 +44,7 @@ var _ = Describe("Servers", func() {
 			})
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(resp.Header.Get("Location")).To(HavePrefix("/"))
 		})
 
@@ -52,7 +52,7 @@ var _ = Describe("Servers", func() {
 			resp := testApp.PostForm(ctx, "/servers", url.Values{})
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("js-flash"))
 		})
 
@@ -62,7 +62,7 @@ var _ = Describe("Servers", func() {
 			})
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("js-flash"))
 		})
 	})

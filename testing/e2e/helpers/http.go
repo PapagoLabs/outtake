@@ -235,10 +235,12 @@ func (a *App) send(req *http.Request) *http.Response {
 	return resp
 }
 
-// authorize adds the CSRF handshake an unsafe request needs. The token is minted
-// by a safe request and then submitted in the CSRF header while the matching
-// cookie rides along, because the composition root's Test entry point keeps no
-// cookie jar between requests.
+// authorize adds the CSRF handshake an unsafe request needs. CSRF tokens live
+// in the session, so a safe request through the session middleware opens a
+// session and mints its token, and the unsafe request carries that session's
+// cookies with the token in the CSRF header. The composition root's Test entry
+// point keeps no cookie jar between requests, so each unsafe request opens its
+// own session.
 func (a *App) authorize(req *http.Request) {
 	ginkgo.GinkgoHelper()
 
@@ -246,41 +248,42 @@ func (a *App) authorize(req *http.Request) {
 		return
 	}
 
-	token := a.mintCSRF(req.Context())
+	token, cookies := a.mintCSRF(req.Context())
 	if token == "" {
 		return
 	}
 
 	req.Header.Set(csrf.HeaderName, token)
 
-	//nolint:gosec // The suite talks to itself over loopback HTTP, where a Secure cookie would never be sent back.
-	req.AddCookie(&http.Cookie{
-		Name:     csrf.ConfigDefault.CookieName,
-		Value:    token,
-		SameSite: http.SameSiteLaxMode,
-	})
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
+	}
 }
 
-// mintCSRF reads a freshly minted CSRF token off a safe request.
+// mintCSRF opens a session with a safe request and reads the CSRF token it
+// minted.
 //
 // Parameters:
 //   - ctx: Request context, canceled when the spec ends.
 //
 // Returns:
-//   - token: The published token, empty when the response carried none.
-func (a *App) mintCSRF(ctx context.Context) string {
+//   - token: The session's token, empty when the response carried none.
+//   - cookies: The session and CSRF cookies the response set.
+func (a *App) mintCSRF(ctx context.Context) (string, []*http.Cookie) {
 	ginkgo.GinkgoHelper()
 
-	resp := a.send(a.newRequest(ctx, http.MethodGet, HealthPath, "", nil))
+	resp := a.send(a.newRequest(ctx, http.MethodGet, HandshakePath, "", nil))
 	defer CloseBody(resp)
 
-	for _, cookie := range resp.Cookies() {
+	cookies := resp.Cookies()
+
+	for _, cookie := range cookies {
 		if cookie.Name == csrf.ConfigDefault.CookieName && cookie.Value != "" {
-			return cookie.Value
+			return cookie.Value, cookies
 		}
 	}
 
-	return ""
+	return "", nil
 }
 
 // needsCSRFToken reports whether the CSRF middleware protects a request method.

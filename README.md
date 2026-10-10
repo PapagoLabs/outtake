@@ -185,6 +185,7 @@ Docker images store the SQLite database and filesystem exports under `/data` (`o
 | `OUTTAKE_CROP_BLACK_BARS` | Default for **Trim black bars** | `false` |
 | `OUTTAKE_SESSION_POLL_SEC` | How often to poll live Plex playback | `10` |
 | `OUTTAKE_NUM_WORKERS` | Background clip workers | `2` |
+| `OUTTAKE_MAX_CONCURRENT_PREVIEWS` | How many previews render at once. A value below `1` means `1` | `2` |
 | `OUTTAKE_LOG_LEVEL` | `debug`, `info`, `warn`, or `error` | `info` |
 | `OUTTAKE_PLEX_SERVER_URL` | Optional Plex Media Server URL | unset |
 | `OUTTAKE_PLEX_TOKEN` | Optional Plex token (browser sign-in does not need this) | unset |

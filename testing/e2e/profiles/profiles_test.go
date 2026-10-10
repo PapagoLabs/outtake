@@ -59,7 +59,7 @@ var _ = Describe("Profiles", func() {
 			resp := testApp.PostForm(ctx, "/settings/profiles", profileForm(url.Values{"name": {""}}))
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Enter a name"))
 		})
 
@@ -67,7 +67,7 @@ var _ = Describe("Profiles", func() {
 			resp := testApp.PostForm(ctx, "/settings/profiles", profileForm(url.Values{"crf": {"99"}}))
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("CRF must be 0 to 51"))
 		})
 
@@ -75,7 +75,7 @@ var _ = Describe("Profiles", func() {
 			resp := testApp.PostForm(ctx, "/settings/profiles", profileForm(url.Values{"preset": {"turbo"}}))
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Choose an encoder preset from the list"))
 		})
 
@@ -87,7 +87,7 @@ var _ = Describe("Profiles", func() {
 			)
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Choose a maximum resolution from the list"))
 		})
 	})
@@ -99,7 +99,7 @@ var _ = Describe("Profiles", func() {
 			resp := testApp.PostForm(ctx, fmt.Sprintf("/settings/profiles/%s/default", profileID), nil)
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(resp.Header.Get("Location")).To(HavePrefix("/settings/profiles"))
 			Expect(testApp.Landing(ctx, resp)).NotTo(ContainSubstring("js-flash"))
 		})
@@ -109,7 +109,7 @@ var _ = Describe("Profiles", func() {
 				"/settings/profiles/00000000000000000000000000000000/default", nil)
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("That profile no longer exists"))
 		})
 	})
@@ -123,7 +123,7 @@ var _ = Describe("Profiles", func() {
 			resp := testApp.PostForm(ctx, fmt.Sprintf("/settings/profiles/%s/delete", profileID), nil)
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).NotTo(ContainSubstring("js-flash"))
 
 			body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/settings/profiles"))
@@ -137,7 +137,7 @@ var _ = Describe("Profiles", func() {
 				"/settings/profiles/00000000000000000000000000000000/delete", nil)
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("That profile no longer exists"))
 		})
 	})
@@ -168,7 +168,7 @@ func createProfile(ctx SpecContext, name string) string {
 	resp := testApp.PostForm(ctx, "/settings/profiles", profileForm(url.Values{"name": {name}}))
 	helpers.CloseBody(resp)
 
-	Expect(resp.StatusCode).To(Equal(http.StatusFound))
+	Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 	Expect(testApp.Landing(ctx, resp)).NotTo(
 		ContainSubstring("js-flash"),
 		"the %q profile stored without an error",

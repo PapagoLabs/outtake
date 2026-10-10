@@ -40,7 +40,7 @@ var _ = Describe("Auth", func() {
 			resp := testApp.PostForm(ctx, "/api/auth/login", url.Values{})
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Paste a Plex token"))
 		})
 
@@ -48,7 +48,7 @@ var _ = Describe("Auth", func() {
 			resp := testApp.PostForm(ctx, "/api/auth/login", url.Values{"token": {"invalid-token-12345"}})
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 		})
 	})
 
@@ -79,7 +79,7 @@ var _ = Describe("Auth", func() {
 			resp := testApp.Do(ctx, http.MethodPost, "/api/auth/logout")
 			helpers.CloseBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusFound))
+			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
 			Expect(resp.Header.Get("Location")).To(HavePrefix("/login"))
 		})
 	})

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
@@ -21,18 +22,21 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
-// TestCSRFHandshakeIsRequired pins the assumption the harness request helpers are
-// built on: the CSRF middleware refuses an unsafe request that carries no token,
-// and accepts the same request once the token rides in both the CSRF header and
-// the CSRF cookie. Because Application.Test keeps no cookie jar, the harness has
-// to mint a token per request and echo it in both places.
+// sessionCookieName is the cookie the web layer keeps the session id in.
+const sessionCookieName = "session_id"
+
+// TestCSRFHandshakeIsRequired pins the assumption the harness request helpers
+// are built on: CSRF tokens live in the session, so the middleware refuses an
+// unsafe request unless it carries the session that minted the token in its
+// CSRF header. Because Application.Test keeps no cookie jar, the harness opens
+// a session per unsafe request and echoes its cookies and token.
 func TestCSRFHandshakeIsRequired(t *testing.T) {
 	t.Parallel()
 
 	application := newProbeApp(t)
 	ctx := context.Background()
 
-	postStatus := func(header, cookie string) int {
+	postStatus := func(token string, cookies []*http.Cookie) int {
 		req, reqErr := http.NewRequestWithContext(
 			ctx,
 			http.MethodPost,
@@ -41,10 +45,10 @@ func TestCSRFHandshakeIsRequired(t *testing.T) {
 		)
 		require.NoError(t, reqErr)
 
-		req.Header.Set(csrf.HeaderName, header)
+		req.Header.Set(csrf.HeaderName, token)
 
-		if cookie != "" {
-			req.AddCookie(&http.Cookie{Name: csrf.ConfigDefault.CookieName, Value: cookie})
+		for _, cookie := range cookies {
+			req.AddCookie(cookie)
 		}
 
 		resp, doErr := application.Test(req)
@@ -57,52 +61,46 @@ func TestCSRFHandshakeIsRequired(t *testing.T) {
 		return resp.StatusCode
 	}
 
-	token := csrfTokenFor(t, application)
+	token, cookies := handshakeFor(t, application)
+	_, otherCookies := handshakeFor(t, application)
 
 	assert.Equal(
 		t,
 		http.StatusForbidden,
-		postStatus(token, ""),
-		"a POST that carries no CSRF cookie is refused",
+		postStatus(token, nil),
+		"a POST that carries no session is refused",
 	)
 
 	assert.Equal(
 		t,
 		http.StatusForbidden,
-		postStatus(token, csrfTokenFor(t, application)),
-		"a POST whose cookie does not match its header is refused",
+		postStatus(token, otherCookies),
+		"a POST whose token another session minted is refused",
 	)
 
 	assert.NotEqual(
 		t,
 		http.StatusForbidden,
-		postStatus(token, token),
-		"the same POST passes once one token rides in the header and the cookie",
+		postStatus(token, cookies),
+		"the same POST passes with the session that minted its token",
 	)
 }
 
-// TestSafeRequestPublishesACSRFCookie covers the other half of the handshake:
-// the safe request the harness mints tokens from does publish one.
-func TestSafeRequestPublishesACSRFCookie(t *testing.T) {
+// TestHandshakeRequestOpensASession covers the other half of the handshake:
+// the safe request the harness mints tokens from opens a session and publishes
+// its token, which the health endpoint, mounted before the session middleware,
+// never does.
+func TestHandshakeRequestOpensASession(t *testing.T) {
 	t.Parallel()
 
 	application := newProbeApp(t)
 
-	req, err := http.NewRequestWithContext(
-		context.Background(),
-		http.MethodGet,
-		"http://127.0.0.1:8080"+HealthPath,
-		http.NoBody,
-	)
-	require.NoError(t, err)
+	token, cookies := handshakeFor(t, application)
 
-	resp, err := application.Test(req)
-	require.NoError(t, err)
-
-	defer func() { _ = resp.Body.Close() }()
-
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.NotEmpty(t, csrfTokenFor(t, application))
+	assert.NotEmpty(t, token)
+	assert.True(t, slices.ContainsFunc(cookies, func(cookie *http.Cookie) bool {
+		return cookie.Name == sessionCookieName && cookie.Value != ""
+	}), "the handshake request opens a session")
 }
 
 // newProbeApp builds a throwaway application for the CSRF probe.
@@ -139,14 +137,15 @@ func newProbeApp(t *testing.T) *app.App {
 	return application
 }
 
-// csrfTokenFor mints a CSRF token from a safe request against the probe app.
-func csrfTokenFor(t *testing.T, application *app.App) string {
+// handshakeFor opens a session on the probe app with the harness's handshake
+// request, and returns the CSRF token it minted with the cookies it set.
+func handshakeFor(t *testing.T, application *app.App) (string, []*http.Cookie) {
 	t.Helper()
 
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodGet,
-		"http://127.0.0.1:8080"+HealthPath,
+		"http://127.0.0.1:8080"+HandshakePath,
 		http.NoBody,
 	)
 	require.NoError(t, err)
@@ -158,13 +157,17 @@ func csrfTokenFor(t *testing.T, application *app.App) string {
 
 	_, _ = io.Copy(io.Discard, resp.Body)
 
-	for _, cookie := range resp.Cookies() {
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	cookies := resp.Cookies()
+
+	for _, cookie := range cookies {
 		if cookie.Name == csrf.ConfigDefault.CookieName && cookie.Value != "" {
-			return cookie.Value
+			return cookie.Value, cookies
 		}
 	}
 
-	require.FailNow(t, "the safe request published no CSRF cookie")
+	require.FailNow(t, "the handshake request published no CSRF cookie")
 
-	return ""
+	return "", nil
 }

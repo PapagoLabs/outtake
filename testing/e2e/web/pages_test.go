@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	"github.com/PapagoLabs/outtake/internal/web/assets"
 	"github.com/PapagoLabs/outtake/testing/e2e/helpers"
 )
 
@@ -36,7 +37,7 @@ var _ = Describe("Pages", func() {
 		body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/"))
 
 		Expect(string(body)).To(ContainSubstring("Outtake"))
-		Expect(string(body)).To(ContainSubstring(`src="/assets/js/theme.js"`))
+		Expect(string(body)).To(ContainSubstring(`src="` + assets.URL("js/theme.js") + `"`))
 	})
 
 	It("serves the security headers the helmet middleware sets", func(ctx SpecContext) {
