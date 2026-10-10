@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pin tools through go tool and gate coverage under race by @nicholas-fedor in [#418](https://github.com/PapagoLabs/outtake/pull/418)
 - Show plain error messages with copyable details by @nicholas-fedor in [#416](https://github.com/PapagoLabs/outtake/pull/416)
 - Name the built-in profiles by resolution with generated ids by @nicholas-fedor in [#402](https://github.com/PapagoLabs/outtake/pull/402)
 - Stop hard-wrapping the readmes by @nicholas-fedor in [#394](https://github.com/PapagoLabs/outtake/pull/394)
