@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/telemetry digest to 97e8ea7 by @renovate[bot] in [#420](https://github.com/PapagoLabs/outtake/pull/420)
 - Update module golang.org/x/mod to v0.42.0 by @renovate[bot] in [#412](https://github.com/PapagoLabs/outtake/pull/412)
 - Update module github.com/onsi/ginkgo/v2 to v2.33.1 by @renovate[bot] in [#411](https://github.com/PapagoLabs/outtake/pull/411)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#408](https://github.com/PapagoLabs/outtake/pull/408)
