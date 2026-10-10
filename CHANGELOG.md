@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#408](https://github.com/PapagoLabs/outtake/pull/408)
 - Update golang.org/x/exp digest to ca0d7ba by @renovate[bot] in [#407](https://github.com/PapagoLabs/outtake/pull/407)
 - Update module golang.org/x/crypto to v0.58.0 by @renovate[bot] in [#403](https://github.com/PapagoLabs/outtake/pull/403)
 - Update module golang.org/x/net to v0.61.0 by @renovate[bot] in [#404](https://github.com/PapagoLabs/outtake/pull/404)
