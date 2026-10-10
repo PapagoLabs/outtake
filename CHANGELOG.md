@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generate the changelog from the tip of main by @nicholas-fedor in [#445](https://github.com/PapagoLabs/outtake/pull/445)
 - Lint and vet the e2e suite on every pull request that touches it by @nicholas-fedor in [#436](https://github.com/PapagoLabs/outtake/pull/436)
 - Pin tools through go tool and gate coverage under race by @nicholas-fedor in [#418](https://github.com/PapagoLabs/outtake/pull/418)
 - Show plain error messages with copyable details by @nicholas-fedor in [#416](https://github.com/PapagoLabs/outtake/pull/416)
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/huandu/xstrings to v1.6.2 by @renovate[bot] in [#442](https://github.com/PapagoLabs/outtake/pull/442)
 - Update module github.com/clipperhouse/uax29/v2 to v2.7.0 by @renovate[bot] in [#441](https://github.com/PapagoLabs/outtake/pull/441)
 - Update module github.com/mattn/go-runewidth to v0.0.31 by @renovate[bot] in [#438](https://github.com/PapagoLabs/outtake/pull/438)
 - Update module github.com/knadh/koanf/v2 to v2.3.8 by @renovate[bot] in [#437](https://github.com/PapagoLabs/outtake/pull/437)
