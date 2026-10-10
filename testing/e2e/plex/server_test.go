@@ -20,6 +20,7 @@ var _ = Describe("Plex server", func() {
 
 	BeforeEach(func() {
 		testApp.SkipWithoutPlex()
+
 		server = testApp.Server
 	})
 

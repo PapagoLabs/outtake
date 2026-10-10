@@ -9,6 +9,7 @@ on:
       - go.mod
       - go.sum
       - internal/**
+      - testing/**
 
 permissions:
   contents: read
@@ -46,3 +47,6 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+      - name: Vet the e2e suite
+        run: go vet -tags e2e ./testing/e2e/...

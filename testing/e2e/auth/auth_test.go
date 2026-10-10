@@ -45,7 +45,11 @@ var _ = Describe("Auth", func() {
 		})
 
 		It("refuses a token no Plex account holds", func(ctx SpecContext) {
-			resp := testApp.PostForm(ctx, "/api/auth/login", url.Values{"token": {"invalid-token-12345"}})
+			resp := testApp.PostForm(
+				ctx,
+				"/api/auth/login",
+				url.Values{"token": {"invalid-token-12345"}},
+			)
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
@@ -53,15 +57,18 @@ var _ = Describe("Auth", func() {
 	})
 
 	Describe("Callback", func() {
-		It("hands the popup back to the login page when no PIN session exists", func(ctx SpecContext) {
-			resp := testApp.Do(ctx, http.MethodGet, "/api/auth/callback")
-			body := helpers.ReadBody(resp)
+		It(
+			"hands the popup back to the login page when no PIN session exists",
+			func(ctx SpecContext) {
+				resp := testApp.Do(ctx, http.MethodGet, "/api/auth/callback")
+				body := helpers.ReadBody(resp)
 
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
-			Expect(string(body)).To(ContainSubstring(`data-auth-next="/login"`))
-			Expect(testApp.LandingAt(ctx, resp, "/login")).
-				To(ContainSubstring("This login expired. Start again from the login page."))
-		})
+				Expect(resp.StatusCode).To(Equal(http.StatusOK))
+				Expect(string(body)).To(ContainSubstring(`data-auth-next="/login"`))
+				Expect(testApp.LandingAt(ctx, resp, "/login")).
+					To(ContainSubstring("This login expired. Start again from the login page."))
+			},
+		)
 	})
 
 	Describe("Status", func() {

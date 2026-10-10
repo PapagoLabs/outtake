@@ -56,7 +56,11 @@ var _ = Describe("Profiles", func() {
 		})
 
 		It("redirects with an error when the name is empty", func(ctx SpecContext) {
-			resp := testApp.PostForm(ctx, "/settings/profiles", profileForm(url.Values{"name": {""}}))
+			resp := testApp.PostForm(
+				ctx,
+				"/settings/profiles",
+				profileForm(url.Values{"name": {""}}),
+			)
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
@@ -64,7 +68,11 @@ var _ = Describe("Profiles", func() {
 		})
 
 		It("redirects with an error when the CRF is out of range", func(ctx SpecContext) {
-			resp := testApp.PostForm(ctx, "/settings/profiles", profileForm(url.Values{"crf": {"99"}}))
+			resp := testApp.PostForm(
+				ctx,
+				"/settings/profiles",
+				profileForm(url.Values{"crf": {"99"}}),
+			)
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
@@ -72,11 +80,17 @@ var _ = Describe("Profiles", func() {
 		})
 
 		It("redirects with an error when the preset is unknown", func(ctx SpecContext) {
-			resp := testApp.PostForm(ctx, "/settings/profiles", profileForm(url.Values{"preset": {"turbo"}}))
+			resp := testApp.PostForm(
+				ctx,
+				"/settings/profiles",
+				profileForm(url.Values{"preset": {"turbo"}}),
+			)
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
-			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Choose an encoder preset from the list"))
+			Expect(
+				testApp.Landing(ctx, resp),
+			).To(ContainSubstring("Choose an encoder preset from the list"))
 		})
 
 		It("redirects with an error when the width is not an export size", func(ctx SpecContext) {
@@ -88,7 +102,9 @@ var _ = Describe("Profiles", func() {
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
-			Expect(testApp.Landing(ctx, resp)).To(ContainSubstring("Choose a maximum resolution from the list"))
+			Expect(
+				testApp.Landing(ctx, resp),
+			).To(ContainSubstring("Choose a maximum resolution from the list"))
 		})
 	})
 
@@ -96,7 +112,11 @@ var _ = Describe("Profiles", func() {
 		It("marks a stored profile as the default", func(ctx SpecContext) {
 			profileID := createProfile(ctx, "E2E Default Profile")
 
-			resp := testApp.PostForm(ctx, fmt.Sprintf("/settings/profiles/%s/default", profileID), nil)
+			resp := testApp.PostForm(
+				ctx,
+				fmt.Sprintf("/settings/profiles/%s/default", profileID),
+				nil,
+			)
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))
@@ -120,7 +140,11 @@ var _ = Describe("Profiles", func() {
 
 			profileID := createProfile(ctx, "E2E Deleted Profile")
 
-			resp := testApp.PostForm(ctx, fmt.Sprintf("/settings/profiles/%s/delete", profileID), nil)
+			resp := testApp.PostForm(
+				ctx,
+				fmt.Sprintf("/settings/profiles/%s/delete", profileID),
+				nil,
+			)
 			helpers.CloseBody(resp)
 
 			Expect(resp.StatusCode).To(Equal(http.StatusSeeOther))

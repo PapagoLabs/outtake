@@ -45,9 +45,10 @@ tasks:
       - golangci-lint run --config build/golangci-lint/golangci-lint.yaml ./...
 
   vet:
-    desc: Run go vet
+    desc: Run go vet, including the e2e suite
     cmds:
       - go vet ./...
+      - go vet -tags e2e ./testing/e2e/...
 
   fmt:
     desc: Format code
