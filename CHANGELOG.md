@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/knadh/koanf/providers/structs to v1.0.1 by @renovate[bot] in [#433](https://github.com/PapagoLabs/outtake/pull/433)
 - Update module github.com/knadh/koanf/providers/posflag to v1.0.2 by @renovate[bot] in [#432](https://github.com/PapagoLabs/outtake/pull/432)
 - Update module github.com/knadh/koanf/parsers/yaml to v1.1.1 by @renovate[bot] in [#426](https://github.com/PapagoLabs/outtake/pull/426)
 - Update golang:1.27.2-alpine docker digest to f92b6ef by @renovate[bot] in [#425](https://github.com/PapagoLabs/outtake/pull/425)
