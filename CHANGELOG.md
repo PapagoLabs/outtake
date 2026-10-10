@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Lint and vet the e2e suite on every pull request that touches it by @nicholas-fedor in [#436](https://github.com/PapagoLabs/outtake/pull/436)
 - Pin tools through go tool and gate coverage under race by @nicholas-fedor in [#418](https://github.com/PapagoLabs/outtake/pull/418)
 - Show plain error messages with copyable details by @nicholas-fedor in [#416](https://github.com/PapagoLabs/outtake/pull/416)
 - Name the built-in profiles by resolution with generated ids by @nicholas-fedor in [#402](https://github.com/PapagoLabs/outtake/pull/402)
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/mattn/go-runewidth to v0.0.31 by @renovate[bot] in [#438](https://github.com/PapagoLabs/outtake/pull/438)
 - Update module github.com/knadh/koanf/v2 to v2.3.8 by @renovate[bot] in [#437](https://github.com/PapagoLabs/outtake/pull/437)
 - Update module github.com/knadh/koanf/providers/structs to v1.0.1 by @renovate[bot] in [#433](https://github.com/PapagoLabs/outtake/pull/433)
 - Update module github.com/knadh/koanf/providers/posflag to v1.0.2 by @renovate[bot] in [#432](https://github.com/PapagoLabs/outtake/pull/432)
