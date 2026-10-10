@@ -33,13 +33,33 @@ templ Banner(failure view.Failure) {
 templ Details(details string) {
 	if details != "" {
 		<details class="text-xs text-foreground" data-error-details>
-			<summary class="cursor-pointer select-none text-muted-foreground">Details</summary>
-			<div class="mt-2 flex flex-col gap-2">
-				<pre class="select-all whitespace-pre-wrap break-all rounded-md bg-muted p-2 font-mono" data-error-details-text>{ details }</pre>
-				<button type="button" class="js-copy-details self-start rounded-md border px-2 py-1 font-medium hover:bg-accent">Copy</button>
-			</div>
+			@detailsBody(details)
 		</details>
 	}
+}
+
+// DetailsSlot renders an empty, hidden Details section that a script fills
+// in when a failure it polls for arrives, such as a failed preview.
+//
+// Parameters:
+//   - id: The section's id, which the script looks it up by.
+templ DetailsSlot(id string) {
+	<details id={ id } class="text-xs text-foreground" data-error-details hidden>
+		@detailsBody("")
+	</details>
+}
+
+// detailsBody is what a Details section holds: its summary, the details, and
+// the Copy button.
+//
+// Parameters:
+//   - details: The technical report, empty for a slot a script fills in.
+templ detailsBody(details string) {
+	<summary class="cursor-pointer select-none text-muted-foreground">Details</summary>
+	<div class="mt-2 flex flex-col gap-2">
+		<pre class="select-all whitespace-pre-wrap break-all rounded-md bg-muted p-2 font-mono" data-error-details-text>{ details }</pre>
+		<button type="button" class="js-copy-details self-start rounded-md border px-2 py-1 font-medium hover:bg-accent">Copy</button>
+	</div>
 }
 
 // Slot renders the banner target that HTMX swaps a failure into.

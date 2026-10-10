@@ -52,6 +52,23 @@ func TestBannerShowsDetailsOnlyWhenThereAreSome(t *testing.T) {
 	assert.NotContains(t, notice.String(), "data-error-details")
 }
 
+// TestDetailsSlotIsHiddenAndEmpty covers the Details section a page script
+// fills in: it renders hidden, under the id the script looks it up by, with
+// the same markup and Copy button as a filled one.
+func TestDetailsSlotIsHiddenAndEmpty(t *testing.T) {
+	t.Parallel()
+
+	var body strings.Builder
+
+	require.NoError(t, DetailsSlot("preview-error-details").Render(t.Context(), &body))
+
+	html := body.String()
+	assert.Contains(t, html, `id="preview-error-details"`)
+	assert.Contains(t, html, "data-error-details hidden")
+	assert.Contains(t, html, "data-error-details-text></pre>", "the details are empty until the script fills them")
+	assert.Contains(t, html, `class="js-copy-details`)
+}
+
 func TestPartialTargetsFlash(t *testing.T) {
 	t.Parallel()
 

@@ -21,6 +21,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
@@ -262,6 +263,7 @@ func renderServices(
 	runner *ffmpeg.ExecFFmpeg,
 ) (*preview.Service, *library.MediaSource) {
 	previews := preview.New(cfg.MaxConcurrentPreviews, store.blob, store.paths, runner)
+	previews.SetFailureFunc(failure.Describe)
 
 	return previews, library.NewMediaSource(cfg, bind, runner)
 }

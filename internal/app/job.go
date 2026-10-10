@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/rs/zerolog/log"
 
@@ -128,9 +129,14 @@ func processJob(
 	store blob.Blob,
 	reporter renderReporter,
 ) error {
+	_, err := os.Stat(job.InputPath)
+	if err != nil {
+		return fmt.Errorf("%w: %w", clip.ErrSourceUnreadable, err)
+	}
+
 	rect := detectJobCrop(ctx, runner, job)
 
-	err := extractJob(ctx, job, runner, db, rect)
+	err = extractJob(ctx, job, runner, db, rect)
 	if err != nil {
 		return fmt.Errorf("extract: %w", err)
 	}

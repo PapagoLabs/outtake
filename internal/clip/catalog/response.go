@@ -28,6 +28,7 @@ func ClipResponse(job *clip.Job) clip.Response {
 		InputPath:     "",
 		OutputPath:    "",
 		Error:         job.Error,
+		ErrorDetails:  job.ErrorDetails,
 		CreatedAt:     job.CreatedAt,
 		UpdatedAt:     job.UpdatedAt,
 		AudioIndex:    job.AudioIndex,

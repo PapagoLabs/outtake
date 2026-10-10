@@ -15,6 +15,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
+	"github.com/PapagoLabs/outtake/internal/store/blob"
 )
 
 var errRender = errors.New("ffmpeg exited 1")
@@ -95,6 +96,42 @@ func TestPreviewRegistryRecordsFailure(t *testing.T) {
 	view := awaitPreview(t, registry)
 	assert.Equal(t, clip.StatusFailed, view.Status)
 	assert.Equal(t, errRender.Error(), view.Error)
+}
+
+// TestPreviewRegistryDescribesAFailure covers the describer a service was
+// given: a failed preview shows its message and details, and the describer is
+// told which preview failed.
+func TestPreviewRegistryDescribesAFailure(t *testing.T) {
+	t.Parallel()
+
+	service := New(1, nil, blob.Paths{}, nil)
+
+	var (
+		subject string
+		got     error
+	)
+
+	service.SetFailureFunc(func(what string, err error) clip.Failure {
+		subject, got = what, err
+
+		return clip.Failure{
+			Message: "Plain words",
+			Details: "the report",
+			Ref:     "abc123",
+			Chain:   err.Error(),
+		}
+	})
+
+	service.entries.render(t.Context(), "p1", 4, func(context.Context) error {
+		return errRender
+	})
+
+	view := awaitPreview(t, service.entries)
+	assert.Equal(t, clip.StatusFailed, view.Status)
+	assert.Equal(t, "Plain words", view.Error)
+	assert.Equal(t, "the report", view.ErrorDetails)
+	assert.Equal(t, "preview p1", subject)
+	require.ErrorIs(t, got, errRender)
 }
 
 func TestPreviewRegistryRecordsCancellation(t *testing.T) {

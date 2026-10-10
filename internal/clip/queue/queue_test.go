@@ -274,6 +274,69 @@ func TestQueue_ProcessJob_Failure(t *testing.T) {
 	})
 }
 
+// TestQueue_ProcessJob_FailureIsDescribed covers a failed job's card: the
+// describer the queue was given decides its message and details, and is told
+// which clip failed.
+func TestQueue_ProcessJob_FailureIsDescribed(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		q := NewQueue(1, func(context.Context, *clip.Job) error { return assert.AnError })
+
+		var (
+			subject string
+			got     error
+		)
+
+		q.SetFailureFunc(func(what string, err error) clip.Failure {
+			subject, got = what, err
+
+			return clip.Failure{
+				Message: "Plain words",
+				Details: "the report",
+				Ref:     "abc123",
+				Chain:   err.Error(),
+			}
+		})
+		q.Start(t.Context())
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(testJob("described", clip.StatusPending)))
+
+		synctest.Wait()
+
+		job := q.GetJob("described")
+		require.NotNil(t, job)
+		assert.Equal(t, clip.StatusFailed, job.Status)
+		assert.Equal(t, "Plain words", job.Error)
+		assert.Equal(t, "the report", job.ErrorDetails)
+		assert.Equal(t, "clip described (clip)", subject)
+		require.ErrorIs(t, got, assert.AnError)
+	})
+}
+
+// TestQueue_ProcessJob_FailureWithoutADescriber covers a queue that was given
+// no describer: the card shows the error's own text, with no details.
+func TestQueue_ProcessJob_FailureWithoutADescriber(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		q := NewQueue(1, func(context.Context, *clip.Job) error { return assert.AnError })
+		q.SetFailureFunc(nil)
+		q.Start(t.Context())
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(testJob("plain", clip.StatusPending)))
+
+		synctest.Wait()
+
+		job := q.GetJob("plain")
+		require.NotNil(t, job)
+		assert.Equal(t, assert.AnError.Error(), job.Error)
+		assert.Empty(t, job.ErrorDetails)
+	})
+}
+
 func TestQueue_DeleteAndRestore(t *testing.T) {
 	t.Parallel()
 

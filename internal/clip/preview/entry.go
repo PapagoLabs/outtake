@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
 // View is a read-only snapshot of one preview render.
@@ -21,8 +22,11 @@ type View struct {
 	Status clip.Status
 	// Progress is percent complete, 0 to 100.
 	Progress int
-	// Error is the failure message when the status is failed.
+	// Error is the plain failure message when the status is failed.
 	Error string
+	// ErrorDetails is the technical report behind Error, empty when Error
+	// says all there is.
+	ErrorDetails string
 	// Format is what the published file holds, zero until it is read.
 	Format clip.Format
 }
@@ -53,6 +57,8 @@ type registry struct {
 	running sync.WaitGroup
 	// closed refuses new renders once the service is shutting down.
 	closed bool
+	// describe turns a failed render's error into what the page shows.
+	describe clip.DescribeFunc
 }
 
 const (
@@ -97,13 +103,14 @@ func (view View) Done() bool {
 //   - registry: The empty registry.
 func newRegistry(onEvict func(previewID string)) *registry {
 	return &registry{
-		mu:      sync.Mutex{},
-		entries: map[string]*entry{},
-		order:   nil,
-		evicted: nil,
-		onEvict: onEvict,
-		running: sync.WaitGroup{},
-		closed:  false,
+		mu:       sync.Mutex{},
+		entries:  map[string]*entry{},
+		order:    nil,
+		evicted:  nil,
+		onEvict:  onEvict,
+		running:  sync.WaitGroup{},
+		closed:   false,
+		describe: clip.PlainFailure,
 	}
 }
 
@@ -268,8 +275,17 @@ func (registry *registry) finish(previewID string, err error) {
 	case job.canceled || errors.Is(err, context.Canceled):
 		job.view.Status = clip.StatusCancelled
 	default:
+		failure := registry.describe("preview "+previewID, err)
+
+		logging.Logger.Warn().
+			Str("error", failure.Chain).
+			Str("preview_id", previewID).
+			Str("ref", failure.Ref).
+			Msg("preview failed")
+
 		job.view.Status = clip.StatusFailed
-		job.view.Error = err.Error()
+		job.view.Error = failure.Message
+		job.view.ErrorDetails = failure.Details
 	}
 
 	registry.evictLocked()

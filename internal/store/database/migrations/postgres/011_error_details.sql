@@ -1,0 +1,1 @@
+ALTER TABLE clips ADD COLUMN error_details TEXT NOT NULL DEFAULT '';

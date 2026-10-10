@@ -178,6 +178,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					<p id="preview-status" class="text-sm text-muted-foreground" role="status" aria-live="polite">
 						Rendering preview…
 					</p>
+					@flash.DetailsSlot("preview-error-details")
 				</div>
 			}
 			@card.Card() {

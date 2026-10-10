@@ -575,8 +575,10 @@ func TestIntegration_RenderOutcomeReachesTheDatabase(t *testing.T) {
 		assert.Equal(t, 100, settled.Progress)
 		assert.Empty(t, settled.Error)
 	case clip.StatusFailed:
-		assert.NotEmpty(t, settled.Error, "a failure carries the reason it failed")
-		assert.Contains(t, settled.Error, "outtake-integration-absent-ffmpeg")
+		assert.Equal(t, "Outtake can't run FFmpeg. Check OUTTAKE_FFMPEG_PATH.", settled.Error,
+			"a failure carries a plain reason")
+		assert.Contains(t, settled.ErrorDetails, "outtake-integration-absent-ffmpeg",
+			"its details name what failed")
 	default:
 		require.Fail(t, "the clip never settled", "status was "+string(settled.Status))
 	}
@@ -651,7 +653,7 @@ func TestIntegration_StoredClipsSurviveARestart(t *testing.T) {
 	requeued := awaitSettled(t, application, pendingJob.ID)
 	assert.Equal(t, clip.StatusFailed, requeued.Status,
 		"a stored pending clip is queued for rendering again and reaches its own outcome")
-	assert.Contains(t, requeued.Error, "outtake-integration-absent-ffmpeg")
+	assert.Contains(t, requeued.ErrorDetails, "outtake-integration-absent-ffmpeg")
 
 	_, afterRequeue := readClip(t, application, settledJob.ID)
 	assert.Equal(t, clip.StatusCompleted, afterRequeue.Status,

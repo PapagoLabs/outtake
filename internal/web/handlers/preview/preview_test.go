@@ -48,7 +48,8 @@ type statusResponse struct {
 	Status   string `json:"status"`
 	Progress int    `json:"progress"`
 	URL      string `json:"url"`
-	Error    string `json:"error"`
+	Message  string `json:"message"`
+	Details  string `json:"details"`
 	Format   string `json:"format"`
 }
 
@@ -328,7 +329,9 @@ func TestPreviewStatusReportsAFailedRender(t *testing.T) {
 
 	_, body := getPreviewStatus(t, handler, "p1")
 	assert.Equal(t, "failed", body.Status)
-	assert.Equal(t, assert.AnError.Error(), body.Error)
+	assert.Equal(t, assert.AnError.Error(), body.Message,
+		"a service without a describer shows the error's own text")
+	assert.Empty(t, body.Details)
 	assert.Empty(t, body.URL, "a failed render published nothing to serve")
 	assert.Equal(t, "failed", string(view.Status))
 }

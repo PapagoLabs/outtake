@@ -12,6 +12,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
 	"github.com/PapagoLabs/outtake/internal/plex"
@@ -131,6 +132,7 @@ func startQueue(
 	})
 
 	jobQueue.SetStatusFunc(persistStatus(ctx, db))
+	jobQueue.SetFailureFunc(failure.Describe)
 	jobQueue.Start(ctx)
 
 	// Submitting never waits on a worker, so the whole backlog is back in the

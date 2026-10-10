@@ -4,18 +4,14 @@
 package respond
 
 import (
-	"crypto/rand"
-	"encoding/hex"
-	"regexp"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/logging"
-	"github.com/PapagoLabs/outtake/internal/metadata"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
@@ -25,22 +21,13 @@ const (
 	sessionKeyFlashMessage = "flash_message"
 	// sessionKeyFlashDetails holds a failure's details across a redirect.
 	sessionKeyFlashDetails = "flash_details"
-	// refBytes is how many random bytes a failure's reference holds.
-	refBytes = 3
-	// detailsTimeLayout is how the details block writes the time.
-	detailsTimeLayout = "2006-01-02 15:04:05 UTC"
-	// redacted replaces a secret in the details and the log.
-	redacted = "[redacted]"
 	// minTokenLength is the shortest session token scrubbed by value, so a
 	// short or empty value never blanks ordinary text.
 	minTokenLength = 8
 )
 
-// plexTokenPattern finds a Plex token in a URL query or a header line.
-var plexTokenPattern = regexp.MustCompile(`(?i)(x-plex-token\s*[=:]\s*)[^&\s"']+`)
-
-// Fail builds the failure a page shows for err, with the message MessageFor
-// chooses. A refusal of what the user entered shows its message alone. Any
+// Fail builds the failure a page shows for err, with the message
+// failure.Classify chooses. A refusal of what the user entered shows its message alone. Any
 // other failure carries details and is logged under the reference they hold.
 //
 // Parameters:
@@ -50,7 +37,7 @@ var plexTokenPattern = regexp.MustCompile(`(?i)(x-plex-token\s*[=:]\s*)[^&\s"']+
 // Returns:
 //   - failure: The plain message, with details unless it refuses input.
 func Fail(ctx fiber.Ctx, err error) view.Failure {
-	message, input := classify(err)
+	message, input := failure.Classify(err)
 	if input {
 		return view.NewNotice(message)
 	}
@@ -77,7 +64,7 @@ func FailWith(ctx fiber.Ctx, message string, err error) view.Failure {
 		return view.NewNotice(message)
 	}
 
-	ref := newRef()
+	ref := failure.NewRef()
 	chain := scrub(ctx, err.Error())
 
 	logging.Logger.Warn().
@@ -93,10 +80,7 @@ func FailWith(ctx fiber.Ctx, message string, err error) view.Failure {
 
 	return view.Failure{
 		Message: message,
-		Details: "Outtake " + metadata.String() + " · " +
-			time.Now().UTC().Format(detailsTimeLayout) + " · ref " + ref + "\n" +
-			ctx.Method() + " " + ctx.Path() + "\n" +
-			chain,
+		Details: failure.Details(ref, ctx.Method()+" "+ctx.Path(), chain),
 	}
 }
 
@@ -105,15 +89,15 @@ func FailWith(ctx fiber.Ctx, message string, err error) view.Failure {
 //
 // Parameters:
 //   - ctx: The request whose session keeps the failure.
-//   - failure: What the next page shows.
-func SetFlash(ctx fiber.Ctx, failure view.Failure) {
+//   - shown: What the next page shows.
+func SetFlash(ctx fiber.Ctx, shown view.Failure) {
 	sess := session.FromContext(ctx)
-	if sess == nil || failure.Empty() {
+	if sess == nil || shown.Empty() {
 		return
 	}
 
-	sess.Set(sessionKeyFlashMessage, failure.Message)
-	sess.Set(sessionKeyFlashDetails, failure.Details)
+	sess.Set(sessionKeyFlashMessage, shown.Message)
+	sess.Set(sessionKeyFlashDetails, shown.Details)
 }
 
 // HasFlash reports whether the session holds a failure for the next page.
@@ -170,8 +154,8 @@ func sessionString(sess *session.Middleware, key string) string {
 // Parameters:
 //   - ctx: The request rendering a page.
 func takeFlash(ctx fiber.Ctx) {
-	failure := PendingFlash(ctx)
-	if failure.Empty() {
+	shown := PendingFlash(ctx)
+	if shown.Empty() {
 		return
 	}
 
@@ -179,7 +163,7 @@ func takeFlash(ctx fiber.Ctx) {
 	sess.Delete(sessionKeyFlashMessage)
 	sess.Delete(sessionKeyFlashDetails)
 
-	ctx.SetContext(view.ContextWithFailure(ctx.Context(), failure))
+	ctx.SetContext(view.ContextWithFailure(ctx.Context(), shown))
 }
 
 // signedIn reports whether the request belongs to a signed-in session, the
@@ -206,27 +190,11 @@ func signedIn(ctx fiber.Ctx) bool {
 // Returns:
 //   - clean: The text with every token replaced.
 func scrub(ctx fiber.Ctx, text string) string {
-	clean := plexTokenPattern.ReplaceAllString(text, "${1}"+redacted)
+	clean := failure.Scrub(text)
 
 	if token := identity.Token(session.FromContext(ctx)); len(token) >= minTokenLength {
-		clean = strings.ReplaceAll(clean, token, redacted)
+		clean = strings.ReplaceAll(clean, token, failure.Redacted)
 	}
 
 	return clean
-}
-
-// newRef returns a short random reference that ties a failure on the page to
-// its log line.
-//
-// Returns:
-//   - ref: Six hex characters.
-func newRef() string {
-	var buf [refBytes]byte
-
-	_, err := rand.Read(buf[:])
-	if err != nil {
-		return "000000"
-	}
-
-	return hex.EncodeToString(buf[:])
 }

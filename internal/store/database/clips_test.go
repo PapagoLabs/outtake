@@ -704,6 +704,76 @@ func TestSaveClipKeepsEachFilesFormat(t *testing.T) {
 	assert.Equal(t, job.SDRFormat, saved.SDRFormat)
 }
 
+// TestSaveClipKeepsAFailuresMessageAndDetails covers a failed render: its
+// plain message and the details behind it are stored apart, and a later save
+// that clears the failure clears both.
+func TestSaveClipKeepsAFailuresMessageAndDetails(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/failure.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testStoredClip("failed", "1", time.Date(2026, time.October, 10, 0, 0, 0, 0, time.UTC))
+
+	job.Status = clip.StatusFailed
+	job.Error = "The render produced an empty file"
+	job.ErrorDetails = "Outtake dev · 2026-10-10 00:00:00 UTC · ref abc123\nclip failed (clip)\nffmpeg wrote an empty file"
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	saved, err := db.GetClip(t.Context(), "failed")
+	require.NoError(t, err)
+	assert.Equal(t, job.Error, saved.Error)
+	assert.Equal(t, job.ErrorDetails, saved.ErrorDetails)
+
+	job.Status = clip.StatusCompleted
+	job.Error = ""
+	job.ErrorDetails = ""
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	cleared, err := db.GetClip(t.Context(), "failed")
+	require.NoError(t, err)
+	assert.Empty(t, cleared.Error)
+	assert.Empty(t, cleared.ErrorDetails)
+}
+
+// TestMigrationErrorDetailsKeepsOlderFailures covers clips that failed before
+// details were stored: their stored text stays their message, with no
+// details.
+func TestMigrationErrorDetailsKeepsOlderFailures(t *testing.T) {
+	t.Parallel()
+
+	path := t.TempDir() + "/older-failure.db"
+
+	db, err := New(path)
+	require.NoError(t, err)
+
+	job := testStoredClip("older", "1", time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC))
+
+	job.Status = clip.StatusFailed
+	job.Error = "extract: ffmpeg: exit status 1"
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	for _, statement := range []string{
+		`ALTER TABLE clips DROP COLUMN error_details`,
+		`DELETE FROM schema_migrations WHERE name = '011_error_details.sql'`,
+	} {
+		_, err = db.Conn().ExecContext(t.Context(), statement)
+		require.NoError(t, err, statement)
+	}
+
+	require.NoError(t, db.Close())
+
+	db, err = New(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	older, err := db.GetClip(t.Context(), "older")
+	require.NoError(t, err)
+	assert.Equal(t, "extract: ffmpeg: exit status 1", older.Error)
+	assert.Empty(t, older.ErrorDetails)
+}
+
 // TestMigrationOutputFormatsLeavesOlderClipsUnread covers clips rendered
 // before formats were stored: the migration gives them no format, so their
 // players show no badge rather than a wrong one.

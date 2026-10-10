@@ -225,6 +225,16 @@
 
 	// showFormat names what the finished preview holds, such as "SDR · 720p",
 	// in the player's corner. textContent keeps the server's label as text.
+	// showDetails fills the Details section under the status line with a
+	// failure's details, which the Copy button there copies.
+	function showDetails(details) {
+		var section = document.getElementById('preview-error-details');
+		var text = section && section.querySelector('[data-error-details-text]');
+		if (!text || !details) { return; }
+		text.textContent = details;
+		section.hidden = false;
+	}
+
 	function showFormat(label) {
 		if (!formatEl || !label) { return; }
 		formatEl.textContent = label;
@@ -288,12 +298,11 @@
 					stopPolling();
 					clearProgress();
 					statusEl.classList.remove('hidden');
-					// The error moves behind a Details section once errors carry
-					// copyable details. Until then the line names it.
 					if (state.status === 'canceled') {
 						statusEl.textContent = 'Preview canceled';
 					} else {
-						statusEl.textContent = state.error ? 'Preview failed: ' + state.error : 'Preview failed';
+						statusEl.textContent = state.message || 'Preview failed';
+						showDetails(state.details);
 					}
 
 					return;

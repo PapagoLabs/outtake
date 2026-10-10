@@ -363,6 +363,31 @@ func TestProcessJobRefusesAJobWithoutAnOutput(t *testing.T) {
 	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
 }
 
+// TestProcessJobRefusesAJobWhoseSourceIsGone covers a source file that moved
+// or was never mounted: the render stops before FFmpeg with a failure the
+// card can name, rather than FFmpeg's own error.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobRefusesAJobWhoseSourceIsGone(t *testing.T) {
+	dir := t.TempDir()
+
+	job := testClipJob("source-gone")
+
+	job.InputPath = filepath.Join(dir, "missing.mkv")
+	job.OutputPath = filepath.Join(dir, "clip.mp4")
+
+	store := storagemocks.NewMockBlob(t)
+
+	execFFmpeg := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
+
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
+	require.ErrorIs(t, err, clip.ErrSourceUnreadable)
+	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
+}
+
 func TestProcessJobReportsAnExtractFailureBeforeUploading(t *testing.T) {
 	t.Parallel()
 

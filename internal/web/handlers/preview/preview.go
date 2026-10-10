@@ -14,6 +14,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/playback"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/database"
@@ -149,7 +150,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 			ctx,
 			fiber.StatusTooManyRequests,
 			api.PreviewBusy,
-			respond.MessageFor(clippreview.ErrBusy),
+			failure.MessageFor(clippreview.ErrBusy),
 		)
 	}
 
@@ -253,7 +254,11 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	}
 
 	if view.Error != "" {
-		payload["error"] = view.Error
+		payload["message"] = view.Error
+	}
+
+	if view.ErrorDetails != "" {
+		payload["details"] = view.ErrorDetails
 	}
 
 	if label := view.Format.Label(); label != "" {

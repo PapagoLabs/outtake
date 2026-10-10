@@ -15,6 +15,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -41,7 +42,7 @@ const (
 )
 
 // NotFoundMessage is the copy shown for a clip nothing is registered under.
-const NotFoundMessage = "This clip no longer exists"
+const NotFoundMessage = failure.NotFoundMessage
 
 // WriteJSON writes a JSON response and wraps Fiber errors.
 //
@@ -113,13 +114,13 @@ func WriteError(ctx fiber.Ctx, status int, code api.ErrorCode, message string) e
 //   - ctx: Request context.
 //   - status: HTTP status code.
 //   - code: Machine-readable API error code.
-//   - failure: The plain message and its details.
+//   - shown: The plain message and its details.
 //
 // Returns:
 //   - Wrapped write or redirect error.
-func WriteFailure(ctx fiber.Ctx, status int, code api.ErrorCode, failure view.Failure) error {
+func WriteFailure(ctx fiber.Ctx, status int, code api.ErrorCode, shown view.Failure) error {
 	if IsHTMXRequest(ctx) {
-		err := WriteHTMXFlash(ctx, status, failure)
+		err := WriteHTMXFlash(ctx, status, shown)
 		if err != nil {
 			return fmt.Errorf("write htmx flash: %w", err)
 		}
@@ -128,15 +129,15 @@ func WriteFailure(ctx fiber.Ctx, status int, code api.ErrorCode, failure view.Fa
 	}
 
 	if IsFormRequest(ctx) || isPageNavigation(ctx) {
-		SetFlash(ctx, failure)
+		SetFlash(ctx, shown)
 
 		return RedirectTo(ctx, FormErrorLocation(ctx))
 	}
 
 	return WriteJSON(ctx, status, api.ErrorResponse{
 		Error:   code,
-		Message: failure.Message,
-		Details: failure.Details,
+		Message: shown.Message,
+		Details: shown.Details,
 	})
 }
 
@@ -156,11 +157,11 @@ func WriteNotFound(ctx fiber.Ctx) error {
 // Parameters:
 //   - ctx: Request context.
 //   - status: HTTP status code.
-//   - failure: The message and its details.
+//   - shown: The message and its details.
 //
 // Returns:
 //   - Wrapped render error.
-func WriteHTMXFlash(ctx fiber.Ctx, status int, failure view.Failure) error {
+func WriteHTMXFlash(ctx fiber.Ctx, status int, shown view.Failure) error {
 	ctx.Status(status)
 
 	// A browser control such as the delete button swaps on any status other
@@ -171,7 +172,7 @@ func WriteHTMXFlash(ctx fiber.Ctx, status int, failure view.Failure) error {
 	}
 
 	return RenderHTML(ctx, func(writer io.Writer) error {
-		return flash.Partial(failure).Render(ctx.Context(), writer)
+		return flash.Partial(shown).Render(ctx.Context(), writer)
 	})
 }
 

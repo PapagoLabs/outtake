@@ -50,6 +50,9 @@ type ClipItem struct {
 	FPS           int
 	MaxDur        time.Duration
 	Error         string
+	// ErrorDetails is the technical report behind Error, empty when Error
+	// says all there is.
+	ErrorDetails string
 }
 
 // AudioTrackOption is a probed audio stream in an audio select.

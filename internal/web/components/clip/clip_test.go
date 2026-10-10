@@ -539,6 +539,34 @@ func TestClipCardMarksItsPlayerForPlaybackErrors(t *testing.T) {
 	assert.Contains(t, buf.String(), "data-clip-video")
 }
 
+// TestClipStatusShowsAFailuresDetails covers a failed clip's card: the plain
+// message, and a collapsed Details section with the report when there is one.
+func TestClipStatusShowsAFailuresDetails(t *testing.T) {
+	t.Parallel()
+
+	render := func(details string) string {
+		item := activeTestItem()
+		item.Status = domainclip.StatusFailed
+		item.Error = "The render produced an empty file"
+		item.ErrorDetails = details
+
+		var body strings.Builder
+
+		require.NoError(t, ClipStatus(item).Render(t.Context(), &body))
+
+		return body.String()
+	}
+
+	withDetails := render("Outtake dev · ref 1a2b3c")
+	assert.Contains(t, withDetails, "The render produced an empty file")
+	assert.Contains(t, withDetails, "data-error-details")
+	assert.Contains(t, withDetails, "Outtake dev · ref 1a2b3c")
+
+	withoutDetails := render("")
+	assert.Contains(t, withoutDetails, "The render produced an empty file")
+	assert.NotContains(t, withoutDetails, "data-error-details", "a message alone has no Details section")
+}
+
 // TestClipStatusShowsBothEncodesDuringTheSDRVersion covers the progress of a
 // clip rendering its SDR version: one bar shows the clip done and another the
 // SDR version's progress, while a render in its first encode shows one bar.

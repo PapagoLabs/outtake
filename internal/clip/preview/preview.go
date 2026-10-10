@@ -203,6 +203,22 @@ func (service *Service) RenderInto(
 	return nil
 }
 
+// SetFailureFunc registers how a failed preview is described on the page.
+// Until one is set, a failure shows the error's own text.
+//
+// Parameters:
+//   - fn: The describer, or nil to show the error's own text.
+func (service *Service) SetFailureFunc(fn clip.DescribeFunc) {
+	if fn == nil {
+		fn = clip.PlainFailure
+	}
+
+	service.entries.mu.Lock()
+	defer service.entries.mu.Unlock()
+
+	service.entries.describe = fn
+}
+
 // Slots reports how many renders may run at once, which is also the unit the
 // admission limit is measured in.
 //

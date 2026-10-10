@@ -45,6 +45,7 @@ type Response struct {
 	InputPath     string    `json:"inputPath"`
 	OutputPath    string    `json:"outputPath,omitempty"`
 	Error         string    `json:"error,omitempty"`
+	ErrorDetails  string    `json:"errorDetails,omitempty"`
 	CreatedAt     time.Time `json:"createdAt"`
 	UpdatedAt     time.Time `json:"updatedAt"`
 	AudioIndex    int       `json:"audioIndex"`

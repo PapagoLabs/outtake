@@ -21,6 +21,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/metadata"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -211,7 +212,7 @@ func TestFailKeepsDetailsOffAnInputRefusal(t *testing.T) {
 	unexpected := failureFor(t, "/x", func(ctx fiber.Ctx) view.Failure {
 		return Fail(ctx, errFailureTest)
 	})
-	assert.Equal(t, MessageUnexpected, unexpected.Message)
+	assert.Equal(t, failure.MessageUnexpected, unexpected.Message)
 	assert.Contains(t, unexpected.Details, "disk full")
 }
 
