@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang:1.27.2-alpine docker digest to f92b6ef by @renovate[bot] in [#425](https://github.com/PapagoLabs/outtake/pull/425)
+- Update module github.com/knadh/koanf/maps to v0.1.3 by @renovate[bot] in [#421](https://github.com/PapagoLabs/outtake/pull/421)
 - Update golang.org/x/telemetry digest to 97e8ea7 by @renovate[bot] in [#420](https://github.com/PapagoLabs/outtake/pull/420)
 - Update module golang.org/x/mod to v0.42.0 by @renovate[bot] in [#412](https://github.com/PapagoLabs/outtake/pull/412)
 - Update module github.com/onsi/ginkgo/v2 to v2.33.1 by @renovate[bot] in [#411](https://github.com/PapagoLabs/outtake/pull/411)
