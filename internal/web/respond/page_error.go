@@ -32,10 +32,10 @@ type httpErrorView struct {
 //   - err: Non-nil when the response cannot be written.
 func PageError(ctx fiber.Ctx, err error) error {
 	page := httpErrorCopy(err)
-	failure := pageFailure(ctx, page, err)
+	shown := pageFailure(ctx, page, err)
 
 	if IsHTMXRequest(ctx) {
-		err = WriteHTMXFlash(ctx, page.code, failure)
+		err = WriteHTMXFlash(ctx, page.code, shown)
 		if err != nil {
 			return fmt.Errorf("write htmx flash: %w", err)
 		}
@@ -46,8 +46,8 @@ func PageError(ctx fiber.Ctx, err error) error {
 	if strings.HasPrefix(ctx.Path(), "/api/") {
 		return WriteJSON(ctx, page.code, api.ErrorResponse{
 			Error:   api.HTTPError,
-			Message: failure.Message,
-			Details: failure.Details,
+			Message: shown.Message,
+			Details: shown.Details,
 		})
 	}
 
@@ -56,8 +56,8 @@ func PageError(ctx fiber.Ctx, err error) error {
 
 	err = pages.ErrorPage(pages.ErrorPageProps{
 		Title:   page.title,
-		Message: failure.Message,
-		Details: failure.Details,
+		Message: shown.Message,
+		Details: shown.Details,
 		Status:  page.code,
 	}).Render(ctx.Context(), ctx.Response().BodyWriter())
 	if err != nil {

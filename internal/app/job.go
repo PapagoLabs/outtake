@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/rs/zerolog/log"
 
@@ -128,9 +129,14 @@ func processJob(
 	store blob.Blob,
 	reporter renderReporter,
 ) error {
+	err := checkSource(job.InputPath)
+	if err != nil {
+		return fmt.Errorf("check source: %w", err)
+	}
+
 	rect := detectJobCrop(ctx, runner, job)
 
-	err := extractJob(ctx, job, runner, db, rect)
+	err = extractJob(ctx, job, runner, db, rect)
 	if err != nil {
 		return fmt.Errorf("extract: %w", err)
 	}
@@ -342,6 +348,30 @@ func removeSDRVersion(store blob.Blob, id, output string) {
 		log.Warn().Err(err).Str("job_id", id).Str("path", output).
 			Msg("failed to remove the SDR version of a clip")
 	}
+}
+
+// checkSource opens a job's source and closes it again, so a file that is
+// missing or that Outtake may not read is reported before FFmpeg runs. A file
+// FFmpeg cannot decode is left to the render.
+//
+// Parameters:
+//   - path: The source media path.
+//
+// Returns:
+//   - err: Wraps clip.ErrSourceUnreadable when the file cannot be opened or
+//     closed.
+func checkSource(path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("%w: %w", clip.ErrSourceUnreadable, err)
+	}
+
+	err = file.Close()
+	if err != nil {
+		return fmt.Errorf("%w: %w", clip.ErrSourceUnreadable, err)
+	}
+
+	return nil
 }
 
 // detectJobCrop runs cropdetect when the job requested black-bar trimming.

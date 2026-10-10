@@ -46,6 +46,7 @@ type Queue struct {
 	done     chan struct{}
 	cancel   context.CancelFunc
 	statusFn StatusFunc
+	describe clip.DescribeFunc
 }
 
 // StatusFunc is called with a copy of a job whenever its status or progress
@@ -93,10 +94,9 @@ const (
 	// progressReset is the progress a re-queued job starts from.
 	progressReset = 0
 
-	// canceledMessage is the failure message a canceled job carries. It is a
-	// sentence rather than the status literal, because clip.Error is rendered
-	// verbatim to the user alongside the reason a render failed.
-	canceledMessage = "canceled by the user"
+	// canceledMessage is the message a canceled job's card shows, in the place
+	// a failed render shows why it failed.
+	canceledMessage = "The render was canceled"
 )
 
 // ErrJobActive is returned when a job is submitted while one with the same id is already queued or running.
@@ -140,6 +140,7 @@ func NewQueue(workers int, handler JobHandler) *Queue {
 		done:     make(chan struct{}),
 		cancel:   cancel,
 		statusFn: nil,
+		describe: clip.PlainFailure,
 	}
 
 	queue.reported = sync.NewCond(&queue.mu)
@@ -194,6 +195,7 @@ func (q *Queue) Cancel(id string) bool {
 
 	job.Status = clip.StatusCancelled
 	job.Error = canceledMessage
+	job.ErrorDetails = ""
 	job.UpdatedAt = time.Now()
 	q.mu.Unlock()
 
@@ -374,6 +376,7 @@ func (q *Queue) Reinstate(job *clip.Job) {
 	case running, entry.Status == clip.StatusPending || entry.Status == clip.StatusProcessing:
 		entry.Status = clip.StatusCancelled
 		entry.Error = canceledMessage
+		entry.ErrorDetails = ""
 	default:
 		// A settled job keeps the status it had.
 	}
@@ -405,6 +408,7 @@ func (q *Queue) Requeue(job *clip.Job) error {
 	job.Status = clip.StatusPending
 	job.Progress = progressReset
 	job.Error = ""
+	job.ErrorDetails = ""
 	job.UpdatedAt = time.Now()
 
 	q.enqueue(job)
@@ -430,6 +434,22 @@ func (q *Queue) Restore(job *clip.Job) {
 	defer q.mu.Unlock()
 
 	q.jobs[job.ID] = job.Clone()
+}
+
+// SetFailureFunc registers how a failed render is described on its card.
+// Until one is set, a failure shows the error's own text.
+//
+// Parameters:
+//   - fn: The describer, or nil to show the error's own text.
+func (q *Queue) SetFailureFunc(fn clip.DescribeFunc) {
+	if fn == nil {
+		fn = clip.PlainFailure
+	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	q.describe = fn
 }
 
 // SetOutputFormat records what a render's own file holds once it is
@@ -711,6 +731,27 @@ func (q *Queue) deliver(id string, snapshot *clip.Job, write func(*clip.Job)) {
 	write(snapshot)
 }
 
+// describeFailure describes how a job failed, for its card and its log line.
+//
+// Parameters:
+//   - job: The job that was processed.
+//   - err: What the handler returned, nil when it succeeded.
+//
+// Returns:
+//   - failure: The description, empty when err is nil.
+func (q *Queue) describeFailure(job *clip.Job, err error) clip.Failure {
+	if err == nil {
+		return clip.Failure{Message: "", Details: "", Ref: ""}
+	}
+
+	q.mu.RLock()
+
+	describe := q.describe
+	q.mu.RUnlock()
+
+	return describe("clip "+job.ID+" ("+string(job.Type)+")", err)
+}
+
 // editPlan decides whether a job may take an edit and whether the edit queues
 // it to render. The caller holds the queue lock.
 //
@@ -861,7 +902,9 @@ func (q *Queue) processJob(ctx context.Context) bool {
 
 	err := q.runHandler(jobCtx, job)
 
-	result := q.settle(job.ID, err)
+	failure := q.describeFailure(job, err)
+
+	result := q.settle(job.ID, err, failure)
 
 	switch {
 	case result == outcomeDeleted:
@@ -871,7 +914,8 @@ func (q *Queue) processJob(ctx context.Context) bool {
 	case err != nil:
 		logging.Logger.Error().
 			Str("job_id", job.ID).
-			Err(err).
+			Str("ref", failure.Ref).
+			Str("error", failure.Chain).
 			Msg("job failed")
 	default:
 		logging.Logger.Info().
@@ -955,10 +999,11 @@ func (q *Queue) runHandler(ctx context.Context, job *clip.Job) (err error) {
 // Parameters:
 //   - id: The job that was processed.
 //   - err: What the handler returned.
+//   - failure: How a failed job is described on its card.
 //
 // Returns:
 //   - outcome: How the job ended.
-func (q *Queue) settle(id string, err error) outcome {
+func (q *Queue) settle(id string, err error, failure clip.Failure) outcome {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -982,16 +1027,20 @@ func (q *Queue) settle(id string, err error) outcome {
 		// looks for, so the render is picked up again on the next start.
 		live.Status = clip.StatusPending
 		live.Error = ""
+		live.ErrorDetails = ""
 	case canceled:
 		live.Status = clip.StatusCancelled
 		live.Error = canceledMessage
+		live.ErrorDetails = ""
 	case err != nil:
 		live.Status = clip.StatusFailed
-		live.Error = err.Error()
+		live.Error = failure.Message
+		live.ErrorDetails = failure.Details
 	default:
 		live.Status = clip.StatusCompleted
 		// Cleared, so a completed job never carries an earlier failure.
 		live.Error = ""
+		live.ErrorDetails = ""
 		live.Progress = progressDone
 	}
 

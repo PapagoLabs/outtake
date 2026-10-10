@@ -19,8 +19,8 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/store/database"
-	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -585,7 +585,7 @@ func TestDeleteClipProfileReportsAStoreItCannotReach(t *testing.T) {
 	)
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
-	assert.Equal(t, respond.MessageUnexpected, answer.flash.Message,
+	assert.Equal(t, failure.MessageUnexpected, answer.flash.Message,
 		"a delete that could not run is reported rather than reported as a success")
 }
 
@@ -657,7 +657,7 @@ func TestRedirectToProfilesCarriesTheFailureInTheSession(t *testing.T) {
 
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathSettingsProfiles, answer.location, "the address carries nothing")
-	assert.Equal(t, respond.MessageUnexpected, answer.flash.Message)
+	assert.Equal(t, failure.MessageUnexpected, answer.flash.Message)
 }
 
 func TestRedirectToProfilesSendsACleanEditWithoutAFailure(t *testing.T) {

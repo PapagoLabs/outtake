@@ -24,7 +24,8 @@ const (
 	clipSelectCols = `id, media_id, media_title, media_type, clip_type, status, progress,
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
-		preserve_hdr, output_width, output_height, output_hdr, sdr_width, sdr_height`
+		preserve_hdr, output_width, output_height, output_hdr, sdr_width, sdr_height,
+		error_details`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
@@ -45,8 +46,8 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 			input_path, output_path, start_time, duration, quality, width, fps,
 			error_message, created_at, updated_at, name, audio_index, crop_black_bars,
 			web_safe_color, preserve_hdr, output_width, output_height, output_hdr,
-			sdr_width, sdr_height
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			sdr_width, sdr_height, error_details
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			clip_type = excluded.clip_type,
@@ -68,6 +69,7 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 			sdr_width = excluded.sdr_width,
 			sdr_height = excluded.sdr_height,
 			error_message = excluded.error_message,
+			error_details = excluded.error_details,
 			updated_at = excluded.updated_at
 	`)
 
@@ -116,6 +118,7 @@ func clipRowValues(job *clip.Job) []any {
 		outputHDRColumn(job),
 		job.SDRFormat.Width,
 		job.SDRFormat.Height,
+		job.ErrorDetails,
 	}
 }
 
@@ -299,6 +302,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 		&outputHDR,
 		&job.SDRFormat.Width,
 		&job.SDRFormat.Height,
+		&job.ErrorDetails,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan clip: %w", err)

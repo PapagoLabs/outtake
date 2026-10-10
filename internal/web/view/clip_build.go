@@ -38,6 +38,7 @@ func NewClipItem(
 		CreatedAt:     FormatClipCreated(job.CreatedAt),
 		FileVersion:   strconv.FormatInt(job.UpdatedAt.UnixMilli(), fileVersionBase),
 		Error:         job.Error,
+		ErrorDetails:  job.ErrorDetails,
 		StartTime:     job.StartTime,
 		Duration:      job.Duration,
 		Quality:       job.Quality,

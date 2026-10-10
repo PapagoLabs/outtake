@@ -34,8 +34,14 @@ const (
 	waitDelay = 10 * time.Second
 )
 
-// ErrTimeout reports an ffmpeg run that was stopped at its deadline.
-var ErrTimeout = errors.New("ffmpeg ran past its time limit")
+var (
+	// ErrTimeout reports an ffmpeg run that was stopped at its deadline.
+	ErrTimeout = errors.New("ffmpeg ran past its time limit")
+
+	// ErrNotStarted reports an ffmpeg that could not be started at all, such
+	// as a binary missing from the configured path.
+	ErrNotStarted = errors.New("ffmpeg could not be started")
+)
 
 // NewExecFFmpeg creates a new FFmpeg executor whose deadline scales with the
 // length of each clip.

@@ -22,10 +22,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
-	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -431,11 +431,11 @@ func TestSubmitFailureNamesAnAlreadyActiveClip(t *testing.T) {
 func TestSubmitFailureWrapsAnyOtherRejection(t *testing.T) {
 	t.Parallel()
 
-	failure := submitFailureIn(t, assert.AnError)
+	rejection := submitFailureIn(t, assert.AnError)
 
-	assert.Equal(t, fiber.StatusInternalServerError, failure.status)
-	assert.Equal(t, api.PersistFailed, failure.code)
-	assert.Equal(t, respond.MessageUnexpected, failure.failure.Message)
+	assert.Equal(t, fiber.StatusInternalServerError, rejection.status)
+	assert.Equal(t, api.PersistFailed, rejection.code)
+	assert.Equal(t, failure.MessageUnexpected, rejection.failure.Message)
 }
 
 func TestSubmitFailureSeesAJobActiveWrappedInContext(t *testing.T) {

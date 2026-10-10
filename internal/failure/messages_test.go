@@ -1,16 +1,19 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package respond
+package failure
 
 import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -19,6 +22,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/store/database"
@@ -250,6 +254,26 @@ func TestMessageForNamesEachFailure(t *testing.T) {
 			want:  "Choose 720p, 1080p, or 4K",
 			input: true,
 		},
+		{
+			name: "a render whose source cannot be read",
+			err:  clip.ErrSourceUnreadable,
+			want: "Outtake can't read this title's file. Check the media path setting.",
+		},
+		{
+			name: "a render stopped at its deadline",
+			err:  ffmpeg.ErrTimeout,
+			want: "The render ran past its time limit. Raise OUTTAKE_FFMPEG_TIMEOUT_SEC to allow longer.",
+		},
+		{
+			name: "a render that wrote nothing",
+			err:  ffmpeg.ErrEmptyOutput,
+			want: "The render produced an empty file",
+		},
+		{
+			name: "an FFmpeg that cannot start",
+			err:  ffmpeg.ErrNotStarted,
+			want: "Outtake can't run FFmpeg. Check OUTTAKE_FFMPEG_PATH.",
+		},
 		{name: "anything else", err: errUnnamed, want: MessageUnexpected},
 	}
 
@@ -259,10 +283,28 @@ func TestMessageForNamesEachFailure(t *testing.T) {
 
 			wrapped := fmt.Errorf("handler: %w", test.err)
 
-			message, input := classify(wrapped)
+			message, input := Classify(wrapped)
 			assert.Equal(t, test.want, message)
 			assert.Equal(t, test.input, input)
 			assert.Equal(t, test.want, MessageFor(wrapped))
 		})
 	}
+}
+
+// TestClassifyNamesAFailedFFmpegRun covers an FFmpeg that exited with an
+// error, whose output is in the log rather than the message.
+func TestClassifyNamesAFailedFFmpegRun(t *testing.T) {
+	t.Parallel()
+
+	// The test binary refuses an unknown flag and exits with status 2, which
+	// gives a real exit error without any other program.
+	err := exec.CommandContext(t.Context(), os.Args[0], "-test.unknown-flag").Run()
+
+	var exitErr *exec.ExitError
+
+	require.ErrorAs(t, err, &exitErr)
+
+	message, input := Classify(fmt.Errorf("render: ffmpeg: %w", err))
+	assert.Equal(t, "FFmpeg couldn't render this. Its output is in the Outtake log.", message)
+	assert.False(t, input, "a failed run carries details")
 }

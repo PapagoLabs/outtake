@@ -20,8 +20,13 @@ type Job struct {
 	// Progress is the render's percent complete, from 0 to 100.
 	Progress int
 
-	// Error is the failure a stopped render reports. Empty when it has not failed.
+	// Error is the plain message a failed or canceled render reports. Empty
+	// when it has not failed.
 	Error string
+
+	// ErrorDetails is the technical report behind Error, for an issue. Empty
+	// when Error says all there is.
+	ErrorDetails string
 
 	// Stage is which encode of a running render Progress counts. It is only
 	// known while the queue holds the job, and is never stored.

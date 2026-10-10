@@ -47,4 +47,4 @@ type: docs
 
 ## Reporting a problem
 
-An error that needs more than its message has a **Details** section under it. Open it and choose **Copy**, or select the text, and paste it into an [issue](https://github.com/PapagoLabs/outtake/issues). Its `ref` matches the line Outtake wrote to its log for the same failure, and Plex tokens are removed from both. Details show only when you are logged in.
+An error that needs more than its message has a **Details** section under it, on a page, on a failed clip's card, and under a failed preview. Open it and choose **Copy**, or select the text, and paste it into an [issue](https://github.com/PapagoLabs/outtake/issues). Its `ref` matches the line Outtake wrote to its log for the same failure, and Plex tokens are removed from both. Details show only when you are logged in.

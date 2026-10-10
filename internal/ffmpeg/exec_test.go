@@ -132,12 +132,14 @@ func newPassSource(t *testing.T) (string, probe.Key) {
 	return path, identity
 }
 
+// TestExecFFmpeg_Run_CommandNotFound covers a binary that is not where the
+// configuration says: the run reports that FFmpeg never started.
 func TestExecFFmpeg_Run_CommandNotFound(t *testing.T) {
 	t.Parallel()
 
 	ff := NewExecFFmpeg("/nonexistent/ffmpeg", "/nonexistent/ffprobe")
 	err := ff.run(t.Context(), 0, "/nonexistent/ffmpeg", "-version")
-	assert.Error(t, err)
+	require.ErrorIs(t, err, ErrNotStarted)
 }
 
 // TestExecFFmpeg_Run_ReportsItsOwnDeadline covers a run stopped by its
@@ -170,5 +172,6 @@ func TestExecFFmpeg_Run_StopsWithContext(t *testing.T) {
 	cancel()
 
 	err = NewExecFFmpeg("sleep", "sleep").run(ctx, 0, "sleep", "10")
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrNotStarted, "a stopped run is not a binary that cannot start")
 }

@@ -1,11 +1,12 @@
 // Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-package respond
+package failure
 
 import (
 	"errors"
 	"net"
+	"os/exec"
 	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/api"
@@ -15,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
@@ -36,6 +38,15 @@ type messageRule struct {
 const (
 	// MessageUnexpected is what the page says for a failure no rule names.
 	MessageUnexpected = "Something went wrong. Check the Outtake log."
+	// NotFoundMessage is what the page says for a clip nothing is registered
+	// under.
+	NotFoundMessage = "This clip no longer exists"
+	// messageSourceUnreadable is what the page says when a title's file
+	// cannot be read.
+	messageSourceUnreadable = "Outtake can't read this title's file. Check the media path setting."
+	// messageRenderFailed is what the page says when FFmpeg exits with an
+	// error, whose output goes to the log.
+	messageRenderFailed = "FFmpeg couldn't render this. Its output is in the Outtake log."
 	// messageProfileGone is what the page says for a profile that was deleted.
 	messageProfileGone = "That profile no longer exists"
 	// messagePlexUnreachable is what the page says when Plex cannot be reached.
@@ -90,9 +101,16 @@ var messageRules = []messageRule{
 	{target: plex.ErrInvalidMediaID, message: "Couldn't find this title's file in Plex"},
 	{target: plex.ErrServerReturnedError, message: "The Plex server answered with an error"},
 	{target: plex.ErrPlexError, message: "The Plex server answered with an error"},
+	{target: preview.ErrSourceUnreadable, message: messageSourceUnreadable},
+	{target: clip.ErrSourceUnreadable, message: messageSourceUnreadable},
 	{
-		target:  preview.ErrSourceUnreadable,
-		message: "Outtake can't read this title's file. Check the media path setting.",
+		target:  ffmpeg.ErrTimeout,
+		message: "The render ran past its time limit. Raise OUTTAKE_FFMPEG_TIMEOUT_SEC to allow longer.",
+	},
+	{target: ffmpeg.ErrEmptyOutput, message: "The render produced an empty file"},
+	{
+		target:  ffmpeg.ErrNotStarted,
+		message: "Outtake can't run FFmpeg. Check OUTTAKE_FFMPEG_PATH.",
 	},
 	{
 		target:  preview.ErrBusy,
@@ -153,12 +171,12 @@ var messageRules = []messageRule{
 // Returns:
 //   - message: The plain message.
 func MessageFor(err error) string {
-	message, _ := classify(err)
+	message, _ := Classify(err)
 
 	return message
 }
 
-// classify finds the plain message for err and whether it refuses what the
+// Classify finds the plain message for err and whether it refuses what the
 // user entered. A failure that carries a value the message names, such as the
 // clip length limit, is matched by its type first, and every one of those is
 // an input refusal. A network failure reaching Plex is matched by its type
@@ -172,7 +190,7 @@ func MessageFor(err error) string {
 //   - input: True when the message explains a refusal of the user's input.
 //
 //nolint:nonamedreturns // Two results read clearer named.
-func classify(err error) (message string, input bool) {
+func Classify(err error) (message string, input bool) {
 	if valued, ok := valueMessage(err); ok {
 		return valued, true
 	}
@@ -186,6 +204,11 @@ func classify(err error) (message string, input bool) {
 	//nolint:errcheck // Only the match counts, since the matched value is err itself.
 	if _, ok := errors.AsType[net.Error](err); ok {
 		return messagePlexUnreachable, false
+	}
+
+	//nolint:errcheck // Only the match counts, since the matched value is err itself.
+	if _, ok := errors.AsType[*exec.ExitError](err); ok {
+		return messageRenderFailed, false
 	}
 
 	return MessageUnexpected, false

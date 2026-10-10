@@ -132,6 +132,10 @@ func runWithin(
 			Str("output", stderr.String()+stdout.String()).
 			Msg("ffmpeg command failed")
 
+		if cmd.ProcessState == nil && runCtx.Err() == nil {
+			return fmt.Errorf("%w: %w", ErrNotStarted, err)
+		}
+
 		if timedOut(ctx, runCtx) {
 			return fmt.Errorf(
 				"%w of %s, raise ffmpeg-timeout-sec to allow longer renders",

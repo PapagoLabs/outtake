@@ -228,7 +228,7 @@ func TestIntegration_CancelStopsARunningJobAndIsRefusedAfterwards(t *testing.T) 
 	assert.True(t, work.Cancel("clip-1"))
 
 	canceled := awaitStatus(t, work, clip.StatusCancelled)
-	assert.Equal(t, "canceled by the user", canceled.Error,
+	assert.Equal(t, "The render was canceled", canceled.Error,
 		"a canceled clip explains itself rather than repeating its status")
 	assert.False(t, work.Cancel("clip-1"), "a settled job is not cancellable")
 	assert.False(t, work.Cancel("absent"))
