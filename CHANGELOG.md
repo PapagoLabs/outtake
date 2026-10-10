@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/telemetry digest to f71dc92 by @renovate[bot] in [#452](https://github.com/PapagoLabs/outtake/pull/452)
+- Update module golang.org/x/tools to v0.52.0 by @renovate[bot] in [#453](https://github.com/PapagoLabs/outtake/pull/453)
 - Update module github.com/jedib0t/go-pretty/v6 to v6.8.3 by @renovate[bot] in [#447](https://github.com/PapagoLabs/outtake/pull/447)
 - Update module github.com/huandu/xstrings to v1.6.2 by @renovate[bot] in [#442](https://github.com/PapagoLabs/outtake/pull/442)
 - Update module github.com/clipperhouse/uax29/v2 to v2.7.0 by @renovate[bot] in [#441](https://github.com/PapagoLabs/outtake/pull/441)
