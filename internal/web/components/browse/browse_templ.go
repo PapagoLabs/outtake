@@ -498,7 +498,7 @@ func mediaCard(item view.MediaItem, sort string) templ.Component {
 							}()
 						}
 						ctx = templ.InitializeContext(ctx)
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"flex size-full items-center justify-center rounded-md bg-muted transition-opacity hover:opacity-90\"><span class=\"text-muted-foreground text-sm\">No Poster</span></div>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"flex size-full items-center justify-center rounded-md bg-muted transition-opacity hover:opacity-90\"><span class=\"text-muted-foreground text-sm\">No poster</span></div>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
