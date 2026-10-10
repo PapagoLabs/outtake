@@ -5,7 +5,7 @@
 # Builds the binary from source and bundles the same static ffmpeg/ffprobe as
 # the production image.
 
-ARG BASE_IMAGE=golang:1.27.2-alpine@sha256:85dc1069ac644ea3c527b177303a406eb3358192816cd7f9e5848eb658851673
+ARG BASE_IMAGE=golang:1.27.2-alpine@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d
 ARG FFMPEG_IMAGE=mwader/static-ffmpeg:9.0.2@sha256:7d9bdaaf887f7e6ce6151f67325c344074b5ff1fb75316011c3376503e449a7b
 
 FROM ${FFMPEG_IMAGE} AS ffmpeg
