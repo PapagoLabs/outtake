@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Describe failed clips and previews with a plain message and details by @nicholas-fedor in [#450](https://github.com/PapagoLabs/outtake/pull/450)
 - Generate the changelog from the tip of main by @nicholas-fedor in [#445](https://github.com/PapagoLabs/outtake/pull/445)
 - Lint and vet the e2e suite on every pull request that touches it by @nicholas-fedor in [#436](https://github.com/PapagoLabs/outtake/pull/436)
 - Pin tools through go tool and gate coverage under race by @nicholas-fedor in [#418](https://github.com/PapagoLabs/outtake/pull/418)
