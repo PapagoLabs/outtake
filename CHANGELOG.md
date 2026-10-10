@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/exp digest to ca0d7ba by @renovate[bot] in [#407](https://github.com/PapagoLabs/outtake/pull/407)
 - Update module golang.org/x/crypto to v0.58.0 by @renovate[bot] in [#403](https://github.com/PapagoLabs/outtake/pull/403)
 - Update module golang.org/x/net to v0.61.0 by @renovate[bot] in [#404](https://github.com/PapagoLabs/outtake/pull/404)
 - Update module golang.org/x/sys to v0.49.0 by @renovate[bot] in [#397](https://github.com/PapagoLabs/outtake/pull/397)
