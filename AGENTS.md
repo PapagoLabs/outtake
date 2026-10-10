@@ -75,7 +75,7 @@ A handler answers a failure with `respond.WriteFailure` and a `view.Failure`: a 
 
 ## CI
 
-Workflows run templ and goimports through `go tool`, and goreleaser through its action, not through Taskfile. Go lint is `.github/workflows/lint-go.yaml` (no `lint.yaml`). lint-go / test / vet / security are pull_request + path filters, not push. lint-go and vet also watch `testing/**`, because the golangci-lint config builds with the `e2e` tag and `vet.yaml` vets the suite with `-tags e2e`, so e2e code is linted and compiled on every PR that touches it, although the suite itself runs only locally. `lint-gh.yaml` only on `.github/workflows/**`. Stable release: exact `vX.Y.Z` tags, `cancel-in-progress: false`. Changelog: git-cliff via `update-changelog.yaml` on `main`.
+Workflows run templ and goimports through `go tool`, and goreleaser through its action, not through Taskfile. Go lint is `.github/workflows/lint-go.yaml` (no `lint.yaml`). lint-go / test / vet / security are pull_request + path filters, not push. lint-go and vet also watch `testing/**`, because the golangci-lint config builds with the `e2e` tag and `vet.yaml` vets the suite with `-tags e2e`, so e2e code is linted and compiled on every PR that touches it, although the suite itself runs only locally. `lint-gh.yaml` only on `.github/workflows/**`. Stable release: exact `vX.Y.Z` tags, `cancel-in-progress: false`. Changelog: git-cliff via `update-changelog.yaml` on `main`. It checks out the tip of `main` as the run starts (`ref: main`), not the commit that triggered it, so any changelog commit merged since that push is part of what it builds on and its pull request cannot conflict with it.
 
 ## Domain
 
