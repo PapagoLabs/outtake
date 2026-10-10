@@ -6,6 +6,7 @@ package app
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -375,6 +376,36 @@ func TestProcessJobRefusesAJobWhoseSourceIsGone(t *testing.T) {
 
 	job.InputPath = filepath.Join(dir, "missing.mkv")
 	job.OutputPath = filepath.Join(dir, "clip.mp4")
+
+	store := storagemocks.NewMockBlob(t)
+
+	execFFmpeg := ffmpeg.NewExecFFmpeg(
+		stubFFmpeg(t, filepath.Join(dir, "argv.log"), ffmpegtest.Stub{}),
+		missingBinary(dir),
+	)
+
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
+	require.ErrorIs(t, err, clip.ErrSourceUnreadable)
+	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
+}
+
+// TestProcessJobRefusesASourceItMayNotRead covers a source that exists but
+// that Outtake has no permission to read: the render stops before FFmpeg,
+// as it does for a missing file.
+//
+//nolint:paralleltest // The render reads the process-global logger New rewrites.
+func TestProcessJobRefusesASourceItMayNotRead(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root reads a file whatever its mode")
+	}
+
+	dir := t.TempDir()
+
+	job := testClipJob("source-unreadable")
+
+	job.InputPath = stubInputFile(t, dir, "locked.mkv")
+	job.OutputPath = filepath.Join(dir, "clip.mp4")
+	require.NoError(t, os.Chmod(job.InputPath, 0))
 
 	store := storagemocks.NewMockBlob(t)
 
