@@ -79,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Animate progress bars smoothly between polls by @nicholas-fedor in [#463](https://github.com/PapagoLabs/outtake/pull/463)
 - Check plex.tv status and drop the dead sessions call by @nicholas-fedor in [#430](https://github.com/PapagoLabs/outtake/pull/430)
 - Own the data volume as the app user and repair the e2e harness by @nicholas-fedor in [#424](https://github.com/PapagoLabs/outtake/pull/424)
 - Reword the web ui to the gnome writing style by @nicholas-fedor in [#415](https://github.com/PapagoLabs/outtake/pull/415)
