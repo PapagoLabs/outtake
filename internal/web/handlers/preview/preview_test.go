@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -1182,27 +1183,30 @@ func previewFiles(t *testing.T, store *blob.Storage) []string {
 // TestPreviewRemainingOnlyForARenderingPreview covers the time left a
 // preview's status reports: an estimate while it renders, and none while it
 // waits or once it is done.
+//
+// It runs on the bubble's clock, which stands still, so the start time and the
+// estimate read the same now and the figure is exact.
 func TestPreviewRemainingOnlyForARenderingPreview(t *testing.T) {
 	t.Parallel()
 
-	started := time.Now().Add(-time.Minute)
+	synctest.Test(t, func(t *testing.T) {
+		rendering := clippreview.View{
+			ID:       "p1",
+			Status:   clip.StatusProcessing,
+			Progress: 25,
+			Started:  time.Now().Add(-time.Minute),
+		}
+		assert.Equal(t, "3m left", previewRemaining(rendering))
 
-	rendering := clippreview.View{
-		ID:       "p1",
-		Status:   clip.StatusProcessing,
-		Progress: 25,
-		Started:  started,
-	}
-	assert.Equal(t, "3m left", previewRemaining(rendering))
+		waiting := rendering
 
-	waiting := rendering
+		waiting.Status = clip.StatusPending
+		assert.Empty(t, previewRemaining(waiting))
 
-	waiting.Status = clip.StatusPending
-	assert.Empty(t, previewRemaining(waiting))
+		done := rendering
 
-	done := rendering
-
-	done.Status = clip.StatusCompleted
-	done.Progress = 100
-	assert.Empty(t, previewRemaining(done))
+		done.Status = clip.StatusCompleted
+		done.Progress = 100
+		assert.Empty(t, previewRemaining(done))
+	})
 }
