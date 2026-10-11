@@ -1195,6 +1195,50 @@ func TestSetStageStartsTheNextEncodeFromZero(t *testing.T) {
 	assert.Nil(t, q.SetStage("never-queued", clip.StageSDR))
 }
 
+// TestEachEncodeRecordsWhenItStarted covers the time each encode is
+// estimated from: a render's first encode starts when a worker takes it, and
+// the SDR version when the render moves on to it, not when the clip was made.
+func TestEachEncodeRecordsWhenItStarted(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var (
+			q          *Queue
+			firstStart time.Time
+			sdrStart   time.Time
+		)
+
+		taken := time.Now()
+
+		q = NewQueue(1, func(_ context.Context, job *clip.Job) error {
+			firstStart = q.GetJob(job.ID).StageStarted
+
+			time.Sleep(10 * time.Second)
+
+			sdrStart = q.SetStage(job.ID, clip.StageSDR).StageStarted
+
+			return nil
+		})
+
+		q.Start(t.Context())
+		t.Cleanup(q.Stop)
+
+		require.NoError(t, q.Submit(testJob("timed", clip.StatusPending)))
+
+		// The handler sleeps on the bubble's clock, so the test sleeps past it.
+		time.Sleep(11 * time.Second)
+		synctest.Wait()
+
+		assert.Equal(t, taken, firstStart, "the first encode starts when a worker takes the job")
+		assert.Equal(
+			t,
+			taken.Add(10*time.Second),
+			sdrStart,
+			"the SDR version starts when the render moves on",
+		)
+	})
+}
+
 // TestSetFormatsRecordWhatEachFileHolds covers the formats a render reports:
 // the entry carries each one, and a job the queue does not have records
 // nothing.

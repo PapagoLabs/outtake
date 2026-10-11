@@ -1178,3 +1178,31 @@ func previewFiles(t *testing.T, store *blob.Storage) []string {
 
 	return names
 }
+
+// TestPreviewRemainingOnlyForARenderingPreview covers the time left a
+// preview's status reports: an estimate while it renders, and none while it
+// waits or once it is done.
+func TestPreviewRemainingOnlyForARenderingPreview(t *testing.T) {
+	t.Parallel()
+
+	started := time.Now().Add(-time.Minute)
+
+	rendering := clippreview.View{
+		ID:       "p1",
+		Status:   clip.StatusProcessing,
+		Progress: 25,
+		Started:  started,
+	}
+	assert.Equal(t, "3m left", previewRemaining(rendering))
+
+	waiting := rendering
+
+	waiting.Status = clip.StatusPending
+	assert.Empty(t, previewRemaining(waiting))
+
+	done := rendering
+
+	done.Status = clip.StatusCompleted
+	done.Progress = 100
+	assert.Empty(t, previewRemaining(done))
+}

@@ -126,7 +126,8 @@ templ clipPlayback(item view.ClipItem) {
 // Parameters:
 //   - label: What the bar counts, empty for a render with one encode.
 //   - percent: Progress so far.
-templ renderProgress(label string, percent int) {
+//   - remaining: How long the encode has left, empty without an estimate.
+templ renderProgress(label string, percent int, remaining string) {
 	<div class="flex flex-col gap-1" data-render-progress>
 		<div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
 			<div class="h-full rounded-full bg-primary" style={ "width: " + strconv.Itoa(percent) + "%" }></div>
@@ -136,6 +137,9 @@ templ renderProgress(label string, percent int) {
 				{ label }: { strconv.Itoa(percent) }%
 			} else {
 				{ strconv.Itoa(percent) }%
+			}
+			if remaining != "" {
+				<span data-render-remaining>· { remaining }</span>
 			}
 		</p>
 	</div>
@@ -219,10 +223,10 @@ templ ClipStatus(item view.ClipItem) {
 			</div>
 		}
 		if item.RendersSDRVersion() {
-			@renderProgress("Clip", 100)
-			@renderProgress("Preview", item.Progress)
+			@renderProgress("Clip", 100, "")
+			@renderProgress("Preview", item.Progress, item.Remaining)
 		} else if item.IsActive() {
-			@renderProgress("", item.Progress)
+			@renderProgress("", item.Progress, item.Remaining)
 		}
 		@clipPlayback(item)
 		<div class="flex flex-wrap items-end gap-2">

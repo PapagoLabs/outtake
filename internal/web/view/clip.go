@@ -41,6 +41,9 @@ type ClipItem struct {
 	SDRExists bool
 	// Stage is which encode of a running render Progress counts.
 	Stage clip.Stage
+	// Remaining says how long the running encode has left, empty until there
+	// is an estimate.
+	Remaining string
 	// OutputFormat is what the clip's own file holds, zero when never read.
 	OutputFormat clip.Format
 	// SDRFormat is what the clip's SDR version holds, zero when never read.

@@ -134,6 +134,37 @@ func TestPreviewRegistryDescribesAFailure(t *testing.T) {
 	require.ErrorIs(t, got, errRender)
 }
 
+// TestPreviewRegistryRecordsWhenARenderStarts covers the time a preview's
+// estimate is made from: none while it waits, and the moment it starts
+// rendering once it runs.
+func TestPreviewRegistryRecordsWhenARenderStarts(t *testing.T) {
+	t.Parallel()
+
+	registry := newRegistry(func(string) {})
+	running := make(chan struct{})
+	release := make(chan struct{})
+
+	before := time.Now()
+
+	registry.render(t.Context(), "p1", 4, func(context.Context) error {
+		close(running)
+		<-release
+
+		return nil
+	})
+
+	<-running
+
+	view, ok := registry.resolve("p1")
+	require.True(t, ok)
+	assert.Equal(t, clip.StatusProcessing, view.Status)
+	assert.False(t, view.Started.Before(before), "the render started after it was submitted")
+	assert.False(t, view.Started.After(time.Now()))
+
+	close(release)
+	awaitPreview(t, registry)
+}
+
 func TestPreviewRegistryRecordsCancellation(t *testing.T) {
 	t.Parallel()
 

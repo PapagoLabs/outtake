@@ -317,6 +317,9 @@
 				statusEl.textContent = state.progress
 					? 'Rendering preview… ' + state.progress + '%'
 					: 'Rendering preview…';
+				if (state.remaining) {
+					statusEl.textContent += ' · ' + state.remaining;
+				}
 				schedule(pollIntervalMs);
 			})
 			.catch(function (error) {

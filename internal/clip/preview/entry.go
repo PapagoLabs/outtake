@@ -29,6 +29,9 @@ type View struct {
 	ErrorDetails string
 	// Format is what the published file holds, zero until it is read.
 	Format clip.Format
+	// Started is when the render began, after it got a slot, which the time
+	// left is estimated from. Zero until then.
+	Started time.Time
 }
 
 // entry is one registered preview render.
