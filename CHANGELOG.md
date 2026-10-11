@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/molecule-man/go-brrr to v1.3.0 by @renovate[bot] in [#455](https://github.com/PapagoLabs/outtake/pull/455)
 - Update golang.org/x/telemetry digest to f71dc92 by @renovate[bot] in [#452](https://github.com/PapagoLabs/outtake/pull/452)
 - Update module golang.org/x/tools to v0.52.0 by @renovate[bot] in [#453](https://github.com/PapagoLabs/outtake/pull/453)
 - Update module github.com/jedib0t/go-pretty/v6 to v6.8.3 by @renovate[bot] in [#447](https://github.com/PapagoLabs/outtake/pull/447)
