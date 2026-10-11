@@ -46,33 +46,59 @@ func answeringConnection(t *testing.T, local, relay bool) Server {
 	}
 }
 
-// deadConnection returns a local connection to a loopback port nothing
-// listens on.
+// deadConnection returns a local connection to a loopback server that answers
+// nothing.
 //
 // Parameters:
 //   - t: The test that needs the connection.
 //
 // Returns:
-//   - server: A connection that refuses.
+//   - server: A connection that never answers.
 func deadConnection(t *testing.T) Server {
 	t.Helper()
-
-	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-
-	addr, ok := listener.Addr().(*net.TCPAddr)
-	require.True(t, ok)
-	require.NoError(t, listener.Close())
 
 	return Server{
 		Name:      "Attic",
 		Address:   "127.0.0.1",
-		Port:      addr.Port,
+		Port:      deadPort(t),
 		Token:     "srv-token",
 		Scheme:    httpScheme,
 		Local:     true,
 		MachineID: "machine-1",
 		Relay:     false,
+	}
+}
+
+// deadPort returns the loopback port of a test server that answers nothing.
+//
+// The server closes each request's connection unanswered and holds its port
+// until the test ends, so no other listener can answer in its place.
+//
+// Parameters:
+//   - t: The test that needs the port.
+//
+// Returns:
+//   - port: The server's port.
+func deadPort(t *testing.T) int {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(dropRequest))
+	t.Cleanup(server.Close)
+
+	addr, ok := server.Listener.Addr().(*net.TCPAddr)
+	require.True(t, ok, "a test server listens on TCP")
+
+	return addr.Port
+}
+
+// dropRequest closes a request's connection without answering it.
+//
+// Parameters:
+//   - writer: The response, whose connection is taken and closed.
+func dropRequest(writer http.ResponseWriter, _ *http.Request) {
+	conn, _, err := http.NewResponseController(writer).Hijack()
+	if err == nil {
+		_ = conn.Close()
 	}
 }
 

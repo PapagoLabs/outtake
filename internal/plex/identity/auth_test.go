@@ -139,7 +139,7 @@ func newAccountServer(t *testing.T, accounts map[string]string) *httptest.Server
 }
 
 // reachablePlexTV stands in for plex.tv and for the one server it lists. The
-// server's remote connection points at a closed port and its local connection
+// server's remote connection points at a dead port and its local connection
 // at the stand-in itself, which answers /identity as machine-1.
 //
 // Parameters:
@@ -152,7 +152,7 @@ func newAccountServer(t *testing.T, accounts map[string]string) *httptest.Server
 func reachablePlexTV(t *testing.T) (string, plex.Server, plex.Server) {
 	t.Helper()
 
-	closedPort := closedLoopbackPort(t)
+	closedPort := deadPort(t)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v2/user", func(writer http.ResponseWriter, _ *http.Request) {
@@ -199,24 +199,37 @@ func reachablePlexTV(t *testing.T) (string, plex.Server, plex.Server) {
 	return server.URL, bound, dead
 }
 
-// closedLoopbackPort returns a loopback port nothing listens on.
+// deadPort returns the loopback port of a test server that answers nothing.
+//
+// The server closes each request's connection unanswered and holds its port
+// until the test ends, so no other listener can answer in its place.
 //
 // Parameters:
 //   - t: The test that needs the port.
 //
 // Returns:
-//   - port: A port that refuses connections.
-func closedLoopbackPort(t *testing.T) int {
+//   - port: The server's port.
+func deadPort(t *testing.T) int {
 	t.Helper()
 
-	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	server := httptest.NewServer(http.HandlerFunc(dropRequest))
+	t.Cleanup(server.Close)
 
-	addr, ok := listener.Addr().(*net.TCPAddr)
-	require.True(t, ok)
-	require.NoError(t, listener.Close())
+	addr, ok := server.Listener.Addr().(*net.TCPAddr)
+	require.True(t, ok, "a test server listens on TCP")
 
 	return addr.Port
+}
+
+// dropRequest closes a request's connection without answering it.
+//
+// Parameters:
+//   - writer: The response, whose connection is taken and closed.
+func dropRequest(writer http.ResponseWriter, _ *http.Request) {
+	conn, _, err := http.NewResponseController(writer).Hijack()
+	if err == nil {
+		_ = conn.Close()
+	}
 }
 
 // userRoute is the plex.tv answer that validates an access token.
@@ -1019,7 +1032,7 @@ func TestBindServerSkipsAServerWithNoReachableConnection(t *testing.T) {
 	<Device name="Attic" clientIdentifier="machine-1" provides="server" accessToken="discovered-token">
 		<Connection protocol="http" address="127.0.0.1" port="%d" local="1"/>
 	</Device>
-</MediaContainer>`, closedLoopbackPort(t))
+</MediaContainer>`, deadPort(t))
 
 	// The binding only answers Get, so binding a dead connection fails the test.
 	bound := mocks.NewMockServerBinding(t)
@@ -1241,7 +1254,12 @@ func TestChooseCustomURLSendsNoTokenToTheHostItChecks(t *testing.T) {
 
 	custom := httptest.NewServer(
 		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			tokens <- request.Header.Get("X-Plex-Token")
+			// Only the first request is kept. A send that waited for the test
+			// to read would hold the handler, and Close waits for handlers.
+			select {
+			case tokens <- request.Header.Get("X-Plex-Token"):
+			default:
+			}
 
 			_, _ = writer.Write([]byte(`{"MediaContainer":{"machineIdentifier":"someone-else"}}`))
 		}),
@@ -1275,7 +1293,7 @@ func TestChooseCustomURLRefusesAHostThatDoesNotAnswer(t *testing.T) {
 	origin, _, _ := reachablePlexTV(t)
 
 	_, err := testAuth(t, origin, nil, nil).ChooseCustomURL(
-		t.Context(), "access-token", fmt.Sprintf("http://127.0.0.1:%d", closedLoopbackPort(t)),
+		t.Context(), "access-token", fmt.Sprintf("http://127.0.0.1:%d", deadPort(t)),
 	)
 
 	require.ErrorIs(t, err, ErrServerUnreachable)

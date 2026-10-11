@@ -43,6 +43,8 @@ Three tiers. Keep a test in the lowest tier that can prove the thing.
 - **Integration (black-box)** — `package foo_test`, `internal/<domain>/<package>_integration_test.go`. No build tag, so it runs in `go test ./...`. Exercises a package's exported surface against its real collaborators. It must not contact an external service: use `httptest`, `t.TempDir()`, the in-process SQLite in `internal/store/database`, or a mockery mock. `httptest` beats a mock at a process boundary you do not own; a mock beats one you do.
 - **E2E** — `//go:build e2e` under `testing/e2e`, one subdirectory per app area, with the shared harness in `testing/e2e/helpers`. Not in `go test ./...`. Needs ffmpeg plus Plex credentials from `testing/e2e/.env` (see `.env.example`). A shell export beats the file. Specs skip cleanly when their prerequisite is absent, so a credential-less run is green, not red.
 
+A test that needs a request to fail aims it at an `httptest` server held for the whole test, whose handler hijacks each connection and closes it unanswered (`dropRequest` in the Plex, identity, and health tests). Never release a free port and dial it later: `go test` runs packages side by side, so another listener can take the port and answer. A test server's handler never blocks on a channel the test reads, because `httptest.Server.Close` waits for every handler.
+
 `internal/web/handlers` and `internal/web/middleware` accept narrow consumer-owned interfaces rather than concrete `*identity.Auth`, so tests drive them with `task mock` output instead of a live Plex.
 
 ## CI coverage gate
