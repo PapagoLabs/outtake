@@ -246,6 +246,9 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 		"id":       view.ID,
 		"status":   view.Status,
 		"progress": view.Progress,
+		// barPercent moves between the whole percents progress counts, so
+		// the bar keeps moving through a slow encode.
+		"barPercent": clip.BarPercent(view.Progress, view.ExactProgress),
 	}
 
 	// The file is only served once it is published, so the URL is withheld until

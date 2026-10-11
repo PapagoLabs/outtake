@@ -35,6 +35,7 @@ func NewClipItem(
 		ClipType:      job.Type,
 		Status:        job.Status,
 		Progress:      job.Progress,
+		BarPercent:    job.BarPercent(),
 		CreatedAt:     FormatClipCreated(job.CreatedAt),
 		FileVersion:   strconv.FormatInt(job.UpdatedAt.UnixMilli(), fileVersionBase),
 		Error:         job.Error,

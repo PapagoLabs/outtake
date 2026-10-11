@@ -45,9 +45,10 @@ func TestNewClipItemMapsEveryField(t *testing.T) {
 		Width:     640,
 		FPS:       12, OutputPath: "/clips/clip-1.mp4",
 
-		Status:   clip.StatusCompleted,
-		Progress: 40,
-		Error:    "ffmpeg exited 1",
+		Status:        clip.StatusCompleted,
+		Progress:      40,
+		ExactProgress: 40.5,
+		Error:         "ffmpeg exited 1",
 	}
 
 	item := NewClipItem(job, testProfileOptions, limit, true)
@@ -60,6 +61,7 @@ func TestNewClipItemMapsEveryField(t *testing.T) {
 		ClipType:      clip.TypeGIF,
 		Status:        clip.StatusCompleted,
 		Progress:      40,
+		BarPercent:    40.5,
 		CreatedAt:     "Sep 3, 2026 4:32 AM",
 		FileVersion:   strconv.FormatInt(created.Add(time.Minute).UnixMilli(), fileVersionBase),
 		StartTime:     12 * time.Second,

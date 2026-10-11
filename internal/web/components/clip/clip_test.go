@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -34,7 +35,8 @@ func TestClipCardPollDoesNotCoverEditForm(t *testing.T) {
 
 	assert.Contains(t, body, `hx-get="/clips/c1/row"`)
 	assert.Contains(t, body, `hx-trigger="every 2s"`)
-	assert.Contains(t, body, `hx-swap="outerHTML"`)
+	assert.Contains(t, body, `hx-swap="outerMorph"`,
+		"the poll morphs the region, so the progress bar keeps its element and animates")
 
 	gridAt := strings.Index(body, `<div class="grid gap-4 sm:grid-cols-2">`)
 	require.Positive(t, gridAt)
@@ -565,6 +567,31 @@ func TestClipStatusShowsAFailuresDetails(t *testing.T) {
 	withoutDetails := render("")
 	assert.Contains(t, withoutDetails, "The render produced an empty file")
 	assert.NotContains(t, withoutDetails, "data-error-details", "a message alone has no Details section")
+}
+
+// TestClipStatusAnimatesItsProgressBar covers the bar a poll updates.
+//
+// Its width glides over the 2-second poll interval, under reduced motion too,
+// because the bar's growth is the progress itself. It is drawn to a tenth of a
+// percent, so a slow encode's bar moves on polls that bring no new whole
+// percent.
+func TestClipStatusAnimatesItsProgressBar(t *testing.T) {
+	t.Parallel()
+
+	item := activeTestItem()
+	item.Progress = 40
+	item.BarPercent = 40.6
+
+	var body strings.Builder
+
+	require.NoError(t, ClipStatus(item).Render(t.Context(), &body))
+
+	bar := regexp.MustCompile(`<div class="h-full rounded-full bg-primary[^>]*>`).FindString(body.String())
+	require.NotEmpty(t, bar)
+	assert.Contains(t, bar, "transition-[width] duration-2000 ease-linear")
+	assert.NotContains(t, bar, "motion-reduce", "the bar glides under reduced motion too")
+	assert.Contains(t, bar, `style="width: 40.6%;"`, "the bar moves between whole percents")
+	assert.Contains(t, body.String(), "40%", "the label stays a whole percent")
 }
 
 // TestClipStatusShowsTheTimeLeft covers a rendering clip's progress bar: it

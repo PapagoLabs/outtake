@@ -31,9 +31,11 @@ const progressInterval = time.Second
 // output continuously, so a live render's file is never this old.
 const staleRenderAge = time.Hour
 
-// persistProgress returns the callback that records a render's progress. It
-// records at most one change per progressInterval, since each one is a
-// database write, and the settled status records the final value anyway.
+// persistProgress returns the callback that records a render's progress.
+//
+// Every report reaches the queue, so the card's bar moves with each step the
+// encode takes. Only one report per progressInterval is written to the
+// database, and the settled status records the final value anyway.
 //
 // Parameters:
 //   - ctx: The job's context, canceled when the job is canceled or deleted.
@@ -43,10 +45,16 @@ const staleRenderAge = time.Hour
 // Returns:
 //   - report: Callback for progress.WithProgress. ffmpeg's standard error is
 //     read by one goroutine, so it is never called concurrently.
-func persistProgress(ctx context.Context, job *clip.Job, jobQueue *queue.Queue) func(int) {
+func persistProgress(ctx context.Context, job *clip.Job, jobQueue *queue.Queue) func(float64) {
 	var last time.Time
 
-	return func(percent int) {
+	return func(percent float64) {
+		if ctx.Err() != nil {
+			return
+		}
+
+		jobQueue.TrackProgress(job.ID, percent)
+
 		now := time.Now()
 		if !last.IsZero() && now.Sub(last) < progressInterval {
 			return
@@ -54,7 +62,7 @@ func persistProgress(ctx context.Context, job *clip.Job, jobQueue *queue.Queue) 
 
 		last = now
 
-		saveProgress(ctx, job, jobQueue, percent)
+		saveProgress(ctx, job, jobQueue, int(percent))
 	}
 }
 

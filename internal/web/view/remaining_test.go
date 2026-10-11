@@ -47,3 +47,13 @@ func TestRemainingLabel(t *testing.T) {
 		})
 	}
 }
+
+// TestBarStyle covers a bar's width: a tenth of a percent, so a slow encode's
+// bar moves between whole percents.
+func TestBarStyle(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "width: 42.6%", BarStyle(42.63))
+	assert.Equal(t, "width: 0.0%", BarStyle(0))
+	assert.Equal(t, "width: 100.0%", BarStyle(100))
+}

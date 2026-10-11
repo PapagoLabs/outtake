@@ -313,7 +313,7 @@
 
 					return;
 				}
-				showProgress(state.progress);
+				showProgress(state.barPercent);
 				statusEl.textContent = state.progress
 					? 'Rendering preview… ' + state.progress + '%'
 					: 'Rendering preview…';

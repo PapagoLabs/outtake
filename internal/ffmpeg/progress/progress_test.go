@@ -12,36 +12,40 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// percentDelta is how far a reported percent may be from the expected one,
+// which covers only floating-point rounding.
+const percentDelta = 1e-9
+
 func TestProgressWriter(t *testing.T) {
 	t.Parallel()
 
-	var last int
+	var last float64
 
-	writer := NewWriter(10*time.Second, func(percent int) { last = percent })
+	writer := NewWriter(10*time.Second, func(percent float64) { last = percent })
 
 	_, err := writer.Write([]byte("frame=1 time=00:00:05.00 bitrate=1\n"))
 	require.NoError(t, err)
-	assert.Equal(t, 50, last)
+	assert.InDelta(t, 50, last, percentDelta)
 }
 
 func TestProgressWriterReportsHoursAndMinutes(t *testing.T) {
 	t.Parallel()
 
-	var last int
+	var last float64
 
-	writer := NewWriter(time.Hour, func(percent int) { last = percent })
+	writer := NewWriter(time.Hour, func(percent float64) { last = percent })
 
 	_, err := writer.Write([]byte("frame=1 time=00:30:00.00 bitrate=1\n"))
 	require.NoError(t, err)
-	assert.Equal(t, 50, last)
+	assert.InDelta(t, 50, last, percentDelta)
 }
 
 func TestProgressWriterSkipsUnparseableTimestamp(t *testing.T) {
 	t.Parallel()
 
-	var last int
+	var last float64
 
-	writer := NewWriter(10*time.Second, func(percent int) { last = percent })
+	writer := NewWriter(10*time.Second, func(percent float64) { last = percent })
 
 	_, err := writer.Write([]byte("frame=1 time=99999999999:00:00.00 bitrate=1\n"))
 	require.NoError(t, err)
@@ -51,13 +55,13 @@ func TestProgressWriterSkipsUnparseableTimestamp(t *testing.T) {
 func TestProgressWriterCapsAtNinetyNine(t *testing.T) {
 	t.Parallel()
 
-	var last int
+	var last float64
 
-	writer := NewWriter(10*time.Second, func(percent int) { last = percent })
+	writer := NewWriter(10*time.Second, func(percent float64) { last = percent })
 
 	_, err := writer.Write([]byte("frame=1 time=00:00:20.00 bitrate=1\n"))
 	require.NoError(t, err)
-	assert.Equal(t, maxReportedPercent, last)
+	assert.InDelta(t, maxReportedPercent, last, percentDelta)
 }
 
 // TestProgressWriterReadsATimeSplitAcrossWrites covers a progress line that
@@ -65,9 +69,12 @@ func TestProgressWriterCapsAtNinetyNine(t *testing.T) {
 func TestProgressWriterReadsATimeSplitAcrossWrites(t *testing.T) {
 	t.Parallel()
 
-	var reported []int
+	var reported []float64
 
-	writer := NewWriter(10*time.Second, func(percent int) { reported = append(reported, percent) })
+	writer := NewWriter(
+		10*time.Second,
+		func(percent float64) { reported = append(reported, percent) },
+	)
 
 	_, err := writer.Write([]byte("frame=1 ti"))
 	require.NoError(t, err)
@@ -75,26 +82,32 @@ func TestProgressWriterReadsATimeSplitAcrossWrites(t *testing.T) {
 
 	_, err = writer.Write([]byte("me=00:00:03.00 bitrate=1\r"))
 	require.NoError(t, err)
-	assert.Equal(t, []int{30}, reported)
+	assert.InDeltaSlice(t, []float64{30}, reported, percentDelta)
 }
 
-// TestProgressWriterReportsOnlyAChangedPercent covers repeated progress lines
-// at the same percent, which ffmpeg emits several times a second.
+// TestProgressWriterReportsOnlyAChangedPercent covers repeated progress lines.
+//
+// ffmpeg repeats a time while an encode waits on its lookahead, and only the
+// first is reported. Each step within a whole percent is still reported, so a
+// slow encode's bar moves between whole percents.
 func TestProgressWriterReportsOnlyAChangedPercent(t *testing.T) {
 	t.Parallel()
 
-	var reported []int
+	var reported []float64
 
-	writer := NewWriter(100*time.Second, func(percent int) { reported = append(reported, percent) })
+	writer := NewWriter(
+		100*time.Second,
+		func(percent float64) { reported = append(reported, percent) },
+	)
 
 	for _, line := range []string{
-		"time=00:00:01.10\r", "time=00:00:01.20\r", "time=00:00:02.00\r", "time=00:00:02.50\r",
+		"time=00:00:01.10\r", "time=00:00:01.10\r", "time=00:00:01.25\r", "time=00:00:02.50\r",
 	} {
 		_, err := writer.Write([]byte(line))
 		require.NoError(t, err)
 	}
 
-	assert.Equal(t, []int{1, 2}, reported)
+	assert.InDeltaSlice(t, []float64{1.1, 1.25, 2.5}, reported, percentDelta)
 }
 
 // TestProgressWriterKeepsOnlyTheTail covers memory: a long encode's stderr is
@@ -103,7 +116,7 @@ func TestProgressWriterReportsOnlyAChangedPercent(t *testing.T) {
 func TestProgressWriterKeepsOnlyTheTail(t *testing.T) {
 	t.Parallel()
 
-	writer := NewWriter(time.Hour, func(int) {})
+	writer := NewWriter(time.Hour, func(float64) {})
 
 	chunk := strings.Repeat("x", 1000) + "\n"
 	for range 200 {
