@@ -4,7 +4,6 @@
 package health
 
 import (
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -33,25 +32,35 @@ func blockedDatabasePath(t *testing.T) string {
 	return filepath.Join(blocker, "outtake.db")
 }
 
-// closedAddr returns a loopback address with nothing listening on it.
+// deadAddr returns the loopback address of a test server that answers
+// nothing.
+//
+// The server closes each request's connection unanswered and holds its port
+// until the test ends, so no other listener can answer in its place.
 //
 // Parameters:
-//   - t: The test requesting the address.
+//   - t: The test that needs the address.
 //
 // Returns:
-//   - addr: A loopback host and port that refuses connections.
-func closedAddr(t *testing.T) string {
+//   - addr: The server's host and port.
+func deadAddr(t *testing.T) string {
 	t.Helper()
 
-	listenConfig := &net.ListenConfig{}
+	server := httptest.NewServer(http.HandlerFunc(dropRequest))
+	t.Cleanup(server.Close)
 
-	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	return server.Listener.Addr().String()
+}
 
-	addr := listener.Addr().String()
-	require.NoError(t, listener.Close())
-
-	return addr
+// dropRequest closes a request's connection without answering it.
+//
+// Parameters:
+//   - writer: The response, whose connection is taken and closed.
+func dropRequest(writer http.ResponseWriter, _ *http.Request) {
+	conn, _, err := http.NewResponseController(writer).Hijack()
+	if err == nil {
+		_ = conn.Close()
+	}
 }
 
 func TestNewCommand(t *testing.T) {
@@ -117,7 +126,7 @@ func TestRunHealthReportsAnUnreachableServer(t *testing.T) {
 	t.Setenv("OUTTAKE_DATABASE_PATH", filepath.Join(dir, "outtake.db"))
 	t.Setenv("OUTTAKE_STORAGE_PATH", filepath.Join(dir, "output"))
 
-	err := runHealth(&flags.Listen{Addr: closedAddr(t)})
+	err := runHealth(&flags.Listen{Addr: deadAddr(t)})
 
 	require.Error(t, err)
 	require.ErrorContains(t, err, "health check:")
@@ -128,7 +137,7 @@ func TestRunHealthUsesTheConfiguredAddress(t *testing.T) {
 
 	t.Setenv("OUTTAKE_DATABASE_PATH", filepath.Join(dir, "outtake.db"))
 	t.Setenv("OUTTAKE_STORAGE_PATH", filepath.Join(dir, "output"))
-	t.Setenv("OUTTAKE_LISTEN_ADDR", closedAddr(t))
+	t.Setenv("OUTTAKE_LISTEN_ADDR", deadAddr(t))
 
 	err := runHealth(&flags.Listen{})
 

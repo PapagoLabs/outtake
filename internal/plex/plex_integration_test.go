@@ -4,7 +4,6 @@
 package plex_test
 
 import (
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -70,20 +69,34 @@ func testPMSForURL(t *testing.T, baseURL string) plex.Server {
 	return parsed
 }
 
+// deadServerURL returns the URL of a test server that answers nothing.
+//
+// The server closes each request's connection unanswered and holds its port
+// until the test ends, so no other listener can answer in its place.
+//
+// Parameters:
+//   - t: The test that needs the URL.
+//
+// Returns:
+//   - url: The server's URL.
 func deadServerURL(t *testing.T) string {
 	t.Helper()
 
-	listenConfig := &net.ListenConfig{}
+	server := httptest.NewServer(http.HandlerFunc(dropRequest))
+	t.Cleanup(server.Close)
 
-	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	return server.URL
+}
 
-	_, port, err := net.SplitHostPort(listener.Addr().String())
-	require.NoError(t, err)
-
-	require.NoError(t, listener.Close())
-
-	return "http://" + net.JoinHostPort("127.0.0.1", port)
+// dropRequest closes a request's connection without answering it.
+//
+// Parameters:
+//   - writer: The response, whose connection is taken and closed.
+func dropRequest(writer http.ResponseWriter, _ *http.Request) {
+	conn, _, err := http.NewResponseController(writer).Hijack()
+	if err == nil {
+		_ = conn.Close()
+	}
 }
 
 func TestIntegration_NewClient(t *testing.T) {
