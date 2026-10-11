@@ -33,8 +33,9 @@ func TestClipCardPollDoesNotCoverEditForm(t *testing.T) {
 	statusAt := strings.Index(body, `id="clip-c1-status"`)
 	require.Positive(t, statusAt, "the polled status region must exist")
 
+	assert.Contains(t, body, `data-clip-live="c1"`, "live.js follows the region over its stream")
 	assert.Contains(t, body, `hx-get="/clips/c1/row"`)
-	assert.Contains(t, body, `hx-trigger="every 2s"`)
+	assert.Contains(t, body, `hx-trigger="every 1s"`, "the fallback poll keeps the stream's interval")
 	assert.Contains(t, body, `hx-swap="outerMorph"`,
 		"the poll morphs the region, so the progress bar keeps its element and animates")
 
@@ -303,7 +304,7 @@ func TestClipCard(t *testing.T) {
 				item.Error = "ffmpeg exited 1"
 			},
 			contains:    []string{">Failed<", "Missing File", "ffmpeg exited 1"},
-			notContains: []string{"On disk", "hx-trigger"},
+			notContains: []string{"On disk", "hx-trigger", "data-clip-live"},
 		},
 		{
 			name: "canceled status",
@@ -363,8 +364,9 @@ func TestClipCard(t *testing.T) {
 				item.FileExists = false
 			},
 			contains: []string{
+				`data-clip-live="c1"`,
 				`hx-get="/clips/c1/row"`,
-				`hx-trigger="every 2s"`,
+				`hx-trigger="every 1s"`,
 				`hx-disable="this"`,
 				"40%",
 				"Cancel",
@@ -571,7 +573,7 @@ func TestClipStatusShowsAFailuresDetails(t *testing.T) {
 
 // TestClipStatusAnimatesItsProgressBar covers the bar a poll updates.
 //
-// Its width glides over the 2-second poll interval, under reduced motion too,
+// Its width glides over the 1-second update interval, under reduced motion too,
 // because the bar's growth is the progress itself. It is drawn to a tenth of a
 // percent, so a slow encode's bar moves on polls that bring no new whole
 // percent.
@@ -588,7 +590,7 @@ func TestClipStatusAnimatesItsProgressBar(t *testing.T) {
 
 	bar := regexp.MustCompile(`<div class="h-full rounded-full bg-primary[^>]*>`).FindString(body.String())
 	require.NotEmpty(t, bar)
-	assert.Contains(t, bar, "transition-[width] duration-2000 ease-linear")
+	assert.Contains(t, bar, "transition-[width] duration-1000 ease-linear")
 	assert.NotContains(t, bar, "motion-reduce", "the bar glides under reduced motion too")
 	assert.Contains(t, bar, `style="width: 40.6%;"`, "the bar moves between whole percents")
 	assert.Contains(t, body.String(), "40%", "the label stays a whole percent")

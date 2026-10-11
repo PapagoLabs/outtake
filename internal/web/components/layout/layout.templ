@@ -41,6 +41,7 @@ templ Layout(props Props) {
 			<link href={ assets.URL("css/output.css") } rel="stylesheet"/>
 			<script src={ assets.URL("js/htmx.min.js") }></script>
 			<script src={ utils.ScriptURL("/assets/js/app.js") } defer></script>
+			<script src={ utils.ScriptURL("/assets/js/live.js") } defer></script>
 			@label.Script()
 			@checkbox.Script()
 		</head>

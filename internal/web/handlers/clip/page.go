@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -110,17 +111,55 @@ func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
 	}
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
-		item := view.NewClipItem(
+		item := handler.statusItem(
 			job,
 			profile.SelectableProfiles(ctx.Context(), handler.db),
-			clipdom.DurationCap(handler.cfg.MaxClipDur),
-			handler.outputExists(ctx.Context())(job.OutputPath),
+			handler.storedFiles(ctx.Context(), job),
 		)
-
-		item.SDRExists = handler.sdrVersionExists(ctx.Context(), job)
 
 		return clipcard.ClipStatus(item).Render(ctx.Context(), writer)
 	})
+}
+
+// statusItem builds the card model a clip's status region renders from.
+//
+// Parameters:
+//   - job: The clip.
+//   - profiles: Profiles the card offers as a quality choice.
+//   - files: Which of the clip's files are stored.
+//
+// Returns:
+//   - item: The card model.
+func (handler *Handler) statusItem(
+	job *clipdom.Job,
+	profiles []profile.ProfileOption,
+	files storedFiles,
+) view.ClipItem {
+	item := view.NewClipItem(
+		job,
+		profiles,
+		clipdom.DurationCap(handler.cfg.MaxClipDur),
+		files.output,
+	)
+
+	item.SDRExists = files.sdr
+
+	return item
+}
+
+// storedFiles asks the storage which of a clip's files it holds.
+//
+// Parameters:
+//   - ctx: Request scope for the storage lookups.
+//   - job: The clip.
+//
+// Returns:
+//   - files: Which of the clip's files are stored.
+func (handler *Handler) storedFiles(ctx context.Context, job *clipdom.Job) storedFiles {
+	return storedFiles{
+		output: handler.outputExists(ctx)(job.OutputPath),
+		sdr:    handler.sdrVersionExists(ctx, job),
+	}
 }
 
 // Clips renders the clips list page, or the list fragment HTMX swaps into it.

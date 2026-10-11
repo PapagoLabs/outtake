@@ -19,6 +19,10 @@ const (
 	// PathClips is the clips page path.
 	PathClips = "/clips"
 
+	// PathClipLive is the stream that keeps a page's rendering clip cards
+	// current. live.js opens it.
+	PathClipLive = "/clips/live"
+
 	// PathServers is the server picker path.
 	PathServers = "/servers"
 
