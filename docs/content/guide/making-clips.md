@@ -35,7 +35,7 @@ Under **New Export**:
 
 Outtake checks the selection before it renders anything: it must fit within the title, within the longest clip allowed, and use an audio track the title has.
 
-Saved exports render in the background. Each card shows its progress, and stays usable when you leave the page.
+Saved exports render in the background. Each card shows its progress and, once the render has run for a few seconds, about how long it has left, judged from how fast it has gone so far. Previews show the same estimate under the player. The card stays usable when you leave the page.
 
 ## The Clips page
 

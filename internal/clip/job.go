@@ -3,6 +3,10 @@
 
 package clip
 
+import (
+	"time"
+)
+
 // Job is one render of a clip: the record, where the files are, and how far
 // the render has got.
 type Job struct {
@@ -31,6 +35,11 @@ type Job struct {
 	// Stage is which encode of a running render Progress counts. It is only
 	// known while the queue holds the job, and is never stored.
 	Stage Stage
+
+	// StageStarted is when the encode Stage names began, which the time left
+	// is estimated from. Like Stage, it is only known while the queue holds
+	// the job.
+	StageStarted time.Time
 
 	// OutputFormat is what the clip's own file holds, read when it was
 	// published. It is zero for a GIF, a screenshot, or a file never read.

@@ -50,6 +50,7 @@ func NewClipItem(
 		CropBlackBars: job.CropBlackBars,
 		PreserveHDR:   job.PreserveHDR,
 		Stage:         job.Stage,
+		Remaining:     remainingFor(job),
 		OutputFormat:  job.OutputFormat,
 		SDRFormat:     job.SDRFormat,
 		Width:         job.Width,
@@ -88,4 +89,20 @@ func NewClipItems(
 	}
 
 	return items
+}
+
+// remainingFor estimates how long a running job's current encode has left.
+//
+// Parameters:
+//   - job: The job the card shows.
+//
+// Returns:
+//   - label: The estimate in words, empty unless the job is rendering and
+//     has run long enough to estimate.
+func remainingFor(job *clip.Job) string {
+	if job.Status != clip.StatusProcessing {
+		return ""
+	}
+
+	return RemainingLabel(job.StageStarted, time.Now(), job.Progress)
 }

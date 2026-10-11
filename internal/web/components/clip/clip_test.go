@@ -567,6 +567,27 @@ func TestClipStatusShowsAFailuresDetails(t *testing.T) {
 	assert.NotContains(t, withoutDetails, "data-error-details", "a message alone has no Details section")
 }
 
+// TestClipStatusShowsTheTimeLeft covers a rendering clip's progress bar: it
+// names the time left once there is an estimate, and nothing before.
+func TestClipStatusShowsTheTimeLeft(t *testing.T) {
+	t.Parallel()
+
+	render := func(remaining string) string {
+		item := activeTestItem()
+		item.Progress = 40
+		item.Remaining = remaining
+
+		var body strings.Builder
+
+		require.NoError(t, ClipStatus(item).Render(t.Context(), &body))
+
+		return body.String()
+	}
+
+	assert.Contains(t, render("2m 34s left"), "· 2m 34s left")
+	assert.NotContains(t, render(""), "data-render-remaining", "no estimate shows nothing")
+}
+
 // TestClipStatusShowsBothEncodesDuringTheSDRVersion covers the progress of a
 // clip rendering its SDR version: one bar shows the clip done and another the
 // SDR version's progress, while a render in its first encode shows one bar.

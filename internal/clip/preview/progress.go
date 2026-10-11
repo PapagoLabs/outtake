@@ -140,4 +140,8 @@ func (registry *registry) setStatus(previewID string, status clip.Status, percen
 	job.view.Status = status
 	job.view.Progress = percent
 	job.updated = time.Now()
+
+	if status == clip.StatusProcessing {
+		job.view.Started = job.updated
+	}
 }

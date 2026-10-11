@@ -532,7 +532,8 @@ func (q *Queue) SetStage(id string, stage clip.Stage) *clip.Job {
 
 	job.Stage = stage
 	job.Progress = 0
-	job.UpdatedAt = time.Now()
+	job.StageStarted = time.Now()
+	job.UpdatedAt = job.StageStarted
 
 	updated := job.Clone()
 	q.mu.Unlock()
@@ -1137,7 +1138,8 @@ func (q *Queue) take(cancel context.CancelFunc) (*clip.Job, bool) {
 
 	live.Status = clip.StatusProcessing
 	live.Stage = clip.StageClip
-	live.UpdatedAt = time.Now()
+	live.StageStarted = time.Now()
+	live.UpdatedAt = live.StageStarted
 	q.cancels[id] = cancel
 
 	return live.Clone(), true

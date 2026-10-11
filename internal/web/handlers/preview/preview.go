@@ -6,6 +6,7 @@ package preview
 import (
 	"context"
 	"fmt"
+	"time"
 
 	fiber "github.com/gofiber/fiber/v3"
 
@@ -21,6 +22,7 @@ import (
 	clips "github.com/PapagoLabs/outtake/internal/web/handlers/clip"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
+	webview "github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // Handler renders and serves the segment previews the export form shows.
@@ -265,6 +267,10 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 		payload["format"] = label
 	}
 
+	if remaining := previewRemaining(view); remaining != "" {
+		payload["remaining"] = remaining
+	}
+
 	return respond.WriteJSON(ctx, fiber.StatusOK, payload)
 }
 
@@ -361,4 +367,20 @@ func (handler *Handler) resolveSelection(
 	}
 
 	return inputPath, "", nil
+}
+
+// previewRemaining says how long a rendering preview has left.
+//
+// Parameters:
+//   - view: The preview's state.
+//
+// Returns:
+//   - label: Such as "1m 20s left", empty unless the preview is
+//     rendering and has run long enough to estimate.
+func previewRemaining(view clippreview.View) string {
+	if view.Status != clip.StatusProcessing {
+		return ""
+	}
+
+	return webview.RemainingLabel(view.Started, time.Now(), view.Progress)
 }
