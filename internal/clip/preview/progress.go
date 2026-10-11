@@ -65,7 +65,7 @@ func (registry *registry) render(
 
 		registry.setStatus(previewID, clip.StatusProcessing, 0)
 
-		renderCtx := progress.WithProgress(jobCtx, func(percent int) {
+		renderCtx := progress.WithProgress(jobCtx, func(percent float64) {
 			registry.setProgress(previewID, percent)
 		})
 
@@ -81,8 +81,9 @@ func (registry *registry) render(
 //
 // Parameters:
 //   - previewID: Preview id.
-//   - percent: Reported completion, which is ignored if it goes backwards.
-func (registry *registry) setProgress(previewID string, percent int) {
+//   - percent: Reported completion, not rounded, which is ignored if it goes
+//     backwards.
+func (registry *registry) setProgress(previewID string, percent float64) {
 	registry.mu.Lock()
 	defer registry.mu.Unlock()
 
@@ -91,16 +92,11 @@ func (registry *registry) setProgress(previewID string, percent int) {
 		return
 	}
 
-	if percent < 0 {
-		percent = 0
-	}
+	percent = min(max(percent, 0), progressDone)
 
-	if percent > progressDone {
-		percent = progressDone
-	}
-
-	if percent > job.view.Progress {
-		job.view.Progress = percent
+	if percent > clip.BarPercent(job.view.Progress, job.view.ExactProgress) {
+		job.view.Progress = int(percent)
+		job.view.ExactProgress = percent
 		job.updated = time.Now()
 	}
 }

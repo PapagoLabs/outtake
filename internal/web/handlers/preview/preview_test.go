@@ -34,6 +34,7 @@ import (
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/plex/library/mocks"
@@ -45,13 +46,14 @@ import (
 )
 
 type statusResponse struct {
-	ID       string `json:"id"`
-	Status   string `json:"status"`
-	Progress int    `json:"progress"`
-	URL      string `json:"url"`
-	Message  string `json:"message"`
-	Details  string `json:"details"`
-	Format   string `json:"format"`
+	ID         string  `json:"id"`
+	Status     string  `json:"status"`
+	Progress   int     `json:"progress"`
+	BarPercent float64 `json:"barPercent"`
+	URL        string  `json:"url"`
+	Message    string  `json:"message"`
+	Details    string  `json:"details"`
+	Format     string  `json:"format"`
 }
 
 type errorResponse struct {
@@ -192,6 +194,42 @@ func TestPreviewStatusReportsAQueuedRender(t *testing.T) {
 	assert.Empty(t, view.Error)
 
 	close(release)
+}
+
+// TestPreviewStatusReportsTheBarPercent covers a slow render between whole
+// percents.
+//
+// progress stays whole, and barPercent carries the exact value the export
+// form's bar is drawn from.
+func TestPreviewStatusReportsTheBarPercent(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := previewTestHandler(t, 2)
+
+	reported := make(chan struct{})
+	release := make(chan struct{})
+
+	require.Equal(
+		t,
+		clippreview.AdmittedRender,
+		handler.previews.Submit(t.Context(), "slow", func(ctx context.Context) error {
+			progress.From(ctx)(42.6)
+			close(reported)
+			<-release
+
+			return nil
+		}),
+	)
+
+	<-reported
+
+	status, body := getPreviewStatus(t, handler, "slow")
+	assert.Equal(t, fiber.StatusOK, status)
+	assert.Equal(t, 42, body.Progress)
+	assert.InDelta(t, 42.6, body.BarPercent, 1e-9)
+
+	close(release)
+	awaitTerminal(t, handler.previews, "slow")
 }
 
 func TestPreviewStatusReportsARenderWaitingForASlot(t *testing.T) {

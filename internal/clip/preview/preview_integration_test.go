@@ -74,7 +74,7 @@ func progressRenderer(
 		report := progress.From(ctx)
 
 		for step := range steps {
-			report(step.percent)
+			report(float64(step.percent))
 			close(step.applied)
 		}
 

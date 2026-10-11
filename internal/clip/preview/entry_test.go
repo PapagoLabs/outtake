@@ -47,7 +47,7 @@ func TestPreviewRegistryRecordsProgress(t *testing.T) {
 	t.Parallel()
 
 	registry := newRegistry(func(string) {})
-	callbacks := make(chan func(int), 1)
+	callbacks := make(chan func(float64), 1)
 	released := make(chan struct{})
 
 	registry.render(t.Context(), "p1", 4, func(ctx context.Context) error {
@@ -58,7 +58,7 @@ func TestPreviewRegistryRecordsProgress(t *testing.T) {
 		return nil
 	})
 
-	var report func(int)
+	var report func(float64)
 
 	select {
 	case report = <-callbacks:
@@ -68,13 +68,15 @@ func TestPreviewRegistryRecordsProgress(t *testing.T) {
 
 	require.NotNil(t, report, "the render context must carry a progress callback")
 
-	for _, percent := range []int{0, 25, 50, 99} {
+	for _, percent := range []float64{0, 25, 50, 98.6, 98.2} {
 		report(percent)
 	}
 
 	view, ok := registry.resolve("p1")
 	require.True(t, ok)
-	assert.Equal(t, 99, view.Progress, "progress should be readable while the render runs")
+	assert.Equal(t, 98, view.Progress, "progress should be readable while the render runs")
+	assert.InDelta(t, 98.6, view.ExactProgress, 1e-9,
+		"the exact percent is kept for the bar, and never goes backwards")
 	assert.False(t, view.Done(), "the render should still be in flight")
 
 	close(released)
@@ -564,7 +566,7 @@ func TestPreviewRegistryConcurrentProgress(t *testing.T) {
 		for range 4 {
 			wg.Go(func() {
 				for percent := range 100 {
-					onProgress(percent)
+					onProgress(float64(percent))
 				}
 			})
 		}

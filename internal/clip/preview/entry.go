@@ -22,6 +22,9 @@ type View struct {
 	Status clip.Status
 	// Progress is percent complete, 0 to 100.
 	Progress int
+	// ExactProgress is the percent the render last reported, not rounded,
+	// which draws its progress bar through [clip.BarPercent].
+	ExactProgress float64
 	// Error is the plain failure message when the status is failed.
 	Error string
 	// ErrorDetails is the technical report behind Error, empty when Error

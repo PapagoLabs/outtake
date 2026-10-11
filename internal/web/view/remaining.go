@@ -11,6 +11,13 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 )
 
+const (
+	// barDecimals is how many decimal places a bar's width is written with.
+	barDecimals = 1
+	// barBits is the size of the float a bar's width is written from.
+	barBits = 64
+)
+
 // RemainingLabel says how long an encode has left, from the rate it has had
 // since it started.
 //
@@ -62,4 +69,18 @@ func remainingText(left time.Duration) string {
 	}
 
 	return strings.Join(parts, " ") + " left"
+}
+
+// BarStyle returns the inline style that sizes a progress bar.
+//
+// The width is written to a tenth of a percent, so a slow encode's bar still
+// moves between polls.
+//
+// Parameters:
+//   - percent: How far to draw the bar, from 0 to 100.
+//
+// Returns:
+//   - style: The bar's inline style, such as "width: 42.6%".
+func BarStyle(percent float64) string {
+	return "width: " + strconv.FormatFloat(percent, 'f', barDecimals, barBits) + "%"
 }

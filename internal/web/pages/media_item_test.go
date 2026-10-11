@@ -245,6 +245,25 @@ func TestMediaItemPageRendersPreviewIndicator(t *testing.T) {
 	assert.Contains(t, cancelTag, `hx-swap="none"`, "the JSON reply must not replace the button")
 
 	assert.Regexp(t, `id="preview-progress"[^>]*class="[^"]*hidden`, body)
+
+	// TwMerge reorders the merged classes, so each one is checked on its own.
+	indicator := regexp.MustCompile(
+		`id="preview-progress"[\s\S]*?data-tui-progress-indicator class="([^"]*)"`,
+	).FindStringSubmatch(body)
+	require.Len(t, indicator, 2)
+
+	classes := strings.Fields(indicator[1])
+	for _, class := range []string{"duration-1000", "ease-linear"} {
+		assert.Contains(t, classes, class, "the preview bar glides over the 1-second poll interval")
+	}
+
+	assert.NotContains(
+		t,
+		indicator[1],
+		"motion-reduce",
+		"the preview bar glides under reduced motion too",
+	)
+
 	assert.Contains(t, cancelTag, "hidden")
 	assert.Regexp(t, `id="preview-set-end"[^>]*class="[^"]*hidden`, body)
 

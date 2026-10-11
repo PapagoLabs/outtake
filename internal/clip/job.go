@@ -24,6 +24,11 @@ type Job struct {
 	// Progress is the render's percent complete, from 0 to 100.
 	Progress int
 
+	// ExactProgress is the percent the running encode last reported, not
+	// rounded, which draws its progress bar through [BarPercent]. Like Stage,
+	// it is only known while the queue holds the job, and is never stored.
+	ExactProgress float64
+
 	// Error is the plain message a failed or canceled render reports. Empty
 	// when it has not failed.
 	Error string
@@ -47,6 +52,16 @@ type Job struct {
 
 	// SDRFormat is what the clip's SDR version holds, zero when it has none.
 	SDRFormat Format
+}
+
+// BarPercent returns how far the job's progress bar is drawn.
+//
+// See [BarPercent] for when the exact percent is used.
+//
+// Returns:
+//   - percent: How far to draw the bar, from 0 to 100.
+func (job *Job) BarPercent() float64 {
+	return BarPercent(job.Progress, job.ExactProgress)
 }
 
 // Clone returns an independent copy of the render.

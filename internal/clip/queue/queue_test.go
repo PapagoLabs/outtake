@@ -1176,6 +1176,30 @@ func TestSetProgressWritesUnderTheLock(t *testing.T) {
 		"a job the queue does not have has nowhere to record progress")
 }
 
+// TestTrackProgressRecordsWithoutReporting covers an exact percent recorded
+// between reports.
+//
+// Reads see it, rounded down for Progress, and the status callback hears
+// nothing.
+func TestTrackProgressRecordsWithoutReporting(t *testing.T) {
+	t.Parallel()
+
+	reported := 0
+
+	q := NewQueue(1, nil)
+	q.Restore(testJob("tracked", clip.StatusProcessing))
+	q.SetStatusFunc(func(*clip.Job) { reported++ })
+
+	q.TrackProgress("tracked", 42.6)
+	q.TrackProgress("never-queued", 10)
+
+	job := q.GetJob("tracked")
+	assert.Equal(t, 42, job.Progress)
+	assert.InDelta(t, 42.6, job.ExactProgress, 1e-9)
+	assert.InDelta(t, 42.6, job.BarPercent(), 1e-9)
+	assert.Zero(t, reported, "tracking is never reported")
+}
+
 // TestSetStageStartsTheNextEncodeFromZero covers a render that moves on to
 // its SDR version: the entry records the stage and counts progress again from
 // zero, and a job the queue does not have records nothing.

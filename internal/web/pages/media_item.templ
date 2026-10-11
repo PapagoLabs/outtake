@@ -145,11 +145,12 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 					<div class="flex items-center gap-3">
 						@progress.Progress(progress.Props{
-							ID:    "preview-progress",
-							Max:   100,
-							Value: 0,
-							Size:  progress.SizeSm,
-							Class: "hidden flex-1",
+							ID:       "preview-progress",
+							Max:      100,
+							Value:    0,
+							Size:     progress.SizeSm,
+							Class:    "hidden flex-1",
+							BarClass: "duration-1000 ease-linear",
 						})
 						@button.Button(button.Props{
 							ID:      "preview-cancel",

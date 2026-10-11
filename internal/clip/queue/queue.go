@@ -630,6 +630,27 @@ func (q *Queue) Submit(job *clip.Job) error {
 	return nil
 }
 
+// TrackProgress records a running encode's exact percent without reporting it.
+//
+// It also records the whole percent the exact one rounds down to. Reads see
+// each step a slow encode takes between the reports [Queue.SetProgress] makes.
+//
+// Parameters:
+//   - id: The clip being rendered.
+//   - percent: Progress so far, not rounded.
+func (q *Queue) TrackProgress(id string, percent float64) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	job, ok := q.jobs[id]
+	if !ok {
+		return
+	}
+
+	job.Progress = int(percent)
+	job.ExactProgress = percent
+}
+
 // admit reports whether an id may be queued. The caller holds the lock.
 //
 // Parameters:

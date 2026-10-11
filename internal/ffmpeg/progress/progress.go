@@ -23,7 +23,7 @@ type Writer struct {
 	// duration is the clip length percent is computed against.
 	duration time.Duration
 	// on receives each new percent.
-	on func(int)
+	on func(float64)
 	// tail holds the last TailSize bytes written.
 	tail []byte
 	// partial holds the unfinished line the last write ended with.
@@ -31,7 +31,7 @@ type Writer struct {
 	// written counts every byte written.
 	written int
 	// last is the percent most recently reported, -1 before the first.
-	last int
+	last float64
 }
 
 const (
@@ -63,11 +63,12 @@ var timePattern = regexp.MustCompile(`time=(\d+):(\d+):(\d+(?:\.\d+)?)`)
 //
 // Parameters:
 //   - ctx: Parent context.
-//   - fn: Callback that receives a 0-99 percent complete value.
+//   - fn: Callback that receives the percent complete, from 0 to 99 and
+//     not rounded, so a slow encode still reports each step it takes.
 //
 // Returns:
 //   - ctx: A child context that carries fn.
-func WithProgress(ctx context.Context, fn func(percent int)) context.Context {
+func WithProgress(ctx context.Context, fn func(percent float64)) context.Context {
 	return context.WithValue(ctx, key{}, fn)
 }
 
@@ -78,8 +79,8 @@ func WithProgress(ctx context.Context, fn func(percent int)) context.Context {
 //
 // Returns:
 //   - fn: The callback, or nil when none is stored.
-func From(ctx context.Context) func(int) {
-	fn, ok := ctx.Value(key{}).(func(int))
+func From(ctx context.Context) func(float64) {
+	fn, ok := ctx.Value(key{}).(func(float64))
 	if !ok {
 		return nil
 	}
@@ -91,12 +92,12 @@ func From(ctx context.Context) func(int) {
 //
 // Parameters:
 //   - duration: Clip duration used to compute percent.
-//   - on: Optional callback invoked with 0-99 percent complete.
+//   - on: Optional callback invoked with the percent complete, from 0 to 99.
 //
 // Returns:
 //   - writer: A writer that implements [io.Writer] and parses ffmpeg time=
 //     lines.
-func NewWriter(duration time.Duration, on func(int)) *Writer {
+func NewWriter(duration time.Duration, on func(float64)) *Writer {
 	return &Writer{
 		duration: duration,
 		on:       on,
@@ -181,7 +182,7 @@ func (writer *Writer) keepTail(chunk []byte) {
 // Returns:
 //   - percent: Percent complete, capped below completion.
 //   - ok: False when the lines carry no readable time=.
-func (writer *Writer) percent(lines []byte) (int, bool) {
+func (writer *Writer) percent(lines []byte) (float64, bool) {
 	matches := timePattern.FindAllSubmatch(lines, -1)
 	if len(matches) == 0 {
 		return 0, false
@@ -199,7 +200,7 @@ func (writer *Writer) percent(lines []byte) (int, bool) {
 		return 0, false
 	}
 
-	percent := int(elapsed.Duration().Seconds() / writer.duration.Seconds() * percentScale)
+	percent := elapsed.Duration().Seconds() / writer.duration.Seconds() * percentScale
 
 	return min(max(percent, 0), maxReportedPercent), true
 }

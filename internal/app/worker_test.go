@@ -526,15 +526,15 @@ func TestRestoreBindingReportsAReadFailure(t *testing.T) {
 func TestProgressContextCarriesTheJobCallback(t *testing.T) {
 	t.Parallel()
 
-	var seen int
+	var seen float64
 
-	ctx := progress.WithProgress(t.Context(), func(percent int) {
+	ctx := progress.WithProgress(t.Context(), func(percent float64) {
 		seen = percent
 	})
 
-	progress.From(ctx)(40)
+	progress.From(ctx)(40.5)
 
-	assert.Equal(t, 40, seen)
+	assert.InDelta(t, 40.5, seen, 1e-9)
 }
 
 // workerTestConfig builds a config whose queue holds jobs without a worker.
@@ -614,9 +614,11 @@ func TestPersistProgressRecordsAtMostOnceASecond(t *testing.T) {
 		time.Sleep(progressInterval)
 
 		report(40)
-		report(41)
+		report(41.5)
 
 		assert.Equal(t, []int{10, 40}, recorded)
+		assert.InDelta(t, 41.5, jobQueue.GetJob(job.ID).ExactProgress, 1e-9,
+			"a report between writes still reaches the live job")
 	})
 }
 

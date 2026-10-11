@@ -20,6 +20,9 @@ type ClipItem struct {
 	ClipType   clip.Type
 	Status     clip.Status
 	Progress   int
+	// BarPercent is how far the progress bar is drawn, which moves between
+	// the whole percents Progress counts.
+	BarPercent float64
 	CreatedAt  string
 	// FileVersion changes whenever the clip is rendered again, so the file
 	// URL changes with it. Chromium reuses media it loaded for a URL within
