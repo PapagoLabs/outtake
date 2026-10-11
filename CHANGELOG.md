@@ -101,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- Stop aiming failing requests at released ports by @nicholas-fedor in [#465](https://github.com/PapagoLabs/outtake/pull/465)
 - Fake ffmpeg with the test binary instead of shell scripts by @nicholas-fedor in [#327](https://github.com/PapagoLabs/outtake/pull/327)
 
 ## [0.3.1] - 2026-10-05
