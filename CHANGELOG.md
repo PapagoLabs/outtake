@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Read plex as the signed-in account by @nicholas-fedor in [#493](https://github.com/PapagoLabs/outtake/pull/493)
 - Give every clip and preview an owner by @nicholas-fedor in [#491](https://github.com/PapagoLabs/outtake/pull/491)
 - Show storage use and clear previews and thumbnails by @nicholas-fedor in [#485](https://github.com/PapagoLabs/outtake/pull/485)
 - Mark the start and end from the keyboard by @nicholas-fedor in [#483](https://github.com/PapagoLabs/outtake/pull/483)
