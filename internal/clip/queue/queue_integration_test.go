@@ -167,7 +167,9 @@ func statusTrail(t *testing.T) (queue.StatusFunc, func() []clip.Status) {
 //
 // The job is submitted before the worker starts, so its pending report goes
 // out before any worker can take it. A report carries the job's latest state,
-// so a worker that took the job first would fold pending into processing.
+// so a worker that took the job first would fold pending into processing. The
+// queue reports a change after it releases its lock, so the trail is awaited
+// rather than read the moment the job shows completed.
 func TestIntegration_SubmittedJobReportsEveryTransition(t *testing.T) {
 	t.Parallel()
 
@@ -195,11 +197,12 @@ func TestIntegration_SubmittedJobReportsEveryTransition(t *testing.T) {
 	assert.Equal(t, 100, settled.Progress)
 	assert.Empty(t, settled.Error)
 
-	assert.Equal(
-		t,
-		[]clip.Status{clip.StatusPending, clip.StatusProcessing, clip.StatusCompleted},
-		snapshot(),
-	)
+	want := []clip.Status{clip.StatusPending, clip.StatusProcessing, clip.StatusCompleted}
+
+	require.Eventually(t, func() bool {
+		return len(snapshot()) >= len(want)
+	}, 5*time.Second, time.Millisecond, "the completion is reported")
+	assert.Equal(t, want, snapshot())
 }
 
 func TestIntegration_SetProgressUpdatesTheLiveJob(t *testing.T) {

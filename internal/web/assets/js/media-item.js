@@ -47,11 +47,22 @@
 			endEl.value = formatTimecode(start + dur);
 		}
 		requestSync();
+		announceMark('Start set to ' + startEl.value);
 	}
 
 	function markEnd(offset) {
 		endEl.value = formatTimecode(offset);
 		requestSync();
+		announceMark('End set to ' + endEl.value);
+	}
+
+	// announceMark tells a screen reader where a mark moved, however it was
+	// set.
+	var markAnnouncementEl = document.getElementById('mark-announcement');
+	function announceMark(text) {
+		if (markAnnouncementEl) {
+			markAnnouncementEl.textContent = text;
+		}
 	}
 
 	// positionTimeoutMs gives up on a fresh read a little after the server
@@ -108,6 +119,77 @@
 		});
 	});
 	requestSync();
+
+	// Keyboard marking. I and O set the start and end from the preview's
+	// position once a preview is loaded, and otherwise from Plex through the
+	// panel's buttons, which read a fresh position. P renders the preview.
+	// Letters never act while focus is in a field, and Up and Down in the
+	// start or end field nudge it by a tenth of a second, or a second with
+	// Shift.
+	var nudgeStep = 0.1;
+	var nudgeStepShift = 1;
+
+	function typingIn(target) {
+		if (!target || !target.tagName) { return false; }
+		var tag = target.tagName.toLowerCase();
+
+		return tag === 'input' || tag === 'textarea' || tag === 'select' || target.isContentEditable;
+	}
+
+	// previewOffset is where the loaded preview stands in the source, or null
+	// when no preview is loaded.
+	function previewOffset() {
+		var video = document.getElementById('preview-video');
+		if (!video || video.readyState < 1 || !Number.isFinite(video.currentTime)) { return null; }
+
+		return (parseFloat(video.getAttribute('data-preview-start')) || 0) + video.currentTime;
+	}
+
+	function markFromKey(which) {
+		var offset = previewOffset();
+		if (offset !== null) {
+			(which === 'start' ? markStart : markEnd)(offset);
+
+			return;
+		}
+		var btn = document.querySelector(which === 'start' ? '.js-mark-start' : '.js-mark-end');
+		if (btn && !btn.disabled) {
+			btn.click();
+
+			return;
+		}
+		announceMark('No preview or Plex position to mark');
+	}
+
+	document.addEventListener('keydown', function (event) {
+		if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey || typingIn(event.target)) {
+			return;
+		}
+		var key = event.key.toLowerCase();
+		if (key === 'i' || key === 'o') {
+			event.preventDefault();
+			markFromKey(key === 'i' ? 'start' : 'end');
+		} else if (key === 'p') {
+			var preview = document.getElementById('preview-button');
+			if (preview && !preview.disabled) {
+				event.preventDefault();
+				preview.click();
+			}
+		}
+	});
+
+	[startEl, endEl].forEach(function (field) {
+		field.addEventListener('keydown', function (event) {
+			if (event.ctrlKey || event.metaKey || event.altKey) { return; }
+			if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') { return; }
+			event.preventDefault();
+			var step = event.shiftKey ? nudgeStepShift : nudgeStep;
+			var value = parseTimecode(field.value) + (event.key === 'ArrowUp' ? step : -step);
+			field.value = formatTimecode(Math.max(0, value));
+			field.dispatchEvent(new Event('input', { bubbles: true }));
+			announceMark((field === startEl ? 'Start' : 'End') + ' set to ' + field.value);
+		});
+	});
 
 	// The preview renders in the background, so the file this page was
 	// redirected to may not exist yet. Poll until the server publishes it, then
@@ -267,8 +349,7 @@
 
 		setEndEl.addEventListener('click', function () {
 			if (!endEl || !Number.isFinite(videoEl.currentTime)) { return; }
-			endEl.value = formatTimecode(proxyStart + videoEl.currentTime);
-			endEl.dispatchEvent(new Event('input'));
+			markEnd(proxyStart + videoEl.currentTime);
 		});
 	}
 

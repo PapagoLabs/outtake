@@ -23,6 +23,17 @@ A title's page has two parts: **Plex Playback** and **New Export**.
 
 **Length** shows how long the selection is and the longest a clip may be, ten minutes unless `OUTTAKE_MAX_CLIP_DUR` says otherwise.
 
+### Keyboard
+
+| Key | What it does |
+| --- | --- |
+| **I** | Sets the start from where the preview stands, or from Plex when no preview is loaded |
+| **O** | Sets the end the same way |
+| **P** | Renders the preview |
+| **Up** and **Down** | In **Start** or **End**, move the mark by a tenth of a second, or a second with **Shift** |
+
+The letters do nothing while you type in a field. Each button's tooltip names its key.
+
 ## Export
 
 Under **New Export**:

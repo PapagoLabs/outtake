@@ -89,14 +89,14 @@ func PlaybackPanel(props view.Playback) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " <div class=\"flex flex-wrap gap-2 mt-3\"><button type=\"button\" class=\"js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\" data-offset=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, " <div class=\"flex flex-wrap gap-2 mt-3\"><button type=\"button\" title=\"Set Start From Plex (I)\" aria-keyshortcuts=\"I\" class=\"js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\" data-offset=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(timecode.FromDuration(props.ViewOffset).FormatSeconds())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 29, Col: 208}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 29, Col: 262}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 			if templ_7745c5c3_Err != nil {
@@ -109,20 +109,20 @@ func PlaybackPanel(props view.Playback) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.PositionURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 29, Col: 248}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 29, Col: 302}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">Set Start From Plex</button> <button type=\"button\" class=\"js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\" data-offset=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\">Set Start From Plex</button> <button type=\"button\" title=\"Set End From Plex (O)\" aria-keyshortcuts=\"O\" class=\"js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent\" data-offset=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(timecode.FromDuration(props.ViewOffset).FormatSeconds())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 30, Col: 206}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 30, Col: 258}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 			if templ_7745c5c3_Err != nil {
@@ -135,7 +135,7 @@ func PlaybackPanel(props view.Playback) templ.Component {
 			var templ_7745c5c3_Var7 string
 			templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.PositionURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 30, Col: 246}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/playback/playback.templ`, Line: 30, Col: 298}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 			if templ_7745c5c3_Err != nil {

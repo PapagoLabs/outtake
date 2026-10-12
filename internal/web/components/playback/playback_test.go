@@ -29,6 +29,8 @@ func TestPlaybackPanelMarkButtons(t *testing.T) {
 
 	body := buf.String()
 	assert.Regexp(t, `js-mark-start[^>]*>Set Start From Plex`, body)
+	assert.Contains(t, body, `title="Set Start From Plex (I)" aria-keyshortcuts="I"`, "the tooltip names the key")
+	assert.Contains(t, body, `title="Set End From Plex (O)" aria-keyshortcuts="O"`)
 	assert.Regexp(t, `js-mark-end[^>]*>Set End From Plex`, body)
 }
 
