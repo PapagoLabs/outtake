@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/klauspost/compress to v1.20.3 by @renovate[bot] in [#481](https://github.com/PapagoLabs/outtake/pull/481)
 - Update module github.com/vektra/mockery/v3 to v3.8.1 by @renovate[bot] in [#475](https://github.com/PapagoLabs/outtake/pull/475)
 - Lock file maintenance by @renovate[bot] in [#469](https://github.com/PapagoLabs/outtake/pull/469)
 - Update module modernc.org/libc to v1.78.0 by @renovate[bot] in [#459](https://github.com/PapagoLabs/outtake/pull/459)
