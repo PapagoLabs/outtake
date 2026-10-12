@@ -6,6 +6,8 @@ package preview
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -84,6 +86,45 @@ func (service *Service) Acquire(ctx context.Context, timeout time.Duration) (fun
 //   - stopped: True when a running preview was canceled.
 func (service *Service) Cancel(previewID string) bool {
 	return service.entries.cancel(previewID)
+}
+
+// ClearFinished deletes every finished preview and its file.
+//
+// Files left by earlier runs, which nothing has registered, go too. A preview
+// that waits for a slot or renders keeps its file, and a finished one's status
+// reads as gone afterwards. On S3 each file's object goes too.
+//
+// Parameters:
+//   - ctx: Request scope. Once it ends no further delete starts.
+//
+// Returns:
+//   - removed: How many preview files were deleted.
+//   - err: The first failure, or nil.
+func (service *Service) ClearFinished(ctx context.Context) (int, error) {
+	service.entries.clearFinished()
+
+	files, err := blob.StoredFiles(service.paths.PreviewsDir())
+	if err != nil {
+		return 0, fmt.Errorf("clear previews: %w", err)
+	}
+
+	// Checked again right before the deletes, so a preview submitted since
+	// the registry was cleared keeps its file.
+	cleared := make([]string, 0, len(files))
+
+	for _, file := range files {
+		previewID := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+		if !service.entries.rendering(previewID) {
+			cleared = append(cleared, file)
+		}
+	}
+
+	removed, err := blob.DeleteEach(ctx, service.store, cleared, blob.ClearLimit)
+	if err != nil {
+		return removed, fmt.Errorf("clear previews: %w", err)
+	}
+
+	return removed, nil
 }
 
 // Close refuses new previews, cancels the running ones, and waits for them to

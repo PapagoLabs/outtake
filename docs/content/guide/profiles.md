@@ -1,6 +1,6 @@
 ---
 title: Profiles and Settings
-description: Clip profiles set the quality, size, HDR, and copying of every export, and the settings pages cap previews and choose a color palette
+description: Clip profiles set the quality, size, HDR, and copying of every export, and the settings pages cap previews, show storage, and choose a color palette
 weight: 3
 ---
 
@@ -44,6 +44,10 @@ A copy has to start on a keyframe, so the clip starts on the keyframe at or befo
 ![The Previews settings page, with Maximum Preview Resolution set to 1080p](/images/screenshots/previews.png)
 
 **Settings → Previews** sets the **Maximum Preview Resolution**: 720p, 1080p (the default), or 4K. It caps every preview Outtake renders, both the previews on the export form and the SDR versions of HDR clips, and a smaller source keeps its own size. A lower cap renders previews faster. The change applies to previews rendered after you save it.
+
+## Storage
+
+**Settings → Storage** shows how many files the video clips, GIFs, screenshots, previews, and thumbnails take on the server's disk, and how much room the disk has left. **Clear Previews** deletes every preview that has finished, including any left from before Outtake restarted, and leaves one that is rendering alone. **Clear Thumbnails** empties the poster cache, which refills from Plex as pages show posters again. Clips are never deleted from here. With S3 storage, the page counts this server's local copies, and both actions delete the bucket's copies too.
 
 ## Appearance
 

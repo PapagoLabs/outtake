@@ -199,6 +199,20 @@ func (registry *registry) cancel(previewID string) bool {
 	return true
 }
 
+// clearFinished drops every finished preview, so a cleared preview's status
+// reads as gone rather than as published.
+func (registry *registry) clearFinished() {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	for previewID, job := range registry.entries {
+		if job.view.Done() {
+			delete(registry.entries, previewID)
+			registry.dropLocked(previewID)
+		}
+	}
+}
+
 // countFinishedLocked reports how many registered previews have finished.
 //
 // Returns:
@@ -334,6 +348,22 @@ func (registry *registry) remember(previewID string, format clip.Format) {
 		created: time.Now(),
 		updated: time.Now(),
 	})
+}
+
+// rendering reports whether a preview is registered and not finished.
+//
+// Parameters:
+//   - previewID: Preview id.
+//
+// Returns:
+//   - ok: True while the preview waits for a slot or renders.
+func (registry *registry) rendering(previewID string) bool {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	job, ok := registry.entries[previewID]
+
+	return ok && !job.view.Done()
 }
 
 // resolve returns a snapshot of one preview.

@@ -6,6 +6,7 @@ package preview
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 	"testing/synctest"
@@ -444,4 +445,57 @@ func TestExistsLooksUpWithoutDownloading(t *testing.T) {
 	store.EXPECT().Exists(mock.Anything, service.OutputPath("remote")).Return(true).Once()
 
 	assert.True(t, service.Exists(t.Context(), "remote"))
+}
+
+// TestClearFinishedKeepsARenderingPreview covers clearing the previews.
+//
+// A finished preview and a file left from an earlier run are deleted, and the
+// finished preview's status reads as gone. A preview still rendering keeps
+// its entry and its file, and a render's staging file is left alone.
+func TestClearFinishedKeepsARenderingPreview(t *testing.T) {
+	t.Parallel()
+
+	service, store := newServiceFixture(t)
+
+	dir := store.PreviewsDir()
+	require.NoError(t, os.MkdirAll(dir, 0o750))
+
+	for _, name := range []string{"finished.mp4", "stale.mp4", "rendering.mp4", ".staging-rendering.mp4"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("preview"), 0o600))
+	}
+
+	service.Remember(t.Context(), "finished")
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	require.Equal(
+		t,
+		AdmittedRender,
+		service.Submit(t.Context(), "rendering", func(context.Context) error {
+			close(started)
+			<-release
+
+			return nil
+		}),
+	)
+
+	<-started
+
+	removed, err := service.ClearFinished(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, 2, removed, "the finished preview and the stale file")
+
+	assert.NoFileExists(t, filepath.Join(dir, "finished.mp4"))
+	assert.NoFileExists(t, filepath.Join(dir, "stale.mp4"))
+	assert.FileExists(t, filepath.Join(dir, "rendering.mp4"), "a rendering preview keeps its file")
+	assert.FileExists(t, filepath.Join(dir, ".staging-rendering.mp4"), "and its staging file")
+
+	_, known := service.Status("finished")
+	assert.False(t, known, "a cleared preview reads as gone")
+
+	_, known = service.Status("rendering")
+	assert.True(t, known)
+
+	close(release)
 }

@@ -8,6 +8,7 @@ import (
 	"net"
 	"os/exec"
 	"strconv"
+	"syscall"
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -203,8 +204,7 @@ func Classify(err error) (message string, input bool) {
 		}
 	}
 
-	//nolint:errcheck // Only the match counts, since the matched value is err itself.
-	if _, ok := errors.AsType[net.Error](err); ok {
+	if networkFailure(err) {
 		return messagePlexUnreachable, false
 	}
 
@@ -214,6 +214,28 @@ func Classify(err error) (message string, input bool) {
 	}
 
 	return MessageUnexpected, false
+}
+
+// networkFailure reports whether a failure happened on the network.
+//
+// A bare errno has a [net.Error]'s methods too, so a local file error such as a
+// full disk would otherwise count. A network error matches first at its
+// [*net.OpError] or other wrapper.
+//
+// Parameters:
+//   - err: What went wrong.
+//
+// Returns:
+//   - ok: True for a network failure.
+func networkFailure(err error) bool {
+	networkErr, ok := errors.AsType[net.Error](err)
+	if !ok {
+		return false
+	}
+
+	_, local := networkErr.(syscall.Errno)
+
+	return !local
 }
 
 // valueMessage names the failures whose message carries a value.

@@ -151,6 +151,24 @@ var wantRoutes = []routerRoute{
 		sample:  "/settings/previews",
 	},
 	{
+		method:  http.MethodGet,
+		path:    "/settings/storage",
+		guarded: true,
+		sample:  "/settings/storage",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/storage/previews/clear",
+		guarded: true,
+		sample:  "/settings/storage/previews/clear",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/storage/thumbnails/clear",
+		guarded: true,
+		sample:  "/settings/storage/thumbnails/clear",
+	},
+	{
 		method:  http.MethodPost,
 		path:    "/settings/profiles",
 		guarded: true,

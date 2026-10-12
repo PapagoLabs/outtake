@@ -32,6 +32,7 @@ import (
 	previews "github.com/PapagoLabs/outtake/internal/web/handlers/preview"
 	profiles "github.com/PapagoLabs/outtake/internal/web/handlers/profile"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/server"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/storage"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -75,6 +76,7 @@ type routerHandlers struct {
 	profiles *profiles.Handler
 	health   *health.Handler
 	live     *live.Handler
+	storage  *storage.Handler
 }
 
 // routeClips is the clips collection path.
@@ -218,6 +220,7 @@ func newRouterHandlers(deps Deps) routerHandlers {
 		preview:  previewHandler,
 		profiles: profiles.New(profilesettings.New(deps.DB)),
 		health:   health.New(),
+		storage:  newStorageHandler(deps),
 		live: live.New(
 			live.Feed{Name: routes.QueryLiveClips, Start: clipHandler.LiveClips},
 			live.Feed{Name: routes.QueryPreview, Start: previewHandler.LivePreview},
@@ -256,9 +259,9 @@ func mountSessionless(app *fiber.App, built routerHandlers) {
 // Parameters:
 //   - app: The application to install onto.
 //   - cfg: Configuration supplying the cookie settings.
-//   - storage: Where sessions persist, or nil to keep them in memory.
-func useSessionMiddleware(app *fiber.App, cfg *config.Config, storage fiber.Storage) {
-	sessions, store := session.NewWithStore(sessionConfig(cfg, storage))
+//   - sessionStorage: Where sessions persist, or nil to keep them in memory.
+func useSessionMiddleware(app *fiber.App, cfg *config.Config, sessionStorage fiber.Storage) {
+	sessions, store := session.NewWithStore(sessionConfig(cfg, sessionStorage))
 
 	app.Use(sessions)
 	app.Use(csrf.New(csrfConfig(cfg, store)))
@@ -305,6 +308,9 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get("/settings/profiles", guard, profilesHandler.ClipProfiles)
 	app.Post("/settings/profiles", guard, profilesHandler.CreateClipProfile)
 	app.Post(routes.PathSettingsPreviews, guard, homeHandler.SavePreviewSettings)
+	app.Get(routes.PathSettingsStorage, guard, built.storage.Page)
+	app.Post(routes.PathClearPreviews, guard, built.storage.ClearPreviews)
+	app.Post(routes.PathClearThumbnails, guard, built.storage.ClearThumbnails)
 	app.Post("/settings/profiles/:id/default", guard, profilesHandler.SetDefaultClipProfile)
 	app.Post("/settings/profiles/:id/delete", guard, profilesHandler.DeleteClipProfile)
 	app.Post("/settings/profiles/:id", guard, profilesHandler.UpdateClipProfile)
@@ -339,4 +345,22 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	api.Get("/auth/callback", authHandler.Callback)
 	api.Get("/auth/status", authHandler.Status)
 	api.Post("/auth/logout", authHandler.Logout)
+}
+
+// newStorageHandler builds the storage page, which clears previews only when
+// a preview service is wired, so the page never calls a nil service.
+//
+// Parameters:
+//   - deps: Every dependency the route table and its handlers are built from.
+//
+// Returns:
+//   - handler: The storage page's handler.
+func newStorageHandler(deps Deps) *storage.Handler {
+	var clearer storage.PreviewClearer
+
+	if deps.Previews != nil {
+		clearer = deps.Previews
+	}
+
+	return storage.New(deps.Blob, deps.Paths, clearer, deps.Cfg.StorageBackend == blob.BackendS3)
 }

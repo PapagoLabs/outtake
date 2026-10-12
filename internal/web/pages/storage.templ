@@ -1,0 +1,111 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"strconv"
+
+	"github.com/PapagoLabs/outtake/internal/store/blob"
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
+)
+
+// StorageProps carries what the local storage holds.
+type StorageProps struct {
+	// Usage is what each folder holds.
+	Usage blob.Usage
+	// Free is how many bytes the volume has left.
+	Free uint64
+	// Total is the volume's size in bytes.
+	Total uint64
+	// VolumeKnown reports that Free and Total were measured.
+	VolumeKnown bool
+	// S3 reports that clips are kept in an S3 bucket, so the figures are
+	// this server's local copies.
+	S3 bool
+}
+
+// Storage renders what the local storage holds, with actions that clear the
+// previews and the thumbnail cache.
+//
+// Parameters:
+//   - props: The measured storage.
+templ Storage(props StorageProps) {
+	@layout.Layout(layout.Props{Title: "Storage", Active: "storage"}) {
+		<div class="flex flex-col gap-6 max-w-xl">
+			<h2 class="text-2xl font-bold tracking-tight">Storage</h2>
+			@card.Card() {
+				@card.Content() {
+					<table class="w-full text-sm">
+						<thead>
+							<tr class="text-left text-muted-foreground">
+								<th class="py-2 font-medium">Folder</th>
+								<th class="py-2 font-medium text-right">Files</th>
+								<th class="py-2 font-medium text-right">Size</th>
+								<th class="py-2"></th>
+							</tr>
+						</thead>
+						<tbody>
+							@storageRow("Video Clips", props.Usage.Clips) {
+							}
+							@storageRow("GIFs", props.Usage.GIFs) {
+							}
+							@storageRow("Screenshots", props.Usage.Screenshots) {
+							}
+							@storageRow("Previews", props.Usage.Previews) {
+								@clearAction(routes.PathClearPreviews, "Delete every finished preview?", "Clear Previews")
+							}
+							@storageRow("Thumbnails", props.Usage.Thumbnails) {
+								@clearAction(routes.PathClearThumbnails, "Delete every cached thumbnail?", "Clear Thumbnails")
+							}
+							@storageRow("Total", props.Usage.Total()) {
+							}
+						</tbody>
+					</table>
+					if props.VolumeKnown {
+						<p class="mt-4 text-sm text-muted-foreground" data-free-space>{ view.FormatBytes(props.Free) } free of { view.FormatBytes(props.Total) }</p>
+					}
+					if props.S3 {
+						<p class="mt-2 text-sm text-muted-foreground" data-s3-note>These are this server's local copies of the S3 bucket</p>
+					}
+				}
+			}
+		</div>
+	}
+}
+
+// storageRow renders one folder's files and size, with any action it offers.
+//
+// Parameters:
+//   - name: The folder's name.
+//   - usage: What it holds.
+templ storageRow(name string, usage blob.FolderUsage) {
+	<tr class="border-t">
+		<td class="py-2">{ name }</td>
+		<td class="py-2 text-right tabular-nums">{ strconv.Itoa(usage.Files) }</td>
+		<td class="py-2 text-right tabular-nums">{ view.FormatBytes(uint64(max(usage.Bytes, 0))) }</td>
+		<td class="py-2 pl-4 text-right">
+			{ children... }
+		</td>
+	</tr>
+}
+
+// clearAction renders a button that clears a folder once confirmed.
+//
+// Parameters:
+//   - action: The route that clears it.
+//   - confirm: The question asked first.
+//   - label: The button's label.
+templ clearAction(action, confirm, label string) {
+	<form action={ templ.SafeURL(action) } method="POST" data-confirm={ confirm }>
+		@csrf.Field()
+		@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Variant: button.VariantOutline}) {
+			{ label }
+		}
+	</form>
+}
