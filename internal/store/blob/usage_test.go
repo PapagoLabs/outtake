@@ -89,6 +89,34 @@ func TestUsageMeasuresEachFolder(t *testing.T) {
 	assert.Equal(t, FolderUsage{Files: 4, Bytes: 220}, usage.Total())
 }
 
+// TestUsageMeasuresPastAFolderItCannotRead covers a folder that cannot be
+// listed.
+//
+// That folder reads as empty and is named in the error, and every other folder
+// is still measured.
+func TestUsageMeasuresPastAFolderItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	paths := NewPaths(t.TempDir())
+
+	writeStored(t, paths.PreviewsDir(), map[string]int{"p1.mp4": 50})
+	require.NoError(t, os.MkdirAll(filepath.Dir(paths.ClipsDir()), 0o750))
+	require.NoError(t, os.WriteFile(paths.ClipsDir(), []byte("not a folder"), 0o600))
+	require.NoError(t, os.WriteFile(paths.GifsDir(), []byte("not a folder"), 0o600))
+
+	usage, err := paths.Usage()
+
+	require.ErrorContains(t, err, filepath.Base(paths.ClipsDir()))
+	require.ErrorContains(t, err, filepath.Base(paths.GifsDir()))
+	assert.Equal(t, FolderUsage{Files: 0, Bytes: 0}, usage.Clips)
+	assert.Equal(
+		t,
+		FolderUsage{Files: 1, Bytes: 50},
+		usage.Previews,
+		"the readable folders are measured",
+	)
+}
+
 // TestClearThumbnailsDeletesTheCache covers clearing the poster cache.
 //
 // Every poster goes, and a delete that fails is reported without stopping

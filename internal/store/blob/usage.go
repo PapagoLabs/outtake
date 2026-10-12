@@ -82,15 +82,16 @@ func (usage Usage) Total() FolderUsage {
 // Usage measures what the local storage holds.
 //
 // Only finished files count. A render's staging file or GIF palette is left
-// out, and a folder nothing has written yet holds nothing.
+// out, and a folder nothing has written yet holds nothing. A folder that
+// cannot be read reads as empty, and the others are still measured.
 //
 // Returns:
-//   - usage: What each folder holds.
-//   - err: Non-nil when a folder cannot be read.
+//   - usage: What each readable folder holds.
+//   - err: Every folder that cannot be read, or nil.
 func (paths Paths) Usage() (Usage, error) {
 	var (
-		usage Usage
-		err   error
+		usage  Usage
+		failed []error
 	)
 
 	for _, folder := range []struct {
@@ -103,10 +104,19 @@ func (paths Paths) Usage() (Usage, error) {
 		{dir: paths.PreviewsDir(), usage: &usage.Previews},
 		{dir: paths.ThumbnailsDir(), usage: &usage.Thumbnails},
 	} {
-		*folder.usage, err = folderUsage(folder.dir)
+		measured, err := folderUsage(folder.dir)
 		if err != nil {
-			return Usage{}, fmt.Errorf("measure storage: %w", err)
+			failed = append(failed, err)
+
+			continue
 		}
+
+		*folder.usage = measured
+	}
+
+	err := errors.Join(failed...)
+	if err != nil {
+		return usage, fmt.Errorf("measure storage: %w", err)
 	}
 
 	return usage, nil

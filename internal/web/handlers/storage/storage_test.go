@@ -163,14 +163,16 @@ func TestPageNotesAnS3Bucket(t *testing.T) {
 	assert.Contains(t, body, "These are this server's local copies of the S3 bucket")
 }
 
-// TestPageReportsAFolderItCannotRead covers a folder the page cannot list,
-// which the banner reports while the page still renders.
+// TestPageReportsAFolderItCannotRead covers a folder the page cannot list.
+//
+// The banner reports it, and the page still shows the folders it could read.
 func TestPageReportsAFolderItCannotRead(t *testing.T) {
 	t.Parallel()
 
 	app, paths := storageApp(t, nil, false)
 	require.NoError(t, os.RemoveAll(paths.ClipsDir()))
 	require.NoError(t, os.WriteFile(paths.ClipsDir(), []byte("not a folder"), 0o600))
+	writeFiles(t, paths.ThumbnailsDir(), map[string]int{"poster.jpg": 1500})
 
 	answer := send(t, app, http.MethodGet, routes.PathSettingsStorage)
 	body := answer.body
@@ -178,6 +180,12 @@ func TestPageReportsAFolderItCannotRead(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assert.Contains(t, body, "Storage", "the page still renders")
 	assert.Contains(t, body, failure.MessageUnexpected, "and the banner reports the failure")
+	assert.Regexp(
+		t,
+		`Thumbnails</td>\s*<td[^>]*>1</td>\s*<td[^>]*>1.5 kB</td>`,
+		body,
+		"the readable folders are still measured",
+	)
 }
 
 // TestClearPreviewsClearsAndReturns covers the Clear Previews action.
