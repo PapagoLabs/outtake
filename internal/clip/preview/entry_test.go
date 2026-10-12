@@ -600,3 +600,48 @@ func TestPreviewRegistryConcurrentProgress(t *testing.T) {
 func previewID(i int) string {
 	return "p" + string(rune('a'+i%26)) + "-" + time.Duration(i).String()
 }
+
+// TestPreviewRegistryEvictsAfterAClear covers retention after a clear.
+//
+// A clear drops finished previews from both the entries and their order, so
+// later renders are still held to the retained count.
+func TestPreviewRegistryEvictsAfterAClear(t *testing.T) {
+	t.Parallel()
+
+	registry := newRegistry(func(string) {})
+
+	renderAll := func(first, count int) {
+		done := make(chan struct{}, count)
+		slots := (count / queuedPerSlot) + 1
+
+		for i := range count {
+			registry.render(t.Context(), previewID(first+i), slots, func(context.Context) error {
+				done <- struct{}{}
+
+				return nil
+			})
+		}
+
+		for range count {
+			<-done
+		}
+
+		awaitAllRendersDone(t, registry)
+	}
+
+	renderAll(0, 10)
+	registry.clearFinished()
+
+	registry.mu.Lock()
+	assert.Empty(t, registry.entries)
+	assert.Empty(t, registry.order, "the order drops what the entries drop")
+	registry.mu.Unlock()
+
+	renderAll(10, retained+1)
+
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	assert.LessOrEqual(t, len(registry.entries), retained)
+	assert.Len(t, registry.order, len(registry.entries), "the order and the entries agree")
+}

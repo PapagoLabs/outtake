@@ -166,6 +166,17 @@ templ Layout(props Props) {
 									Previews
 								</a>
 								<a
+									href="/settings/storage"
+									hx-select="#main-content"
+									data-nav="storage"
+									class={ utils.TwMerge(
+										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+										utils.IfElse(props.Active == "storage", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+									) }
+								>
+									Storage
+								</a>
+								<a
 									href="/settings/appearance"
 									hx-select="#main-content"
 									data-nav="appearance"

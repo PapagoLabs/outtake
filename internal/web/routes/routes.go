@@ -32,6 +32,15 @@ const (
 	// PathSettingsPreviews is the preview settings path.
 	PathSettingsPreviews = "/settings/previews"
 
+	// PathSettingsStorage is the storage settings path.
+	PathSettingsStorage = "/settings/storage"
+
+	// PathClearPreviews clears the finished previews.
+	PathClearPreviews = "/settings/storage/previews/clear"
+
+	// PathClearThumbnails clears the poster cache.
+	PathClearThumbnails = "/settings/storage/thumbnails/clear"
+
 	// PathMedia is the media library path.
 	PathMedia = "/media"
 

@@ -6,9 +6,11 @@ package failure
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"os/exec"
+	"syscall"
 	"testing"
 	"time"
 
@@ -96,6 +98,19 @@ func TestMessageForNamesEachFailure(t *testing.T) {
 			name: "Plex unreachable",
 			err:  &net.OpError{Op: "dial", Err: errDialRefused},
 			want: "Couldn't reach the Plex server",
+		},
+		{
+			name: "Plex refusing the connection",
+			err: &net.OpError{
+				Op:  "dial",
+				Err: os.NewSyscallError("connect", syscall.ECONNREFUSED),
+			},
+			want: "Couldn't reach the Plex server",
+		},
+		{
+			name: "a full disk, which is not Plex",
+			err:  &fs.PathError{Op: "write", Path: "/data/clips/a.mp4", Err: syscall.ENOSPC},
+			want: MessageUnexpected,
 		},
 		{
 			name: "an unreadable source",
