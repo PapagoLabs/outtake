@@ -103,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
+- Stop racing the worker in tests of waiting jobs by @nicholas-fedor in [#470](https://github.com/PapagoLabs/outtake/pull/470)
 - Stop aiming failing requests at released ports by @nicholas-fedor in [#465](https://github.com/PapagoLabs/outtake/pull/465)
 - Fake ffmpeg with the test binary instead of shell scripts by @nicholas-fedor in [#327](https://github.com/PapagoLabs/outtake/pull/327)
 
