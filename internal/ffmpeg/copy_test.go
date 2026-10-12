@@ -4,6 +4,7 @@
 package ffmpeg
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
+	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
 )
 
@@ -396,4 +398,166 @@ func TestCopyClipStartsOnTheKeyframe(t *testing.T) {
 			assert.Empty(t, strings.TrimSpace(string(decodeErrors)), "the copy decodes cleanly")
 		})
 	}
+}
+
+// fakeCopy installs fakes that answer each call a copy makes.
+//
+// The landing read reports landingMS, the length probe reports length, and
+// the decode check reports decodeErrors. The packet list has keyframes at 3
+// and 6 seconds.
+//
+// Parameters:
+//   - t: The test the fakes belong to.
+//   - landingMS: Where every seek lands, in milliseconds.
+//   - length: The copy's probed length, in seconds.
+//   - decodeErrors: What the decode check prints, empty for a clean copy.
+//
+// Returns:
+//   - runner: A runner on the fakes.
+//   - argv: The file every ffmpeg run's arguments are logged to.
+func fakeCopy(t *testing.T, landingMS, length, decodeErrors string) (*ExecFFmpeg, string) {
+	t.Helper()
+
+	argv := filepath.Join(t.TempDir(), "argv.log")
+
+	ffmpegPath := ffmpegtest.Install(t, ffmpegtest.Stub{
+		Output:        "copied",
+		ArgvFile:      argv,
+		ArgvSeparator: "----",
+		Cases: []ffmpegtest.Case{
+			{
+				Arg:    "framecrc",
+				Stdout: "#tb 0: 1/1000\n0,       5917,       " + landingMS + ",       41,    100, 0x0\n",
+			},
+			{Arg: "null", Stderr: decodeErrors},
+		},
+	})
+
+	ffprobePath := ffmpegtest.Install(t, ffmpegtest.Stub{
+		Stdout: `{"format": {"duration": "` + length + `"}, "streams": [` +
+			`{"codec_type": "video", "codec_name": "h264", "width": 640, "height": 360, "pix_fmt": "yuv420p"}]}`,
+		Cases: []ffmpegtest.Case{
+			{Arg: "csv=p=0", Stdout: "3.000000,K__\n4.000000,___\n6.000000,K__\n"},
+		},
+	})
+
+	return NewExecFFmpeg(ffmpegPath, ffprobePath), argv
+}
+
+// TestCopyClipOnFakes covers each way a copy ends, without a real FFmpeg.
+//
+// A copy that lands on its keyframe, runs the planned length, and decodes
+// cleanly is published. Every other outcome is refused with the error the
+// render job falls back to the encode on, and leaves nothing behind.
+func TestCopyClipOnFakes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		landingMS    string
+		length       string
+		decodeErrors string
+		want         error
+	}{
+		{name: "a clean copy", landingMS: "6000", length: "3.3"},
+		{
+			name:      "a seek that lands on the keyframe before",
+			landingMS: "3000",
+			length:    "3.3",
+			want:      ErrCopyUnavailable,
+		},
+		{
+			name:      "a seek that lands past the keyframe",
+			landingMS: "9000",
+			length:    "3.3",
+			want:      ErrCopyUnavailable,
+		},
+		{
+			name:      "a copy of the wrong length",
+			landingMS: "6000",
+			length:    "6.3",
+			want:      ErrCopyMismatch,
+		},
+		{
+			name:         "a copy that does not decode",
+			landingMS:    "6000",
+			length:       "3.3",
+			decodeErrors: "mmco: unref short failure",
+			want:         ErrCopyUnclean,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			runner, argv := fakeCopy(t, test.landingMS, test.length, test.decodeErrors)
+			output := filepath.Join(t.TempDir(), "clip.mp4")
+
+			err := runner.CopyClip(
+				t.Context(),
+				"/media/source.mkv",
+				output,
+				6*time.Second,
+				9300*time.Millisecond,
+				copyPreset,
+				0,
+				CopyPlan{HEVC: false, CopyAudio: true},
+			)
+
+			if test.want != nil {
+				require.ErrorIs(t, err, test.want)
+				assert.NoFileExists(t, output, "a refused copy is never published")
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.FileExists(t, output)
+
+			logged, err := os.ReadFile(argv)
+			require.NoError(t, err)
+			assert.Contains(t, string(logged), "-ss\n6.000\n-i\n/media/source.mkv\n-t\n3.300\n",
+				"the copy seeks to the keyframe and runs to the end mark")
+		})
+	}
+}
+
+// TestCopyClipReportsAFailedLandingRead covers a seek read that fails, which
+// is not a reason to encode but a failure of its own.
+func TestCopyClipReportsAFailedLandingRead(t *testing.T) {
+	t.Parallel()
+
+	runner := NewExecFFmpeg(
+		ffmpegtest.Install(t, ffmpegtest.Stub{ExitCode: 1}),
+		ffmpegtest.Install(t, ffmpegtest.Stub{}),
+	)
+
+	err := runner.CopyClip(t.Context(), "/media/source.mkv", filepath.Join(t.TempDir(), "clip.mp4"),
+		6*time.Second, 9*time.Second, copyPreset, 0, CopyPlan{HEVC: false, CopyAudio: true})
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrCopyUnavailable)
+}
+
+// TestKeyframeBeforeOnAFakeProbe covers the keyframe search through the
+// runner, and a probe that fails.
+func TestKeyframeBeforeOnAFakeProbe(t *testing.T) {
+	t.Parallel()
+
+	runner, _ := fakeCopy(t, "6000", "3.3", "")
+
+	keyframe, found, err := runner.KeyframeBefore(
+		t.Context(),
+		"/media/source.mkv",
+		7300*time.Millisecond,
+		5*time.Second,
+	)
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, 6*time.Second, keyframe)
+
+	broken := NewExecFFmpeg("ffmpeg", ffmpegtest.Install(t, ffmpegtest.Stub{ExitCode: 1}))
+
+	_, _, err = broken.KeyframeBefore(t.Context(), "/media/source.mkv", time.Second, time.Second)
+	require.Error(t, err)
 }
