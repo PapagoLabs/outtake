@@ -162,16 +162,24 @@ func statusTrail(t *testing.T) (queue.StatusFunc, func() []clip.Status) {
 	return record, snapshot
 }
 
+// TestIntegration_SubmittedJobReportsEveryTransition covers the reports a job
+// makes from its submission to its completion.
+//
+// The job is submitted before the worker starts, so its pending report goes
+// out before any worker can take it. A report carries the job's latest state,
+// so a worker that took the job first would fold pending into processing.
 func TestIntegration_SubmittedJobReportsEveryTransition(t *testing.T) {
 	t.Parallel()
 
 	handler, release, started := blockedHandler(t)
 	record, snapshot := statusTrail(t)
 
-	work := startedQueue(t, 1, handler)
+	work := queue.NewQueue(1, handler)
+	t.Cleanup(work.Stop)
 	work.SetStatusFunc(record)
 
 	require.NoError(t, work.Submit(queueJob("clip-1")))
+	work.Start(t.Context())
 
 	<-started
 
@@ -337,6 +345,10 @@ func TestIntegration_RestoreRegistersSettledJobsWithoutRunningThem(t *testing.T)
 		"a restored pending job cancels without a worker ever seeing it")
 }
 
+// TestIntegration_RequeueRerunsASettledJob covers a failed job queued again.
+//
+// The one worker is kept busy with another job while the failed one is
+// requeued, so the test sees it waiting, reset, before the worker takes it.
 func TestIntegration_RequeueRerunsASettledJob(t *testing.T) {
 	t.Parallel()
 
@@ -344,7 +356,26 @@ func TestIntegration_RequeueRerunsASettledJob(t *testing.T) {
 
 	var attemptsMu sync.Mutex
 
-	handler := func(context.Context, *clip.Job) error {
+	occupied := make(chan struct{})
+	release := make(chan struct{})
+
+	var releaseOnce sync.Once
+
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(unblock)
+
+	handler := func(ctx context.Context, job *clip.Job) error {
+		if job.ID == "occupier" {
+			close(occupied)
+
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-release:
+				return nil
+			}
+		}
+
 		attemptsMu.Lock()
 		defer attemptsMu.Unlock()
 
@@ -365,10 +396,15 @@ func TestIntegration_RequeueRerunsASettledJob(t *testing.T) {
 	failed := awaitStatus(t, work, clip.StatusFailed)
 	assert.Contains(t, failed.Error, errRenderFailed.Error())
 
+	require.NoError(t, work.Submit(queueJob("occupier")))
+	<-occupied
+
 	require.NoError(t, work.Requeue(job))
 	assert.Equal(t, clip.StatusPending, work.GetJob("clip-1").Status,
 		"a requeued job starts over from no progress")
 	assert.Empty(t, work.GetJob("clip-1").Error)
+
+	unblock()
 
 	settled := awaitStatus(t, work, clip.StatusCompleted)
 	assert.Equal(t, 100, settled.Progress)
