@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/telemetry digest to 5b3465c by @renovate[bot] in [#498](https://github.com/PapagoLabs/outtake/pull/498)
+- Update github.com/google/pprof digest to 4ba64fc by @renovate[bot] in [#497](https://github.com/PapagoLabs/outtake/pull/497)
 - Update module github.com/gofiber/fiber/v3 to v3.6.0 by @renovate[bot] in [#489](https://github.com/PapagoLabs/outtake/pull/489)
 - Update module github.com/klauspost/compress to v1.20.3 by @renovate[bot] in [#481](https://github.com/PapagoLabs/outtake/pull/481)
 - Update module github.com/vektra/mockery/v3 to v3.8.1 by @renovate[bot] in [#475](https://github.com/PapagoLabs/outtake/pull/475)
