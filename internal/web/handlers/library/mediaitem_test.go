@@ -25,6 +25,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -63,6 +64,7 @@ func clipsForMediaOf(
 	var clips []view.ClipItem
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID, func(ctx fiber.Ctx) error {
 		clips = handler.clipsForMedia(ctx, "42", source, normalizedQuery())
 
@@ -97,6 +99,7 @@ func normalizedQuery() catalog.ClipListQuery {
 //   - app: The app the routes are mounted on.
 func mediaItemApp(handler *Handler) *fiber.App {
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID, handler.MediaItem)
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/clips", handler.MediaItemClips)
 	app.Get("/media/new", handler.NewClip)
@@ -249,6 +252,7 @@ func TestMediaItemPrefersAFlashOverALoadFailure(t *testing.T) {
 	handler, _ := pageHandler(t, offlineAuth(t), sources)
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	respondtest.Sessions(t, app)
 	app.Post("/fail", func(ctx fiber.Ctx) error {
 		respond.SetFlash(ctx, view.NewNotice("Choose a Plex server under Servers first"))
@@ -297,6 +301,7 @@ func TestMediaItemErrorFallsBackToTheLoadNotice(t *testing.T) {
 	var failed, loaded string
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	respondtest.Sessions(t, app)
 	app.Get("/x", func(ctx fiber.Ctx) error {
 		failed = mediaItemError(ctx, assert.AnError)
@@ -319,6 +324,7 @@ func TestLoadMediaItemReportsNoServerBound(t *testing.T) {
 	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var (
 		gotItem plex.MediaItem
@@ -355,6 +361,7 @@ func TestLoadMediaItemReportsAFailedLookup(t *testing.T) {
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var (
 		gotItem plex.MediaItem
@@ -542,6 +549,35 @@ func TestMediaItemClipsRendersTheListFragment(t *testing.T) {
 		"the fragment is the clip cards the page swaps in")
 	assertBodyContains(t, answer.body, `data-media-dur="7200.000"`,
 		"the card is stamped with the probed source length")
+}
+
+// TestMediaItemClipsListsOnlyAMembersOwnClips covers a member opening a
+// title someone else has clipped too.
+func TestMediaItemClipsListsOnlyAMembersOwnClips(t *testing.T) {
+	t.Parallel()
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().
+		Describe(mock.Anything, "42").
+		Return(sourceInfo(2 * time.Hour))
+
+	handler, db := pageHandler(t, offlineAuth(t), sources)
+	storeClip(t, db, clipJob("owners-clip", clip.StatusCompleted))
+
+	mine := clipJob("members-clip", clip.StatusCompleted)
+
+	mine.OwnerID = middlewaretest.MemberID
+	storeClip(t, db, mine)
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/clips", handler.MediaItemClips)
+
+	answer := serve(t, app, routes.PathItemPrefix+"42/clips", true)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assert.Contains(t, answer.body, `id="clip-members-clip"`)
+	assert.NotContains(t, answer.body, "owners-clip", "another account's clip is not listed")
 }
 
 func TestMediaItemNamesTheExportFormFromTheMediaTitle(t *testing.T) {

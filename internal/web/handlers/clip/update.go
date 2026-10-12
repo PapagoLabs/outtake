@@ -16,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -57,7 +58,7 @@ func (handler *Handler) Update(ctx fiber.Ctx) error {
 func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejection) {
 	id := ctx.Params(routes.ParamID)
 
-	job := handler.lookupJob(ctx.Context(), id)
+	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), id)
 	if job == nil {
 		return nil, newRejection(
 			fiber.StatusNotFound,

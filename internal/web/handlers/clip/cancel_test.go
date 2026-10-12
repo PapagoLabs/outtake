@@ -26,6 +26,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -111,6 +112,7 @@ func cancelClip(
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips/:id/cancel", handler.Cancel)
 
 	req := httptest.NewRequestWithContext(
@@ -341,6 +343,7 @@ func listClips(t *testing.T, handler *Handler) clipAnswer {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/api/clips", handler.List)
 
 	resp, err := app.Test(httptest.NewRequestWithContext(
@@ -369,6 +372,7 @@ func clipStatus(t *testing.T, handler *Handler, id string) clipAnswer {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/api/clips/:id", handler.GetStatus)
 
 	resp, err := app.Test(httptest.NewRequestWithContext(
@@ -399,6 +403,7 @@ func submitFailureIn(t *testing.T, err error) *clipRejection {
 	var failure *clipRejection
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/x", func(ctx fiber.Ctx) error {
 		failure = submitFailure(ctx, err)
 
@@ -452,6 +457,7 @@ func TestWriteJobSubmitErrorSwapsTheRejectionIntoTheFlash(t *testing.T) {
 	t.Parallel()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips/submit", func(ctx fiber.Ctx) error {
 		return writeJobSubmitError(ctx, queue.ErrJobActive)
 	})

@@ -17,6 +17,7 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/middleware/mocks"
@@ -161,6 +162,50 @@ func TestAuthGuardRecordsTheCaller(t *testing.T) {
 
 	anonymous := issueRequest(t, chainApp(t, callerHandler()), http.MethodGet, "/")
 	assert.Equal(t, "none", anonymous.body, "a request AuthGuard never saw has no caller")
+}
+
+// TestClipScopeFollowsTheCaller covers whose clips each caller reaches.
+//
+// A member reaches their own, the owner and admins reach everyone's, and a
+// request without a caller reaches nothing.
+func TestClipScopeFollowsTheCaller(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		caller *identity.User
+		want   clip.Scope
+	}{
+		{
+			caller: &identity.User{PlexID: 7, Username: "", Role: identity.RoleMember},
+			want:   clip.Scope{Owner: 7, Everyone: false},
+		},
+		{
+			caller: &identity.User{PlexID: 42, Username: "", Role: identity.RoleOwner},
+			want:   clip.Scope{Owner: 42, Everyone: true},
+		},
+		{
+			caller: &identity.User{PlexID: 9, Username: "", Role: identity.RoleAdmin},
+			want:   clip.Scope{Owner: 9, Everyone: true},
+		},
+		{caller: nil, want: clip.Scope{Owner: 0, Everyone: false}},
+	} {
+		var got clip.Scope
+
+		app := fiber.New()
+		app.Use(func(ctx fiber.Ctx) error {
+			if test.caller != nil {
+				SetCaller(ctx, *test.caller)
+			}
+
+			got = ClipScope(ctx)
+
+			return ctx.SendStatus(fiber.StatusOK)
+		})
+
+		issueRequest(t, app, http.MethodGet, "/")
+
+		assert.Equal(t, test.want, got)
+	}
 }
 
 // TestAdminGuardLetsOnlyTheOwnerAndAdminsThrough covers the admin pages'

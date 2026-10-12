@@ -20,6 +20,8 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
+	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
@@ -411,18 +413,7 @@ func TestNewRefusesAMemberEveryAdminRoute(t *testing.T) {
 	owner := newBrowser(t)
 	owner.authenticate(t)
 
-	_, err := owner.db.Conn().ExecContext(
-		t.Context(),
-		"INSERT INTO users (plex_user_id, username, role) VALUES (7, 'friend', 'member')",
-	)
-	require.NoError(t, err)
-
-	member := owner.sibling(t)
-
-	got := member.submit(t, "/api/auth/login", url.Values{"token": {otherToken}})
-	require.Equal(t, fiber.StatusSeeOther, got.status)
-	require.False(t, strings.HasPrefix(got.location, "/login"),
-		"the member was refused: %s", got.location)
+	member := owner.member(t)
 
 	for _, route := range wantRoutes {
 		if !route.admin {
@@ -435,6 +426,62 @@ func TestNewRefusesAMemberEveryAdminRoute(t *testing.T) {
 
 	assert.Equal(t, fiber.StatusOK, member.request(t, http.MethodGet, "/").status,
 		"a member still opens the dashboard")
+}
+
+// TestNewKeepsAMemberOutOfTheOwnersClipsAndPreviews covers every route that
+// names a clip or a preview by id.
+//
+// A member asking for the owner's clip or preview gets the answer an id
+// nothing uses gets, so the record cannot be read, changed, or shown to
+// exist. Lists and the page stream leave it out too, while the owner still
+// sees it. The clip feed is covered by the clip handler's tests, because its
+// stream stays open.
+func TestNewKeepsAMemberOutOfTheOwnersClipsAndPreviews(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+
+	stamp := time.Now().UTC()
+	ownersClip := &clip.Job{
+		ID:         "owners-clip",
+		Type:       clip.TypeClip,
+		Name:       "The Owner's Clip",
+		MediaID:    "5",
+		MediaTitle: "Owner Movie",
+		MediaType:  clip.DefaultMediaType,
+		CreatedAt:  stamp,
+		UpdatedAt:  stamp,
+		OwnerID:    42,
+		Status:     clip.StatusCompleted,
+	}
+	require.NoError(t, owner.db.SaveClip(t.Context(), ownersClip))
+
+	ownersPreview := clippreview.OwnedID(42, strings.Repeat("a", 64))
+	member := owner.member(t)
+
+	for _, route := range wantRoutes {
+		target, absent, ok := ownedTargets(route, ownersClip.ID, ownersPreview)
+		if !ok {
+			continue
+		}
+
+		got := member.request(t, route.method, target)
+		want := member.request(t, route.method, absent)
+
+		assert.Equal(t, want.status, got.status, "%s %s", route.method, route.path)
+		assert.Equal(t, want.location, got.location, "%s %s", route.method, route.path)
+		assert.NotContains(t, got.body, ownersClip.Name, "%s %s", route.method, route.path)
+	}
+
+	assert.NotContains(t, member.request(t, http.MethodGet, "/clips").body, ownersClip.Name)
+	assert.NotContains(t, member.request(t, http.MethodGet, "/api/clips").body, ownersClip.ID)
+	assert.Equal(t, fiber.StatusNoContent,
+		member.request(t, http.MethodGet, "/live?preview="+ownersPreview).status,
+		"the stream follows none of another account's previews")
+
+	assert.Contains(t, owner.request(t, http.MethodGet, "/api/clips").body, ownersClip.ID,
+		"the owner still sees the clip")
 }
 
 func TestNewLogoutEndsOnlyThatBrowsersSession(t *testing.T) {
@@ -762,6 +809,33 @@ func (b *browser) keep(set []*http.Cookie) {
 	}
 }
 
+// member signs a second browser in as a member, the account the plex.tv
+// stand-in maps otherToken to.
+//
+// Parameters:
+//   - t: The test that signs in.
+//
+// Returns:
+//   - member: A browser signed in as the member, sharing b's server.
+func (b *browser) member(t *testing.T) *browser {
+	t.Helper()
+
+	_, err := b.db.Conn().ExecContext(
+		t.Context(),
+		"INSERT INTO users (plex_user_id, username, role) VALUES (7, 'friend', 'member')",
+	)
+	require.NoError(t, err)
+
+	member := b.sibling(t)
+
+	got := member.submit(t, "/api/auth/login", url.Values{"token": {otherToken}})
+	require.Equal(t, fiber.StatusSeeOther, got.status)
+	require.False(t, strings.HasPrefix(got.location, "/login"),
+		"the member was refused: %s", got.location)
+
+	return member
+}
+
 // request issues one request, carrying the session cookies and the CSRF token.
 //
 // Parameters:
@@ -983,4 +1057,36 @@ func routerPlexTV(t *testing.T) *httptest.Server {
 	t.Cleanup(server.Close)
 
 	return server
+}
+
+// ownedTargets fills a route that names a clip or a preview by id.
+//
+// Parameters:
+//   - route: A route table row.
+//   - clipID: A clip the owner made.
+//   - previewID: A preview the owner asked for.
+//
+// Returns:
+//   - target: The route naming the owner's record.
+//   - absent: The route naming a record of the same kind that does not exist.
+//   - ok: False for a route that names no clip or preview.
+//
+//nolint:nonamedreturns // Same-type returns need names.
+func ownedTargets(route routerRoute, clipID, previewID string) (target, absent string, ok bool) {
+	if !strings.Contains(route.path, ":id") {
+		return "", "", false
+	}
+
+	switch {
+	case strings.Contains(route.path, "preview"):
+		missing := clippreview.OwnedID(42, strings.Repeat("b", 64))
+
+		return strings.Replace(route.path, ":id", previewID, 1),
+			strings.Replace(route.path, ":id", missing, 1), true
+	case strings.HasPrefix(route.path, "/clips/") || strings.HasPrefix(route.path, "/api/clips/"):
+		return strings.Replace(route.path, ":id", clipID, 1),
+			strings.Replace(route.path, ":id", "no-such-clip", 1), true
+	default:
+		return "", "", false
+	}
 }

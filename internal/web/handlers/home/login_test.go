@@ -13,6 +13,7 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -30,6 +31,7 @@ func loginApp(t *testing.T, handler *Handler) *fiber.App {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Use(sessionMiddleware(t))
 	app.Get(routes.PathLogin, handler.Login)
 
@@ -83,6 +85,7 @@ func TestLoginShowsTheCarriedFailure(t *testing.T) {
 	t.Parallel()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Use(sessionMiddleware(t))
 	app.Post("/fail", func(ctx fiber.Ctx) error {
 		respond.SetFlash(

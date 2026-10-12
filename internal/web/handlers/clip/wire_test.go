@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/timecode"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -35,6 +36,7 @@ func parseFormResult(t *testing.T, form url.Values) (api.ClipRequest, error) {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var (
 		gotReq api.ClipRequest
@@ -77,6 +79,7 @@ func parseJSON(t *testing.T, body string) api.ClipRequest {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var gotReq api.ClipRequest
 
@@ -132,6 +135,7 @@ func TestParseRequestKeepsFormValuesAfterTheRequestBufferIsReused(t *testing.T) 
 	}
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var parsed api.ClipRequest
 
@@ -385,6 +389,7 @@ func TestParseClipRequestRefusesAKeepHDRChoiceFromAnAPIClient(t *testing.T) {
 
 	for _, field := range []string{`"preserveHdr":true`, `"preserveHdr":false`, `"webSafeColor":true`} {
 		app := fiber.New()
+		app.Use(middlewaretest.AsOwner())
 
 		var gotErr error
 

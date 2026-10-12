@@ -17,6 +17,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/home/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -60,6 +61,7 @@ func getPlayback(t *testing.T, handler *Handler) pageAnswer {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/playback", handler.Playback)
 
 	return serve(t, app, routes.PathItemPrefix+"42/playback", true)
@@ -249,6 +251,7 @@ func getPosition(
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/position", handler.Position)
 
 	target := routes.PathItemPrefix + "42/position"

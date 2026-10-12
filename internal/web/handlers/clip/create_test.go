@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
 func TestBuildJobStampsAPendingRecord(t *testing.T) {
@@ -87,6 +88,7 @@ func TestCreateRejectsATypeItCannotProduce(t *testing.T) {
 	handler := &Handler{}
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips", handler.Create)
 
 	post := httptest.NewRequestWithContext(

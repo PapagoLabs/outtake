@@ -15,6 +15,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -127,6 +128,7 @@ func TestNavLibrariesRendersTheSidebarFragment(t *testing.T) {
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/nav/libraries", handler.NavLibraries)
 
 	answer := serve(t, app, "/nav/libraries", true)
@@ -144,6 +146,7 @@ func TestNavLibrariesRendersNothingWithNoServerBound(t *testing.T) {
 	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/nav/libraries", handler.NavLibraries)
 
 	answer := serve(t, app, "/nav/libraries", true)
@@ -167,6 +170,7 @@ func sidebarLibrariesOf(t *testing.T, handler *Handler) []view.LibraryItem {
 	var libraries []view.LibraryItem
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/nav/libraries", func(ctx fiber.Ctx) error {
 		libraries = handler.sidebarLibraries(ctx)
 

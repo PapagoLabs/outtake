@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/home/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -27,6 +28,7 @@ import (
 //   - app: The app the routes are mounted on.
 func dashboardApp(handler *Handler) *fiber.App {
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/", handler.Dashboard)
 	app.Get("/dashboard/sessions", handler.DashboardSessions)
 
@@ -106,6 +108,32 @@ func TestDashboardSummarisesTheStoredClips(t *testing.T) {
 	assertBodyContains(t, answer.body,
 		`text-muted-foreground">Failed</p>`,
 		"a failed clip is counted on its own so the user can retry it")
+}
+
+// TestDashboardCountsOnlyAMembersOwnClips covers a member's dashboard, which
+// counts the clips they made and none of anyone else's.
+func TestDashboardCountsOnlyAMembersOwnClips(t *testing.T) {
+	t.Parallel()
+
+	handler, db := pageHandler(t, offlineAuth(t), silentSources(t))
+	storeDashboardClip(t, db, "owners-a", clip.StatusCompleted)
+	storeDashboardClip(t, db, "owners-b", clip.StatusCompleted)
+
+	mine := testClipJob("mine", clip.TypeClip)
+
+	mine.Status = clip.StatusCompleted
+	mine.OwnerID = middlewaretest.MemberID
+	require.NoError(t, db.SaveClip(t.Context(), mine))
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Get("/", handler.Dashboard)
+
+	answer := serve(t, app, "/", false)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, `text-green-500">1</p>`,
+		"only the member's own finished clip is counted")
 }
 
 func TestDashboardRendersWithNothingStored(t *testing.T) {

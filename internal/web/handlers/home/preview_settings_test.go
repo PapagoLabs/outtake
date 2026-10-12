@@ -15,6 +15,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/playback"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -31,6 +32,7 @@ func previewSettingsApp(t *testing.T, handler *Handler) *fiber.App {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	respondtest.Sessions(t, app)
 	app.Get(routes.PathSettingsPreviews, handler.PreviewSettings)
 	app.Post(routes.PathSettingsPreviews, handler.SavePreviewSettings)

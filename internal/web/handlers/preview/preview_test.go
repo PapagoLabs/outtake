@@ -41,6 +41,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -94,6 +95,7 @@ func getPreviewStatus(
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/api/clips/preview/:id", handler.PreviewStatus)
 
 	resp, err := app.Test(httptest.NewRequestWithContext(
@@ -115,6 +117,7 @@ func getPreviewFile(t *testing.T, handler *Handler, id string) int {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/previews/:id", handler.PreviewFile)
 
 	resp, err := app.Test(httptest.NewRequestWithContext(
@@ -156,6 +159,7 @@ func cancelPreview(t *testing.T, handler *Handler, id string) int {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Delete("/api/clips/preview/:id", handler.CancelPreview)
 
 	resp, err := app.Test(httptest.NewRequestWithContext(
@@ -708,6 +712,7 @@ func postPreview(
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	respondtest.Sessions(t, app)
 	app.Post("/api/clips/preview", handler.Preview)
 
@@ -875,6 +880,51 @@ func TestPreviewStartsARender(t *testing.T) {
 	assert.Equal(t, routes.PathPreviewPrefix+previewID, body.URL)
 	assert.Equal(t, "SDR · 1080p", body.Format,
 		"the published preview is read for its badge, here from the probe stub")
+
+	owner, owned := clippreview.Owner(previewID)
+	require.True(t, owned, "the preview id names its owner")
+	assert.Equal(t, middlewaretest.OwnerID, owner)
+}
+
+// TestPreviewRoutesRefuseAnotherAccountsPreview covers a member naming the
+// owner's preview by id.
+//
+// Its status, file, and cancel all answer as for a preview that does not
+// exist.
+func TestPreviewRoutesRefuseAnotherAccountsPreview(t *testing.T) {
+	t.Parallel()
+
+	handler, store := previewTestHandler(t, 2)
+
+	previewID := clippreview.OwnedID(middlewaretest.OwnerID, strings.Repeat("c", 64))
+
+	require.NoError(t, os.MkdirAll(filepath.Join(store.BasePath(), "previews"), 0o750))
+	require.NoError(t, os.WriteFile(store.PreviewPath(previewID), []byte("x"), 0o600))
+
+	handler.previews.Remember(t.Context(), previewID)
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Get("/api/clips/preview/:id", handler.PreviewStatus)
+	app.Delete("/api/clips/preview/:id", handler.CancelPreview)
+	app.Get("/previews/:id", handler.PreviewFile)
+
+	for _, request := range []struct{ method, target string }{
+		{method: http.MethodGet, target: "/api/clips/preview/" + previewID},
+		{method: http.MethodDelete, target: "/api/clips/preview/" + previewID},
+		{method: http.MethodGet, target: "/previews/" + previewID},
+	} {
+		resp, err := app.Test(
+			httptest.NewRequestWithContext(t.Context(), request.method, request.target, nil),
+		)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+
+		assert.Equal(t, fiber.StatusNotFound, resp.StatusCode, request.method+" "+request.target)
+	}
+
+	status, _ := getPreviewStatus(t, handler, previewID)
+	assert.Equal(t, fiber.StatusOK, status, "the owner still sees it")
 }
 
 // TestPreviewFollowsTheMaximumPreviewResolution covers the setting reaching a

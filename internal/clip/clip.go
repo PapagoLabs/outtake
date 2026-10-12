@@ -32,6 +32,9 @@ type Clip struct {
 	PreserveHDR   bool
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	// OwnerID is the plex.tv id of the account that made the clip, or zero
+	// for a clip nobody owns.
+	OwnerID int
 }
 
 const (

@@ -21,6 +21,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
 // clipRowTestHandler builds a handler whose queue holds the given clips.
@@ -61,6 +62,7 @@ func clipRowRequest(t *testing.T, handler *Handler, path string) (int, string) {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/api/clips/:id/row", handler.ClipRow)
 
 	resp, err := app.Test(
@@ -182,6 +184,7 @@ func hxTargetKind(
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(route, func(ctx fiber.Ctx) error {
 		if match(ctx) {
 			return ctx.SendString(hit)
@@ -254,6 +257,7 @@ func parseClipListQueryFrom(t *testing.T, target string) catalog.ClipListQuery {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var parsed catalog.ClipListQuery
 

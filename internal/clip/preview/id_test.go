@@ -17,8 +17,13 @@ import (
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 )
 
-// testMaxWidth is the maximum preview width the id tests render at.
-const testMaxWidth = clip.OutputWidth1080p
+const (
+	// testMaxWidth is the maximum preview width the id tests render at.
+	testMaxWidth = clip.OutputWidth1080p
+
+	// testOwner is the plex.tv account id the id tests ask as.
+	testOwner = 42
+)
 
 func writeKeySource(t *testing.T, start, duration float64) (string, clip.Request) {
 	t.Helper()
@@ -39,10 +44,10 @@ func TestPreviewContentIDIsStable(t *testing.T) {
 
 	path, req := writeKeySource(t, 12.345, 20)
 
-	first, err := RequestID(req, path, testMaxWidth)
+	first, err := RequestID(req, path, testMaxWidth, testOwner)
 	require.NoError(t, err)
 
-	second, err := RequestID(req, path, testMaxWidth)
+	second, err := RequestID(req, path, testMaxWidth, testOwner)
 	require.NoError(t, err)
 
 	assert.Equal(t, first, second, "the same request must produce the same id")
@@ -53,10 +58,15 @@ func TestPreviewContentIDFitsTheStorageGuard(t *testing.T) {
 
 	path, req := writeKeySource(t, 1, 5)
 
-	previewID, err := RequestID(req, path, testMaxWidth)
+	previewID, err := RequestID(req, path, testMaxWidth, testOwner)
 	require.NoError(t, err)
 
-	assert.Len(t, previewID, 64, "a SHA-256 digest is 64 hex characters")
+	assert.Len(
+		t,
+		ContentID(KeyInput{MediaID: req.MediaID}),
+		64,
+		"a SHA-256 digest is 64 hex characters",
+	)
 	assert.True(t, ValidID(previewID), "the derived id must pass the storage guard")
 }
 
@@ -75,6 +85,7 @@ func TestPreviewContentIDSeparatesFields(t *testing.T) {
 		clip.Request{MediaID: "42", StartTime: 12.345, Duration: 5},
 		absorbed,
 		testMaxWidth,
+		testOwner,
 	)
 	require.NoError(t, err)
 
@@ -82,6 +93,7 @@ func TestPreviewContentIDSeparatesFields(t *testing.T) {
 		clip.Request{MediaID: "42", StartTime: 2.345, Duration: 5},
 		digit,
 		testMaxWidth,
+		testOwner,
 	)
 	require.NoError(t, err)
 
@@ -93,7 +105,7 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 
 	path, base := writeKeySource(t, 12.345, 20)
 
-	baseID, err := RequestID(base, path, testMaxWidth)
+	baseID, err := RequestID(base, path, testMaxWidth, testOwner)
 	require.NoError(t, err)
 
 	other := filepath.Join(t.TempDir(), "other.mkv")
@@ -129,7 +141,7 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 				source = test.path
 			}
 
-			got, idErr := RequestID(req, source, testMaxWidth)
+			got, idErr := RequestID(req, source, testMaxWidth, testOwner)
 			require.NoError(t, idErr)
 
 			assert.NotEqual(t, baseID, got, "a changed %s must produce a different id", test.name)
@@ -146,7 +158,7 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 			os.Chtimes(restamp, time.Now().Add(time.Hour), time.Now().Add(time.Hour)),
 		)
 
-		before, idErr := RequestID(base, restamp, testMaxWidth)
+		before, idErr := RequestID(base, restamp, testMaxWidth, testOwner)
 		require.NoError(t, idErr)
 
 		require.NoError(t, os.Chtimes(
@@ -155,7 +167,7 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 			time.Now().Add(2*time.Hour),
 		))
 
-		after, idErr := RequestID(base, restamp, testMaxWidth)
+		after, idErr := RequestID(base, restamp, testMaxWidth, testOwner)
 		require.NoError(t, idErr)
 
 		assert.NotEqual(t, before, after, "a re-transcoded source must produce a different id")
@@ -172,10 +184,10 @@ func TestPreviewRequestIDFollowsTheMaximumWidth(t *testing.T) {
 
 	path, req := writeKeySource(t, 12.345, 20)
 
-	at1080p, err := RequestID(req, path, clip.OutputWidth1080p)
+	at1080p, err := RequestID(req, path, clip.OutputWidth1080p, testOwner)
 	require.NoError(t, err)
 
-	at4K, err := RequestID(req, path, clip.OutputWidth2160p)
+	at4K, err := RequestID(req, path, clip.OutputWidth2160p, testOwner)
 	require.NoError(t, err)
 
 	assert.NotEqual(t, at1080p, at4K)
@@ -191,6 +203,7 @@ func TestPreviewRequestIDHonoursTheWholeSelection(t *testing.T) {
 		clip.Request{MediaID: "42", StartTime: 1, Duration: 600},
 		path,
 		testMaxWidth,
+		testOwner,
 	)
 	require.NoError(t, err)
 
@@ -198,6 +211,7 @@ func TestPreviewRequestIDHonoursTheWholeSelection(t *testing.T) {
 		clip.Request{MediaID: "42", StartTime: 1, Duration: 30},
 		path,
 		testMaxWidth,
+		testOwner,
 	)
 	require.NoError(t, err)
 
@@ -217,6 +231,7 @@ func TestPreviewRequestIDIgnoresSubMillisecondStart(t *testing.T) {
 		clip.Request{MediaID: "42", StartTime: 12.345, Duration: 5},
 		path,
 		testMaxWidth,
+		testOwner,
 	)
 	require.NoError(t, err)
 
@@ -224,6 +239,7 @@ func TestPreviewRequestIDIgnoresSubMillisecondStart(t *testing.T) {
 		clip.Request{MediaID: "42", StartTime: 12.3451, Duration: 5},
 		path,
 		testMaxWidth,
+		testOwner,
 	)
 	require.NoError(t, err)
 
@@ -233,6 +249,7 @@ func TestPreviewRequestIDIgnoresSubMillisecondStart(t *testing.T) {
 		clip.Request{MediaID: "42", StartTime: 12.346, Duration: 5},
 		path,
 		testMaxWidth,
+		testOwner,
 	)
 	require.NoError(t, err)
 
@@ -246,6 +263,7 @@ func TestPreviewRequestIDRejectsAnUnreadableSource(t *testing.T) {
 		clip.Request{MediaID: "42", Duration: 5},
 		filepath.Join(t.TempDir(), "absent.mkv"),
 		testMaxWidth,
+		testOwner,
 	)
 
 	require.ErrorIs(t, err, ErrSourceUnreadable)
@@ -259,10 +277,10 @@ func TestPreviewRequestIDFollowsTheSelection(t *testing.T) {
 
 	base := clip.Request{MediaID: "42", StartTime: 180, Duration: 10}
 
-	first, err := RequestID(base, path, testMaxWidth)
+	first, err := RequestID(base, path, testMaxWidth, testOwner)
 	require.NoError(t, err)
 
-	repeat, err := RequestID(base, path, testMaxWidth)
+	repeat, err := RequestID(base, path, testMaxWidth, testOwner)
 	require.NoError(t, err)
 	assert.Equal(t, first, repeat, "the same selection must reuse its preview")
 
@@ -287,7 +305,7 @@ func TestPreviewRequestIDFollowsTheSelection(t *testing.T) {
 			req := base
 			test.mutate(&req)
 
-			got, idErr := RequestID(req, path, testMaxWidth)
+			got, idErr := RequestID(req, path, testMaxWidth, testOwner)
 			require.NoError(t, idErr)
 
 			assert.NotEqual(t, first, got, "%s must ask for a different preview", test.name)
@@ -341,4 +359,52 @@ func TestValidPreviewID(t *testing.T) {
 
 func longPreviewID(n int) string {
 	return strings.Repeat("a", n)
+}
+
+// TestPreviewRequestIDNamesItsOwner covers previews asked for by two accounts.
+//
+// The same request gets a different id for each account, and each id names
+// the account it belongs to.
+func TestPreviewRequestIDNamesItsOwner(t *testing.T) {
+	t.Parallel()
+
+	path, req := writeKeySource(t, 12.345, 20)
+
+	mine, err := RequestID(req, path, testMaxWidth, testOwner)
+	require.NoError(t, err)
+
+	theirs, err := RequestID(req, path, testMaxWidth, 7)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, mine, theirs, "two accounts never share a preview")
+	assert.True(t, ValidID(mine))
+
+	owner, ok := Owner(mine)
+	require.True(t, ok)
+	assert.Equal(t, testOwner, owner)
+
+	owner, ok = Owner(theirs)
+	require.True(t, ok)
+	assert.Equal(t, 7, owner)
+}
+
+// TestPreviewOwnerRefusesAnIDItDidNotMake covers ids whose owner is unknown,
+// such as a preview from before ids named their owner.
+func TestPreviewOwnerRefusesAnIDItDidNotMake(t *testing.T) {
+	t.Parallel()
+
+	digest := ContentID(KeyInput{MediaID: "42"})
+
+	for _, previewID := range []string{
+		digest,
+		"u42-short",
+		"u-" + digest[:40],
+		"ux-" + digest[:40],
+		"u-1-" + digest[:40],
+	} {
+		_, ok := Owner(previewID)
+		assert.False(t, ok, previewID)
+	}
+
+	assert.True(t, ValidID(OwnedID(1<<62, digest)), "the largest account id still fits the guard")
 }

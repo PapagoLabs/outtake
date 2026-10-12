@@ -28,6 +28,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -118,6 +119,7 @@ func createClip(t *testing.T, handler *Handler, body string) (int, string) {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips/create", handler.Create)
 
 	req := httptest.NewRequestWithContext(
@@ -155,6 +157,7 @@ func TestResolveNewClipReportsAProfileItCannotResolve(t *testing.T) {
 	handler := sourceHandler(t, 2*time.Hour)
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var (
 		gotPath string
@@ -199,6 +202,7 @@ func TestResolveNewClipReportsASourceItCannotResolve(t *testing.T) {
 	handler := sourceHandler(t, 2*time.Hour)
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var (
 		gotPath string
@@ -266,6 +270,7 @@ func TestValidateEditBoundsASelectionByTheSourceLength(t *testing.T) {
 	handler := sourceHandler(t, time.Minute)
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var gotErr error
 
@@ -299,6 +304,7 @@ func TestValidateEditAcceptsAnythingFromAnUnprobedSource(t *testing.T) {
 	handler := sourceHandler(t, 0)
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var gotErr error
 
@@ -358,6 +364,7 @@ func TestResolveNewClipAcceptsAResolvableSource(t *testing.T) {
 		&config.Config{MaxClipDur: 15 * time.Minute, Env: "e2e"})
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var (
 		gotPath string
@@ -407,6 +414,7 @@ func TestResolveNewClipRestatesTheResolvedQuality(t *testing.T) {
 	var resolved string
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips/create", func(ctx fiber.Ctx) error {
 		req := &api.ClipRequest{
 			MediaID:   source,
@@ -443,6 +451,7 @@ func TestValidateEditStillBoundsAnUnprobedSourceByTheMaximum(t *testing.T) {
 	handler := sourceHandler(t, 0)
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 
 	var gotErr error
 
@@ -510,6 +519,7 @@ func createJSON(
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips/create", handler.Create)
 
 	req := httptest.NewRequestWithContext(
@@ -568,6 +578,7 @@ func TestCreateQueuesAClipItResolved(t *testing.T) {
 		"the output path is assigned before the queue takes it",
 	)
 	assert.Equal(t, source, stored[0].InputPath)
+	assert.Equal(t, middlewaretest.OwnerID, stored[0].OwnerID, "the clip belongs to the caller")
 }
 
 func TestCreateSwapsARejectionIntoTheFlash(t *testing.T) {
@@ -605,6 +616,7 @@ func TestCreateRedirectsAFormPostBackToTheMediaItem(t *testing.T) {
 	handler, source := resolvableHandler(t)
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips/create", handler.Create)
 
 	form := url.Values{

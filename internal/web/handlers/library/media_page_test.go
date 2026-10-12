@@ -15,6 +15,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex/library"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -27,6 +28,7 @@ import (
 //   - app: The app the routes are mounted on.
 func mediaApp(handler *Handler) *fiber.App {
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathMedia, handler.Media)
 
 	return app
@@ -402,6 +404,7 @@ func queryOf(t *testing.T, target string) library.Query {
 	var query library.Query
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathMedia, func(ctx fiber.Ctx) error {
 		query = parseMediaListQuery(ctx)
 

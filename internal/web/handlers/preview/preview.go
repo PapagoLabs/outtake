@@ -20,6 +20,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	clips "github.com/PapagoLabs/outtake/internal/web/handlers/clip"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	webview "github.com/PapagoLabs/outtake/internal/web/view"
@@ -78,7 +79,8 @@ func (handler *Handler) CancelPreview(ctx fiber.Ctx) error {
 
 	// Existence is checked separately from running, so an id nothing was ever
 	// registered under is not reported as a render that already finished.
-	if _, known := handler.previews.Status(id); !known {
+	// Another account's preview reads as unknown.
+	if _, known := handler.previews.Status(id); !known || !reaches(middleware.ClipScope(ctx), id) {
 		return respond.WriteError(ctx, fiber.StatusNotFound, api.NotFound, messagePreviewGone)
 	}
 
@@ -125,7 +127,12 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	render := previewRender(req, sourceHDR, screenShowsHDR(ctx))
 	maxWidth := playback.MaxPreviewWidth(ctx.Context(), handler.db)
 
-	previewID, err := clippreview.RequestID(render, inputPath, maxWidth)
+	previewID, err := clippreview.RequestID(
+		render,
+		inputPath,
+		maxWidth,
+		middleware.ClipScope(ctx).Owner,
+	)
 	if err != nil {
 		return respond.WriteFailure(
 			ctx,
@@ -214,7 +221,7 @@ func screenShowsHDR(ctx fiber.Ctx) bool {
 //   - err: Non-nil when the id is invalid or the stream fails.
 func (handler *Handler) PreviewFile(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
-	if !clippreview.ValidID(id) {
+	if !clippreview.ValidID(id) || !reaches(middleware.ClipScope(ctx), id) {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
 
@@ -239,8 +246,10 @@ func (handler *Handler) PreviewFile(ctx fiber.Ctx) error {
 // Returns:
 //   - err: Non-nil when the response cannot be written.
 func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
-	view, ok := handler.previews.Status(ctx.Params(routes.ParamID))
-	if !ok {
+	id := ctx.Params(routes.ParamID)
+
+	view, ok := handler.previews.Status(id)
+	if !ok || !reaches(middleware.ClipScope(ctx), id) {
 		return respond.WriteError(ctx, fiber.StatusNotFound, api.NotFound, messagePreviewGone)
 	}
 
@@ -404,4 +413,22 @@ func previewRemaining(view clippreview.View) string {
 	}
 
 	return webview.RemainingLabel(view.Started, time.Now(), view.Progress)
+}
+
+// reaches reports whether a caller may see a preview.
+//
+// A preview belongs to the account its id names. One whose id names no
+// account, such as a preview from before ids named their owner, is reached
+// only by the owner and admins.
+//
+// Parameters:
+//   - scope: Whose previews the caller may see.
+//   - previewID: The preview.
+//
+// Returns:
+//   - reached: True when the caller may see the preview.
+func reaches(scope clip.Scope, previewID string) bool {
+	owner, _ := clippreview.Owner(previewID)
+
+	return scope.Includes(owner)
 }

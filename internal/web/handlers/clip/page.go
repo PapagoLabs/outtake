@@ -16,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -42,7 +43,7 @@ const (
 // Returns:
 //   - err: Non-nil when the clip is missing or the stream fails.
 func (handler *Handler) ClipFile(ctx fiber.Ctx) error {
-	job := catalog.Job(ctx.Context(), handler.clipQueue, handler.db, ctx.Params(routes.ParamID))
+	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), ctx.Params(routes.ParamID))
 	if job == nil || job.Status != clipdom.StatusCompleted {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
@@ -61,7 +62,7 @@ func (handler *Handler) ClipFile(ctx fiber.Ctx) error {
 //   - err: Non-nil when the clip or its SDR version is missing, or the stream
 //     fails.
 func (handler *Handler) ClipSDRFile(ctx fiber.Ctx) error {
-	job := catalog.Job(ctx.Context(), handler.clipQueue, handler.db, ctx.Params(routes.ParamID))
+	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), ctx.Params(routes.ParamID))
 	if job == nil || job.Status != clipdom.StatusCompleted || !job.MayHaveSDRVersion() {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
@@ -105,7 +106,7 @@ func (handler *Handler) sendClipFile(ctx fiber.Ctx, path string) error {
 // Returns:
 //   - err: Non-nil when the clip is missing or rendering fails.
 func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
-	job := catalog.Job(ctx.Context(), handler.clipQueue, handler.db, ctx.Params(routes.ParamID))
+	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), ctx.Params(routes.ParamID))
 	if job == nil {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
@@ -171,7 +172,7 @@ func (handler *Handler) storedFiles(ctx context.Context, job *clipdom.Job) store
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Clips(ctx fiber.Ctx) error {
 	query := parseClipListQuery(ctx)
-	jobs := catalog.Apply(catalog.Jobs(ctx.Context(), handler.clipQueue, handler.db), query)
+	jobs := catalog.Apply(handler.listJobs(ctx), query)
 	items := view.NewClipItems(
 		jobs,
 		profile.SelectableProfiles(ctx.Context(), handler.db),

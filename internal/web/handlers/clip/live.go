@@ -81,10 +81,15 @@ const (
 //
 // Parameters:
 //   - value: The clip ids, separated by commas.
+//   - scope: Whose clips the stream's caller may see. Any other clip is never
+//     reported.
 //
 // Returns:
 //   - check: The feed's check, nil when the value names no clip.
-func (handler *Handler) LiveClips(value string) func(ctx context.Context) []string {
+func (handler *Handler) LiveClips(
+	value string,
+	scope clipdom.Scope,
+) func(ctx context.Context) []string {
 	ids := liveIDs(value)
 	if len(ids) == 0 {
 		return nil
@@ -98,7 +103,9 @@ func (handler *Handler) LiveClips(value string) func(ctx context.Context) []stri
 	}
 
 	feed := &clipFeed{
-		lookup: handler.lookupJob,
+		lookup: func(ctx context.Context, id string) *clipdom.Job {
+			return handler.lookupJob(ctx, scope, id)
+		},
 		render: renderer.render,
 		sent:   make(map[string]string, len(ids)),
 		ids:    ids,

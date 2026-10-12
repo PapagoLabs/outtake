@@ -20,10 +20,12 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -111,6 +113,7 @@ func postUpdate(t *testing.T, handler *Handler, req *http.Request) updateAnswer 
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Post("/api/clips/:id/update", handler.Update)
 
 	resp, err := app.Test(req)
@@ -413,10 +416,12 @@ func TestUpdateIsReadBackAtOnce(t *testing.T) {
 	answer := postUpdate(t, handler, apiJSONRequest(t, `{"name":"Renamed"}`))
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 
-	assert.Equal(t, "Renamed", handler.lookupJob(t.Context(), "stored").Name,
+	owner := clipdom.Scope{Owner: middlewaretest.OwnerID, Everyone: true}
+
+	assert.Equal(t, "Renamed", handler.lookupJob(t.Context(), owner, "stored").Name,
 		"a lookup reads the queue first, and the queue carries the edit")
 
-	listed := handler.listJobs(t.Context())
+	listed := catalog.Jobs(t.Context(), handler.clipQueue, handler.db, owner)
 	require.Len(t, listed, 1)
 	assert.Equal(t, "Renamed", listed[0].Name)
 }

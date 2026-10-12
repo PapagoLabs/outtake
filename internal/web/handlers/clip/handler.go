@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
 
@@ -62,27 +63,33 @@ func New(
 	}
 }
 
-// listJobs returns every clip the catalog knows about.
+// listJobs returns every clip the caller may see.
 //
 // Parameters:
-//   - ctx: Request context.
+//   - ctx: Request whose caller the clips are kept to.
 //
 // Returns:
 //   - jobs: The queued jobs, or the stored clips when no job is queued.
-func (handler *Handler) listJobs(ctx context.Context) []*clipdom.Job {
-	return catalog.Jobs(ctx, handler.clipQueue, handler.db)
+func (handler *Handler) listJobs(ctx fiber.Ctx) []*clipdom.Job {
+	return catalog.Jobs(ctx.Context(), handler.clipQueue, handler.db, middleware.ClipScope(ctx))
 }
 
-// lookupJob finds a clip in the queue or the database.
+// lookupJob finds a clip the caller may see in the queue or the database.
 //
 // Parameters:
 //   - ctx: Request context.
+//   - scope: Whose clips the caller may see.
 //   - id: Clip id to look up.
 //
 // Returns:
-//   - job: The queued job or stored clip, or nil when neither is found.
-func (handler *Handler) lookupJob(ctx context.Context, id string) *clipdom.Job {
-	return catalog.Job(ctx, handler.clipQueue, handler.db, id)
+//   - job: The queued job or stored clip, or nil when neither is found or it
+//     belongs to an account the caller may not see.
+func (handler *Handler) lookupJob(
+	ctx context.Context,
+	scope clipdom.Scope,
+	id string,
+) *clipdom.Job {
+	return catalog.Job(ctx, handler.clipQueue, handler.db, scope, id)
 }
 
 // outputExists returns the check a clip card makes for its rendered file.
