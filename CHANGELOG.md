@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Mark the start and end from the keyboard by @nicholas-fedor in [#483](https://github.com/PapagoLabs/outtake/pull/483)
 - Copy a clip from its source when the source already fits by @nicholas-fedor in [#479](https://github.com/PapagoLabs/outtake/pull/479)
 - Keep previews and the playback panel current over the page stream by @nicholas-fedor in [#477](https://github.com/PapagoLabs/outtake/pull/477)
 - Open every doc comment with a one-sentence summary by @nicholas-fedor in [#473](https://github.com/PapagoLabs/outtake/pull/473)
