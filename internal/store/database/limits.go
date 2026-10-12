@@ -26,6 +26,14 @@ type overrideColumns struct {
 	clipSeconds sql.NullInt64
 }
 
+// UserUsage is what one user's renders and clips come to.
+type UserUsage struct {
+	// Bytes is the storage the user's clips take.
+	Bytes int64
+	// Renders is how many renders the user started in the span counted.
+	Renders int
+}
+
 // Settings the global limits are stored under in app_settings.
 const (
 	// settingLimitActive is the global limit on concurrent renders.
@@ -182,6 +190,97 @@ func (db *DB) RendersSince(
 	}
 
 	return started, time.Unix(oldest.Int64, 0), nil
+}
+
+// UsageByOwner returns what every user's renders and clips come to, in two
+// grouped reads.
+//
+// Parameters:
+//   - ctx: Request scope for the reads.
+//   - since: The start of the span renders are counted over.
+//
+// Returns:
+//   - usage: Each user's usage by plex.tv id, absent for a user with neither
+//     renders in the span nor clips.
+//   - err: Non-nil when a read fails.
+func (db *DB) UsageByOwner(ctx context.Context, since time.Time) (map[int]UserUsage, error) {
+	usage := make(map[int]UserUsage)
+
+	err := db.groupByOwner(
+		ctx,
+		`SELECT owner_id, COUNT(*) FROM render_log WHERE rendered_at >= ? GROUP BY owner_id`,
+		func(owner int, value int64) {
+			entry := usage[owner]
+
+			entry.Renders = int(value)
+			usage[owner] = entry
+		},
+		since.Unix(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("count renders: %w", err)
+	}
+
+	err = db.groupByOwner(
+		ctx,
+		`SELECT owner_id, COALESCE(SUM(output_bytes), 0) FROM clips GROUP BY owner_id`,
+		func(owner int, value int64) {
+			entry := usage[owner]
+
+			entry.Bytes = value
+			usage[owner] = entry
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("sum storage: %w", err)
+	}
+
+	return usage, nil
+}
+
+// groupByOwner reads a query that yields one owner and one number per row.
+//
+// Parameters:
+//   - ctx: Request scope for the read.
+//   - query: The query, with ? placeholders.
+//   - record: Takes each row's owner and number.
+//   - args: The placeholders' values.
+//
+// Returns:
+//   - err: Non-nil when the read fails.
+func (db *DB) groupByOwner(
+	ctx context.Context,
+	query string,
+	record func(owner int, value int64),
+	args ...any,
+) error {
+	rows, err := db.conn.QueryContext(ctx, db.rewrite(query), args...)
+	if err != nil {
+		return fmt.Errorf("query: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var (
+			owner int
+			value int64
+		)
+
+		err = rows.Scan(&owner, &value)
+		if err != nil {
+			return fmt.Errorf("scan: %w", err)
+		}
+
+		record(owner, value)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return fmt.Errorf("rows: %w", err)
+	}
+
+	return nil
 }
 
 // SaveGlobalLimits stores the render limits every member has.

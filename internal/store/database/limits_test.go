@@ -341,3 +341,61 @@ func TestRejectUserLeavesAnApprovedAccountAlone(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, RoleMember, role)
 }
+
+// TestUsageByOwnerGroupsEveryUser covers the users page's usage, read for
+// every user at once.
+//
+// Each user's renders inside the span and their clips' bytes are summed, and
+// a user with neither is absent.
+func TestUsageByOwnerGroupsEveryUser(t *testing.T) {
+	t.Parallel()
+
+	db := usersDatabase(t)
+	now := time.Date(2026, time.October, 12, 12, 0, 0, 0, time.UTC)
+
+	for _, render := range []struct {
+		at    time.Time
+		owner int
+	}{
+		{at: now.Add(-time.Hour), owner: 7},
+		{at: now.Add(-2 * time.Hour), owner: 7},
+		{at: now.Add(-8 * 24 * time.Hour), owner: 7},
+		{at: now.Add(-time.Hour), owner: 9},
+	} {
+		require.NoError(t, db.RecordRender(t.Context(), render.owner, render.at))
+	}
+
+	for index, clipOwner := range []int{7, 7, 42} {
+		job := testStoredClip("clip-"+string(rune('a'+index)), "1", now)
+
+		job.OwnerID = clipOwner
+		job.OutputBytes = 100
+		require.NoError(t, db.SaveClip(t.Context(), job))
+	}
+
+	usage, err := db.UsageByOwner(t.Context(), now.Add(-quota.Window))
+	require.NoError(t, err)
+
+	assert.Equal(t, UserUsage{Bytes: 200, Renders: 2}, usage[7])
+	assert.Equal(t, UserUsage{Bytes: 0, Renders: 1}, usage[9])
+	assert.Equal(t, UserUsage{Bytes: 100, Renders: 0}, usage[42])
+	assert.NotContains(t, usage, 5)
+}
+
+// TestSetUserRoleNeedsTheOtherRole covers a role change that finds the user
+// already holding the role it was checked against no longer.
+func TestSetUserRoleNeedsTheOtherRole(t *testing.T) {
+	t.Parallel()
+
+	db := usersDatabase(t)
+
+	require.NoError(t, db.AddPendingUser(t.Context(), 7, "friend"))
+	require.NoError(t, db.ApproveUser(t.Context(), 7))
+
+	require.ErrorIs(t, db.SetUserRole(t.Context(), 7, RoleMember), ErrUserNotFound,
+		"making a member a member finds no admin to change")
+	require.NoError(t, db.SetUserRole(t.Context(), 7, RoleAdmin))
+	require.ErrorIs(t, db.SetUserRole(t.Context(), 7, RoleAdmin), ErrUserNotFound,
+		"making an admin an admin finds no member to change")
+	require.NoError(t, db.SetUserRole(t.Context(), 7, RoleMember))
+}

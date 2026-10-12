@@ -45,10 +45,8 @@ type LimitStore interface {
 	GlobalLimits(ctx context.Context) (quota.Limits, error)
 	// SaveGlobalLimits stores the limits every member has.
 	SaveGlobalLimits(ctx context.Context, limits quota.Limits) error
-	// RendersSince counts a user's renders since a time.
-	RendersSince(ctx context.Context, owner int, since time.Time) (int, time.Time, error)
-	// StorageUsed returns the bytes a user's clips take.
-	StorageUsed(ctx context.Context, owner int) (int64, error)
+	// UsageByOwner returns every user's renders since a time and storage.
+	UsageByOwner(ctx context.Context, since time.Time) (map[int]database.UserUsage, error)
 }
 
 // Handler serves the users settings page and the pending page.
@@ -116,9 +114,16 @@ func (handler *Handler) Page(ctx fiber.Ctx) error {
 		respond.SetFlash(ctx, respond.Fail(ctx, err))
 	}
 
+	// Usage that cannot be read is left nil, which leaves every usage line
+	// empty.
+	usage, usageErr := handler.limits.UsageByOwner(ctx.Context(), handler.now().Add(-quota.Window))
+	if usageErr != nil {
+		usage = nil
+	}
+
 	items := make([]view.UserItem, 0, len(records))
 	for index := range records {
-		items = append(items, handler.userItem(ctx.Context(), caller, &records[index]))
+		items = append(items, userItem(caller, &records[index], usage))
 	}
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
@@ -289,47 +294,21 @@ func (handler *Handler) change(
 	return respond.RedirectTo(ctx, routes.PathSettingsUsers)
 }
 
-// usage describes what a user's clips take.
-//
-// Parameters:
-//   - ctx: Request scope for the reads.
-//   - plexUserID: The user.
-//
-// Returns:
-//   - label: The renders this week and the storage, or empty when either
-//     cannot be read.
-func (handler *Handler) usage(ctx context.Context, plexUserID int) string {
-	renders, _, err := handler.limits.RendersSince(
-		ctx,
-		plexUserID,
-		handler.now().Add(-quota.Window),
-	)
-	if err != nil {
-		return ""
-	}
-
-	used, err := handler.limits.StorageUsed(ctx, plexUserID)
-	if err != nil {
-		return ""
-	}
-
-	return view.UsageLabel(renders, used)
-}
-
 // userItem describes one user for the page, with the changes the caller may
 // make to them.
 //
 // Parameters:
-//   - ctx: Request scope for the usage reads.
 //   - caller: The viewer.
 //   - record: The user.
+//   - usage: Every user's usage by plex.tv id, nil when it could not be read,
+//     which leaves the usage line empty.
 //
 // Returns:
 //   - item: The page model.
-func (handler *Handler) userItem(
-	ctx context.Context,
+func userItem(
 	caller identity.User,
 	record *database.UserRecord,
+	usage map[int]database.UserUsage,
 ) view.UserItem {
 	role := identity.Role(record.Role)
 
@@ -338,7 +317,7 @@ func (handler *Handler) userItem(
 		Username:      record.Username,
 		Role:          roleName(role),
 		LastLogin:     "",
-		Usage:         handler.usage(ctx, record.PlexID),
+		Usage:         "",
 		PlexID:        record.PlexID,
 		Pending:       role == identity.RolePending,
 		CanApprove:    caller.May(identity.ActionApprove, role),
@@ -346,6 +325,12 @@ func (handler *Handler) userItem(
 		CanLimit:      caller.May(identity.ActionLimits, role),
 		CanMakeAdmin:  caller.May(identity.ActionMakeAdmin, role),
 		CanMakeMember: caller.May(identity.ActionMakeMember, role),
+	}
+
+	if usage != nil {
+		used := usage[record.PlexID]
+
+		item.Usage = view.UsageLabel(used.Renders, used.Bytes)
 	}
 
 	if !record.LastLoginAt.IsZero() {

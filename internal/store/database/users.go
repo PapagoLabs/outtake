@@ -366,8 +366,11 @@ func (db *DB) RemoveUser(ctx context.Context, plexUserID int) error {
 	return nil
 }
 
-// SetUserRole makes an approved user other than the owner an admin or a
-// member.
+// SetUserRole makes an approved member an admin, or an admin a member.
+//
+// The user must still hold the other role when the row is written, so a
+// change checked against one role never lands on a user whose role has
+// changed since.
 //
 // Parameters:
 //   - ctx: Request scope for the write.
@@ -375,18 +378,25 @@ func (db *DB) RemoveUser(ctx context.Context, plexUserID int) error {
 //   - role: RoleAdmin or RoleMember.
 //
 // Returns:
-//   - err: ErrUserNotFound when no approved user other than the owner is
+//   - err: ErrUserNotFound when no approved user holding the other role is
 //     stored under the id, otherwise the write failure.
 func (db *DB) SetUserRole(ctx context.Context, plexUserID int, role string) error {
-	if role != RoleAdmin && role != RoleMember {
+	current := RoleMember
+
+	switch role {
+	case RoleAdmin:
+	case RoleMember:
+		current = RoleAdmin
+	default:
 		return fmt.Errorf("set user role %q: %w", role, ErrUserNotFound)
 	}
 
 	err := db.changeUser(
 		ctx,
-		`UPDATE users SET role = ? WHERE plex_user_id = ? AND role <> 'owner' AND approved = 1`,
+		`UPDATE users SET role = ? WHERE plex_user_id = ? AND role = ? AND approved = 1`,
 		role,
 		plexUserID,
+		current,
 	)
 	if err != nil {
 		return fmt.Errorf("set user role: %w", err)
