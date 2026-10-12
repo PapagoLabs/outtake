@@ -24,18 +24,31 @@ const sessionSweepInterval = 10 * time.Minute
 // startSessionStore creates the database session store and deletes expired
 // sessions until ctx ends.
 //
+// The caller waits on swept before it closes the database. A sweep still
+// running when the database closes holds its connection until the query ends,
+// and SQLite then touches the database's files after the close has returned.
+//
 // Parameters:
 //   - ctx: Lifetime context the sweeper runs under.
 //   - db: Database the sessions live in.
 //
 // Returns:
 //   - store: The session store the router persists sessions through.
-func startSessionStore(ctx context.Context, db *database.DB) *database.SessionStore {
+//   - swept: Closed once the sweeper has stopped, after ctx ends.
+func startSessionStore(
+	ctx context.Context,
+	db *database.DB,
+) (*database.SessionStore, <-chan struct{}) {
 	store := database.NewSessionStore(db)
+	swept := make(chan struct{})
 
-	go sweepSessions(ctx, store, sessionSweepInterval)
+	go func() {
+		defer close(swept)
 
-	return store
+		sweepSessions(ctx, store, sessionSweepInterval)
+	}()
+
+	return store, swept
 }
 
 // sweepSessions deletes expired sessions once at start and then on every

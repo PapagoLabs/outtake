@@ -86,7 +86,7 @@ func TestStartSessionStoreReturnsAStoreOnTheDatabase(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
 
-	store := startSessionStore(ctx, db)
+	store, swept := startSessionStore(ctx, db)
 	require.NotNil(t, store)
 
 	require.NoError(t, store.Set("sid", []byte("payload"), time.Hour))
@@ -94,4 +94,12 @@ func TestStartSessionStoreReturnsAStoreOnTheDatabase(t *testing.T) {
 	data, err := store.Get("sid")
 	require.NoError(t, err)
 	assert.Equal(t, []byte("payload"), data)
+
+	cancel()
+
+	select {
+	case <-swept:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the sweeper did not stop once its context ended")
+	}
 }

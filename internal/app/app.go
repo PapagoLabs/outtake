@@ -42,6 +42,9 @@ type App struct {
 	//nolint:containedctx // a service holding its own lifetime context, not a request one.
 	ctx  context.Context
 	stop context.CancelFunc
+	// sessionsSwept closes once the session sweeper has stopped, which Close
+	// waits for before it closes the database.
+	sessionsSwept <-chan struct{}
 }
 
 const (
@@ -111,6 +114,8 @@ func New(cfg *config.Config) (*App, error) {
 
 	previews, sources := renderServices(cfg, store, bind, runner)
 
+	sessions, sessionsSwept := startSessionStore(ctx, db)
+
 	return &App{
 		ctx:  ctx,
 		stop: stop,
@@ -124,12 +129,13 @@ func New(cfg *config.Config) (*App, error) {
 			Auth:     plexAuth,
 			Previews: previews,
 			Sources:  sources,
-			Sessions: startSessionStore(ctx, db),
+			Sessions: sessions,
 		}),
-		queue:    jobQueue,
-		previews: previews,
-		db:       db,
-		bind:     bind,
+		queue:         jobQueue,
+		previews:      previews,
+		db:            db,
+		bind:          bind,
+		sessionsSwept: sessionsSwept,
 	}, nil
 }
 
@@ -285,6 +291,8 @@ func (app *App) Close() {
 	}
 
 	app.bind.Stop()
+
+	<-app.sessionsSwept
 
 	err = app.db.Close()
 	if err != nil {
