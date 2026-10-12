@@ -23,16 +23,18 @@ const (
 	versionLength = 16
 )
 
-// FS holds the static files. Paths are relative to this directory, such as
-// "css/output.css".
+// FS holds the static files.
+//
+// Paths are relative to this directory, such as "css/output.css".
 //
 //go:embed css js brand
 var FS embed.FS
 
-// versions maps each embedded file to the hash its URL carries. The files are
-// fixed at build time, so they are hashed once. A file that cannot be read is
-// left out, so its URL carries no hash and is never cached for good. A walk
-// that fails leaves every file out.
+// versions maps each embedded file to the hash its URL carries.
+//
+// The files are fixed at build time, so they are hashed once. A file that
+// cannot be read is left out, so its URL carries no hash and is never cached
+// for good. A walk that fails leaves every file out.
 var versions = sync.OnceValue(func() map[string]string {
 	hashes := map[string]string{}
 
@@ -64,7 +66,9 @@ var versions = sync.OnceValue(func() map[string]string {
 })
 
 // URL returns the path an asset is served at, carrying the hash of its
-// contents. A name nothing was embedded under is returned without a hash.
+// contents.
+//
+// A name nothing was embedded under is returned without a hash.
 //
 // Parameters:
 //   - name: The asset's path inside FS, with or without the Prefix.

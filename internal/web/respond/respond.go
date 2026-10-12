@@ -62,10 +62,12 @@ func WriteJSON(ctx fiber.Ctx, status int, payload any) error {
 	return nil
 }
 
-// SendRangedFile serves a media file with HTTP byte-range support. A render
-// moves a new file into place under the same path, so the file is opened for
-// every request rather than through Fiber's handle cache, and the browser is
-// told to revalidate against its modification time before reusing a copy.
+// SendRangedFile serves a media file with HTTP byte-range support.
+//
+// A render moves a new file into place under the same path, so the file is
+// opened for every request rather than through Fiber's handle cache, and the
+// browser is told to revalidate against its modification time before reusing a
+// copy.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -105,10 +107,11 @@ func WriteError(ctx fiber.Ctx, status int, code api.ErrorCode, message string) e
 	return WriteFailure(ctx, status, code, view.NewNotice(message))
 }
 
-// WriteFailure answers a failed request: a flash banner for htmx, a redirect
-// that carries the failure in the session for a form post or a link the
-// browser followed, such as Download, and a JSON error for an API caller,
-// whose code stays the contract.
+// WriteFailure answers a failed request.
+//
+// An htmx request gets a flash banner. A form post or a link the browser
+// followed, such as Download, gets a redirect that carries the failure in the
+// session. An API caller gets a JSON error, whose code stays the contract.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -417,10 +420,11 @@ func SendStatusCode(ctx fiber.Ctx, status int) error {
 	return nil
 }
 
-// RenderHTML writes a templ component and wraps render errors. A full page
-// takes the failure a redirect left in the session, so its banner slot shows
-// it once. An htmx fragment leaves it, so a background poll never takes it
-// from the page it was meant for.
+// RenderHTML writes a templ component and wraps render errors.
+//
+// A full page takes the failure a redirect left in the session, so its banner
+// slot shows it once. An htmx fragment leaves it, so a background poll never
+// takes it from the page it was meant for.
 //
 // Parameters:
 //   - ctx: Request context, whose Content-Type header is set to HTML.

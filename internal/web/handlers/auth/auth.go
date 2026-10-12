@@ -157,8 +157,10 @@ func (handler *Handler) Login(ctx fiber.Ctx) error {
 	})
 }
 
-// Logout ends this browser's session. The owner, the bound server, and every
-// other signed-in browser stay as they are.
+// Logout ends this browser's session.
+//
+// The owner, the bound server, and every other signed-in browser stay as they
+// are.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -243,9 +245,11 @@ func (handler *Handler) acceptEnteredToken(ctx fiber.Ctx, accessToken string) er
 	return wrapAuth(respond.RedirectTo(ctx, handler.postAuthPath()), "finish auth")
 }
 
-// finishAuth signs a Plex token in and, once this installation accepts it,
-// carries the user on a fresh session. The session id changes, so an id
-// planted in the browser before sign-in never becomes an authenticated one.
+// finishAuth signs a Plex token in and carries the user on a fresh session.
+//
+// It carries the user only once this installation accepts the token. The
+// session id changes, so an id planted in the browser before sign-in never
+// becomes an authenticated one.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -296,9 +300,10 @@ func refusalMessage(err error) string {
 	}
 }
 
-// refusal is what the login page shows for a refused login. A token Plex
-// rejected or an account that is not the owner explains itself. Any other
-// failure carries details.
+// refusal is what the login page shows for a refused login.
+//
+// A token Plex rejected or an account that is not the owner explains itself.
+// Any other failure carries details.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -327,10 +332,11 @@ func (handler *Handler) postAuthPath() string {
 }
 
 // sendAuthComplete finishes popup or full-page login after Plex answers.
+//
 // The page carries no opener isolation, so the popup reaches the login page
 // that opened it, and sends that window on to next. A failure is kept in the
-// session once the popup page has rendered, so the window that opened the
-// popup shows it on next rather than the popup that closes.
+// session once the popup page has rendered, so the window that opened the popup
+// shows it on next rather than the popup that closes.
 //
 // Parameters:
 //   - ctx: Request context.

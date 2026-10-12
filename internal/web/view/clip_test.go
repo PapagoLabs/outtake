@@ -45,9 +45,10 @@ func TestClipTypeLabel(t *testing.T) {
 	assert.Equal(t, "Screenshot", ClipTypeLabel(clip.TypeScreenshot))
 }
 
-// TestStatusLabel covers the status badge: each status in header
-// capitalization, with a processing clip read as rendering, and an unknown
-// status shown as it is.
+// TestStatusLabel covers the status badge.
+//
+// Each status reads in header capitalization, with a processing clip read as
+// rendering. An unknown status is shown as it is.
 func TestStatusLabel(t *testing.T) {
 	t.Parallel()
 
@@ -188,9 +189,10 @@ func TestClipItemCanPlay(t *testing.T) {
 	}
 }
 
-// TestClipItemTracksItsSDRVersion covers the card's SDR state: a render in
-// its SDR stage shows that stage, and a playable HDR clip that keeps HDR but
-// has no SDR version is reported as lacking one, and nothing else is.
+// TestClipItemTracksItsSDRVersion covers the card's SDR state.
+//
+// A render in its SDR stage shows that stage. A playable HDR clip that keeps
+// HDR but has no SDR version is reported as lacking one, and nothing else is.
 func TestClipItemTracksItsSDRVersion(t *testing.T) {
 	t.Parallel()
 
@@ -223,8 +225,9 @@ func TestClipItemTracksItsSDRVersion(t *testing.T) {
 	assert.False(t, converted.LacksSDRVersion())
 }
 
-// TestNewClipItemsAsksOnlyWhereAnSDRVersionMayBe covers the clips list: a
-// clip that keeps HDR learns whether its SDR version is stored, and no other
+// TestNewClipItemsAsksOnlyWhereAnSDRVersionMayBe covers the clips list.
+//
+// A clip that keeps HDR learns whether its SDR version is stored, and no other
 // clip is asked.
 func TestNewClipItemsAsksOnlyWhereAnSDRVersionMayBe(t *testing.T) {
 	t.Parallel()
@@ -245,9 +248,11 @@ func TestNewClipItemsAsksOnlyWhereAnSDRVersionMayBe(t *testing.T) {
 	assert.Equal(t, []string{"/c/a.mp4", "/c/a.sdr.mp4", "/c/b.mp4"}, asked)
 }
 
-// TestClipItemBadgesNameEachFile covers the badge text of a card: each file's
-// recorded format, and for a clip with an SDR version recorded before formats
-// were, the range alone, since its file is HDR and its version SDR.
+// TestClipItemBadgesNameEachFile covers the badge text of a card.
+//
+// Each file's badge names its recorded format. A clip with an SDR version
+// recorded before formats were shows the range alone, since its file is HDR
+// and its version SDR.
 func TestClipItemBadgesNameEachFile(t *testing.T) {
 	t.Parallel()
 

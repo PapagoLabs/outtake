@@ -143,9 +143,11 @@ func ClipTypeLabel(clipType clip.Type) string {
 	}
 }
 
-// StatusLabel is the user-facing name for a clip's status, as its badge
-// shows it. A processing clip reads as rendering, the word the export form
-// and the preview use.
+// StatusLabel is the user-facing name for a clip's status, as its badge shows
+// it.
+//
+// A processing clip reads as rendering, the word the export form and the
+// preview use.
 //
 // Parameters:
 //   - status: The clip's status.
@@ -222,8 +224,9 @@ func (item *ClipItem) GIFWidth() int {
 	return GIFWidthOrDefault(item.Width)
 }
 
-// HDRBadge names the HDR file a card with an SDR version can switch to. A
-// clip with an SDR version keeps HDR, so its file is HDR even when it was
+// HDRBadge names the HDR file a card with an SDR version can switch to.
+//
+// A clip with an SDR version keeps HDR, so its file is HDR even when it was
 // never read.
 //
 // Returns:
@@ -245,8 +248,9 @@ func (item *ClipItem) IsActive() bool {
 }
 
 // LacksSDRVersion reports a playable HDR clip with no SDR version, such as one
-// rendered before SDR versions existed. Its card plays the HDR file and says a
-// regenerate makes one.
+// rendered before SDR versions existed.
+//
+// Its card plays the HDR file and says a regenerate makes one.
 //
 // Returns:
 //   - lacks: True when the clip keeps HDR from an HDR source but has no SDR

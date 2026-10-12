@@ -14,8 +14,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestExistsEachAnswersEveryPathOnce covers the answers: each distinct path is
-// checked once, an empty one never, and the lookup reads each result.
+// TestExistsEachAnswersEveryPathOnce covers the answers.
+//
+// Each distinct path is checked once, an empty one never, and the lookup reads
+// each result.
 func TestExistsEachAnswersEveryPathOnce(t *testing.T) {
 	t.Parallel()
 
@@ -52,8 +54,9 @@ func TestExistsEachAnswersEveryPathOnce(t *testing.T) {
 	)
 }
 
-// TestExistsEachRunsChecksAtOnceUpToTheLimit covers the concurrency: slow
-// checks overlap, and never more of them than the limit.
+// TestExistsEachRunsChecksAtOnceUpToTheLimit covers the concurrency.
+//
+// Slow checks overlap, but never more of them than the limit.
 func TestExistsEachRunsChecksAtOnceUpToTheLimit(t *testing.T) {
 	t.Parallel()
 
@@ -87,7 +90,9 @@ func TestExistsEachRunsChecksAtOnceUpToTheLimit(t *testing.T) {
 }
 
 // TestExistsEachStopsSchedulingWhenTheContextEnds covers a request that goes
-// away: no further check starts, and an unchecked path reads as absent.
+// away.
+//
+// No further check starts, and an unchecked path reads as absent.
 func TestExistsEachStopsSchedulingWhenTheContextEnds(t *testing.T) {
 	t.Parallel()
 

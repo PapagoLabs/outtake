@@ -65,6 +65,7 @@ func matches(job *clip.Job, query ClipListQuery, needle string) bool {
 }
 
 // compare orders two clip records by the requested sort, then id descending.
+//
 // It does not read render state.
 //
 // Parameters:

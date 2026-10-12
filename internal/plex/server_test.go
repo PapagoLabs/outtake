@@ -654,8 +654,10 @@ func TestSearchMedia_Errors(t *testing.T) {
 }
 
 // TestPlexTVCallsReportAFailureStatus covers the XML plex.tv calls against
-// plex.tv's own error page: each reports the status as ErrPlexError, and a 401
-// as ErrUnauthorized, rather than decoding the page as data.
+// plex.tv's own error page.
+//
+// Each reports the status as ErrPlexError, and a 401 as ErrUnauthorized, rather
+// than decoding the page as data.
 func TestPlexTVCallsReportAFailureStatus(t *testing.T) {
 	t.Parallel()
 
@@ -721,8 +723,9 @@ func TestPlexTVCallsReportAFailureStatus(t *testing.T) {
 	}
 }
 
-// TestLibraryCallsReportARefusedToken covers a server that refuses the token:
-// the library list and the media path report ErrUnauthorized rather than
+// TestLibraryCallsReportARefusedToken covers a server that refuses the token.
+//
+// The library list and the media path report ErrUnauthorized rather than
 // decoding the refusal page as data.
 func TestLibraryCallsReportARefusedToken(t *testing.T) {
 	t.Parallel()
@@ -744,8 +747,9 @@ func TestLibraryCallsReportARefusedToken(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnauthorized)
 }
 
-// TestLibraryCallsReportAFailureStatus covers any other failure status: it is
-// reported as a server error, not as a refused token.
+// TestLibraryCallsReportAFailureStatus covers any other failure status.
+//
+// It is reported as a server error, not as a refused token.
 func TestLibraryCallsReportAFailureStatus(t *testing.T) {
 	t.Parallel()
 

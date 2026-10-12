@@ -64,10 +64,11 @@ func sessionApp(t *testing.T) *fiber.App {
 	return app
 }
 
-// authApp builds an app whose Plex calls cannot leave the process. The identity
-// package builds every Plex client against plex.tv and exposes no seam for
-// pointing it elsewhere, so a canceled request context is what keeps those calls
-// from being sent at all.
+// authApp builds an app whose Plex calls cannot leave the process.
+//
+// The identity package builds every Plex client against plex.tv and exposes no
+// seam for pointing it elsewhere, so a canceled request context is what keeps
+// those calls from being sent at all.
 func authApp(t *testing.T) *fiber.App {
 	t.Helper()
 
@@ -103,9 +104,11 @@ func authHandler(
 	return New(identity.New("outtake", "test-client", "http://localhost", store, selected))
 }
 
-// newPlexTV stands in for plex.tv. The user endpoint answers with the account
-// each token belongs to and 401 for any other token, a new PIN lasts half an
-// hour, and the pending PIN resolves to pinToken.
+// newPlexTV stands in for plex.tv.
+//
+// The user endpoint answers with the account each token belongs to and 401 for
+// any other token, a new PIN lasts half an hour, and the pending PIN resolves
+// to pinToken.
 //
 // Parameters:
 //   - t: The test the stand-in belongs to.
@@ -178,8 +181,10 @@ func ownerStore(t *testing.T) *identitymocks.MockStore {
 	return store
 }
 
-// browser issues requests against an app, carrying the session cookie between
-// them so a value stored by one request is visible to the next.
+// newBrowser returns a request issuer that carries the session cookie.
+//
+// It sends each request to app with the cookie the last one set, so a value
+// stored by one request is visible to the next.
 //
 // Parameters:
 //   - t: The test the browser belongs to.
@@ -442,9 +447,10 @@ func TestLoginReportsAPINItCouldNotCreate(t *testing.T) {
 		"a PIN that was never created has no authorization URL to send the browser to")
 }
 
-// TestLoginTellsThePageHowLongThePINLasts covers the PIN sign-in: the page
-// gets the Plex URL to open and how long to wait for it, so it can stop
-// polling once the PIN has lapsed.
+// TestLoginTellsThePageHowLongThePINLasts covers the PIN sign-in.
+//
+// The page gets the Plex URL to open and how long to wait for it, so it can
+// stop polling once the PIN has lapsed.
 func TestLoginTellsThePageHowLongThePINLasts(t *testing.T) {
 	t.Parallel()
 

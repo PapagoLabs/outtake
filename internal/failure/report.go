@@ -28,8 +28,10 @@ const (
 // JSON or quoted pair, with or without quotes around the name and the value.
 var plexTokenPattern = regexp.MustCompile(`(?i)(x-plex-token["']?\s*[=:]\s*["']?)[^&\s"']+`)
 
-// Describe is the clip.DescribeFunc failed renders use: the plain message
-// Classify picks, and for a failure the message does not explain, details
+// Describe returns the message and details for a failed render.
+//
+// It is the clip.DescribeFunc failed renders use. The message is the plain one
+// Classify picks. A failure the message does not explain also gets details
 // under a new reference.
 //
 // Parameters:
@@ -57,9 +59,10 @@ func Describe(subject string, err error) clip.Failure {
 	}
 }
 
-// Details lays out the technical report behind a failure: the version, the
-// time, and the reference on the first line, then what failed, then the
-// error chain.
+// Details lays out the technical report behind a failure.
+//
+// The first line holds the version, the time, and the reference. What failed
+// follows, then the error chain.
 //
 // Parameters:
 //   - ref: The reference the log line carries too.

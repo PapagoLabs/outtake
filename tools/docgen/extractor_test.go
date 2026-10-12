@@ -72,8 +72,10 @@ func TestNewCobraExtractor(t *testing.T) {
 	assert.Equal(t, referenceURL, got.urlBase)
 }
 
-// Test_cobraExtractor_Extract covers a whole tree: available commands only,
-// in name order, with own and inherited flags kept apart.
+// Test_cobraExtractor_Extract covers extracting a whole tree.
+//
+// It keeps available commands only, in name order, with own and inherited flags
+// kept apart.
 func Test_cobraExtractor_Extract(t *testing.T) {
 	t.Parallel()
 

@@ -318,9 +318,10 @@ func TestSendRangedFile(t *testing.T) {
 	assert.Contains(t, bodyText(t, resp), "clip")
 }
 
-// TestSendRangedFileServesAReplacedFile covers a clip rendered again: the new
-// file is moved into place under the same path, and the next request gets the
-// new contents rather than a handle kept open on the old file.
+// TestSendRangedFileServesAReplacedFile covers a clip rendered again.
+//
+// The new file is moved into place under the same path. The next request gets
+// the new contents rather than a handle kept open on the old file.
 func TestSendRangedFileServesAReplacedFile(t *testing.T) {
 	t.Parallel()
 
@@ -354,8 +355,10 @@ func TestSendRangedFileServesAReplacedFile(t *testing.T) {
 }
 
 // TestSendRangedFileAsksTheBrowserToRevalidate covers the cache header on a
-// media file: the same URL serves a new file after a regenerate, so a browser
-// must check back before reusing what it holds.
+// media file.
+//
+// The same URL serves a new file after a regenerate, so a browser must check
+// back before reusing what it holds.
 func TestSendRangedFileAsksTheBrowserToRevalidate(t *testing.T) {
 	t.Parallel()
 

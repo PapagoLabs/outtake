@@ -298,6 +298,7 @@ func (registry *registry) finish(previewID string, err error) {
 }
 
 // flushEvicted removes the files of the completed previews retention dropped.
+//
 // It runs without the lock, because removing a file can wait on storage.
 func (registry *registry) flushEvicted() {
 	registry.mu.Lock()

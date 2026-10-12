@@ -114,8 +114,9 @@ func rewritePlaceholders(query string) string {
 	return builder.String()
 }
 
-// isUniqueViolation reports whether a write broke a unique constraint, read
-// from the driver's error code rather than its message. The SQLite and
+// isUniqueViolation reports whether a write broke a unique constraint.
+//
+// It reads the driver's error code rather than its message. The SQLite and
 // Postgres drivers report a code. A libsql error carries none, so it reads as
 // another failure.
 //

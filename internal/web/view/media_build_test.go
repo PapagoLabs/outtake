@@ -377,6 +377,8 @@ func TestSessionTitleParts(t *testing.T) {
 	}
 }
 
+// TestDisplayTitleCrumb covers the plain-text crumb of an item.
+//
 // SessionTitleParts only reaches displayTitleCrumb with an item that has no
 // title of its own, so this is the only place its plain-text crumb is reached.
 func TestDisplayTitleCrumb(t *testing.T) {

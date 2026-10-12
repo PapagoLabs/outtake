@@ -318,9 +318,10 @@ func TestServiceRenderIntoSkipsAPreviewThatExists(t *testing.T) {
 	assert.Equal(t, "earlier", string(contents), "the published preview must not be overwritten")
 }
 
-// TestCloseCancelsRunningPreviewsAndWaitsForThem covers shutdown: a running
-// render is canceled, Close returns once it has finished, and nothing new is
-// admitted afterwards.
+// TestCloseCancelsRunningPreviewsAndWaitsForThem covers shutdown.
+//
+// A running render is canceled, and Close returns once it has finished. Nothing
+// new is admitted afterwards.
 func TestCloseCancelsRunningPreviewsAndWaitsForThem(t *testing.T) {
 	t.Parallel()
 
@@ -355,7 +356,9 @@ func TestCloseCancelsRunningPreviewsAndWaitsForThem(t *testing.T) {
 }
 
 // TestCloseGivesUpWhenItsContextEnds covers a render that ignores its
-// cancellation: Close stops waiting when its own context ends.
+// cancellation.
+//
+// Close stops waiting when its own context ends.
 func TestCloseGivesUpWhenItsContextEnds(t *testing.T) {
 	t.Parallel()
 
@@ -384,9 +387,10 @@ func TestCloseGivesUpWhenItsContextEnds(t *testing.T) {
 	})
 }
 
-// TestEvictionRemovesOnlyCompletedPreviewFiles covers retention: a completed
-// preview that falls out of the registry loses its file, and a failed one,
-// which has no file, is not touched.
+// TestEvictionRemovesOnlyCompletedPreviewFiles covers retention.
+//
+// A completed preview that falls out of the registry loses its file. A failed
+// one, which has no file, is not touched.
 func TestEvictionRemovesOnlyCompletedPreviewFiles(t *testing.T) {
 	t.Parallel()
 
@@ -427,8 +431,9 @@ func TestDiscardRemovesThePreviewFile(t *testing.T) {
 	assert.NotPanics(t, func() { service.discard("evicted") }, "a missing file is not an error")
 }
 
-// TestExistsLooksUpWithoutDownloading covers the status poll's check: it asks
-// the store whether the preview is there and never fetches it.
+// TestExistsLooksUpWithoutDownloading covers the status poll's check.
+//
+// It asks the store whether the preview is there and never fetches it.
 func TestExistsLooksUpWithoutDownloading(t *testing.T) {
 	t.Parallel()
 

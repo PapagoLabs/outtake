@@ -183,9 +183,12 @@ func TestParseProbeOutputReadsTheDolbyVisionRecord(t *testing.T) {
 	}
 }
 
-// TestParseProbeOutputReadsTheLightLevels covers HDR10 light levels as
-// ffprobe prints them for a container that carries them, and the peak they
-// give: MaxCLL first, the mastering display's peak when MaxCLL is unknown.
+// TestParseProbeOutputReadsTheLightLevels covers HDR10 light levels as ffprobe
+// prints them.
+//
+// It reads them for a container that carries them, and checks the peak they
+// give. MaxCLL comes first, then the mastering display's peak when MaxCLL is
+// unknown.
 func TestParseProbeOutputReadsTheLightLevels(t *testing.T) {
 	t.Parallel()
 

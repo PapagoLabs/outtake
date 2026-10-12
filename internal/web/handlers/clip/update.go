@@ -110,12 +110,13 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 	return saved, nil
 }
 
-// renderedKeepHDR takes Keep HDR from the edit's profile when the edit renders
-// the clip again, so the stored value always describes the clip's file. An
-// edit renders when it regenerates, changes the type, or reaches a clip still
-// waiting to render. Any other edit keeps the stored value, and so does one
-// whose profile is gone, such as a stored profile since deleted, rather than
-// taking the setting of [clipdom.DefaultPreset].
+// renderedKeepHDR takes Keep HDR from the edit's profile when the edit renders.
+//
+// The stored value then always describes the clip's file. An edit renders when
+// it regenerates, changes the type, or reaches a clip still waiting to render.
+// Any other edit keeps the stored value. So does one whose profile is gone,
+// such as a stored profile since deleted, rather than taking the setting of
+// [clipdom.DefaultPreset].
 //
 // Parameters:
 //   - ctx: Request context.

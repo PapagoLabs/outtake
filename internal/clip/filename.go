@@ -23,9 +23,10 @@ func DisplayName(name, mediaTitle string) string {
 	return mediaTitle
 }
 
-// Filename is the name a finished clip is offered under, which falls back to
-// the clip id when neither the clip nor its source is named, and carries the
-// extension its type is delivered in.
+// Filename returns the name a finished clip is offered under.
+//
+// It falls back to the clip id when neither the clip nor its source is named.
+// The name carries the extension its type is delivered in.
 //
 // Parameters:
 //   - clip: The completed clip.

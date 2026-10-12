@@ -844,8 +844,10 @@ func testRouterDatabase(t *testing.T) *database.DB {
 	return db
 }
 
-// testRouterDeps builds the smallest dependency set New accepts. The queue is
-// created but never started, so it holds no jobs and runs no workers.
+// testRouterDeps builds the smallest dependency set New accepts.
+//
+// The queue is created but never started, so it holds no jobs and runs no
+// workers.
 //
 // Parameters:
 //   - t: The test that owns the dependencies.
@@ -876,8 +878,10 @@ func testRouterDeps(t *testing.T, db *database.DB) Deps {
 	}
 }
 
-// routerPlexTV stands in for plex.tv. ownerToken belongs to account 42 and
-// otherToken to account 7. Every other request is refused.
+// routerPlexTV stands in for plex.tv.
+//
+// ownerToken belongs to account 42 and otherToken to account 7. Every other
+// request is refused.
 //
 // Parameters:
 //   - t: The test that owns the stand-in.

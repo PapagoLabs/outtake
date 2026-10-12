@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestExecFFmpeg_DeadlineScalesWithTheClip covers the default limit: at least
-// half an hour, and twenty times a long clip's length.
+// TestExecFFmpeg_DeadlineScalesWithTheClip covers the default limit.
+//
+// The limit is at least half an hour, and twenty times a long clip's length.
 func TestExecFFmpeg_DeadlineScalesWithTheClip(t *testing.T) {
 	t.Parallel()
 
@@ -23,8 +24,9 @@ func TestExecFFmpeg_DeadlineScalesWithTheClip(t *testing.T) {
 		"a long 4K encode is not killed at the floor")
 }
 
-// TestExecFFmpeg_WithTimeoutFixesTheDeadline covers ffmpeg-timeout-sec: a
-// positive value replaces the scaled limit, and zero or less keeps it.
+// TestExecFFmpeg_WithTimeoutFixesTheDeadline covers ffmpeg-timeout-sec.
+//
+// A positive value replaces the scaled limit, and zero or less keeps it.
 func TestExecFFmpeg_WithTimeoutFixesTheDeadline(t *testing.T) {
 	t.Parallel()
 
@@ -38,8 +40,10 @@ func TestExecFFmpeg_WithTimeoutFixesTheDeadline(t *testing.T) {
 }
 
 // TestExecFFmpeg_EncodeDeadlineGivesHEVCMoreRoom covers the limit for each
-// encoder: an HEVC encode may take sixty times its clip's length, any other
-// encode twenty times, both above the half-hour floor, and a configured
+// encoder.
+//
+// An HEVC encode may take sixty times its clip's length, and any other encode
+// twenty times. Both stay above the half-hour floor. A configured
 // ffmpeg-timeout-sec applies to every encoder alike.
 func TestExecFFmpeg_EncodeDeadlineGivesHEVCMoreRoom(t *testing.T) {
 	t.Parallel()

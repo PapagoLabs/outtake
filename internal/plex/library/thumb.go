@@ -8,14 +8,16 @@ import (
 	"encoding/hex"
 )
 
-// CacheControl tells the browser to reuse a thumbnail for a week. It is
-// private, because a thumbnail is only served to a signed-in session and a
-// shared cache must not hand it to anyone else.
+// CacheControl tells the browser to reuse a thumbnail for a week.
+//
+// It is private, because a thumbnail is only served to a signed-in session and
+// a shared cache must not hand it to anyone else.
 const CacheControl = "private, max-age=604800, immutable"
 
-// CacheID hashes a server and a Plex thumb path into a cache filename. Two
-// servers can use the same thumb path for different images, so the server is
-// part of the key.
+// CacheID hashes a server and a Plex thumb path into a cache filename.
+//
+// Two servers can use the same thumb path for different images, so the server
+// is part of the key.
 //
 // Parameters:
 //   - server: Identity of the Plex server the thumb comes from.

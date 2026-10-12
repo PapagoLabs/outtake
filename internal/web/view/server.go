@@ -7,8 +7,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// ServerItem is one discovered Plex server connection. It carries no token:
-// the page posts Key, and the token is looked up again from Plex.
+// ServerItem is one discovered Plex server connection.
+//
+// It carries no token: the page posts Key, and the token is looked up again
+// from Plex.
 type ServerItem struct {
 	Key      string
 	Name     string

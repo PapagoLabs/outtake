@@ -449,8 +449,10 @@ func seedLegacyToken(t *testing.T, db *DB, clientID, token string) {
 }
 
 // TestMigrationKeepHDRCarriesEachClipsChoice covers the upgrade that made
-// keep-HDR the only switch. A clip whose web-safe color was off kept HDR, so it
-// keeps HDR after the upgrade, and one with it on still tone maps.
+// keep-HDR the only switch.
+//
+// A clip whose web-safe color was off kept HDR, so it keeps HDR after the
+// upgrade, and one with it on still tone maps.
 func TestMigrationKeepHDRCarriesEachClipsChoice(t *testing.T) {
 	t.Parallel()
 
@@ -490,10 +492,12 @@ func TestMigrationKeepHDRCarriesEachClipsChoice(t *testing.T) {
 	assert.False(t, mapped.PreserveHDR, "web-safe on tone mapped, so the clip still does")
 }
 
-// rerunResolutionProfilesMigration puts a database back as it stood before
-// migration 010, with the Low, Medium, High, and High HDR built-ins and Medium
-// the default, saves a clip on each given profile id, runs the given setup,
-// and reopens the database so the migration runs again.
+// rerunResolutionProfilesMigration restores a database from before migration
+// 010 and runs that migration again.
+//
+// The restored database has the Low, Medium, High, and High HDR built-ins, with
+// Medium the default. It saves a clip on each given profile id and runs the
+// given setup. Then it reopens the database so the migration runs again.
 //
 // Parameters:
 //   - t: The test the database belongs to.
@@ -566,11 +570,13 @@ func clipQuality(t *testing.T, db *DB, id string) string {
 	return stored.Quality
 }
 
-// TestMigrationResolutionProfilesReplaceTheBuiltIns covers the upgrade that
-// named the built-ins after what they produce: each old built-in's clips move
-// to the profile that replaces it, the old rows are gone, the new ones carry
-// generated ids, and 1080p takes over as the default from Medium. A clip on a
-// custom profile keeps it.
+// TestMigrationResolutionProfilesReplaceTheBuiltIns covers renaming the
+// built-ins.
+//
+// The upgrade names the built-ins after what they produce. Each old built-in's
+// clips move to the profile that replaces it, and the old rows are gone. The
+// new rows carry generated ids, and 1080p takes over as the default from
+// Medium. A clip on a custom profile keeps it.
 func TestMigrationResolutionProfilesReplaceTheBuiltIns(t *testing.T) {
 	t.Parallel()
 
@@ -605,9 +611,11 @@ func TestMigrationResolutionProfilesReplaceTheBuiltIns(t *testing.T) {
 	assert.Equal(t, "1080p", def.Name)
 }
 
-// TestMigrationResolutionProfilesKeepACustomDefault covers an owner who made
-// one of their own profiles the default: it stays the default rather than
-// passing to 1080p.
+// TestMigrationResolutionProfilesKeepACustomDefault covers an owner's own
+// default profile.
+//
+// The owner made one of their own profiles the default. It stays the default
+// rather than passing to 1080p.
 func TestMigrationResolutionProfilesKeepACustomDefault(t *testing.T) {
 	t.Parallel()
 
@@ -637,9 +645,11 @@ func TestMigrationResolutionProfilesKeepACustomDefault(t *testing.T) {
 	assert.Equal(t, 1, defaults, "exactly one profile is the default")
 }
 
-// TestMigrationResolutionProfilesKeepAProfileOfTheSameName covers an owner
-// who already made a profile named like a new built-in: the migration keeps
-// it as it is, moves the old built-in's clips to it, and adds no second
+// TestMigrationResolutionProfilesKeepAProfileOfTheSameName covers a name clash
+// with a new built-in.
+//
+// The owner already made a profile named like a new built-in. The migration
+// keeps it as it is and moves the old built-in's clips to it. It adds no second
 // profile of that name, which the unique name would refuse.
 func TestMigrationResolutionProfilesKeepAProfileOfTheSameName(t *testing.T) {
 	t.Parallel()
@@ -661,11 +671,13 @@ func TestMigrationResolutionProfilesKeepAProfileOfTheSameName(t *testing.T) {
 	assert.Len(t, profiles, 4, "720p, 4K, and 4K HDR join the owner's 1080p")
 }
 
-// TestMigrationResolutionProfilesKeepABuiltInRenamedToANewName covers an
-// owner who renamed an old built-in to one of the new names, here Medium,
-// their default, to 1080p: that profile stands in for the new built-in, so it
-// is kept with its clips and stays the default rather than being deleted from
-// under them.
+// TestMigrationResolutionProfilesKeepABuiltInRenamedToANewName covers a renamed
+// built-in.
+//
+// The owner renamed an old built-in to one of the new names, here Medium, their
+// default, to 1080p. That profile stands in for the new built-in. It is kept
+// with its clips and stays the default rather than being deleted from under
+// them.
 func TestMigrationResolutionProfilesKeepABuiltInRenamedToANewName(t *testing.T) {
 	t.Parallel()
 
@@ -684,7 +696,9 @@ func TestMigrationResolutionProfilesKeepABuiltInRenamedToANewName(t *testing.T) 
 }
 
 // TestSaveClipKeepsEachFilesFormat covers the formats a render read from its
-// files: they are stored and read back, including the clip file's HDR flag.
+// files.
+//
+// They are stored and read back, including the clip file's HDR flag.
 func TestSaveClipKeepsEachFilesFormat(t *testing.T) {
 	t.Parallel()
 
@@ -704,8 +718,9 @@ func TestSaveClipKeepsEachFilesFormat(t *testing.T) {
 	assert.Equal(t, job.SDRFormat, saved.SDRFormat)
 }
 
-// TestSaveClipKeepsAFailuresMessageAndDetails covers a failed render: its
-// plain message and the details behind it are stored apart, and a later save
+// TestSaveClipKeepsAFailuresMessageAndDetails covers a failed render.
+//
+// Its plain message and the details behind it are stored apart. A later save
 // that clears the failure clears both.
 func TestSaveClipKeepsAFailuresMessageAndDetails(t *testing.T) {
 	t.Parallel()
@@ -738,8 +753,9 @@ func TestSaveClipKeepsAFailuresMessageAndDetails(t *testing.T) {
 }
 
 // TestMigrationErrorDetailsKeepsOlderFailures covers clips that failed before
-// details were stored: their stored text stays their message, with no
-// details.
+// details were stored.
+//
+// Their stored text stays their message, with no details.
 func TestMigrationErrorDetailsKeepsOlderFailures(t *testing.T) {
 	t.Parallel()
 
@@ -774,9 +790,11 @@ func TestMigrationErrorDetailsKeepsOlderFailures(t *testing.T) {
 	assert.Empty(t, older.ErrorDetails)
 }
 
-// TestMigrationOutputFormatsLeavesOlderClipsUnread covers clips rendered
-// before formats were stored: the migration gives them no format, so their
-// players show no badge rather than a wrong one.
+// TestMigrationOutputFormatsLeavesOlderClipsUnread covers clips rendered before
+// formats were stored.
+//
+// The migration gives them no format, so their players show no badge rather
+// than a wrong one.
 func TestMigrationOutputFormatsLeavesOlderClipsUnread(t *testing.T) {
 	t.Parallel()
 
@@ -812,9 +830,11 @@ func TestMigrationOutputFormatsLeavesOlderClipsUnread(t *testing.T) {
 	assert.False(t, older.SDRFormat.Known())
 }
 
-// TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse covers the column no
-// build reads any more: it is kept as the inverse of keep-HDR, so an older
-// build reading it renders the clip the same way.
+// TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse covers the unread
+// web_safe_color column.
+//
+// No current build reads the column. It is kept as the inverse of keep-HDR, so
+// an older build reading it renders the clip the same way.
 func TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse(t *testing.T) {
 	t.Parallel()
 

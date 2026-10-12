@@ -11,8 +11,9 @@ import (
 	"time"
 )
 
-// SessionStore keeps web sessions in the database. It satisfies the Fiber
-// storage interface.
+// SessionStore keeps web sessions in the database.
+//
+// It satisfies the Fiber storage interface.
 type SessionStore struct {
 	db  *DB
 	now func() time.Time

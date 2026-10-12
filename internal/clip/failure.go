@@ -7,8 +7,10 @@ import (
 	"errors"
 )
 
-// Failure is a failed render as its card shows it: a plain message, and the
-// details someone debugging it or reporting an issue needs.
+// Failure is a failed render as its card shows it.
+//
+// It holds a plain message and the details someone debugging it or reporting an
+// issue needs.
 type Failure struct {
 	// Message says what went wrong in plain words.
 	Message string

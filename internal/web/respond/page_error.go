@@ -67,9 +67,11 @@ func PageError(ctx fiber.Ctx, err error) error {
 	return nil
 }
 
-// pageFailure is what an error page or banner shows: details for an
-// unexpected failure, and the message alone for a missing page or a refusal
-// Fiber reports with its own status, such as an expired form.
+// pageFailure returns what an error page or banner shows.
+//
+// An unexpected failure carries details. A missing page, or a refusal Fiber
+// reports with its own status, such as an expired form, shows the message
+// alone.
 //
 // Parameters:
 //   - ctx: Request that failed.

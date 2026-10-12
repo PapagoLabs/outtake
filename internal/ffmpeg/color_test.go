@@ -52,8 +52,10 @@ func applyColorPlan(req *videoEncodeRequest, transfer string, remap remapDecisio
 	}
 }
 
-// TestRemapDecisionFollowsKeepHDR covers the one switch: a clip that keeps
-// HDR keeps the source transfer, and any other clip is tone mapped.
+// TestRemapDecisionFollowsKeepHDR covers the one switch.
+//
+// A clip that keeps HDR keeps the source transfer, and any other clip is tone
+// mapped.
 func TestRemapDecisionFollowsKeepHDR(t *testing.T) {
 	t.Parallel()
 
@@ -389,9 +391,10 @@ func TestPeakSampleSecondsPinsTheWindow(t *testing.T) {
 	assert.Equal(t, 3500*time.Millisecond, peakSampleSeconds(3500*time.Millisecond))
 }
 
-// TestStillsAndGIFsAlwaysToneMapHDR covers the GIF and the screenshot:
-// neither format can carry HDR, so an HDR source is always tone mapped, and an
-// SDR source is left as it is.
+// TestStillsAndGIFsAlwaysToneMapHDR covers the GIF and the screenshot.
+//
+// Neither format can carry HDR, so an HDR source is always tone mapped. An SDR
+// source is left as it is.
 func TestStillsAndGIFsAlwaysToneMapHDR(t *testing.T) {
 	t.Parallel()
 
@@ -464,7 +467,9 @@ func TestStillsAndGIFsAlwaysToneMapHDR(t *testing.T) {
 }
 
 // TestToneMapSitsBetweenCropAndScale covers the filter order for a GIF and a
-// still: the crop sees source pixels, and the scale sees mapped ones.
+// still.
+//
+// The crop sees source pixels, and the scale sees mapped ones.
 func TestToneMapSitsBetweenCropAndScale(t *testing.T) {
 	t.Parallel()
 
@@ -480,9 +485,11 @@ func TestToneMapSitsBetweenCropAndScale(t *testing.T) {
 	assert.Empty(t, screenshotFilter(crop.CropRect{}, ""))
 }
 
-// TestAScreenshotSamplesItsPeakNearTheStill covers the PQ peak of a
-// screenshot of an HDR source with no HDR10 light levels: it is sampled from a
-// short window starting at the still, not the longer window a clip uses.
+// TestAScreenshotSamplesItsPeakNearTheStill covers the PQ peak of a screenshot.
+//
+// For an HDR source with no HDR10 light levels, the peak is sampled from a
+// short window starting at the still. It is not sampled from the longer window
+// a clip uses.
 func TestAScreenshotSamplesItsPeakNearTheStill(t *testing.T) {
 	t.Parallel()
 
@@ -528,9 +535,11 @@ func pqProbeWithLevels(sideData string) string {
 		`"height":2160,"color_transfer":"smpte2084","side_data_list":` + sideData + `}]}`
 }
 
-// TestTonePeakReadsTheSourcesHDR10Metadata covers the PQ peak: MaxCLL wins,
-// the mastering display's peak follows, and the luma sample is the fallback
-// for a source that carries neither, so clips of one title share exposure.
+// TestTonePeakReadsTheSourcesHDR10Metadata covers the PQ peak.
+//
+// MaxCLL wins, and the mastering display's peak follows. The luma sample is the
+// fallback for a source that carries neither, so clips of one title share
+// exposure.
 func TestTonePeakReadsTheSourcesHDR10Metadata(t *testing.T) {
 	t.Parallel()
 

@@ -79,9 +79,10 @@ func TestWantsMediaPrev(t *testing.T) {
 	assert.Equal(t, "prev", mediaPrevKind(t, "div#media-prev"))
 }
 
-// hxTargetKind resolves a target predicate by serving one route that answers
-// with the label the predicate chose, which is how each wantsX helper is
-// exercised without standing up the whole page.
+// hxTargetKind resolves a target predicate by serving one route.
+//
+// The route answers with the label the predicate chose. This is how each wantsX
+// helper is exercised without standing up the whole page.
 //
 // Parameters:
 //   - t: The test the request belongs to.

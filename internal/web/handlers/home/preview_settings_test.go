@@ -38,8 +38,11 @@ func previewSettingsApp(t *testing.T, handler *Handler) *fiber.App {
 	return app
 }
 
-// TestPreviewSettingsOfferTheMaximumResolutions covers the page: it offers
-// 720p, 1080p, and 4K and marks the one in use, 1080p until another is chosen.
+// TestPreviewSettingsOfferTheMaximumResolutions covers the preview settings
+// page.
+//
+// It offers 720p, 1080p, and 4K and marks the one in use, 1080p until another
+// is chosen.
 func TestPreviewSettingsOfferTheMaximumResolutions(t *testing.T) {
 	t.Parallel()
 
@@ -56,9 +59,10 @@ func TestPreviewSettingsOfferTheMaximumResolutions(t *testing.T) {
 	assertBodyContains(t, answer.body, `name="maxPreviewWidth"`, "the form posts the resolution")
 }
 
-// TestSavePreviewSettingsStoresTheChosenResolution covers a save: an offered
-// resolution is stored and the page shows it, and any other is refused with
-// the reason while the stored one stays.
+// TestSavePreviewSettingsStoresTheChosenResolution covers a save.
+//
+// An offered resolution is stored and the page shows it. Any other is refused
+// with the reason while the stored one stays.
 func TestSavePreviewSettingsStoresTheChosenResolution(t *testing.T) {
 	t.Parallel()
 

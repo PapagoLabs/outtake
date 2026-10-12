@@ -113,8 +113,9 @@ func TestExecuteWrapsAnUnknownSubcommand(t *testing.T) {
 	assert.Contains(t, stderr, "not-a-command")
 }
 
-// TestSilenceUsageOnRunErrors covers when the usage text is printed: a
-// mistyped flag still shows it, and an error the command returns while
+// TestSilenceUsageOnRunErrors covers when the usage text is printed.
+//
+// A mistyped flag still shows it, and an error the command returns while
 // running does not.
 func TestSilenceUsageOnRunErrors(t *testing.T) {
 	t.Parallel()

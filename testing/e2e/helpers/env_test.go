@@ -13,10 +13,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestEnvPathResolvesTheSuiteFile checks that the walk lands on the e2e
-// environment file from the harness package directory, which is the working
-// directory `go test` runs this binary in. It resolves the path only, so no
-// environment file is opened.
+// TestEnvPathResolvesTheSuiteFile covers finding the e2e environment file.
+//
+// The walk starts from the harness package directory, which is the working
+// directory `go test` runs this binary in, and lands on the e2e environment
+// file. It resolves the path only, so no environment file is opened.
 func TestEnvPathResolvesTheSuiteFile(t *testing.T) {
 	t.Parallel()
 
@@ -37,9 +38,11 @@ func TestEnvPathHonoursTheOverride(t *testing.T) {
 	assert.Equal(t, "/tmp/outtake-e2e-override.env", path)
 }
 
-// TestEnvPathNeverReachesTheRepositoryRoot checks the guard that keeps the
-// search off the repository root .env: from anywhere, the walk only ever
-// answers with a file inside a directory named testing/e2e.
+// TestEnvPathNeverReachesTheRepositoryRoot covers the guard that keeps the
+// search off the repository root .env.
+//
+// From anywhere, the walk only ever answers with a file inside a directory
+// named testing/e2e.
 func TestEnvPathNeverReachesTheRepositoryRoot(t *testing.T) {
 	t.Parallel()
 

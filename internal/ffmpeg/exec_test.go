@@ -133,7 +133,9 @@ func newPassSource(t *testing.T) (string, probe.Key) {
 }
 
 // TestExecFFmpeg_Run_CommandNotFound covers a binary that is not where the
-// configuration says: the run reports that FFmpeg never started.
+// configuration says.
+//
+// The run reports that FFmpeg never started.
 func TestExecFFmpeg_Run_CommandNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -143,7 +145,9 @@ func TestExecFFmpeg_Run_CommandNotFound(t *testing.T) {
 }
 
 // TestExecFFmpeg_Run_ReportsItsOwnDeadline covers a run stopped by its
-// deadline: the error names the limit and the setting that raises it.
+// deadline.
+//
+// The error names the limit and the setting that raises it.
 func TestExecFFmpeg_Run_ReportsItsOwnDeadline(t *testing.T) {
 	t.Parallel()
 

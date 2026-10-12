@@ -11,9 +11,10 @@ import (
 )
 
 // KeepHDR reports a profile's Keep HDR setting and whether the profile was
-// found. Unlike Preset, it never answers with the setting of
-// [clip.DefaultPreset], so a caller can tell a profile that keeps HDR from one
-// that is gone.
+// found.
+//
+// Unlike Preset, it never answers with the setting of [clip.DefaultPreset], so
+// a caller can tell a profile that keeps HDR from one that is gone.
 //
 // Parameters:
 //   - ctx: Database context.

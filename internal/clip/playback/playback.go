@@ -36,9 +36,11 @@ func MaxPreviewWidths() []int {
 	return []int{clip.OutputWidth720p, clip.OutputWidth1080p, clip.OutputWidth2160p}
 }
 
-// MaxPreviewWidth reads the widest any preview is rendered: a form's preview
-// before a clip is saved, and the SDR version a clip that keeps HDR renders
-// for its card. A narrower source keeps its own width.
+// MaxPreviewWidth reads the widest any preview is rendered.
+//
+// That applies to a form's preview before a clip is saved, and to the SDR
+// version a clip that keeps HDR renders for its card. A narrower source keeps
+// its own width.
 //
 // Parameters:
 //   - ctx: Request scope for the read.

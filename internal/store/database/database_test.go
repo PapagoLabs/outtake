@@ -70,8 +70,10 @@ func TestSQLiteConnectionsUseWALAndWaitForLocks(t *testing.T) {
 }
 
 // TestSQLiteTransactionsTakeTheWriteLockUpFront covers the immediate
-// transaction mode: a second transaction waits for the first to finish rather
-// than starting at once and failing when it later tries to write.
+// transaction mode.
+//
+// A second transaction waits for the first to finish. It does not start at once
+// and then fail when it later tries to write.
 func TestSQLiteTransactionsTakeTheWriteLockUpFront(t *testing.T) {
 	t.Parallel()
 

@@ -82,10 +82,12 @@ func NewMediaSource(
 	}
 }
 
-// CheckEdit probes a source once and reports whether an edit fits it: within
-// the length cap, inside the source, and naming an audio track it carries. A
-// Dolby Vision source with no displayable base layer is refused outright,
-// because every export of it would come out green and magenta.
+// CheckEdit probes a source once and reports whether an edit fits it.
+//
+// The edit must stay within the length cap and inside the source, and name an
+// audio track the source carries. A Dolby Vision source with no displayable
+// base layer is refused outright, because every export of it would come out
+// green and magenta.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -162,9 +164,11 @@ func (source *MediaSource) DescribePath(ctx context.Context, path string) Source
 	return source.probeFile(ctx, path)
 }
 
-// DescribePaths probes several media files at once, at most limit at a time,
-// and returns what each turned out to be. An empty or repeated path is probed
-// once at most, and a probe that fails reads as a zero description.
+// DescribePaths probes several media files at once and returns what each turned
+// out to be.
+//
+// At most limit probes run at a time. An empty or repeated path is probed once
+// at most, and a probe that fails reads as a zero description.
 //
 // Parameters:
 //   - ctx: Request context.

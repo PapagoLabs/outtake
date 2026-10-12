@@ -128,7 +128,8 @@ func queryPreview(start, end float64, extra ...string) api.ClipRequest {
 	return req
 }
 
-// TestPreviewRedirectCarriesNoHDRChoice covers the redirect back to the form:
+// TestPreviewRedirectCarriesNoHDRChoice covers the redirect back to the form.
+//
 // HDR is the profile's setting, so the form gets no HDR choice back.
 func TestPreviewRedirectCarriesNoHDRChoice(t *testing.T) {
 	t.Parallel()
@@ -140,9 +141,10 @@ func TestPreviewRedirectCarriesNoHDRChoice(t *testing.T) {
 	assert.NotContains(t, query, "preserveHdr")
 }
 
-// TestScreenShowsHDRReadsTheFormOrTheQuery covers the screen flag: the export
-// form posts it, an API caller may pass it in the query, and without it the
-// screen is taken to be SDR.
+// TestScreenShowsHDRReadsTheFormOrTheQuery covers the screen flag.
+//
+// The export form posts it, and an API caller may pass it in the query. Without
+// it, the screen is taken to be SDR.
 func TestScreenShowsHDRReadsTheFormOrTheQuery(t *testing.T) {
 	t.Parallel()
 
@@ -185,10 +187,11 @@ func TestScreenShowsHDRReadsTheFormOrTheQuery(t *testing.T) {
 	}
 }
 
-// TestPreviewRenderToneMapsHDRForAnSDRScreen covers what a preview renders:
-// an HDR clip that keeps HDR is tone mapped for an SDR screen and kept for an
-// HDR one, a clip that converts is always converted, an SDR source is never
-// marked as shown in SDR, and the request keeps the clip's own choice.
+// TestPreviewRenderToneMapsHDRForAnSDRScreen covers what a preview renders.
+//
+// An HDR clip that keeps HDR is tone mapped for an SDR screen and kept for an
+// HDR one. A clip that converts is always converted. An SDR source is never
+// marked as shown in SDR. The request keeps the clip's own choice.
 func TestPreviewRenderToneMapsHDRForAnSDRScreen(t *testing.T) {
 	t.Parallel()
 

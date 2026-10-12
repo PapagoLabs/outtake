@@ -9,8 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestURLCarriesTheContentHash covers the asset URL: a known file carries a
-// sixteen-digit hash that Current accepts, with or without the route prefix.
+// TestURLCarriesTheContentHash covers the asset URL.
+//
+// A known file carries a sixteen-digit hash that Current accepts, with or
+// without the route prefix.
 func TestURLCarriesTheContentHash(t *testing.T) {
 	t.Parallel()
 

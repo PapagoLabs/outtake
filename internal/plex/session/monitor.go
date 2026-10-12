@@ -151,9 +151,11 @@ func (mon *Monitor) refresh(ctx context.Context) {
 		Msg("refreshed sessions")
 }
 
-// reportFailure records a failed poll. A failure is logged as a warning once,
-// and repeats of the same failure are logged at debug, so a server that keeps
-// refusing does not fill the log every poll.
+// reportFailure records a failed poll.
+//
+// A failure is logged as a warning once, and repeats of the same failure are
+// logged at debug, so a server that keeps refusing does not fill the log every
+// poll.
 //
 // Parameters:
 //   - err: Why the poll failed.

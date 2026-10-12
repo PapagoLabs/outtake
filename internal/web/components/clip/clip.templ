@@ -44,9 +44,10 @@ func statusBadgeVariant(status domainclip.Status) badge.Variant {
 	}
 }
 
-// clipFileURL builds the file URL for one clip. It carries the clip's file
-// version, so a card swapped in after a regenerate loads the new file rather
-// than media the browser kept for the old URL.
+// clipFileURL builds the file URL for one clip.
+//
+// It carries the clip's file version, so a card swapped in after a regenerate
+// loads the new file rather than media the browser kept for the old URL.
 //
 // Parameters:
 //   - item: Clip being rendered.
@@ -69,12 +70,13 @@ func clipSDRURL(item view.ClipItem) templ.SafeURL {
 	return templ.SafeURL("/clips/" + item.ID + "/sdr?v=" + item.FileVersion)
 }
 
-// clipPlayback renders the collapsible preview for a clip that can play. An
-// HDR clip with an SDR version plays that version, and the page script moves
+// clipPlayback renders the collapsible preview for a clip that can play.
+//
+// An HDR clip with an SDR version plays that version, and the page script moves
 // it to the HDR file only where the screen shows HDR and the browser decodes
-// HEVC, so a browser that cannot show the HDR file never starts on it. The
-// card carries the clip's id and version, from which the script builds the
-// HDR file's URL, rather than a URL for it to trust.
+// HEVC, so a browser that cannot show the HDR file never starts on it. The card
+// carries the clip's id and version, from which the script builds the HDR
+// file's URL, rather than a URL for it to trust.
 //
 // Parameters:
 //   - item: Clip being rendered.
@@ -363,8 +365,10 @@ templ ClipCard(item view.ClipItem) {
 	</div>
 }
 
-// CropBlackBarsField renders the trim-black-bars checkbox. Whether a clip
-// keeps HDR is its profile's setting, so the form offers no HDR choice.
+// CropBlackBarsField renders the trim-black-bars checkbox.
+//
+// Whether a clip keeps HDR is its profile's setting, so the form offers no HDR
+// choice.
 //
 // Parameters:
 //   - checked: The checkbox is checked.

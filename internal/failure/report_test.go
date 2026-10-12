@@ -24,8 +24,10 @@ var errEncoderCrashed = errors.New("encoder crashed")
 // refPattern is the shape of a failure's reference.
 var refPattern = regexp.MustCompile(`^[0-9a-f]{6}$`)
 
-// TestDescribeGivesARefusalNoDetails covers a failure whose message explains
-// it in full: the card shows the message alone, with no reference to look up.
+// TestDescribeGivesARefusalNoDetails covers a failure whose message explains it
+// in full.
+//
+// The card shows the message alone, with no reference to look up.
 func TestDescribeGivesARefusalNoDetails(t *testing.T) {
 	t.Parallel()
 
@@ -43,10 +45,11 @@ func TestDescribeGivesARefusalNoDetails(t *testing.T) {
 	)
 }
 
-// TestDescribeReportsAFailureWithDetails covers a failure the message does
-// not explain: the card gets the plain message, and details that name the
-// version, the reference, what failed, and the error chain with Plex tokens
-// removed.
+// TestDescribeReportsAFailureWithDetails covers a failure the message does not
+// explain.
+//
+// The card gets the plain message, and details that name the version, the
+// reference, what failed, and the error chain with Plex tokens removed.
 func TestDescribeReportsAFailureWithDetails(t *testing.T) {
 	t.Parallel()
 
@@ -72,7 +75,9 @@ func TestDescribeReportsAFailureWithDetails(t *testing.T) {
 }
 
 // TestDescribeRedactsAQuotedToken covers a token in a JSON body an error
-// quotes: neither the details nor the logged chain carry it.
+// quotes.
+//
+// Neither the details nor the logged chain carry it.
 func TestDescribeRedactsAQuotedToken(t *testing.T) {
 	t.Parallel()
 
@@ -86,8 +91,9 @@ func TestDescribeRedactsAQuotedToken(t *testing.T) {
 	assert.Contains(t, failure.Chain, `{"X-Plex-Token":"`+Redacted+`"}`)
 }
 
-// TestDescribeNamesAnUnexpectedFailure covers a failure no rule names: the
-// card says something went wrong and the details carry the chain.
+// TestDescribeNamesAnUnexpectedFailure covers a failure no rule names.
+//
+// The card says something went wrong and the details carry the chain.
 func TestDescribeNamesAnUnexpectedFailure(t *testing.T) {
 	t.Parallel()
 

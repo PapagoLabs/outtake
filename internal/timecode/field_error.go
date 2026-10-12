@@ -7,8 +7,9 @@ import (
 	"fmt"
 )
 
-// FieldError reports a form field that holds something other than a
-// timecode. It names the field, so the page can say which one to fix.
+// FieldError reports a form field that holds something other than a timecode.
+//
+// It names the field, so the page can say which one to fix.
 type FieldError struct {
 	// Field names the field, such as "start" or "end".
 	Field string

@@ -49,8 +49,9 @@ func TestLoginOffersBothWaysIn(t *testing.T) {
 	assert.Contains(t, body, `src="`+assets.URL("js/login.js")+`"`)
 }
 
-// TestLoginShowsTheCarriedFailure covers a refused login: the failure the
-// session carried to the page shows in its banner slot.
+// TestLoginShowsTheCarriedFailure covers a refused login.
+//
+// The failure the session carried to the page shows in its banner slot.
 func TestLoginShowsTheCarriedFailure(t *testing.T) {
 	t.Parallel()
 

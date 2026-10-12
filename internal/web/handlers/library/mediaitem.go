@@ -160,9 +160,10 @@ func (handler *Handler) clipsForMedia(
 	return clips
 }
 
-// describeItem reports what the file behind a media page holds. The page
-// already read the item's metadata, so a loaded item is described from the
-// file path it carries rather than by asking Plex for that metadata again.
+// describeItem reports what the file behind a media page holds.
+//
+// The page already read the item's metadata, so a loaded item is described from
+// the file path it carries rather than by asking Plex for that metadata again.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -229,8 +230,10 @@ func parseClipListQuery(ctx fiber.Ctx) catalog.ClipListQuery {
 }
 
 // mediaItemError is the notice the page shows when Plex metadata cannot be
-// loaded. A form failure the session carries to the page outranks it, and the
-// layout's banner shows that one instead.
+// loaded.
+//
+// A form failure the session carries to the page outranks it, and the layout's
+// banner shows that one instead.
 //
 // Parameters:
 //   - ctx: The page request, whose session may hold a form failure.

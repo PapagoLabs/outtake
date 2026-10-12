@@ -878,8 +878,10 @@ func TestPreviewStartsARender(t *testing.T) {
 }
 
 // TestPreviewFollowsTheMaximumPreviewResolution covers the setting reaching a
-// preview: the same selection asks for a new preview once the maximum preview
-// resolution changes, rather than reusing one rendered under the old maximum.
+// preview.
+//
+// The same selection asks for a new preview once the maximum preview resolution
+// changes, rather than reusing one rendered under the old maximum.
 func TestPreviewFollowsTheMaximumPreviewResolution(t *testing.T) {
 	t.Parallel()
 
@@ -1124,8 +1126,10 @@ func TestPreviewFileReportsAnAbsentPublishedPreview(t *testing.T) {
 }
 
 // TestPreviewRefusesASelectionAClipCouldNotHave covers the bounds a preview
-// shares with the clip it previews: the configured cap, the source's end, the
-// audio tracks it carries, and a start that is not negative.
+// shares with its clip.
+//
+// They are the bounds of the clip it previews: the configured cap, the source's
+// end, the audio tracks it carries, and a start that is not negative.
 func TestPreviewRefusesASelectionAClipCouldNotHave(t *testing.T) {
 	t.Parallel()
 
@@ -1218,9 +1222,11 @@ func previewFiles(t *testing.T, store *blob.Storage) []string {
 	return names
 }
 
-// TestPreviewRemainingOnlyForARenderingPreview covers the time left a
-// preview's status reports: an estimate while it renders, and none while it
-// waits or once it is done.
+// TestPreviewRemainingOnlyForARenderingPreview covers the time left a preview's
+// status reports.
+//
+// It reports an estimate while the preview renders, and none while it waits or
+// once it is done.
 //
 // It runs on the bubble's clock, which stands still, so the start time and the
 // estimate read the same now and the figure is exact.

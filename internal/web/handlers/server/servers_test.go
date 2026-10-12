@@ -58,11 +58,6 @@ var errListFailed = errors.New("servers unavailable")
 // errSelectFailed reports a Plex account that will not take the server.
 var errSelectFailed = errors.New("select server")
 
-// serversApp mounts the server picker routes on a fresh app.
-//
-// Parameters:
-//   - handler: The handler under test.
-//
 // boundServer is the connection a successful choice resolves to.
 var boundServer = plex.Server{
 	Name:      "Home Plex",
@@ -75,6 +70,12 @@ var boundServer = plex.Server{
 	Relay:     false,
 }
 
+// serversApp mounts the server picker routes on a fresh app.
+//
+// Parameters:
+//   - t: The test that owns the app.
+//   - handler: The handler under test.
+//
 // Returns:
 //   - app: The app the routes are mounted on.
 func serversApp(t *testing.T, handler *Handler) *fiber.App {
@@ -502,8 +503,9 @@ func discoverWithCookies(
 }
 
 // TestServersExplainsARefusedToken covers a bound server that refuses its
-// stored token: the page says so and how to recover, and says nothing while
-// the token works.
+// stored token.
+//
+// The page says so and how to recover. It says nothing while the token works.
 func TestServersExplainsARefusedToken(t *testing.T) {
 	t.Parallel()
 

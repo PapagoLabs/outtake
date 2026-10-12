@@ -12,8 +12,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// LegacyToken returns the newest token in plex_tokens. It names the account
-// that may claim an installation without an owner.
+// LegacyToken returns the newest token in plex_tokens.
+//
+// It names the account that may claim an installation without an owner.
 //
 // Parameters:
 //   - ctx: Request scope for the read.

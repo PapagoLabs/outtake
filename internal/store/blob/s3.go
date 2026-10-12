@@ -184,9 +184,11 @@ func (store *S3) Ensure(ctx context.Context, path string) error {
 	return nil
 }
 
-// Exists reports whether the object exists locally or on S3, asking S3 only
-// for its headers. A lookup S3 fails, rather than one that finds no object, is
-// logged, since it reads as a missing file.
+// Exists reports whether the object exists locally or on S3, asking S3 only for
+// its headers.
+//
+// A lookup S3 fails, rather than one that finds no object, is logged, since it
+// reads as a missing file.
 //
 // Parameters:
 //   - ctx: Request scope for the lookup.

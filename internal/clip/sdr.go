@@ -38,7 +38,9 @@ func SDRPathFor(output string) string {
 	return strings.TrimSuffix(output, filepath.Ext(output)) + sdrSuffix
 }
 
-// SDRPath names the job's SDR version. Only a video clip has one.
+// SDRPath names the job's SDR version.
+//
+// Only a video clip has one.
 //
 // Returns:
 //   - path: The SDR version's path, empty for a GIF, a screenshot, or a job
@@ -51,8 +53,10 @@ func (job *Job) SDRPath() string {
 	return SDRPathFor(job.OutputPath)
 }
 
-// MayHaveSDRVersion reports whether the job may have an SDR version: a video
-// clip that keeps HDR. Whether its source is HDR is decided when it renders.
+// MayHaveSDRVersion reports whether the job may have an SDR version.
+//
+// Only a video clip that keeps HDR may have one. Whether its source is HDR is
+// decided when it renders.
 //
 // Returns:
 //   - may: True when an SDR version may be stored beside the clip.

@@ -21,10 +21,11 @@ const (
 	rankRelay
 )
 
-// FirstReachable pings every connection at once and returns the most
-// preferred one that answered: local, then direct HTTPS, then any other
-// direct connection, then the relay. A connection that answers no faster than
-// a less preferred one still wins.
+// FirstReachable returns the most preferred connection that answers a ping.
+//
+// It pings every connection at once. The order of preference is local, then
+// direct HTTPS, then any other direct connection, then the relay. A connection
+// that answers no faster than a less preferred one still wins.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for the pings.
@@ -74,7 +75,9 @@ func (client *Client) pingAll(ctx context.Context, connections []Server) []Serve
 }
 
 // answering pings every connection at once and reports the index of each one
-// that answered. The channel closes once every ping has finished.
+// that answered.
+//
+// The channel closes once every ping has finished.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for the pings.

@@ -176,11 +176,13 @@ func MessageFor(err error) string {
 	return message
 }
 
-// Classify finds the plain message for err and whether it refuses what the
-// user entered. A failure that carries a value the message names, such as the
-// clip length limit, is matched by its type first, and every one of those is
-// an input refusal. A network failure reaching Plex is matched by its type
-// too. Anything else unnamed reads as MessageUnexpected.
+// Classify finds the plain message for err and whether it refuses what the user
+// entered.
+//
+// A failure that carries a value the message names, such as the clip length
+// limit, is matched by its type first, and every one of those is an input
+// refusal. A network failure reaching Plex is matched by its type too. Anything
+// else unnamed reads as MessageUnexpected.
 //
 // Parameters:
 //   - err: What went wrong.

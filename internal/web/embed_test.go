@@ -141,9 +141,10 @@ func assetResponse(t *testing.T, target string) (int, http.Header) {
 	return resp.StatusCode, resp.Header
 }
 
-// TestAnAssetNamedByItsContentsIsCachedForGood covers the hashed URL every
-// page renders: it is cached for a year, and a stale or missing version makes
-// the browser check back instead.
+// TestAnAssetNamedByItsContentsIsCachedForGood covers the hashed asset URL.
+//
+// The hashed URL every page renders is cached for a year. A stale or missing
+// version makes the browser check back instead.
 func TestAnAssetNamedByItsContentsIsCachedForGood(t *testing.T) {
 	t.Parallel()
 
@@ -173,10 +174,11 @@ func TestTextAssetsAreCompressed(t *testing.T) {
 	}
 }
 
-// TestTheStylesheetThemesNativeControls covers the list a <select> opens: the
-// page declares its color scheme per theme, so the browser draws native
-// controls to match, and options take the theme's popover colors instead of
-// light text on a light list.
+// TestTheStylesheetThemesNativeControls covers the list a <select> opens.
+//
+// The page declares its color scheme per theme, so the browser draws native
+// controls to match. Options take the theme's popover colors instead of light
+// text on a light list.
 func TestTheStylesheetThemesNativeControls(t *testing.T) {
 	t.Parallel()
 

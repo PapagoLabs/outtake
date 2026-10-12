@@ -20,7 +20,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
-// routes.PathItemPrefix + ":" + routes.ParamID + "/playback" is the route template the live playback panel is served on.
 // playingSessions builds sessions playing the given media items.
 //
 // Parameters:
@@ -182,8 +181,10 @@ func TestPlaybackCarriesTheSessionTitle(t *testing.T) {
 		"a short offset still reaches the mark buttons")
 }
 
-// TestPlaybackSaysWhenPlexIsPaused covers the paused panel: it says so, and
-// drops the advice to pause, since a paused position is already exact.
+// TestPlaybackSaysWhenPlexIsPaused covers the paused panel.
+//
+// It says Plex is paused, and drops the advice to pause, since a paused
+// position is already exact.
 func TestPlaybackSaysWhenPlexIsPaused(t *testing.T) {
 	t.Parallel()
 
@@ -267,8 +268,10 @@ func getPosition(
 }
 
 // TestPositionReadsPlexWhenAsked covers the fresh position the mark buttons
-// read: the named session on the item and its play state, and nothing when
-// that session is gone, plays another item, or no session is named, even
+// read.
+//
+// It reads the named session on the item and its play state. It reads nothing
+// when that session is gone, plays another item, or no session is named, even
 // while another client plays the item.
 func TestPositionReadsPlexWhenAsked(t *testing.T) {
 	t.Parallel()
@@ -350,8 +353,9 @@ func TestPositionReadsPlexWhenAsked(t *testing.T) {
 	}
 }
 
-// TestPositionReportsAPlexItCannotReach covers a failed read: the buttons get
-// an error and fall back to the position the panel shows.
+// TestPositionReportsAPlexItCannotReach covers a failed read.
+//
+// The buttons get an error and fall back to the position the panel shows.
 func TestPositionReportsAPlexItCannotReach(t *testing.T) {
 	t.Parallel()
 

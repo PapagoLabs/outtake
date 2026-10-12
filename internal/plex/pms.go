@@ -14,9 +14,10 @@ import (
 	fiberClient "github.com/gofiber/fiber/v3/client"
 )
 
-// thumbPathPatterns are the artwork paths a Plex server hands out: art on a
-// metadata item, and the composites a section or collection is drawn with. A
-// trailing number is the artwork's version.
+// thumbPathPatterns match the artwork paths a Plex server hands out.
+//
+// They cover art on a metadata item, and the composites a section or collection
+// is drawn with. A trailing number is the artwork's version.
 var thumbPathPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`^/library/metadata/\d+/(thumb|art|banner|clearLogo)(/\d+)?$`),
 	regexp.MustCompile(`^/library/(sections|collections)/\d+/(composite|thumb|art)(/\d+)?$`),
@@ -84,9 +85,10 @@ func (client *Client) getPMS(
 	}
 }
 
-// ValidThumbPath reports whether path is a Plex artwork path. Anything else,
-// including a query string or an escaped character, is refused, so the
-// thumbnail proxy cannot reach any other Plex endpoint.
+// ValidThumbPath reports whether path is a Plex artwork path.
+//
+// Anything else, including a query string or an escaped character, is refused,
+// so the thumbnail proxy cannot reach any other Plex endpoint.
 //
 // Parameters:
 //   - path: Candidate thumbnail path.

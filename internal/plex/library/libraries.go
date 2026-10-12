@@ -15,11 +15,12 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
-// LibraryCache keeps each server's library list for a short while, so the
-// sidebar and every browse fragment do not each ask Plex for it. Entries are
-// keyed by server, so a server change never reads another server's list.
-// Requests that miss together share one Plex request. The zero value is ready
-// to use.
+// LibraryCache keeps each server's library list for a short while.
+//
+// It spares the sidebar and every browse fragment from each asking Plex for it.
+// Entries are keyed by server, so a server change never reads another server's
+// list. Requests that miss together share one Plex request. The zero value is
+// ready to use.
 type LibraryCache struct {
 	fetches singleflight.Group
 	entries map[string]libraryEntry
@@ -37,10 +38,12 @@ type libraryEntry struct {
 // libraryTTL is how long a server's library list is reused.
 const libraryTTL = time.Minute
 
-// Libraries returns a server's libraries, asking Plex only when the cached
-// list is missing or older than libraryTTL. Callers that miss at the same time
-// wait on one request, which runs to the client's timeout even when the caller
-// that started it goes away. A failed request is not cached.
+// Libraries returns a server's libraries, asking Plex only when the cached list
+// is missing or older than libraryTTL.
+//
+// Callers that miss at the same time wait on one request, which runs to the
+// client's timeout even when the caller that started it goes away. A failed
+// request is not cached.
 //
 // Parameters:
 //   - ctx: Request context. Its end stops this caller waiting.
@@ -93,9 +96,10 @@ func (cache *LibraryCache) Libraries(
 	}
 }
 
-// store records a server's list unless a newer one is already kept, and drops
-// the lists that have expired, so the map holds no more than the servers used
-// within the last libraryTTL.
+// store records a server's list unless a newer one is already kept.
+//
+// It also drops the lists that have expired, so the map holds no more than the
+// servers used within the last libraryTTL.
 //
 // Parameters:
 //   - key: The server's cache key.

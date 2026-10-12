@@ -74,8 +74,10 @@ func Test_hugoRenderer_RenderCommand(t *testing.T) {
 	assert.Contains(t, string(content), "| `--verbose` |  | `false` | bool | log more |\n")
 }
 
-// Test_hugoRenderer_RenderCommandFallsBackToShort covers a command without
-// long help: a leaf and a group both open with their short help.
+// Test_hugoRenderer_RenderCommandFallsBackToShort covers a command without long
+// help.
+//
+// A leaf and a group both open with their short help.
 func Test_hugoRenderer_RenderCommandFallsBackToShort(t *testing.T) {
 	t.Parallel()
 

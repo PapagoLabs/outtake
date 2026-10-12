@@ -137,8 +137,10 @@ func TestPresetResolvesAStoredBuiltIn(t *testing.T) {
 }
 
 // TestPresetUnknownQualityFallsBackToTheDefaultPreset covers an id no stored
-// profile has, including an old built-in id: it renders with the in-code
-// 1080p settings, without a database too.
+// profile has.
+//
+// Such an id, including an old built-in id, renders with the in-code 1080p
+// settings, without a database too.
 func TestPresetUnknownQualityFallsBackToTheDefaultPreset(t *testing.T) {
 	t.Parallel()
 
@@ -206,7 +208,9 @@ func TestDefaultPresetReadsTheStoredProfile(t *testing.T) {
 }
 
 // TestDefaultPresetOfAFreshDatabaseIs1080p covers the default the migrations
-// store: the 1080p built-in.
+// store.
+//
+// It is the 1080p built-in.
 func TestDefaultPresetOfAFreshDatabaseIs1080p(t *testing.T) {
 	t.Parallel()
 
@@ -264,8 +268,10 @@ func TestLookupPresetReportsAReadFailureAsAMiss(t *testing.T) {
 }
 
 // TestPresetCarriesTheProfilesKeepHDR covers the setting a clip takes when it
-// renders: a stored profile's Keep HDR, where only 4K HDR keeps HDR among the
-// built-ins, and the default 1080p converts to SDR.
+// renders.
+//
+// A clip takes a stored profile's Keep HDR. Among the built-ins only 4K HDR
+// keeps HDR, and the default 1080p converts to SDR.
 func TestPresetCarriesTheProfilesKeepHDR(t *testing.T) {
 	t.Parallel()
 
@@ -280,8 +286,10 @@ func TestPresetCarriesTheProfilesKeepHDR(t *testing.T) {
 }
 
 // TestFallbackProfilesOfferTheDefault covers the quality select without stored
-// profiles: one option, with the empty id every caller resolves to the
-// default profile, named after the in-code preset.
+// profiles.
+//
+// It offers one option, with the empty id every caller resolves to the default
+// profile, named after the in-code preset.
 func TestFallbackProfilesOfferTheDefault(t *testing.T) {
 	t.Parallel()
 
@@ -289,10 +297,11 @@ func TestFallbackProfilesOfferTheDefault(t *testing.T) {
 		FallbackProfiles())
 }
 
-// TestKeepHDRReportsAProfileThatIsGone covers the lookup an edit uses: a
-// stored profile and the default profile are found, and an id no stored
-// profile has, such as an old built-in id, is reported missing rather than
-// answered with the default preset's setting.
+// TestKeepHDRReportsAProfileThatIsGone covers the lookup an edit uses.
+//
+// A stored profile and the default profile are found. An id no stored profile
+// has, such as an old built-in id, is reported missing rather than answered
+// with the default preset's setting.
 func TestKeepHDRReportsAProfileThatIsGone(t *testing.T) {
 	t.Parallel()
 

@@ -41,8 +41,9 @@ const (
 	pollInterval = 100 * time.Millisecond
 )
 
-// Do sends a request to the application under test and returns the response. The
-// caller owns the response body.
+// Do sends a request to the application under test and returns the response.
+//
+// The caller owns the response body.
 //
 // Parameters:
 //   - ctx: Request context, canceled when the spec ends.
@@ -235,12 +236,13 @@ func (harness *App) send(req *http.Request) *http.Response {
 	return resp
 }
 
-// authorize adds the CSRF handshake an unsafe request needs. CSRF tokens live
-// in the session, so a safe request through the session middleware opens a
-// session and mints its token, and the unsafe request carries that session's
-// cookies with the token in the CSRF header. The composition root's Test entry
-// point keeps no cookie jar between requests, so each unsafe request opens its
-// own session.
+// authorize adds the CSRF handshake an unsafe request needs.
+//
+// CSRF tokens live in the session, so a safe request through the session
+// middleware opens a session and mints its token, and the unsafe request
+// carries that session's cookies with the token in the CSRF header. The
+// composition root's Test entry point keeps no cookie jar between requests, so
+// each unsafe request opens its own session.
 func (harness *App) authorize(req *http.Request) {
 	ginkgo.GinkgoHelper()
 
@@ -313,9 +315,10 @@ func sleep(ctx context.Context, interval time.Duration) {
 	}
 }
 
-// Landing follows a redirect to the page it names, carrying the session the
-// request and its response used, and returns that page's body. A failure a
-// form post left in the session shows in the page's banner.
+// Landing follows a redirect and returns the body of the page it names.
+//
+// It carries the session the request and its response used. A failure a form
+// post left in the session shows in the page's banner.
 //
 // Parameters:
 //   - ctx: Request context, canceled when the spec ends.
@@ -329,9 +332,10 @@ func (harness *App) Landing(ctx context.Context, resp *http.Response) string {
 	return harness.LandingAt(ctx, resp, resp.Header.Get("Location"))
 }
 
-// LandingAt opens a page with the session a response left, and returns that
-// page's body. It follows a hand-off that sends the browser on from a script,
-// such as the Plex popup's, which no Location header names.
+// LandingAt returns the body of a page opened with a response's session.
+//
+// It follows a hand-off that sends the browser on from a script, such as the
+// Plex popup's, which no Location header names.
 //
 // Parameters:
 //   - ctx: Request context, canceled when the spec ends.

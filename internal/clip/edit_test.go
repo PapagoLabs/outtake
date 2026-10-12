@@ -194,8 +194,10 @@ func TestClipApplyPreservesAnOmittedKeepHDR(t *testing.T) {
 	assert.False(t, stored.PreserveHDR, "an explicit off is honored against a stored on")
 }
 
-// TestRendersLike covers which fields decide the rendered file: a name or a
-// listing field leaves it the same, and every render field changes it.
+// TestRendersLike covers which fields decide the rendered file.
+//
+// A name or a listing field leaves it the same, and every render field changes
+// it.
 func TestRendersLike(t *testing.T) {
 	t.Parallel()
 
@@ -235,9 +237,10 @@ func TestRendersLike(t *testing.T) {
 	}
 }
 
-// TestEditValidateChecksTheAudioTrack covers the audio track bound: a track
-// the source carries passes, and one it does not is refused rather than
-// rendering a silent clip.
+// TestEditValidateChecksTheAudioTrack covers the audio track bound.
+//
+// A track the source carries passes. One it does not carry is refused rather
+// than rendering a silent clip.
 func TestEditValidateChecksTheAudioTrack(t *testing.T) {
 	t.Parallel()
 

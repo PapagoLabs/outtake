@@ -24,11 +24,13 @@ import (
 // sessionCookieName is the cookie the web layer keeps the session id in.
 const sessionCookieName = "session_id"
 
-// TestCSRFHandshakeIsRequired pins the assumption the harness request helpers
-// are built on: CSRF tokens live in the session, so the middleware refuses an
-// unsafe request unless it carries the session that minted the token in its
-// CSRF header. Because Application.Test keeps no cookie jar, the harness opens
-// a session per unsafe request and echoes its cookies and token.
+// TestCSRFHandshakeIsRequired covers the assumption the harness request helpers
+// are built on.
+//
+// CSRF tokens live in the session, so the middleware refuses an unsafe request
+// unless it carries the session that minted the token in its CSRF header.
+// Because Application.Test keeps no cookie jar, the harness opens a session per
+// unsafe request and echoes its cookies and token.
 func TestCSRFHandshakeIsRequired(t *testing.T) {
 	t.Parallel()
 
@@ -85,10 +87,11 @@ func TestCSRFHandshakeIsRequired(t *testing.T) {
 	)
 }
 
-// TestHandshakeRequestOpensASession covers the other half of the handshake:
-// the safe request the harness mints tokens from opens a session and publishes
-// its token, which the health endpoint, mounted before the session middleware,
-// never does.
+// TestHandshakeRequestOpensASession covers the other half of the handshake.
+//
+// The safe request the harness mints tokens from opens a session and publishes
+// its token. The health endpoint, mounted before the session middleware, never
+// does.
 func TestHandshakeRequestOpensASession(t *testing.T) {
 	t.Parallel()
 

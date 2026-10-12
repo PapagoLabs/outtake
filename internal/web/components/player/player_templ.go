@@ -32,9 +32,11 @@ type BadgeProps struct {
 	Attributes templ.Attributes
 }
 
-// Frame wraps a player so a Badge can sit in its top-left corner, over the
-// picture, taking no room of its own. A script that puts a note beside the
-// player puts it beside the frame, so the badge stays over the picture.
+// Frame wraps a player to hold a Badge over its picture.
+//
+// The badge sits in the player's top-left corner, over the picture, taking no
+// room of its own. A script that puts a note beside the player puts it beside
+// the frame, so the badge stays over the picture.
 func Frame() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -72,9 +74,11 @@ func Frame() templ.Component {
 	})
 }
 
-// Badge names what the player in a Frame plays. It is hidden with the hidden
-// attribute, which the stylesheet honors whatever else the badge is, and it
-// ignores the pointer so the player under it still takes clicks.
+// Badge names what the player in a Frame plays.
+//
+// It is hidden with the hidden attribute, which the stylesheet honors whatever
+// else the badge is, and it ignores the pointer so the player under it still
+// takes clicks.
 //
 // Parameters:
 //   - props: The badge's label, file, and visibility.
@@ -111,7 +115,7 @@ func Badge(props BadgeProps) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/player/player.templ`, Line: 41, Col: 16}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/player/player.templ`, Line: 45, Col: 16}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 			if templ_7745c5c3_Err != nil {
@@ -129,7 +133,7 @@ func Badge(props BadgeProps) templ.Component {
 		var templ_7745c5c3_Var4 string
 		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Plays)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/player/player.templ`, Line: 44, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/player/player.templ`, Line: 48, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var4)
 		if templ_7745c5c3_Err != nil {
@@ -156,7 +160,7 @@ func Badge(props BadgeProps) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(props.Label)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/player/player.templ`, Line: 50, Col: 15}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/player/player.templ`, Line: 54, Col: 15}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {

@@ -393,9 +393,10 @@ func TestMediaItemPageShowsTheSaveError(t *testing.T) {
 	assert.Contains(t, body, "js-flash")
 }
 
-// TestMediaItemPageOffersNoKeepHDRControl covers Keep HDR as a profile
-// setting: neither an HDR nor an SDR source offers the box, and the header
-// still names the source's quality.
+// TestMediaItemPageOffersNoKeepHDRControl covers Keep HDR as a profile setting.
+//
+// Neither an HDR nor an SDR source offers the box, and the header still names
+// the source's quality.
 func TestMediaItemPageOffersNoKeepHDRControl(t *testing.T) {
 	t.Parallel()
 
@@ -453,8 +454,10 @@ func TestMediaItemPageShowsAShortDuration(t *testing.T) {
 }
 
 // TestMediaItemPageCarriesTheScreenHDRField covers the export form's screen
-// flag: the form carries a field the script marks on an HDR screen, so a
-// preview is tone mapped only where HDR cannot be shown.
+// flag.
+//
+// The form carries a field the script marks on an HDR screen, so a preview is
+// tone mapped only where HDR cannot be shown.
 func TestMediaItemPageCarriesTheScreenHDRField(t *testing.T) {
 	t.Parallel()
 

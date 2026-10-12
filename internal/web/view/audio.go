@@ -22,10 +22,11 @@ const (
 	trackFallback = "Track "
 )
 
-// ApplySource fills in what a clip card knows from probing its source: the
-// audio tracks it offers, whether it shows the HDR choice, and the source
-// length the window is checked against. A source that could not be probed
-// leaves them empty.
+// ApplySource fills in what a clip card knows from probing its source.
+//
+// It sets the audio tracks the source offers, whether the card shows the HDR
+// choice, and the source length the window is checked against. A source that
+// could not be probed leaves them empty.
 //
 // Parameters:
 //   - item: The card to fill in.

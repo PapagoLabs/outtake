@@ -412,8 +412,10 @@ func TestClipStreamEndsWhenTheBrowserLeaves(t *testing.T) {
 }
 
 // TestStatusRendererReadsFilesOnlyWhenTheStateChanges covers the storage
-// lookups behind a region, which on S3 are requests: one per status and
-// stage, not one per check.
+// lookups behind a region.
+//
+// On S3 each lookup is a request. There is one per status and stage, not one
+// per check.
 func TestStatusRendererReadsFilesOnlyWhenTheStateChanges(t *testing.T) {
 	t.Parallel()
 
@@ -467,9 +469,10 @@ func TestClipLiveAnswersNoContentWithoutClips(t *testing.T) {
 }
 
 // TestClipLiveStreamsUntilItsStreamsClose covers a stream served over a real
-// connection: it answers as an event stream, sends the clip's region and a
-// ping, and ends once the handler closes its streams, as the server does
-// before it shuts down.
+// connection.
+//
+// It answers as an event stream and sends the clip's region and a ping. It ends
+// once the handler closes its streams, as the server does before it shuts down.
 func TestClipLiveStreamsUntilItsStreamsClose(t *testing.T) {
 	t.Parallel()
 

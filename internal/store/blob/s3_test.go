@@ -281,9 +281,10 @@ func writeS3NotFound(writer http.ResponseWriter) {
 	))
 }
 
-// TestS3ExistsLogsAFailedLookup covers an S3 error other than a missing
-// object: the file reads as absent and the failure is logged, while a missing
-// object is not.
+// TestS3ExistsLogsAFailedLookup covers an S3 error other than a missing object.
+//
+// The file reads as absent and the failure is logged, while a missing object is
+// not logged.
 //
 //nolint:paralleltest // It swaps the package-level logger, which is shared state.
 func TestS3ExistsLogsAFailedLookup(t *testing.T) {

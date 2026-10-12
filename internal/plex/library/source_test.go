@@ -163,8 +163,9 @@ func (prober *countingProber) Probe(_ context.Context, path string) (probe.Info,
 	}, nil
 }
 
-// TestDescribePathsProbesEachSourceOnce covers the clips page's probe: each
-// distinct source is probed once, an empty path never, and every result is
+// TestDescribePathsProbesEachSourceOnce covers the clips page's probe.
+//
+// Each distinct source is probed once, an empty path never, and every result is
 // returned.
 func TestDescribePathsProbesEachSourceOnce(t *testing.T) {
 	t.Parallel()
@@ -182,8 +183,10 @@ func TestDescribePathsProbesEachSourceOnce(t *testing.T) {
 }
 
 // TestCheckEditRefusesADolbyVisionSourceWithoutABaseLayer covers Dolby Vision
-// profile 5: every export of it would come out green and magenta, so it is
-// refused with a reason, while a profile 8 source with an HDR10 base layer is
+// profiles 5 and 8.
+//
+// Every export of a profile 5 source would come out green and magenta, so it is
+// refused with a reason. A profile 8 source with an HDR10 base layer is
 // rendered as HDR10.
 func TestCheckEditRefusesADolbyVisionSourceWithoutABaseLayer(t *testing.T) {
 	t.Parallel()

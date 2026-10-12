@@ -235,9 +235,11 @@ func TestMediaItemCarriesTheExportWindow(t *testing.T) {
 		"the end mark the page was opened with is prefilled")
 }
 
-// TestMediaItemPrefersAFlashOverALoadFailure covers a form failure carried
-// to a media page whose metadata cannot be loaded: the layout's banner shows
-// the failure, and the load notice stays out of the way.
+// TestMediaItemPrefersAFlashOverALoadFailure covers a form failure on a page
+// that cannot load.
+//
+// The failure is carried to a media page whose metadata cannot be loaded. The
+// layout's banner shows the failure, and the load notice stays out of the way.
 func TestMediaItemPrefersAFlashOverALoadFailure(t *testing.T) {
 	t.Parallel()
 
@@ -286,8 +288,9 @@ func TestMediaItemPrefersAFlashOverALoadFailure(t *testing.T) {
 		"a form failure the user caused outranks the load notice")
 }
 
-// TestMediaItemErrorFallsBackToTheLoadNotice covers the notice on its own:
-// a failed load shows it, and an item that loaded has nothing to say.
+// TestMediaItemErrorFallsBackToTheLoadNotice covers the load notice on its own.
+//
+// A failed load shows it, and an item that loaded has nothing to say.
 func TestMediaItemErrorFallsBackToTheLoadNotice(t *testing.T) {
 	t.Parallel()
 
@@ -404,8 +407,9 @@ func TestClipsForMediaStampsEachCardFromTheSource(t *testing.T) {
 }
 
 // TestMediaItemAsksPlexForTheItemOnce covers the media page reading the item's
-// metadata a single time: the file it probes comes from the metadata it
-// already holds.
+// metadata once.
+//
+// The file it probes comes from the metadata it already holds.
 func TestMediaItemAsksPlexForTheItemOnce(t *testing.T) {
 	t.Parallel()
 
@@ -448,8 +452,10 @@ func TestMediaItemAsksPlexForTheItemOnce(t *testing.T) {
 }
 
 // TestMediaItemProbesNothingForAnItemWithoutAFile covers an item Plex reports
-// with no media part, such as a show: there is no file to describe, so the
-// page neither probes nor asks Plex again.
+// with no media part.
+//
+// A show is one such item. There is no file to describe, so the page neither
+// probes nor asks Plex again.
 func TestMediaItemProbesNothingForAnItemWithoutAFile(t *testing.T) {
 	t.Parallel()
 

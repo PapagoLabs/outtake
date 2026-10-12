@@ -61,8 +61,9 @@ func NewClipItem(
 }
 
 // NewClipItems maps jobs onto the cards the clips list and a media item page
-// show, which resolve the profiles and the output checks the same way for every
-// row.
+// show.
+//
+// Both resolve the profiles and the output checks the same way for every row.
 //
 // Parameters:
 //   - jobs: Renders to show.

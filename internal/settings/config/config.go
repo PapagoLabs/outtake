@@ -91,9 +91,10 @@ type Config struct {
 	LocalMediaRoot string `mapstructure:"local-media-root"`
 }
 
-// EnvE2E is the environment the end-to-end suite runs the app in. It skips
-// sign-in and reads media ids as local file paths, so the app only accepts it
-// on a loopback listen address.
+// EnvE2E is the environment the end-to-end suite runs the app in.
+//
+// It skips sign-in and reads media ids as local file paths, so the app only
+// accepts it on a loopback listen address.
 const EnvE2E = "e2e"
 
 const (
@@ -363,8 +364,9 @@ func bindEnv(viperInstance *viper.Viper) error {
 	return nil
 }
 
-// envKeys lists the settings read from OUTTAKE_* environment variables. A
-// key maps to its variable by upper-casing it and replacing each hyphen with
+// envKeys lists the settings read from OUTTAKE_* environment variables.
+//
+// A key maps to its variable by upper-casing it and replacing each hyphen with
 // an underscore, so "listen-addr" is OUTTAKE_LISTEN_ADDR.
 //
 // Returns:
@@ -469,8 +471,9 @@ func (cfg *Config) RemapMediaPath(plexPath string) string {
 	return mapped
 }
 
-// plexRelative returns a Plex path relative to the configured Plex root. A
-// Windows path, one that starts with a drive letter or a UNC share, has its
+// plexRelative returns a Plex path relative to the configured Plex root.
+//
+// A Windows path, one that starts with a drive letter or a UNC share, has its
 // backslashes turned into slashes, is matched against the root without regard
 // to case as Windows does, and without a root loses its volume, so it can sit
 // under the local mount.

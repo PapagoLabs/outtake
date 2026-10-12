@@ -78,7 +78,9 @@ func stagedFiles(t *testing.T, dir string) []string {
 }
 
 // TestAFailedRenderKeepsTheFileItWasReplacing covers a regenerate that fails
-// part way: the clip already on disk survives, and nothing is left beside it.
+// part way.
+//
+// The clip already on disk survives, and nothing is left beside it.
 func TestAFailedRenderKeepsTheFileItWasReplacing(t *testing.T) {
 	t.Parallel()
 
@@ -147,9 +149,10 @@ func TestASuccessfulRenderReplacesTheFile(t *testing.T) {
 	assert.Empty(t, stagedFiles(t, filepath.Dir(output)))
 }
 
-// TestStagingPathKeepsTheExtension covers the staging name: hidden, beside
-// the output, and ending as the output does, which ffmpeg picks the container
-// from.
+// TestStagingPathKeepsTheExtension covers the staging name.
+//
+// The name is hidden and sits beside the output. It ends as the output does,
+// which ffmpeg picks the container from.
 func TestStagingPathKeepsTheExtension(t *testing.T) {
 	t.Parallel()
 
@@ -204,8 +207,9 @@ func TestSweepStagedRemovesOnlyLeftovers(t *testing.T) {
 	assert.Empty(t, stagedFiles(t, dir))
 }
 
-// TestExtractGIFPublishesAndLeavesNoPalette covers the two-pass GIF: the
-// palette lives beside the staging file and goes with it.
+// TestExtractGIFPublishesAndLeavesNoPalette covers the two-pass GIF.
+//
+// The palette lives beside the staging file and goes with it.
 func TestExtractGIFPublishesAndLeavesNoPalette(t *testing.T) {
 	t.Parallel()
 
@@ -274,7 +278,9 @@ func indexOf(args []string, value string) int {
 }
 
 // TestACanceledRenderIsNotPublished covers a cancel that lands after ffmpeg
-// finished: the staged file is discarded and the existing output is kept.
+// finished.
+//
+// The staged file is discarded and the existing output is kept.
 func TestACanceledRenderIsNotPublished(t *testing.T) {
 	t.Parallel()
 
@@ -351,11 +357,12 @@ func TestAClipCarriesNoSourceMetadata(t *testing.T) {
 	}
 }
 
-// hdrFFmpeg returns the real ffmpeg and ffprobe for the HDR tests, skipping
-// the test when either is missing, when ffmpeg has no libx265 to build the
-// HDR10 source and the kept HDR export with, or when ffmpeg is older than 8.0,
-// which copies a source's container HDR10 metadata into every output and
-// leaves parameter sets inside hvc1 samples.
+// hdrFFmpeg returns the real ffmpeg and ffprobe for the HDR tests.
+//
+// It skips the test when either is missing, or when ffmpeg has no libx265 to
+// build the HDR10 source and the kept HDR export with. It also skips when
+// ffmpeg is older than 8.0, which copies a source's container HDR10 metadata
+// into every output and leaves parameter sets inside hvc1 samples.
 //
 // Parameters:
 //   - t: The test that needs the tools.
@@ -395,10 +402,12 @@ func hdrFFmpeg(t *testing.T) (string, string) {
 	return ffmpegPath, ffprobePath
 }
 
-// TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata encodes a PQ source
-// whose container carries HDR10 light levels and checks that the tone mapped
-// clip is tagged BT.709 and carries no mastering display or light level data,
-// which would mislabel an SDR file as HDR.
+// TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata covers a tone mapped
+// clip.
+//
+// It encodes a PQ source whose container carries HDR10 light levels. It checks
+// that the clip is tagged BT.709 and carries no mastering display or light
+// level data, which would mislabel an SDR file as HDR.
 func TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -454,10 +463,13 @@ func TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata(t *testing.T) {
 	assert.NotContains(t, body, "Content light level metadata")
 }
 
-// TestAKeptHDRClipIsHEVCMain10AndKeepsTheSourcesHDR10Metadata encodes a PQ
-// source carrying HDR10 mastering display and light level data through a crop
-// and a downscale, and checks that the clip is HEVC Main 10 in an hvc1 track,
-// tagged PQ, and carries the source's own HDR10 values rather than any others.
+// TestAKeptHDRClipIsHEVCMain10AndKeepsTheSourcesHDR10Metadata covers a clip
+// that keeps HDR.
+//
+// It encodes a PQ source carrying HDR10 mastering display and light level data
+// through a crop and a downscale. It checks that the clip is HEVC Main 10 in an
+// hvc1 track and tagged PQ. The clip must carry the source's own HDR10 values
+// rather than any others.
 func TestAKeptHDRClipIsHEVCMain10AndKeepsTheSourcesHDR10Metadata(t *testing.T) {
 	t.Parallel()
 

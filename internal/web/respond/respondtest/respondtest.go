@@ -24,9 +24,11 @@ import (
 // ProbePath is the route Sessions mounts to report the waiting failure.
 const ProbePath = "/_test/flash"
 
-// Sessions gives app an in-memory session, so a failure a handler keeps for
-// the next page survives the redirect, and mounts a probe that reports it
-// without clearing it. Call it before mounting the routes under test.
+// Sessions gives app an in-memory session and a probe for a kept failure.
+//
+// The session lets a failure a handler keeps for the next page survive the
+// redirect. The probe reports that failure without clearing it. Call Sessions
+// before mounting the routes under test.
 //
 // Parameters:
 //   - t: The test the app belongs to.

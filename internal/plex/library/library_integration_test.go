@@ -198,7 +198,7 @@ func e2eConfig(t *testing.T) *config.Config {
 	}
 }
 
-// "movies/Alien.mkv"File writes a media file inside the test's temp directory.
+// localMediaFile writes a media file inside the test's temp directory.
 //
 // Parameters:
 //   - t: The test that needs the file.

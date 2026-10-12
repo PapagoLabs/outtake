@@ -85,14 +85,6 @@ func offlineAuth(t *testing.T) *mocks.MockPlexAuth {
 	return auth
 }
 
-// newMockAuth builds a Plex authentication with nothing wired up.
-//
-// Parameters:
-//   - t: The test the authentication belongs to.
-//
-// Returns:
-//   - auth: The authentication under test.
-//
 // silentSources returns a describer that resolves nothing.
 //
 // Parameters:
@@ -193,8 +185,10 @@ func serveMethod(
 	}
 }
 
-// assertBodyContains reports whether a rendered page contains a fragment. A full
-// page is too large to print in a failure, so the fragment is named instead.
+// assertBodyContains reports whether a rendered page contains a fragment.
+//
+// A full page is too large to print in a failure, so the fragment is named
+// instead.
 //
 // Parameters:
 //   - t: The test the page belongs to.

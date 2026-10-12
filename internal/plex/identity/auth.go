@@ -218,10 +218,11 @@ func (auth *Auth) Bound() bool {
 	return ok
 }
 
-// ChooseCustomURL resolves a server URL the owner typed. The URL is asked for
-// its identity without a token, and the server's token is used only when that
-// identity matches a server the account can see, so no token is sent to a
-// host that is not one of the account's servers.
+// ChooseCustomURL resolves a server URL the owner typed.
+//
+// The URL is asked for its identity without a token, and the server's token is
+// used only when that identity matches a server the account can see, so no
+// token is sent to a host that is not one of the account's servers.
 //
 // The URL need not be a connection plex.tv lists, because it exists for
 // addresses Plex does not know, such as a container name or a reverse proxy.
@@ -276,8 +277,10 @@ func (auth *Auth) ChooseCustomURL(
 }
 
 // ChooseServer resolves a discovered connection the owner picked by its
-// selection key. The servers are discovered again, so the token comes from
-// Plex rather than from the request.
+// selection key.
+//
+// The servers are discovered again, so the token comes from Plex rather than
+// from the request.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -345,7 +348,9 @@ func (auth *Auth) Discover(ctx context.Context, accessToken string) ([]plex.Serv
 }
 
 // ForgetServer drops the persisted Plex server record and then the live
-// selection, so the owner can pick another. When the record cannot be cleared,
+// selection.
+//
+// The owner can then pick another server. When the record cannot be cleared,
 // the live selection is kept.
 //
 // Parameters:
@@ -493,7 +498,9 @@ func (auth *Auth) SignIn(ctx context.Context, accessToken string) (User, error) 
 }
 
 // TokenRejected reports whether the bound server refused its stored token on
-// the last session poll. Signing in again refreshes the token.
+// the last session poll.
+//
+// Signing in again refreshes the token.
 //
 // Returns:
 //   - rejected: True while the bound server refuses the token.
@@ -543,9 +550,10 @@ func (auth *Auth) authorize(ctx context.Context, candidate User) (User, error) {
 	return candidate, nil
 }
 
-// bindServer selects the single discovered Plex server, through its most
-// preferred connection that answers, and persists the choice. When a server is
-// bound already, its token is refreshed instead.
+// bindServer selects the single discovered Plex server and persists the choice.
+//
+// It binds the server through its most preferred connection that answers. When
+// a server is bound already, its token is refreshed instead.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -674,6 +682,7 @@ func (auth *Auth) clientFor(accessToken string) *plex.Client {
 }
 
 // legacyOwnerAllows reports whether an account may claim the installation.
+//
 // When a Plex token is stored, only the account behind it may. A stored token
 // Plex rejects as unauthorized names no account, so it does not restrict the
 // claim. Any other failure to resolve the stored token refuses the claim.
@@ -713,11 +722,13 @@ func (auth *Auth) legacyOwnerAllows(ctx context.Context, plexUserID int) bool {
 	return account.ID == plexUserID
 }
 
-// refreshBoundToken replaces the bound server's stored token with the one the
-// signed-in account's discovery reports for the same server, matched by
-// machine identifier. A server token can change after it was bound, and Plex
-// then refuses every request made with the stored one. The connection itself,
-// which may be a custom URL, is kept.
+// refreshBoundToken replaces the bound server's stored token with the one
+// discovery reports.
+//
+// The new token is the one the signed-in account's discovery reports for the
+// same server, matched by machine identifier. A server token can change after
+// it was bound, and Plex then refuses every request made with the stored one.
+// The connection itself, which may be a custom URL, is kept.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -831,9 +842,10 @@ func GenerateClientID() string {
 	return hex.EncodeToString(buf[:])
 }
 
-// boundMachineID returns the machine identifier of the bound server. A binding
-// stored before the identifier was recorded is asked for its identity, without
-// a token, as a custom URL is.
+// boundMachineID returns the machine identifier of the bound server.
+//
+// A binding stored before the identifier was recorded is asked for its
+// identity, without a token, as a custom URL is.
 //
 // Parameters:
 //   - ctx: Request context.

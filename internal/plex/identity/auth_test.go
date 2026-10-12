@@ -138,8 +138,9 @@ func newAccountServer(t *testing.T, accounts map[string]string) *httptest.Server
 	return server
 }
 
-// reachablePlexTV stands in for plex.tv and for the one server it lists. The
-// server's remote connection points at a dead port and its local connection
+// reachablePlexTV stands in for plex.tv and for the one server it lists.
+//
+// The server's remote connection points at a dead port and its local connection
 // at the stand-in itself, which answers /identity as machine-1.
 //
 // Parameters:
@@ -352,8 +353,9 @@ func TestSessionsFromTheBinding(t *testing.T) {
 	assert.Equal(t, sessions, auth.Sessions())
 }
 
-// TestLiveSessionsAsksTheBoundServer covers the fresh session read: it goes
-// to the selected server itself, and refuses without one.
+// TestLiveSessionsAsksTheBoundServer covers the fresh session read.
+//
+// It goes to the selected server itself, and refuses without one.
 func TestLiveSessionsAsksTheBoundServer(t *testing.T) {
 	t.Parallel()
 
@@ -1116,9 +1118,11 @@ func TestBindServerSkipsSeveralDiscoveredServers(t *testing.T) {
 	auth.bindServer(t.Context(), "access-token")
 }
 
-// TestBindServerLeavesASelectionItCannotIdentify covers a bound server with no
-// stored machine identifier that does not answer /identity: nothing is
-// discovered, set, or saved.
+// TestBindServerLeavesASelectionItCannotIdentify covers a bound server it
+// cannot identify.
+//
+// The server has no stored machine identifier and does not answer /identity.
+// Nothing is discovered, set, or saved.
 func TestBindServerLeavesASelectionItCannotIdentify(t *testing.T) {
 	t.Parallel()
 
@@ -1299,10 +1303,11 @@ func TestChooseCustomURLRefusesAHostThatDoesNotAnswer(t *testing.T) {
 	require.ErrorIs(t, err, ErrServerUnreachable)
 }
 
-// TestBindServerRefreshesTheTokenOfTheBoundServer covers a sign-in while a
-// server is bound with a token Plex no longer accepts: discovery's token for
-// the same machine replaces it, and the bound connection, here a custom URL,
-// is kept.
+// TestBindServerRefreshesTheTokenOfTheBoundServer covers a sign-in while the
+// bound token is refused.
+//
+// A server is bound with a token Plex refuses. Discovery's token for the same
+// machine replaces it, and the bound connection, here a custom URL, is kept.
 func TestBindServerRefreshesTheTokenOfTheBoundServer(t *testing.T) {
 	t.Parallel()
 
@@ -1328,8 +1333,10 @@ func TestBindServerRefreshesTheTokenOfTheBoundServer(t *testing.T) {
 }
 
 // TestBindServerIdentifiesALegacyBindingBeforeRefreshing covers a binding
-// stored before its machine identifier was recorded: the bound connection is
-// asked for its identity, and the refreshed binding records it.
+// without a machine identifier.
+//
+// The binding was stored before its machine identifier was recorded. The bound
+// connection is asked for its identity, and the refreshed binding records it.
 func TestBindServerIdentifiesALegacyBindingBeforeRefreshing(t *testing.T) {
 	t.Parallel()
 
@@ -1350,8 +1357,10 @@ func TestBindServerIdentifiesALegacyBindingBeforeRefreshing(t *testing.T) {
 	testAuth(t, origin, store, bound).bindServer(t.Context(), "access-token")
 }
 
-// TestBindServerKeepsACurrentToken covers a bound server whose token is still
-// the one discovery reports: nothing is set or saved.
+// TestBindServerKeepsACurrentToken covers a bound server whose token discovery
+// still reports.
+//
+// Nothing is set or saved.
 func TestBindServerKeepsACurrentToken(t *testing.T) {
 	t.Parallel()
 
@@ -1363,9 +1372,11 @@ func TestBindServerKeepsACurrentToken(t *testing.T) {
 	testAuth(t, origin, mocks.NewMockStore(t), bound).bindServer(t.Context(), "access-token")
 }
 
-// TestBindServerLeavesAServerTheAccountDoesNotList covers a bound server that
-// is not among the signed-in account's servers: no other server's token is
-// put on it.
+// TestBindServerLeavesAServerTheAccountDoesNotList covers a bound server the
+// account does not list.
+//
+// The bound server is not among the signed-in account's servers. No other
+// server's token is put on it.
 func TestBindServerLeavesAServerTheAccountDoesNotList(t *testing.T) {
 	t.Parallel()
 
@@ -1382,8 +1393,9 @@ func TestBindServerLeavesAServerTheAccountDoesNotList(t *testing.T) {
 	testAuth(t, origin, mocks.NewMockStore(t), bound).bindServer(t.Context(), "access-token")
 }
 
-// TestTokenRejectedFollowsTheBinding covers the refused-token check pages
-// show: it is false with no binding, and otherwise asks the binding.
+// TestTokenRejectedFollowsTheBinding covers the refused-token check pages show.
+//
+// It is false with no binding, and otherwise asks the binding.
 func TestTokenRejectedFollowsTheBinding(t *testing.T) {
 	t.Parallel()
 

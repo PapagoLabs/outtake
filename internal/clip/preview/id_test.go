@@ -163,8 +163,10 @@ func TestPreviewContentIDChangesWithEveryInputField(t *testing.T) {
 }
 
 // TestPreviewRequestIDFollowsTheMaximumWidth covers the maximum preview
-// resolution: a preview rendered under one maximum is not reused under
-// another, so changing the setting renders the next preview at the new size.
+// resolution.
+//
+// A preview rendered under one maximum is not reused under another, so changing
+// the setting renders the next preview at the new size.
 func TestPreviewRequestIDFollowsTheMaximumWidth(t *testing.T) {
 	t.Parallel()
 

@@ -77,8 +77,9 @@ type probeStream struct {
 	SideData      []probeSideData `json:"side_data_list"`
 }
 
-// probeSideData is one entry of a stream's side data list. Only the Dolby
-// Vision configuration record's fields are read.
+// probeSideData is one entry of a stream's side data list.
+//
+// Only the Dolby Vision configuration record's fields are read.
 type probeSideData struct {
 	Type                   string `json:"side_data_type"`
 	MaxLuminance           string `json:"max_luminance"`
@@ -307,9 +308,10 @@ func audioTitle(tags probeTags) string {
 }
 
 // NeedsDolbyVisionReshaping reports whether the video is Dolby Vision with no
-// displayable base layer, such as profile 5. Its base layer is in Dolby's own
-// color space and only looks right after the Dolby Vision reshaping, which
-// ffmpeg's decoder does not apply.
+// displayable base layer, such as profile 5.
+//
+// Its base layer is in Dolby's own color space and only looks right after the
+// Dolby Vision reshaping, which ffmpeg's decoder does not apply.
 //
 // Returns:
 //   - needs: True for profile 5, or for any base layer compatible with nothing.
@@ -319,8 +321,10 @@ func (info Info) NeedsDolbyVisionReshaping() bool {
 			info.DolbyVision.BaseLayerCompatibility == 0)
 }
 
-// PeakNits reports the brightest the source's HDR10 metadata says it gets:
-// MaxCLL when the stream carries it, otherwise the mastering display's peak.
+// PeakNits reports the brightest the source's HDR10 metadata says it gets.
+//
+// It takes MaxCLL when the stream carries it, otherwise the mastering display's
+// peak.
 //
 // Returns:
 //   - nits: The peak in nits.
@@ -359,8 +363,9 @@ func dolbyVision(sideData []probeSideData) DolbyVision {
 	return DolbyVision{Present: false, Profile: 0, BaseLayerCompatibility: 0}
 }
 
-// lightLevels reads a stream's HDR10 light levels from its side data. A
-// MaxCLL of 0 means the encoder did not know it, so it reads as unknown.
+// lightLevels reads a stream's HDR10 light levels from its side data.
+//
+// A MaxCLL of 0 means the encoder did not know it, so it reads as unknown.
 //
 // Parameters:
 //   - sideData: The stream's side data list.

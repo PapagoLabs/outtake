@@ -8,14 +8,16 @@ import (
 	"sync"
 )
 
-// ExistsLimit is how many existence checks ExistsEach runs at once. It bounds
-// the HEAD requests a page of clip cards sends to an object store.
+// ExistsLimit is how many existence checks ExistsEach runs at once.
+//
+// It bounds the HEAD requests a page of clip cards sends to an object store.
 const ExistsLimit = 8
 
-// ExistsEach checks many paths at once, at most limit at a time, and returns
-// a lookup over the answers. An empty path is never checked and reads as
-// absent. Once ctx ends no further check starts, the ones already running
-// finish, and every path left unchecked reads as absent.
+// ExistsEach checks many paths at once and returns a lookup over the answers.
+//
+// At most limit checks run at a time. An empty path is never checked and reads
+// as absent. Once ctx ends no further check starts, and the ones already
+// running finish. Every path left unchecked reads as absent.
 //
 // Parameters:
 //   - ctx: Request scope for the checks.

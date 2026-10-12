@@ -240,8 +240,10 @@ func TestExtractJobRendersAScreenshot(t *testing.T) {
 }
 
 // TestProcessJobClearsTheFormatsOfAClipThatIsNoLongerAVideo covers a type
-// change: a clip rendered again as a screenshot records zero formats, so the
-// formats of the video file it replaced are not kept.
+// change.
+//
+// A clip rendered again as a screenshot records zero formats, so the formats of
+// the video file it replaced are not kept.
 //
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestProcessJobClearsTheFormatsOfAClipThatIsNoLongerAVideo(t *testing.T) {
@@ -364,9 +366,11 @@ func TestProcessJobRefusesAJobWithoutAnOutput(t *testing.T) {
 	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
 }
 
-// TestProcessJobRefusesAJobWhoseSourceIsGone covers a source file that moved
-// or was never mounted: the render stops before FFmpeg with a failure the
-// card can name, rather than FFmpeg's own error.
+// TestProcessJobRefusesAJobWhoseSourceIsGone covers a source file that moved or
+// was never mounted.
+//
+// The render stops before FFmpeg with a failure the card can name, rather than
+// FFmpeg's own error.
 //
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestProcessJobRefusesAJobWhoseSourceIsGone(t *testing.T) {
@@ -389,9 +393,11 @@ func TestProcessJobRefusesAJobWhoseSourceIsGone(t *testing.T) {
 	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
 }
 
-// TestProcessJobRefusesASourceItMayNotRead covers a source that exists but
-// that Outtake has no permission to read: the render stops before FFmpeg,
-// as it does for a missing file.
+// TestProcessJobRefusesASourceItMayNotRead covers a source Outtake may not
+// read.
+//
+// The source exists, but Outtake has no permission to read it. The render stops
+// before FFmpeg, as it does for a missing file.
 //
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestProcessJobRefusesASourceItMayNotRead(t *testing.T) {
@@ -594,9 +600,10 @@ func hdrClipJob(t *testing.T, dir string) (*clip.Job, *ffmpeg.ExecFFmpeg) {
 }
 
 // TestProcessJobRendersAnSDRVersionOfAClipThatKeepsHDR covers the second
-// encode: after the clip's own HEVC file, the render reports the SDR stage
-// and encodes a tone mapped H.264 version beside the clip, and both files are
-// uploaded.
+// encode.
+//
+// After the clip's own HEVC file, the render reports the SDR stage and encodes
+// a tone mapped H.264 version beside the clip. Both files are uploaded.
 //
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestProcessJobRendersAnSDRVersionOfAClipThatKeepsHDR(t *testing.T) {
@@ -639,9 +646,10 @@ func TestProcessJobRendersAnSDRVersionOfAClipThatKeepsHDR(t *testing.T) {
 	assertStagedFor(t, job.SDRPath(), stubOutputArg(encodes[1]))
 }
 
-// TestProcessJobKeepsTheClipWhenItsSDRVersionFails covers a failed SDR
-// version: the clip still completes with its own file, and the half-made SDR
-// version is removed so no card plays it.
+// TestProcessJobKeepsTheClipWhenItsSDRVersionFails covers a failed SDR version.
+//
+// The clip still completes with its own file. The half-made SDR version is
+// removed so no card plays it.
 //
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestProcessJobKeepsTheClipWhenItsSDRVersionFails(t *testing.T) {
@@ -663,9 +671,10 @@ func TestProcessJobKeepsTheClipWhenItsSDRVersionFails(t *testing.T) {
 }
 
 // TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion covers a job stopped
-// during the SDR version, by a cancel or a shutdown: the error reaches the
-// queue, which settles the job itself, rather than the clip completing with
-// no SDR version.
+// during the SDR version.
+//
+// A cancel or a shutdown stops the job. The error reaches the queue, which
+// settles the job itself, rather than the clip completing with no SDR version.
 //
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion(t *testing.T) {
@@ -690,9 +699,10 @@ func TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion(t *testing.T) {
 }
 
 // TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe covers a job
-// stopped between the clip and its SDR version: the probe that fails because
-// of the stop is not read as an SDR source, so the stored SDR version stays
-// and the stop reaches the queue.
+// stopped between the clip and its SDR version.
+//
+// The probe that fails because of the stop is not read as an SDR source. The
+// stored SDR version stays, and the stop reaches the queue.
 //
 //nolint:paralleltest // The render reads the process-global logger New rewrites.
 func TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe(t *testing.T) {

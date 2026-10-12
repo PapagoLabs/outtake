@@ -11,8 +11,10 @@ import (
 // Type is the kind of export a clip produces.
 type Type string
 
-// Clip is the record a person edits: which source, which window, and which
-// export. It does not carry render progress. That belongs to a Job.
+// Clip is the record a person edits.
+//
+// It holds which source, which window, and which export. It does not carry
+// render progress. That belongs to a Job.
 type Clip struct {
 	ID            string
 	Type          Type

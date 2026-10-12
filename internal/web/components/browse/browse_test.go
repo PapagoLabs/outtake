@@ -295,10 +295,11 @@ func TestMediaCardPosterLinksToItem(t *testing.T) {
 	assert.NotContains(t, body, ">Open<")
 }
 
-// TestMediaCardPosterLoadsLazilyAtItsShape covers the poster markup a long
-// library page relies on: posters below the fold wait until they are scrolled
-// to, decode off the main thread, and carry the size of the frame they fill so
-// the grid does not move as they arrive.
+// TestMediaCardPosterLoadsLazilyAtItsShape covers the poster markup.
+//
+// A long library page relies on this markup. Posters below the fold wait until
+// they are scrolled to and decode off the main thread. They carry the size of
+// the frame they fill, so the grid does not move as they arrive.
 func TestMediaCardPosterLoadsLazilyAtItsShape(t *testing.T) {
 	t.Parallel()
 

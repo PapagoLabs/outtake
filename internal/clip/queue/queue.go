@@ -204,10 +204,12 @@ func (q *Queue) Cancel(id string) bool {
 	return true
 }
 
-// Delete removes a job from the in-memory map. A waiting job leaves the line,
-// and a running one is canceled and tombstoned, so its worker writes nothing
-// back. A report of this job already under way finishes first, so it cannot
-// write the job back after the caller deletes its row.
+// Delete removes a job from the in-memory map.
+//
+// A waiting job leaves the line, and a running one is canceled and tombstoned,
+// so its worker writes nothing back. A report of this job already under way
+// finishes first, so it cannot write the job back after the caller deletes its
+// row.
 //
 // Parameters:
 //   - id: The clip to remove.
@@ -244,12 +246,13 @@ func (q *Queue) Done() <-chan struct{} {
 	return q.done
 }
 
-// Edit applies a change to a job and saves it. A job being rendered only
-// accepts a change that leaves its file the same, such as a new name. A
-// waiting job is edited in place, so the worker that takes it renders the new
-// values. A job whose type changed is queued again in the same step, and only
-// once the save succeeds. The save is ordered with the queue's status
-// reports, and a failed save leaves the job as it was.
+// Edit applies a change to a job and saves it.
+//
+// A job being rendered only accepts a change that leaves its file the same,
+// such as a new name. A waiting job is edited in place, so the worker that
+// takes it renders the new values. A job whose type changed is queued again in
+// the same step, and only once the save succeeds. The save is ordered with the
+// queue's status reports, and a failed save leaves the job as it was.
 //
 // Parameters:
 //   - id: The job to change.
@@ -278,9 +281,10 @@ func (q *Queue) Edit(
 	return job, queued, nil
 }
 
-// EditAndRegenerate applies a change to a job, saves it, and queues the job
-// to render again. It refuses a job being rendered, whatever the change, and
-// otherwise behaves as Edit.
+// EditAndRegenerate edits a job and queues it to render again.
+//
+// It applies the change and saves it. It refuses a job being rendered, whatever
+// the change, and otherwise behaves as Edit.
 //
 // Parameters:
 //   - id: The job to change.
@@ -356,8 +360,9 @@ func (q *Queue) GetJob(id string) *clip.Job {
 	return q.jobs[id].Clone()
 }
 
-// Reinstate puts a job back after a delete that could not be completed. The
-// job comes back canceled, so a later start does not resume a render the
+// Reinstate puts a job back after a delete that could not be completed.
+//
+// The job comes back canceled, so a later start does not resume a render the
 // delete stopped. A job a worker still holds is settled by that worker, which
 // records the same cancellation.
 //
@@ -386,8 +391,10 @@ func (q *Queue) Reinstate(job *clip.Job) {
 	q.mu.Unlock()
 }
 
-// Requeue puts an idle job back on the queue for another attempt. The job is
-// reset to pending in place, so the caller's copy matches the queued one.
+// Requeue puts an idle job back on the queue for another attempt.
+//
+// The job is reset to pending in place, so the caller's copy matches the queued
+// one.
 //
 // Parameters:
 //   - job: The clip to run again.
@@ -437,6 +444,7 @@ func (q *Queue) Restore(job *clip.Job) {
 }
 
 // SetFailureFunc registers how a failed render is described on its card.
+//
 // Until one is set, a failure shows the error's own text.
 //
 // Parameters:
@@ -598,7 +606,9 @@ func (q *Queue) Stop() {
 	q.wg.Wait()
 }
 
-// Submit submits a copy of a job to the queue. It never waits on a worker.
+// Submit submits a copy of a job to the queue.
+//
+// It never waits on a worker.
 //
 // Parameters:
 //   - job: The clip to queue.
@@ -651,7 +661,9 @@ func (q *Queue) TrackProgress(id string, percent float64) {
 	job.ExactProgress = percent
 }
 
-// admit reports whether an id may be queued. The caller holds the lock.
+// admit reports whether an id may be queued.
+//
+// The caller holds the lock.
 //
 // Parameters:
 //   - id: The clip id to queue.
@@ -672,6 +684,7 @@ func (q *Queue) admit(id string) (string, error) {
 }
 
 // applyEdit applies a change to a job and saves it, under the rules of mode.
+//
 // A job that has to render again is marked pending and held as waiting before
 // the save, and joins the line only after the save succeeds, so a worker never
 // renders an edit the store refused.
@@ -730,9 +743,10 @@ func (q *Queue) applyEdit(
 }
 
 // deliver hands a snapshot of a job to a write with the queue lock released.
-// The job is marked in flight meanwhile, so a delete of it waits for the
-// write. The caller holds notifyMu and the queue lock, and deliver returns
-// with the queue lock released.
+//
+// The job is marked in flight meanwhile, so a delete of it waits for the write.
+// The caller holds notifyMu and the queue lock, and deliver returns with the
+// queue lock released.
 //
 // Parameters:
 //   - id: The job being written.
@@ -775,7 +789,9 @@ func (q *Queue) describeFailure(job *clip.Job, err error) clip.Failure {
 }
 
 // editPlan decides whether a job may take an edit and whether the edit queues
-// it to render. The caller holds the queue lock.
+// it to render.
+//
+// The caller holds the queue lock.
 //
 // Parameters:
 //   - id: The job to change.
@@ -802,8 +818,9 @@ func (q *Queue) editPlan(id string, edited, previous *clip.Clip, mode editMode) 
 	return queued, nil
 }
 
-// enqueue stores a copy of a job and puts its id at the back of the line. The
-// caller holds the lock.
+// enqueue stores a copy of a job and puts its id at the back of the line.
+//
+// The caller holds the lock.
 //
 // Parameters:
 //   - job: The clip to queue.
@@ -832,8 +849,10 @@ func (q *Queue) heldReason(id string) string {
 	return ""
 }
 
-// joinLine puts an edited job held as waiting at the back of the line, unless
-// a cancel or a delete took it out while its edit was being saved.
+// joinLine puts an edited job held as waiting at the back of the line.
+//
+// It leaves the job out when a cancel or a delete took it out while its edit
+// was being saved.
 //
 // Parameters:
 //   - id: The job to queue.
@@ -857,7 +876,9 @@ func (q *Queue) joinLine(id string, entry *clip.Job) {
 	}
 }
 
-// leaveLine takes a waiting id out of the line. The caller holds the lock.
+// leaveLine takes a waiting id out of the line.
+//
+// The caller holds the lock.
 //
 // Parameters:
 //   - id: The clip id to remove.
@@ -873,11 +894,12 @@ func (q *Queue) leaveLine(id string) {
 	})
 }
 
-// notify reports a job's current state to the status callback. Reports are
-// made one at a time and each reads the entry as it is then, so the last one
-// to land always carries the latest state. The callback runs without the
-// queue lock, and the job it reports is marked in flight, so only a delete of
-// that job waits for it.
+// notify reports a job's current state to the status callback.
+//
+// Reports are made one at a time and each reads the entry as it is then, so the
+// last one to land always carries the latest state. The callback runs without
+// the queue lock, and the job it reports is marked in flight, so only a delete
+// of that job waits for it.
 //
 // Parameters:
 //   - id: The job whose status or progress changed.
@@ -952,10 +974,11 @@ func (q *Queue) processJob(ctx context.Context) bool {
 	return true
 }
 
-// revertEdit undoes an edit whose save failed. A job the edit queued is put
-// back whole, unless a cancel took it out of the line meanwhile, in which case
-// only the record goes back and the cancel stands. An entry a delete or a new
-// submit replaced is left alone.
+// revertEdit undoes an edit whose save failed.
+//
+// A job the edit queued is put back whole, unless a cancel took it out of the
+// line meanwhile, in which case only the record goes back and the cancel
+// stands. An entry a delete or a new submit replaced is left alone.
 //
 // Parameters:
 //   - id: The job that was edited.
@@ -1085,7 +1108,9 @@ func (q *Queue) signal() {
 }
 
 // stageEdit applies an edit to a job's entry, holding the job as waiting when
-// the edit queues it. The caller holds the queue lock.
+// the edit queues it.
+//
+// The caller holds the queue lock.
 //
 // Parameters:
 //   - id: The job to change.
@@ -1126,9 +1151,10 @@ func (q *Queue) stageEdit(
 	return staged, nil
 }
 
-// take hands the next waiting job to a worker. The entry is marked processing
-// and registered as running under one lock, so its id is never unaccounted
-// for.
+// take hands the next waiting job to a worker.
+//
+// The entry is marked processing and registered as running under one lock, so
+// its id is never unaccounted for.
 //
 // Parameters:
 //   - cancel: Stops the job's context, called when the job is canceled.
@@ -1215,6 +1241,7 @@ func (q *Queue) worker(ctx context.Context) {
 }
 
 // allowsWhileRendering reports whether a job being rendered may take an edit.
+//
 // Only a change that leaves the file the same is allowed, and never when the
 // caller is about to render the job again.
 //

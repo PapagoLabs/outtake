@@ -38,9 +38,10 @@ func RemainingLabel(started, now time.Time, percent int) string {
 	return remainingText(left)
 }
 
-// remainingText writes a time left in compact units, to the second: minutes
-// and seconds under an hour, and hours and minutes past it, leaving out any
-// part that is zero.
+// remainingText writes a time left in compact units, to the second.
+//
+// It uses minutes and seconds under an hour, and hours and minutes past it,
+// leaving out any part that is zero.
 //
 // Parameters:
 //   - left: The time left.

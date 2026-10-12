@@ -123,9 +123,10 @@ func TestDecodeResponse_Error(t *testing.T) {
 	assert.Contains(t, err.Error(), "400")
 }
 
-// TestPlexTVStatus covers the mapping every plex.tv call shares: a success
-// passes, a 401 reports the refused token, and any other failure status is a
-// Plex error.
+// TestPlexTVStatus covers the status mapping every plex.tv call shares.
+//
+// A success passes, a 401 reports the refused token, and any other failure
+// status is a Plex error.
 func TestPlexTVStatus(t *testing.T) {
 	t.Parallel()
 

@@ -96,8 +96,9 @@ func stubInputFile(t *testing.T, dir, name string) string {
 	return path
 }
 
-// stubInvocations reads back the argv of every recorded stub invocation. Each
-// argv is split on whitespace, so a stub argument must not contain spaces.
+// stubInvocations reads back the argv of every recorded stub invocation.
+//
+// Each argv is split on whitespace, so a stub argument must not contain spaces.
 //
 // Parameters:
 //   - t: The test reading the log.
@@ -182,8 +183,9 @@ func assertStagedFor(t *testing.T, output, written string) {
 	assert.NoFileExists(t, written, "and moved, not copied")
 }
 
-// extractWithCrop renders a job as the worker does: the crop is detected
-// once, then the extract runs with it.
+// extractWithCrop renders a job as the worker does.
+//
+// The crop is detected once, then the extract runs with it.
 //
 // Parameters:
 //   - t: The test the render belongs to.

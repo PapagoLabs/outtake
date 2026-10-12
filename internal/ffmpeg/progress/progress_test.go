@@ -110,9 +110,10 @@ func TestProgressWriterReportsOnlyAChangedPercent(t *testing.T) {
 	assert.InDeltaSlice(t, []float64{1.1, 1.25, 2.5}, reported, percentDelta)
 }
 
-// TestProgressWriterKeepsOnlyTheTail covers memory: a long encode's stderr is
-// counted in full but only its tail is kept, and a long run without a line
-// break is not carried whole.
+// TestProgressWriterKeepsOnlyTheTail covers memory.
+//
+// A long encode's stderr is counted in full but only its tail is kept. A long
+// run without a line break is not carried whole.
 func TestProgressWriterKeepsOnlyTheTail(t *testing.T) {
 	t.Parallel()
 

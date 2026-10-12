@@ -34,9 +34,11 @@ const (
 // without the cache that rail is built through.
 var errNoAddedAtCache = errors.New("added-at jump index needs its cache")
 
-// Browse lists the libraries of a server together with the media of one
-// requested window, which is either a search, a container listing, a library
-// section listing, or the library chooser itself.
+// Browse lists a server's libraries together with the media of one requested
+// window.
+//
+// The window is either a search, a container listing, a library section
+// listing, or the library chooser itself.
 //
 // Parameters:
 //   - ctx: Request context.

@@ -188,8 +188,10 @@ func TestQueue_ProcessJob_Success(t *testing.T) {
 }
 
 // TestQueue_ACompletedRenderAdvancesUpdatedAt covers the stamp a finished
-// render leaves: clip cards version their file URL by UpdatedAt, so each
-// render must move it forward or a browser keeps playing the previous file.
+// render leaves.
+//
+// Clip cards version their file URL by UpdatedAt. Each render must move it
+// forward, or a browser keeps playing the previous file.
 func TestQueue_ACompletedRenderAdvancesUpdatedAt(t *testing.T) {
 	t.Parallel()
 
@@ -274,9 +276,10 @@ func TestQueue_ProcessJob_Failure(t *testing.T) {
 	})
 }
 
-// TestQueue_ProcessJob_FailureIsDescribed covers a failed job's card: the
-// describer the queue was given decides its message and details, and is told
-// which clip failed.
+// TestQueue_ProcessJob_FailureIsDescribed covers a failed job's card.
+//
+// The describer the queue was given decides its message and details, and is
+// told which clip failed.
 func TestQueue_ProcessJob_FailureIsDescribed(t *testing.T) {
 	t.Parallel()
 
@@ -316,7 +319,9 @@ func TestQueue_ProcessJob_FailureIsDescribed(t *testing.T) {
 }
 
 // TestQueue_ProcessJob_FailureWithoutADescriber covers a queue that was given
-// no describer: the card shows the error's own text, with no details.
+// no describer.
+//
+// The card shows the error's own text, with no details.
 func TestQueue_ProcessJob_FailureWithoutADescriber(t *testing.T) {
 	t.Parallel()
 
@@ -1208,9 +1213,11 @@ func TestTrackProgressRecordsWithoutReporting(t *testing.T) {
 	assert.Zero(t, reported, "tracking is never reported")
 }
 
-// TestSetStageStartsTheNextEncodeFromZero covers a render that moves on to
-// its SDR version: the entry records the stage and counts progress again from
-// zero, and a job the queue does not have records nothing.
+// TestSetStageStartsTheNextEncodeFromZero covers a render that moves on to its
+// SDR version.
+//
+// The entry records the stage and counts progress again from zero. A job the
+// queue does not have records nothing.
 func TestSetStageStartsTheNextEncodeFromZero(t *testing.T) {
 	t.Parallel()
 
@@ -1227,9 +1234,11 @@ func TestSetStageStartsTheNextEncodeFromZero(t *testing.T) {
 	assert.Nil(t, q.SetStage("never-queued", clip.StageSDR))
 }
 
-// TestEachEncodeRecordsWhenItStarted covers the time each encode is
-// estimated from: a render's first encode starts when a worker takes it, and
-// the SDR version when the render moves on to it, not when the clip was made.
+// TestEachEncodeRecordsWhenItStarted covers the time each encode is estimated
+// from.
+//
+// A render's first encode starts when a worker takes it. The SDR version starts
+// when the render moves on to it, not when the clip was made.
 func TestEachEncodeRecordsWhenItStarted(t *testing.T) {
 	t.Parallel()
 
@@ -1271,8 +1280,9 @@ func TestEachEncodeRecordsWhenItStarted(t *testing.T) {
 	})
 }
 
-// TestSetFormatsRecordWhatEachFileHolds covers the formats a render reports:
-// the entry carries each one, and a job the queue does not have records
+// TestSetFormatsRecordWhatEachFileHolds covers the formats a render reports.
+//
+// The entry carries each one, and a job the queue does not have records
 // nothing.
 func TestSetFormatsRecordWhatEachFileHolds(t *testing.T) {
 	t.Parallel()
@@ -1295,7 +1305,9 @@ func TestSetFormatsRecordWhatEachFileHolds(t *testing.T) {
 }
 
 // TestASettledRenderLeavesNoStage covers a render that ended during its SDR
-// version: the settled clip carries no stage, so its card shows one state.
+// version.
+//
+// The settled clip carries no stage, so its card shows one state.
 func TestASettledRenderLeavesNoStage(t *testing.T) {
 	t.Parallel()
 
@@ -1732,8 +1744,9 @@ func discardSave(*clip.Job) error {
 	return nil
 }
 
-// TestEditSavesAndUpdatesTheEntry covers an edit of a settled job: the save
-// receives the edited job and every later read sees it.
+// TestEditSavesAndUpdatesTheEntry covers an edit of a settled job.
+//
+// The save receives the edited job, and every later read sees it.
 func TestEditSavesAndUpdatesTheEntry(t *testing.T) {
 	t.Parallel()
 
@@ -1779,9 +1792,10 @@ func TestEditRefusesAJobTheQueueDoesNotHave(t *testing.T) {
 	require.ErrorIs(t, err, ErrJobNotFound)
 }
 
-// TestEditOfARenderingJob covers the edits a running render may take: a
-// change that leaves the file the same, and nothing when a render is asked
-// for.
+// TestEditOfARenderingJob covers the edits a running render may take.
+//
+// It takes a change that leaves the file the same, and nothing when a render is
+// asked for.
 func TestEditOfARenderingJob(t *testing.T) {
 	t.Parallel()
 
@@ -1837,8 +1851,10 @@ func TestEditOfARenderingJob(t *testing.T) {
 	})
 }
 
-// TestEditOfAWaitingJobIsRendered covers a job still in the line: the worker
-// that takes it renders the edited values, so it is not queued twice.
+// TestEditOfAWaitingJobIsRendered covers a job still in the line.
+//
+// The worker that takes it renders the edited values, so it is not queued
+// twice.
 func TestEditOfAWaitingJobIsRendered(t *testing.T) {
 	t.Parallel()
 
@@ -1893,8 +1909,9 @@ func TestEditOfAWaitingJobIsRendered(t *testing.T) {
 	})
 }
 
-// TestEditOfTheTypeMovesTheOutput covers a type change on a settled job: the
-// job renders to the new type's file and has to be queued again.
+// TestEditOfTheTypeMovesTheOutput covers a type change on a settled job.
+//
+// The job renders to the new type's file and has to be queued again.
 func TestEditOfTheTypeMovesTheOutput(t *testing.T) {
 	t.Parallel()
 
@@ -1997,8 +2014,9 @@ func TestADeleteWaitsForAnEditSave(t *testing.T) {
 }
 
 // TestAFailedSaveOfAQueuingEditTakesTheJobBackOut covers an edit that would
-// have queued the job: a refused save leaves nothing queued and nothing
-// changed.
+// have queued the job.
+//
+// A refused save leaves nothing queued and nothing changed.
 func TestAFailedSaveOfAQueuingEditTakesTheJobBackOut(t *testing.T) {
 	t.Parallel()
 
@@ -2061,8 +2079,10 @@ func TestAStoppedQueueRefusesAQueuingEdit(t *testing.T) {
 	require.NoError(t, err, "an edit that queues nothing still works")
 }
 
-// TestACancelDuringAQueuingEditStands covers a cancel that lands while the
-// edit is being saved: the job does not join the line afterwards.
+// TestACancelDuringAQueuingEditStands covers a cancel that lands while the edit
+// is being saved.
+//
+// The job does not join the line afterwards.
 func TestACancelDuringAQueuingEditStands(t *testing.T) {
 	t.Parallel()
 

@@ -14,9 +14,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
-// TestMaxPreviewWidthDefaultsTo1080p covers the width before one is chosen:
-// with no database, with nothing stored, and with a stored value the settings
-// do not offer.
+// TestMaxPreviewWidthDefaultsTo1080p covers the width before one is chosen.
+//
+// It is 1080p with no database, with nothing stored, and with a stored value
+// the settings do not offer.
 func TestMaxPreviewWidthDefaultsTo1080p(t *testing.T) {
 	t.Parallel()
 
@@ -34,8 +35,10 @@ func TestMaxPreviewWidthDefaultsTo1080p(t *testing.T) {
 }
 
 // TestSaveMaxPreviewWidthStoresAnOfferedWidth covers the setting a user
-// chooses: each offered width, 720p through 4K, is stored and read back, and
-// any other is refused.
+// chooses.
+//
+// Each offered width, 720p through 4K, is stored and read back, and any other
+// is refused.
 func TestSaveMaxPreviewWidthStoresAnOfferedWidth(t *testing.T) {
 	t.Parallel()
 

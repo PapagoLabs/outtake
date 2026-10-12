@@ -33,6 +33,7 @@ func Execute() error {
 }
 
 // DocRoot builds the command tree the binary runs, for the CLI reference.
+//
 // Building it reads no configuration and touches no file or network, because
 // every command does its work only when it runs.
 //
@@ -61,10 +62,12 @@ func newRoot() *cobra.Command {
 	return rootCmd
 }
 
-// silenceUsageOnRunErrors keeps the usage text for a mistyped command, flag,
-// or argument, which cobra reports before a command runs, and leaves it out of
-// an error the command returns while running, such as a data directory it
-// cannot write.
+// silenceUsageOnRunErrors hides the usage text for errors a command returns
+// while running.
+//
+// It keeps the usage text for a mistyped command, flag, or argument, which
+// cobra reports before a command runs. It leaves it out of an error the command
+// returns while running, such as a data directory it cannot write.
 //
 // Parameters:
 //   - command: The command whose tree is wrapped.
