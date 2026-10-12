@@ -5,6 +5,8 @@ package clip
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 	"uuid"
 
@@ -20,6 +22,9 @@ import (
 
 // msgSaveFailed is shown when a new clip cannot be stored.
 const msgSaveFailed = "Couldn't save the clip. Check the Outtake log."
+
+// errSaveClip reports a new clip that could not be stored.
+var errSaveClip = errors.New("save clip")
 
 // Create handles the create clip request.
 //
@@ -66,17 +71,9 @@ func (handler *Handler) Create(ctx fiber.Ctx) error {
 
 	job.ApplyDefaults()
 
-	err = handler.db.SaveClip(ctx.Context(), job)
-	if err != nil {
-		return respond.WriteFailure(
-			ctx,
-			fiber.StatusInternalServerError,
-			api.PersistFailed,
-			respond.FailWith(ctx, msgSaveFailed, err),
-		)
-	}
-
-	err = handler.clipQueue.Submit(job)
+	err = handler.limits.AdmitClip(ctx.Context(), middleware.RenderMember(ctx), func() error {
+		return handler.storeAndQueue(ctx, job)
+	})
 	if err != nil {
 		//nolint:wrapcheck // the error becomes a response body, not a returned chain.
 		return writeJobSubmitError(ctx, err)
@@ -87,6 +84,28 @@ func (handler *Handler) Create(ctx fiber.Ctx) error {
 	}
 
 	return respond.WriteJSON(ctx, fiber.StatusCreated, catalog.ClipResponse(job))
+}
+
+// storeAndQueue saves a new clip and hands it to the queue.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - job: The pending clip.
+//
+// Returns:
+//   - err: errSaveClip wrapping the store's failure, or the queue's.
+func (handler *Handler) storeAndQueue(ctx fiber.Ctx, job *clipdom.Job) error {
+	err := handler.db.SaveClip(ctx.Context(), job)
+	if err != nil {
+		return fmt.Errorf("%w: %w", errSaveClip, err)
+	}
+
+	err = handler.clipQueue.Submit(job)
+	if err != nil {
+		return fmt.Errorf("queue clip: %w", err)
+	}
+
+	return nil
 }
 
 // buildJob constructs a pending queue job from a clip request.

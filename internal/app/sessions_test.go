@@ -6,12 +6,15 @@ package app
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
 // countingSweeper records how often it is swept.
@@ -102,4 +105,26 @@ func TestStartSessionStoreReturnsAStoreOnTheDatabase(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the sweeper did not stop once its context ended")
 	}
+}
+
+// TestExpirySweeperClearsOldRenderRecords covers the sweep the session
+// sweeper runs, which also deletes the render log rows the weekly limit no
+// longer counts.
+func TestExpirySweeperClearsOldRenderRecords(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(filepath.Join(t.TempDir(), "sweep.db"))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	require.NoError(t, db.RecordRender(t.Context(), 7, time.Now().Add(-8*24*time.Hour)))
+	require.NoError(t, db.RecordRender(t.Context(), 7, time.Now()))
+
+	removed, err := expirySweeper{sessions: database.NewSessionStore(db), db: db}.Sweep(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), removed)
+
+	started, _, err := db.RendersSince(t.Context(), 7, time.Time{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, started)
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
@@ -52,6 +53,12 @@ const (
 	messageProfileGone = "That profile no longer exists"
 	// messagePlexUnreachable is what the page says when Plex cannot be reached.
 	messagePlexUnreachable = "Couldn't reach the Plex server"
+	// limitTimeLayout writes when a weekly limit frees a render.
+	limitTimeLayout = "Jan 2 at 3:04 PM MST"
+	// bytesPerGB is how many bytes a storage limit's gigabyte holds.
+	bytesPerGB = 1_000_000_000
+	// floatBits is the precision a storage limit is written at.
+	floatBits = 64
 )
 
 // messageRules lists the plain message for each failure a user can hit,
@@ -94,6 +101,7 @@ var messageRules = []messageRule{
 		message: "That title isn't shared with your Plex account",
 		input:   true,
 	},
+	{target: quota.ErrNoLimits, message: "Outtake couldn't read your render limits. Ask an admin."},
 	{
 		target:  identity.ErrNoServer,
 		message: "Choose a Plex server under Servers first",
@@ -271,5 +279,74 @@ func valueMessage(err error) (message string, ok bool) {
 		return "This title has no audio track " + strconv.Itoa(track.Track), true
 	}
 
+	return limitMessage(err)
+}
+
+// limitMessage names the render limit a member reached.
+//
+// Parameters:
+//   - err: What went wrong.
+//
+// Returns:
+//   - message: The limit and what frees room under it.
+//   - ok: True when err is a reached limit.
+//
+//nolint:nonamedreturns // Same-type returns need names.
+func limitMessage(err error) (message string, ok bool) {
+	if active, isActive := errors.AsType[*quota.ActiveLimitError](err); isActive {
+		return "You've reached your limit of " + concurrent(
+			active.Limit,
+		) + ". Wait for one to finish.", true
+	}
+
+	if weekly, isWeekly := errors.AsType[*quota.WeeklyLimitError](err); isWeekly {
+		return "You've started " + renders(
+			weekly.Limit,
+		) + " this week. You can start another after " +
+			weekly.Next.Local().
+				Format(limitTimeLayout) +
+			".", true
+	}
+
+	if storage, isStorage := errors.AsType[*quota.StorageLimitError](err); isStorage {
+		return "Your clips use all " + strconv.FormatFloat(
+			float64(storage.Limit)/bytesPerGB,
+			'f',
+			-1,
+			floatBits,
+		) +
+			" GB of your storage. Delete some to render more.", true
+	}
+
 	return "", false
+}
+
+// concurrent counts concurrent renders in a message.
+//
+// Parameters:
+//   - count: How many.
+//
+// Returns:
+//   - text: Such as "1 concurrent render" or "2 concurrent renders".
+func concurrent(count int) string {
+	if count == 1 {
+		return "1 concurrent render"
+	}
+
+	return strconv.Itoa(count) + " concurrent renders"
+}
+
+// renders counts renders in a message.
+//
+// Parameters:
+//   - count: How many.
+//
+// Returns:
+//   - text: Such as "1 render" or "2 renders".
+func renders(count int) string {
+	if count == 1 {
+		return "1 render"
+	}
+
+	return strconv.Itoa(count) + " renders"
 }

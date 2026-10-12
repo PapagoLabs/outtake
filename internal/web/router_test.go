@@ -23,6 +23,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
@@ -70,6 +71,11 @@ type browser struct {
 	csrfToken string
 	// host is the Host header the browser sends.
 	host string
+	// bind is the router's server binding, unbound until a test binds it.
+	bind *identity.Binding
+	// plexURL is where the plex.tv stand-in, which also stands in for the
+	// bound server, answers.
+	plexURL string
 }
 
 const (
@@ -264,6 +270,56 @@ var wantRoutes = []routerRoute{
 	{method: http.MethodGet, path: "/api/auth/status", sample: "/api/auth/status"},
 	{method: http.MethodPost, path: "/api/auth/logout", sample: "/api/auth/logout"},
 	{method: http.MethodGet, path: "/api/healthz", sample: "/api/healthz"},
+	{method: http.MethodGet, path: "/pending", guarded: true, sample: "/pending"},
+	{
+		method:  http.MethodGet,
+		path:    "/settings/users",
+		guarded: true,
+		admin:   true,
+		sample:  "/settings/users",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/users/limits",
+		guarded: true,
+		admin:   true,
+		sample:  "/settings/users/limits",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/users/:id/approve",
+		guarded: true,
+		admin:   true,
+		sample:  "/settings/users/7/approve",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/users/:id/reject",
+		guarded: true,
+		admin:   true,
+		sample:  "/settings/users/7/reject",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/users/:id/remove",
+		guarded: true,
+		admin:   true,
+		sample:  "/settings/users/7/remove",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/users/:id/role",
+		guarded: true,
+		admin:   true,
+		sample:  "/settings/users/7/role",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/settings/users/:id/limits",
+		guarded: true,
+		admin:   true,
+		sample:  "/settings/users/7/limits",
+	},
 }
 
 func TestNewRegistersExactlyTheExpectedRouteTable(t *testing.T) {
@@ -482,6 +538,64 @@ func TestNewKeepsAMemberOutOfTheOwnersClipsAndPreviews(t *testing.T) {
 
 	assert.Contains(t, owner.request(t, http.MethodGet, "/api/clips").body, ownersClip.ID,
 		"the owner still sees the clip")
+}
+
+// TestNewHoldsAPendingAccountAtThePendingPage covers an account the bound
+// server is shared with, signing in before an admin approves it.
+//
+// It is sent to the pending page, and every other guarded route sends it
+// back there or, for the API, refuses it.
+func TestNewHoldsAPendingAccountAtThePendingPage(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+	owner.bindSharedServer(t)
+
+	pending := owner.sibling(t)
+
+	got := pending.submit(t, "/api/auth/login", url.Values{"token": {otherToken}})
+	require.Equal(t, fiber.StatusSeeOther, got.status)
+	require.Equal(t, "/pending", got.location)
+
+	role, _, err := owner.db.UserRole(t.Context(), 7)
+	require.NoError(t, err)
+	assert.Equal(t, database.RolePending, role, "the account is stored as pending")
+
+	assert.Equal(t, fiber.StatusOK, pending.request(t, http.MethodGet, "/pending").status)
+
+	for _, route := range wantRoutes {
+		if !route.guarded || route.path == "/pending" {
+			continue
+		}
+
+		got := pending.send(t, route)
+
+		if strings.HasPrefix(route.path, "/api/") {
+			assert.Equal(t, fiber.StatusForbidden, got.status, "%s %s", route.method, route.path)
+
+			continue
+		}
+
+		assert.Equal(t, "/pending", got.location, "%s %s", route.method, route.path)
+	}
+}
+
+// TestWireLimitsReachesEveryRenderingHandler covers the enforcer New hands
+// out, so a member's clips and previews are never left without limits.
+func TestWireLimitsReachesEveryRenderingHandler(t *testing.T) {
+	t.Parallel()
+
+	deps := testRouterDeps(t, testRouterDatabase(t))
+	built := newRouterHandlers(deps)
+	limits := newLimits(deps)
+
+	require.NotNil(t, limits)
+
+	wireLimits(built, limits)
+
+	assert.Same(t, limits, built.clip.Limits())
+	assert.Same(t, limits, built.preview.Limits())
 }
 
 func TestNewLogoutEndsOnlyThatBrowsersSession(t *testing.T) {
@@ -753,6 +867,23 @@ func (b *browser) authenticate(t *testing.T) {
 		"the sign-in was refused: %s", got.location)
 }
 
+// bindSharedServer binds machine-1, the server the plex.tv stand-in lists as
+// shared with the other account.
+//
+// Parameters:
+//   - t: The test that binds it.
+func (b *browser) bindSharedServer(t *testing.T) {
+	t.Helper()
+
+	server, ok := plex.ParseServerURL(b.plexURL)
+	require.True(t, ok)
+
+	server.Name = "Attic"
+	server.Token = "owner-server-token"
+	server.MachineID = "machine-1"
+	b.bind.Set(server)
+}
+
 // do sends a form request the way a browser would, keeping the cookies the
 // response sets.
 //
@@ -826,6 +957,8 @@ func (b *browser) member(t *testing.T) *browser {
 	)
 	require.NoError(t, err)
 
+	b.bindSharedServer(t)
+
 	member := b.sibling(t)
 
 	got := member.submit(t, "/api/auth/login", url.Values{"token": {otherToken}})
@@ -879,7 +1012,15 @@ func (b *browser) send(t *testing.T, route routerRoute) answer {
 func (b *browser) sibling(t *testing.T) *browser {
 	t.Helper()
 
-	other := &browser{app: b.app, db: b.db, cookies: nil, csrfToken: "", host: routerHost}
+	other := &browser{
+		app:       b.app,
+		db:        b.db,
+		cookies:   nil,
+		csrfToken: "",
+		host:      routerHost,
+		bind:      b.bind,
+		plexURL:   b.plexURL,
+	}
 	other.start(t)
 
 	return other
@@ -966,13 +1107,19 @@ func newBrowser(t *testing.T) *browser {
 	t.Helper()
 
 	db := testRouterDatabase(t)
+	plexTV := routerPlexTV(t)
+
+	bind := identity.NewBinding("outtake", "test-client", time.Hour)
+	t.Cleanup(bind.Stop)
 
 	return &browser{
-		app:       New(testRouterDeps(t, db)),
+		app:       New(testRouterDepsWith(t, db, bind, plexTV.URL)),
 		db:        db,
 		cookies:   nil,
 		csrfToken: "",
 		host:      routerHost,
+		bind:      bind,
+		plexURL:   plexTV.URL,
 	}
 }
 
@@ -1008,6 +1155,33 @@ func testRouterDatabase(t *testing.T) *database.DB {
 func testRouterDeps(t *testing.T, db *database.DB) Deps {
 	t.Helper()
 
+	return testRouterDepsWith(t, db, nil, routerPlexTV(t).URL)
+}
+
+// testRouterDepsWith builds the router's dependencies around a server binding.
+//
+// Parameters:
+//   - t: The test that owns the dependencies.
+//   - db: The database.
+//   - bind: The server binding, which may be nil.
+//   - plexURL: Where plex.tv requests are aimed.
+//
+// Returns:
+//   - deps: Dependencies for New.
+func testRouterDepsWith(
+	t *testing.T,
+	db *database.DB,
+	bind *identity.Binding,
+	plexURL string,
+) Deps {
+	t.Helper()
+
+	var selected identity.ServerBinding
+
+	if bind != nil {
+		selected = bind
+	}
+
 	cfg := &config.Config{
 		ListenAddr:  "127.0.0.1:8080",
 		LogLevel:    "info",
@@ -1022,16 +1196,18 @@ func testRouterDeps(t *testing.T, db *database.DB) Deps {
 		Blob:     &blob.Storage{},
 		Sessions: database.NewSessionStore(db),
 		Auth: identity.New(
-			"outtake", "test-client", "http://localhost", db, nil,
-			identity.WithPlexURL(routerPlexTV(t).URL),
+			"outtake", "test-client", "http://localhost", db, selected,
+			identity.WithPlexURL(plexURL),
 		),
 	}
 }
 
 // routerPlexTV stands in for plex.tv.
 //
-// ownerToken belongs to account 42 and otherToken to account 7. Every other
-// request is refused.
+// ownerToken belongs to account 42 and otherToken to account 7, and every
+// other token is refused. The owner's resources list no server, so its
+// sign-in binds nothing. The other account's list machine-1 shared with it,
+// the server member binds.
 //
 // Parameters:
 //   - t: The test that owns the stand-in.
@@ -1051,6 +1227,19 @@ func routerPlexTV(t *testing.T) *httptest.Server {
 		default:
 			writer.WriteHeader(http.StatusUnauthorized)
 		}
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
+		if request.Header.Get("X-Plex-Token") != otherToken {
+			_, _ = writer.Write([]byte(`<MediaContainer></MediaContainer>`))
+
+			return
+		}
+
+		_, _ = writer.Write([]byte(`<MediaContainer>
+	<Device name="Attic" owned="0" clientIdentifier="machine-1" provides="server" accessToken="member-server-token">
+		<Connection protocol="http" address="127.0.0.1" port="1" local="1"/>
+	</Device>
+</MediaContainer>`))
 	})
 
 	server := httptest.NewServer(mux)

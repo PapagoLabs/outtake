@@ -125,12 +125,12 @@ func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejec
 
 	edit.PreserveHDR = handler.renderedKeepHDR(ctx, job, edit)
 
-	err = handler.validateEdit(ctx.Context(), job.InputPath, edit)
+	err = handler.validateEdit(ctx.Context(), job.InputPath, edit, handler.clipCap(ctx))
 	if err != nil {
 		return nil, newRejection(fiber.StatusBadRequest, api.InvalidRequest, respond.Fail(ctx, err))
 	}
 
-	saved, err := handler.saveEdit(ctx, id, edit)
+	saved, err := handler.admitEdit(ctx, job, id, edit)
 	if errors.Is(err, catalog.ErrClipNotFound) {
 		return nil, newRejection(
 			fiber.StatusNotFound,
@@ -180,6 +180,22 @@ func (handler *Handler) renderedKeepHDR(
 	return &keep
 }
 
+// startsRender reports whether an edit starts a new render.
+//
+// A regenerate does, and so does a type change to a clip that is not still
+// waiting. A clip still waiting is already counted by the queue.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - job: The clip as stored.
+//   - edit: The validated change.
+//
+// Returns:
+//   - starts: True when the edit renders the clip again.
+func startsRender(ctx fiber.Ctx, job *clipdom.Job, edit clipdom.Edit) bool {
+	return regenerates(ctx) || (edit.Type != job.Type && job.Status != clipdom.StatusPending)
+}
+
 // regenerates reports whether the update asked for the clip to render again.
 //
 // Parameters:
@@ -189,6 +205,56 @@ func (handler *Handler) renderedKeepHDR(
 //   - regenerate: True when the form posted regenerate.
 func regenerates(ctx fiber.Ctx) bool {
 	return ctx.FormValue("regenerate") == routes.FormChecked
+}
+
+// admitEdit saves an edit, within the caller's limits when it renders the clip
+// again.
+//
+// A regenerate, or a type change to a clip that is not still waiting, starts
+// a new render. Any other edit, such as a rename or a change to a clip still
+// waiting, which the queue already counts, starts none.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - job: The clip as stored.
+//   - id: Clip to change.
+//   - edit: The validated change.
+//
+// Returns:
+//   - saved: The saved clip.
+//   - err: A reached limit, or the catalog's failure.
+func (handler *Handler) admitEdit(
+	ctx fiber.Ctx,
+	job *clipdom.Job,
+	id string,
+	edit clipdom.Edit,
+) (*clipdom.Job, error) {
+	if !startsRender(ctx, job, edit) {
+		saved, err := handler.saveEdit(ctx, id, edit)
+		if err != nil {
+			return nil, fmt.Errorf("save edit: %w", err)
+		}
+
+		return saved, nil
+	}
+
+	var saved *clipdom.Job
+
+	err := handler.limits.AdmitClip(ctx.Context(), middleware.RenderMember(ctx), func() error {
+		var saveErr error
+
+		saved, saveErr = handler.saveEdit(ctx, id, edit)
+		if saveErr != nil {
+			return fmt.Errorf("save edit: %w", saveErr)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("admit edit: %w", err)
+	}
+
+	return saved, nil
 }
 
 // saveEdit applies an edit through the catalog, rendering the clip again when

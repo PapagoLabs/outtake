@@ -32,6 +32,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/playback"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/ffmpegtest"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
@@ -60,6 +61,12 @@ type statusResponse struct {
 type errorResponse struct {
 	Error   api.ErrorCode `json:"error"`
 	Message string        `json:"message"`
+}
+
+// limitStore answers the enforcer with fixed global limits and nothing used.
+type limitStore struct {
+	// limits are the global limits.
+	limits quota.Limits
 }
 
 // previewResponse is a decoded preview handler response.
@@ -1336,4 +1343,164 @@ func TestPreviewRemainingOnlyForARenderingPreview(t *testing.T) {
 		done.Progress = 100
 		assert.Empty(t, previewRemaining(done))
 	})
+}
+
+// GlobalLimits returns the fixed limits.
+//
+// Returns:
+//   - limits: The global limits.
+//   - err: Always nil.
+func (store limitStore) GlobalLimits(context.Context) (quota.Limits, error) {
+	return store.limits, nil
+}
+
+// RecordRender records nothing.
+//
+// Returns:
+//   - err: Always nil.
+func (limitStore) RecordRender(context.Context, int, time.Time) error {
+	return nil
+}
+
+// RendersSince counts nothing.
+//
+// Returns:
+//   - started: Zero.
+//   - oldest: The zero time.
+//   - err: Always nil.
+func (limitStore) RendersSince(context.Context, int, time.Time) (int, time.Time, error) {
+	return 0, time.Time{}, nil
+}
+
+// StorageUsed measures nothing.
+//
+// Returns:
+//   - used: Zero.
+//   - err: Always nil.
+func (limitStore) StorageUsed(context.Context, int) (int64, error) {
+	return 0, nil
+}
+
+// UserLimits returns no limits of the member's own.
+//
+// Returns:
+//   - override: Empty.
+//   - err: Always nil.
+func (limitStore) UserLimits(context.Context, int) (quota.Override, error) {
+	return quota.Override{}, nil
+}
+
+// TestAdmitRenderHoldsAMemberToRendersAtOnce covers a member's preview at
+// their limit on concurrent renders, refused with the limit and never started.
+func TestAdmitRenderHoldsAMemberToRendersAtOnce(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := previewTestHandler(t, 2)
+	handler.SetLimits(
+		quota.New(limitStore{limits: quota.Limits{Active: 1}}, func(int) int { return 1 }),
+	)
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Post("/preview", func(ctx fiber.Ctx) error {
+		err := handler.admitRender(
+			ctx,
+			"u7-"+strings.Repeat("d", 40),
+			"/media/source.mkv",
+			api.ClipRequest{},
+			1280,
+		)
+		if err != nil {
+			return writeAdmitFailure(ctx, err)
+		}
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	resp, err := app.Test(
+		httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/preview", nil),
+	)
+	require.NoError(t, err)
+
+	defer func() { _ = resp.Body.Close() }()
+
+	var failure api.ErrorResponse
+
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&failure))
+
+	assert.Equal(t, fiber.StatusTooManyRequests, resp.StatusCode)
+	assert.Equal(t, api.LimitReached, failure.Error)
+	assert.Zero(t, handler.previews.Active(middlewaretest.MemberID), "the preview never started")
+}
+
+// TestWriteAdmitFailureNamesEachRefusal covers the answers to a refused
+// preview: a reached limit, a full service, and a failure to read the limits.
+func TestWriteAdmitFailureNamesEachRefusal(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		err    error
+		status int
+		code   api.ErrorCode
+	}{
+		"limit":     {err: &quota.ActiveLimitError{Limit: 1}, status: fiber.StatusTooManyRequests, code: api.LimitReached},
+		"busy":      {err: clippreview.ErrBusy, status: fiber.StatusTooManyRequests, code: api.PreviewBusy},
+		"no limits": {err: quota.ErrNoLimits, status: fiber.StatusInternalServerError, code: api.PreviewBusy},
+	} {
+		app := fiber.New()
+		app.Get("/", func(ctx fiber.Ctx) error { return writeAdmitFailure(ctx, test.err) })
+
+		resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+		require.NoError(t, err)
+
+		var failure api.ErrorResponse
+
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&failure))
+		require.NoError(t, resp.Body.Close())
+
+		assert.Equal(t, test.status, resp.StatusCode, name)
+		assert.Equal(t, test.code, failure.Error, name)
+	}
+}
+
+// TestAdmitRenderJoinsTheCallersRenderingPreview covers a member asking again
+// for a preview still rendering, which starts nothing new, so their limit is
+// not asked.
+func TestAdmitRenderJoinsTheCallersRenderingPreview(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := previewTestHandler(t, 2)
+	handler.SetLimits(
+		quota.New(limitStore{limits: quota.Limits{Active: 1}}, func(int) int { return 1 }),
+	)
+
+	previewID := "u7-" + strings.Repeat("e", 40)
+	release := make(chan struct{})
+
+	t.Cleanup(func() { close(release) })
+
+	handler.previews.Submit(t.Context(), previewID, func(context.Context) error {
+		<-release
+
+		return nil
+	})
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Post("/preview", func(ctx fiber.Ctx) error {
+		err := handler.admitRender(ctx, previewID, "/media/source.mkv", api.ClipRequest{}, 1280)
+		if err != nil {
+			return writeAdmitFailure(ctx, err)
+		}
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	resp, err := app.Test(
+		httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/preview", nil),
+	)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 }

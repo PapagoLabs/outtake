@@ -9,7 +9,11 @@ type: docs
 
 **Login never finishes.** Approve Outtake in the Plex popup. If you open Outtake through a host name other than `localhost`, set `OUTTAKE_PUBLIC_BASE_URL` to that URL, because Plex returns there.
 
-**"This Outtake belongs to a different Plex account."** Log in with the owner's Plex account, or [reset the owner](/guide/logging-in/#handing-outtake-to-another-account).
+**"This Plex account can't use this Outtake."** Log in with the owner's Plex account, or ask the owner to share their Plex server with yours, then log in again and wait for approval (see [Users and Limits](/guide/users/)). To hand Outtake to another account, [reset the owner](/guide/logging-in/#handing-outtake-to-another-account).
+
+**"Waiting for Approval."** The owner or an admin approves your account under **Settings → Users**. Reload the page once they have.
+
+**"Outtake couldn't check your access to the Plex server."** plex.tv did not answer. Try again in a moment.
 
 **421 Misdirected Request.** You reached Outtake through a host name it does not know. Set `OUTTAKE_PUBLIC_BASE_URL` to the URL you use, or add the host to `OUTTAKE_ALLOWED_HOSTS` (see [Opening Outtake from another machine](/setup/configuration/#opening-outtake-from-another-machine)).
 

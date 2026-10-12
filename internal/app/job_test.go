@@ -740,3 +740,28 @@ func TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe(t *testing.T)
 	err := processJob(ctx, job, runner, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, context.Canceled)
 }
+
+// TestPublishedBytesMeasuresTheClipAndItsSDRVersion covers the bytes a
+// finished clip counts toward its owner's storage.
+//
+// A clip's own file and its SDR version both count, and a file that is not
+// there counts as nothing.
+func TestPublishedBytesMeasuresTheClipAndItsSDRVersion(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	job := testClipJob("sized")
+
+	job.OutputPath = filepath.Join(dir, "sized.mp4")
+	require.NoError(t, os.WriteFile(job.OutputPath, make([]byte, 300), 0o600))
+
+	assert.Equal(t, int64(300), publishedBytes(job), "no SDR version is stored")
+
+	require.NoError(t, os.WriteFile(job.SDRPath(), make([]byte, 50), 0o600))
+
+	assert.Equal(t, int64(350), publishedBytes(job))
+
+	job.OutputPath = ""
+
+	assert.Zero(t, publishedBytes(job), "a job with no file takes nothing")
+}

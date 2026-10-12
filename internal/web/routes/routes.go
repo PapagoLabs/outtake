@@ -26,6 +26,12 @@ const (
 	// PathServers is the server picker path.
 	PathServers = "/servers"
 
+	// PathPending is where an account waiting for approval is sent.
+	PathPending = "/pending"
+
+	// PathSettingsUsers is the users settings path.
+	PathSettingsUsers = "/settings/users"
+
 	// PathSettingsProfiles is the clip profile settings path.
 	PathSettingsProfiles = "/settings/profiles"
 

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
@@ -20,7 +21,7 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	var buf strings.Builder
 
 	err := Layout(Props{Title: "Dashboard", Active: "dashboard", Library: "7"}).
-		Render(identity.ContextWithCSRFToken(t.Context(), "csrf-test"), &buf)
+		Render(view.ContextWithManager(identity.ContextWithCSRFToken(t.Context(), "csrf-test"), true), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
@@ -85,4 +86,24 @@ func assertLogoutForm(t *testing.T, body string) {
 	assert.Contains(t, body, `<input type="hidden" name="_csrf" value="csrf-test">`)
 	assert.Regexp(t, `<button[^>]*type="submit"[^>]*>Logout</button>`, body)
 	assert.NotContains(t, body, `href="/api/auth/logout"`)
+}
+
+// TestLayoutShowsTheAdminSettingsOnlyToManagers covers the settings a member
+// never sees in the sidebar, which the admin guard refuses anyway.
+func TestLayoutShowsTheAdminSettingsOnlyToManagers(t *testing.T) {
+	t.Parallel()
+
+	for _, manages := range []bool{true, false} {
+		var buf strings.Builder
+
+		err := Layout(Props{Title: "Dashboard", Active: "dashboard", Library: ""}).
+			Render(view.ContextWithManager(t.Context(), manages), &buf)
+		require.NoError(t, err)
+
+		for _, nav := range []string{"servers", "profiles", "previews", "storage", "users"} {
+			assert.Equal(t, manages, strings.Contains(buf.String(), `data-nav="`+nav+`"`), nav)
+		}
+
+		assert.Contains(t, buf.String(), `data-nav="appearance"`, "everyone chooses their own palette")
+	}
 }

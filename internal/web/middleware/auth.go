@@ -16,9 +16,12 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
+	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // UserLookup resolves the user a session signed in as.
@@ -79,7 +82,9 @@ func AdminGuard() fiber.Handler {
 // The user is looked up on every request, so removing it revokes every
 // session it holds at once. The user is recorded as the request's caller, which
 // Caller returns. A caller who does not own the installation reads Plex with
-// their own server token, which is asked for again when it is missing or old.
+// their own server token, which is asked for again when it is missing or old,
+// and whose session ends once the server is no longer shared with them. An
+// account waiting for approval reaches only the pending page.
 //
 // Parameters:
 //   - env: Configured environment. The e2e environment skips the check.
@@ -98,19 +103,7 @@ func AuthGuard(env string, users UserLookup, tokens ServerTokens) fiber.Handler 
 			return ctx.Next()
 		}
 
-		caller, signedIn, err := signedInUser(ctx, users)
-		if err != nil {
-			return fmt.Errorf("auth guard: %w", err)
-		}
-
-		if !signedIn {
-			return unauthenticated(ctx)
-		}
-
-		SetCaller(ctx, caller)
-		renewServerToken(ctx, tokens, caller)
-
-		return ctx.Next()
+		return guardRequest(ctx, users, tokens)
 	}
 }
 
@@ -146,6 +139,22 @@ func ClipScope(ctx fiber.Ctx) clip.Scope {
 	}
 
 	return clip.Scope{Owner: caller.PlexID, Everyone: caller.Manages()}
+}
+
+// RenderMember returns the account a request renders as, for its limits.
+//
+// The owner and admins are exempt. A request without a caller is a member
+// with no account, whose renders the limits refuse.
+//
+// Parameters:
+//   - ctx: Request that passed AuthGuard.
+//
+// Returns:
+//   - member: The caller as a render member.
+func RenderMember(ctx fiber.Ctx) quota.Member {
+	caller, _ := Caller(ctx)
+
+	return quota.Member{ID: caller.PlexID, Exempt: caller.Manages()}
 }
 
 // PlexViewer returns the account a request reads the bound Plex server as.
@@ -186,40 +195,87 @@ func PlexViewer(ctx fiber.Ctx) identity.Viewer {
 //   - caller: The user the request is made by.
 func SetCaller(ctx fiber.Ctx, caller identity.User) {
 	ctx.Locals(callerKey{}, caller)
+	ctx.SetContext(view.ContextWithManager(ctx.Context(), caller.Manages()))
 }
 
 // renewServerToken asks plex.tv again for a caller's own server token when the
 // session's is missing or old.
 //
-// A token plex.tv no longer lists, as after the share was removed, is dropped.
-// When plex.tv cannot be asked, the session keeps what it holds and waits
-// before asking again.
+// When plex.tv no longer lists the server for the account, as after the share
+// was removed, the session is reset. When plex.tv cannot be asked, the session
+// keeps what it holds and waits before asking again.
 //
 // Parameters:
 //   - ctx: Request carrying the session.
 //   - tokens: Finds the caller's token, which may be nil.
 //   - caller: The signed-in user.
-func renewServerToken(ctx fiber.Ctx, tokens ServerTokens, caller identity.User) {
+//
+// Returns:
+//   - kept: False when the session was reset.
+func renewServerToken(ctx fiber.Ctx, tokens ServerTokens, caller identity.User) bool {
 	if tokens == nil || caller.Role == identity.RoleOwner {
-		return
+		return true
 	}
 
 	sess := session.FromContext(ctx)
 	held := identity.ServerToken(sess)
-	age := time.Since(identity.ServerTokenChecked(sess))
 
-	if age < serverTokenRetry || (held != "" && age < serverTokenRefresh) {
-		return
+	if !renewalDue(held, identity.ServerTokenChecked(sess)) {
+		return true
 	}
 
 	token, err := tokens.ServerToken(ctx.Context(), identity.Token(sess))
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to renew the signed-in account's token for the plex server")
+		identity.SetServerToken(sess, held, time.Now())
 
-		token = held
+		return true
+	}
+
+	if token == "" {
+		signOutUnshared(sess, caller)
+
+		return false
 	}
 
 	identity.SetServerToken(sess, token, time.Now())
+
+	return true
+}
+
+// renewalDue reports whether a session's server token is due to be asked for
+// again.
+//
+// Parameters:
+//   - held: The token the session holds, empty for none.
+//   - checked: When plex.tv was last asked.
+//
+// Returns:
+//   - due: True a minute after the last ask for a missing token, and ten
+//     minutes after it for a held one.
+func renewalDue(held string, checked time.Time) bool {
+	age := time.Since(checked)
+
+	return age >= serverTokenRetry && (held == "" || age >= serverTokenRefresh)
+}
+
+// signOutUnshared ends the session of an account the bound server is no
+// longer shared with.
+//
+// Parameters:
+//   - sess: The session.
+//   - caller: The signed-in user.
+func signOutUnshared(sess *session.Middleware, caller identity.User) {
+	log.Info().
+		Int("plex_user_id", caller.PlexID).
+		Msg("signed out an account the plex server is no longer shared with")
+
+	err := identity.Reset(sess)
+	if err != nil {
+		log.Warn().
+			Err(err).
+			Msg("failed to reset the session of an account the plex server is no longer shared with")
+	}
 }
 
 // signedInUser resolves the user a request's session signed in as.
@@ -257,6 +313,67 @@ func signedInUser(ctx fiber.Ctx, users UserLookup) (identity.User, bool, error) 
 	}
 
 	return identity.User{}, false, nil
+}
+
+// guardRequest admits a request whose session signed in as a user this
+// installation still recognizes, as AuthGuard describes.
+//
+// Parameters:
+//   - ctx: The request.
+//   - users: Store the signed-in user is resolved against.
+//   - tokens: Finds a caller's own server token, which may be nil.
+//
+// Returns:
+//   - err: The wrapped failure to resolve the user, or the response's.
+func guardRequest(ctx fiber.Ctx, users UserLookup, tokens ServerTokens) error {
+	caller, signedIn, err := signedInUser(ctx, users)
+	if err != nil {
+		return fmt.Errorf("auth guard: %w", err)
+	}
+
+	if !signedIn || !renewServerToken(ctx, tokens, caller) {
+		//nolint:wrapcheck // The refusal is written as the response.
+		return unauthenticated(ctx)
+	}
+
+	SetCaller(ctx, caller)
+
+	if caller.Role == identity.RolePending && ctx.Path() != routes.PathPending {
+		//nolint:wrapcheck // The refusal is written as the response.
+		return awaitingApproval(ctx)
+	}
+
+	//nolint:wrapcheck // The rest of the chain answers the request.
+	return ctx.Next()
+}
+
+// awaitingApproval refuses a request from an account an admin has not
+// approved.
+//
+// Parameters:
+//   - ctx: Request from the pending account.
+//
+// Returns:
+//   - err: The write or redirect failure, or nil once the response is sent.
+func awaitingApproval(ctx fiber.Ctx) error {
+	if strings.HasPrefix(ctx.Path(), "/api/") {
+		err := ctx.Status(fiber.StatusForbidden).JSON(api.ErrorResponse{
+			Error:   api.Pending,
+			Message: "an admin has not approved this account yet",
+		})
+		if err != nil {
+			return fmt.Errorf("write pending: %w", err)
+		}
+
+		return nil
+	}
+
+	err := ctx.Redirect().To(routes.PathPending)
+	if err != nil {
+		return fmt.Errorf("redirect pending: %w", err)
+	}
+
+	return nil
 }
 
 // unauthenticated rejects an anonymous request.

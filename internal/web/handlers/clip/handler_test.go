@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -24,13 +25,16 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	librarymocks "github.com/PapagoLabs/outtake/internal/plex/library/mocks"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
+	"github.com/PapagoLabs/outtake/internal/web/respond/respondtest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -282,7 +286,7 @@ func TestValidateEditBoundsASelectionByTheSourceLength(t *testing.T) {
 			Type:   clipdom.TypeClip,
 			Start:  2 * time.Minute,
 			Length: 30 * time.Second,
-		})
+		}, handler.clipCap(ctx))
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -316,7 +320,7 @@ func TestValidateEditAcceptsAnythingFromAnUnprobedSource(t *testing.T) {
 			Type:   clipdom.TypeClip,
 			Start:  2 * time.Hour,
 			Length: 10 * time.Minute,
-		})
+		}, handler.clipCap(ctx))
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -462,7 +466,7 @@ func TestValidateEditStillBoundsAnUnprobedSourceByTheMaximum(t *testing.T) {
 		gotErr = handler.validateEdit(ctx.Context(), "/media/movie.mkv", clipdom.Edit{
 			Type:   clipdom.TypeClip,
 			Length: 2 * time.Hour,
-		})
+		}, handler.clipCap(ctx))
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -694,4 +698,199 @@ func TestAccessCodeTellsARefusalFromAFailureToAsk(t *testing.T) {
 	assert.Equal(t, api.NotShared, AccessCode(fmt.Errorf("check: %w", library.ErrNotShared)))
 	assert.Equal(t, api.MediaPathUnresolved, AccessCode(plex.ErrServerReturnedError),
 		"a server that could not be asked does not say the title is unshared")
+}
+
+// sharedSourceHandler builds a handler whose bound server shares every item
+// with every account, so a member's access check passes.
+//
+// Parameters:
+//   - t: The test the handler belongs to.
+//
+// Returns:
+//   - handler: The handler under test.
+//   - source: A local source file the e2e resolver accepts as a media id.
+func sharedSourceHandler(t *testing.T) (*Handler, string) {
+	t.Helper()
+
+	stub := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+		_, _ = writer.Write(
+			[]byte(
+				`{"MediaContainer":{"Metadata":[{"ratingKey":"1","title":"Shared","type":"movie"}]}}`,
+			),
+		)
+	}))
+	t.Cleanup(stub.Close)
+
+	server, ok := plex.ParseServerURL(stub.URL)
+	require.True(t, ok)
+
+	server.Token = "member-token"
+
+	selected := librarymocks.NewMockServerSelection(t)
+	selected.EXPECT().
+		ClientWithToken(mock.Anything).
+		Return(plex.NewClient(plex.ClientConfig{Token: "member-token"}), server, true).
+		Maybe()
+
+	handler, source := resolvableHandler(t)
+
+	handler.sources = library.NewMediaSource(
+		&config.Config{MaxClipDur: 15 * time.Minute, Env: "e2e"},
+		selected,
+		&stubProber{duration: 2 * time.Hour},
+	)
+
+	return handler, source
+}
+
+// createAsMember posts one JSON create as a member.
+//
+// Parameters:
+//   - t: The test posting it.
+//   - handler: The handler under test.
+//   - source: The clip's source.
+//
+// Returns:
+//   - status: The response status.
+//   - body: The response body.
+func createAsMember(t *testing.T, handler *Handler, source string) (int, string) {
+	t.Helper()
+
+	app := fiber.New()
+	respondtest.Sessions(t, app)
+	app.Use(middlewaretest.AsMember())
+	app.Use(func(ctx fiber.Ctx) error {
+		identity.SetServerToken(session.FromContext(ctx), "member-token", time.Now())
+
+		return ctx.Next()
+	})
+	app.Post("/api/clips/create", handler.Create)
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips/create",
+		strings.NewReader(createJSONBody(source, "")),
+	)
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	return resp.StatusCode, string(body)
+}
+
+// TestCreateHoldsAMemberToTheirLimits covers a member at their limit on
+// concurrent renders.
+//
+// The first clip is queued, and the second is refused with the limit while
+// the first still waits.
+func TestCreateHoldsAMemberToTheirLimits(t *testing.T) {
+	t.Parallel()
+
+	handler, source := sharedSourceHandler(t)
+
+	require.NoError(
+		t,
+		handler.db.SaveGlobalLimits(t.Context(), quota.Limits{Active: 1, Weekly: 10}),
+	)
+	handler.SetLimits(quota.New(handler.db, handler.clipQueue.CountActive))
+
+	status, first := createAsMember(t, handler, source)
+	require.Equal(t, fiber.StatusCreated, status, first)
+
+	status, body := createAsMember(t, handler, source)
+	assert.Equal(t, fiber.StatusTooManyRequests, status)
+	assert.Contains(t, body, string(api.LimitReached))
+	assert.Contains(t, body, "You've reached your limit of 1 concurrent render")
+
+	stored, err := handler.db.ListClips(t.Context())
+	require.NoError(t, err)
+	assert.Len(t, stored, 1)
+
+	started, _, err := handler.db.RendersSince(
+		t.Context(),
+		middlewaretest.MemberID,
+		time.Now().Add(-time.Hour),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, 1, started, "only the queued clip counts toward the week")
+}
+
+// TestCreateRefusesAMemberWithoutLimits covers a handler no enforcer was
+// handed, which never lets a member render unbounded.
+func TestCreateRefusesAMemberWithoutLimits(t *testing.T) {
+	t.Parallel()
+
+	handler, source := sharedSourceHandler(t)
+
+	status, _ := createAsMember(t, handler, source)
+	assert.Equal(t, fiber.StatusInternalServerError, status)
+
+	stored, err := handler.db.ListClips(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, stored)
+}
+
+// TestUpdateLetsAMemberRetypeAWaitingClipAtTheirLimit covers a type change to
+// a member's own clip that is still waiting.
+//
+// The queue already counts that clip, so the change is not a new render: it
+// passes at the limit on concurrent renders and logs nothing against the week.
+func TestUpdateLetsAMemberRetypeAWaitingClipAtTheirLimit(t *testing.T) {
+	t.Parallel()
+
+	handler, source := sharedSourceHandler(t)
+
+	require.NoError(
+		t,
+		handler.db.SaveGlobalLimits(t.Context(), quota.Limits{Active: 1, Weekly: 10}),
+	)
+	handler.SetLimits(quota.New(handler.db, handler.clipQueue.CountActive))
+
+	status, body := createAsMember(t, handler, source)
+	require.Equal(t, fiber.StatusCreated, status, body)
+
+	stored, err := handler.db.ListClips(t.Context())
+	require.NoError(t, err)
+	require.Len(t, stored, 1)
+
+	app := fiber.New()
+	respondtest.Sessions(t, app)
+	app.Use(middlewaretest.AsMember())
+	app.Use(func(ctx fiber.Ctx) error {
+		identity.SetServerToken(session.FromContext(ctx), "member-token", time.Now())
+
+		return ctx.Next()
+	})
+	app.Post("/api/clips/:id/update", handler.Update)
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips/"+stored[0].ID+"/update",
+		strings.NewReader(`{"clipType":"screenshot"}`),
+	)
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	closeBody(t, resp)
+
+	assert.Less(t, resp.StatusCode, fiber.StatusBadRequest, "the waiting clip changes type")
+
+	started, _, err := handler.db.RendersSince(
+		t.Context(),
+		middlewaretest.MemberID,
+		time.Now().Add(-time.Hour),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, 1, started, "the change is not counted as a second render")
 }

@@ -24,6 +24,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
@@ -324,4 +325,61 @@ func TestClassifyNamesAFailedFFmpegRun(t *testing.T) {
 	message, input := Classify(fmt.Errorf("render: ffmpeg: %w", err))
 	assert.Equal(t, "FFmpeg couldn't render this. Its output is in the Outtake log.", message)
 	assert.False(t, input, "a failed run carries details")
+}
+
+// TestMessageForNamesEachLimit covers the render limits a member reaches,
+// each named with what frees room under it.
+func TestMessageForNamesEachLimit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		err   error
+		want  string
+		input bool
+	}{
+		{
+			name:  "one concurrent render",
+			err:   &quota.ActiveLimitError{Limit: 1},
+			want:  "You've reached your limit of 1 concurrent render. Wait for one to finish.",
+			input: true,
+		},
+		{
+			name:  "several concurrent renders",
+			err:   &quota.ActiveLimitError{Limit: 2},
+			want:  "You've reached your limit of 2 concurrent renders. Wait for one to finish.",
+			input: true,
+		},
+		{
+			name: "the renders of a week",
+			err: &quota.WeeklyLimitError{
+				Next:  time.Date(2026, time.October, 19, 15, 4, 0, 0, time.Local),
+				Limit: 100,
+			},
+			want: "You've started 100 renders this week. You can start another after Oct 19 at 3:04 PM " +
+				time.Date(2026, time.October, 19, 15, 4, 0, 0, time.Local).
+					Format("MST") +
+				".",
+			input: true,
+		},
+		{
+			name:  "the storage",
+			err:   &quota.StorageLimitError{Limit: 25_000_000_000},
+			want:  "Your clips use all 25 GB of your storage. Delete some to render more.",
+			input: true,
+		},
+		{
+			name:  "limits that cannot be read",
+			err:   quota.ErrNoLimits,
+			want:  "Outtake couldn't read your render limits. Ask an admin.",
+			input: false,
+		},
+	}
+
+	for _, test := range tests {
+		message, input := Classify(fmt.Errorf("handler: %w", test.err))
+
+		assert.Equal(t, test.want, message, test.name)
+		assert.Equal(t, test.input, input, test.name)
+	}
 }

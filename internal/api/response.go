@@ -68,6 +68,12 @@ const (
 	// NotShared reports a media item the caller's Plex account cannot see.
 	NotShared ErrorCode = "not_shared"
 
+	// Pending reports a request from an account an admin has not approved.
+	Pending ErrorCode = "pending"
+
+	// LimitReached reports a render refused by one of the caller's limits.
+	LimitReached ErrorCode = "limit_reached"
+
 	// InvalidQuality reports a profile id that names no profile.
 	InvalidQuality ErrorCode = "invalid_quality"
 

@@ -53,6 +53,11 @@ type Job struct {
 
 	// SDRFormat is what the clip's SDR version holds, zero when it has none.
 	SDRFormat Format
+
+	// OutputBytes is how many bytes the clip's files take, its own and its
+	// SDR version, recorded when a render finishes. It counts toward its
+	// owner's storage limit.
+	OutputBytes int64
 }
 
 // BarPercent returns how far the job's progress bar is drawn.

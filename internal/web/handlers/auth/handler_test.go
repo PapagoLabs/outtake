@@ -49,6 +49,9 @@ type authBrowser struct {
 // PIN.
 const pinToken = "pin-token"
 
+// testOwner is the owner the post-sign-in path is asked about.
+var testOwner = identity.User{PlexID: 42, Username: "nick", Role: identity.RoleOwner}
+
 // sessionApp builds an app carrying nothing but the session middleware.
 //
 // Parameters:
@@ -613,7 +616,7 @@ func TestPostAuthPathSendsAnUnboundInstallToTheServerPicker(t *testing.T) {
 	binding := identitymocks.NewMockServerBinding(t)
 	binding.EXPECT().Get().Return(plex.EmptyServer(), false)
 
-	assert.Equal(t, routes.PathServers, authHandler(t, nil, binding).postAuthPath(),
+	assert.Equal(t, routes.PathServers, authHandler(t, nil, binding).postAuthPath(testOwner),
 		"a login with no server behind it still has to pick one")
 }
 
@@ -623,14 +626,24 @@ func TestPostAuthPathSendsABoundInstallToTheDashboard(t *testing.T) {
 	binding := identitymocks.NewMockServerBinding(t)
 	binding.EXPECT().Get().Return(plex.Server{Name: "loopback"}, true)
 
-	assert.Equal(t, routes.PathRoot, authHandler(t, nil, binding).postAuthPath(),
+	assert.Equal(t, routes.PathRoot, authHandler(t, nil, binding).postAuthPath(testOwner),
 		"a server is already bound, so there is nothing to pick")
 }
 
 func TestPostAuthPathToleratesNoBindingAtAll(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, routes.PathServers, authHandler(t, nil, nil).postAuthPath())
+	assert.Equal(t, routes.PathServers, authHandler(t, nil, nil).postAuthPath(testOwner))
+}
+
+// TestPostAuthPathSendsAPendingAccountToWait covers an account an admin has
+// not approved, which waits on the pending page whatever is bound.
+func TestPostAuthPathSendsAPendingAccountToWait(t *testing.T) {
+	t.Parallel()
+
+	pending := identity.User{PlexID: 7, Username: "friend", Role: identity.RolePending}
+
+	assert.Equal(t, routes.PathPending, authHandler(t, nil, nil).postAuthPath(pending))
 }
 
 func TestFinishAuthLeavesTheSessionAnonymousWhenPlexRejectsTheToken(t *testing.T) {
@@ -644,7 +657,7 @@ func TestFinishAuthLeavesTheSessionAnonymousWhenPlexRejectsTheToken(t *testing.T
 
 	app := authApp(t)
 	app.Post("/finish", func(ctx fiber.Ctx) error {
-		finishErr = authHandler(t, store, binding).
+		_, finishErr = authHandler(t, store, binding).
 			finishAuth(ctx, session.FromContext(ctx), "typed-token")
 
 		return ctx.SendStatus(fiber.StatusOK)
@@ -673,7 +686,7 @@ func TestFinishAuthCarriesTheOwnerOnAFreshSession(t *testing.T) {
 
 	app := sessionApp(t)
 	app.Post("/finish", func(ctx fiber.Ctx) error {
-		finishErr = liveHandler(t, plexTV, ownerStore(t)).
+		_, finishErr = liveHandler(t, plexTV, ownerStore(t)).
 			finishAuth(ctx, session.FromContext(ctx), "typed-token")
 
 		return ctx.SendStatus(fiber.StatusOK)
@@ -751,7 +764,7 @@ func TestFinishAuthGivesAMemberTheirOwnServerToken(t *testing.T) {
 
 	app := sessionApp(t)
 	app.Post("/finish", func(ctx fiber.Ctx) error {
-		finishErr = handler.finishAuth(ctx, session.FromContext(ctx), "member-token")
+		_, finishErr = handler.finishAuth(ctx, session.FromContext(ctx), "member-token")
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -781,7 +794,7 @@ func TestFinishAuthRefusesAnAccountTheInstallationDoesNotBelongTo(t *testing.T) 
 
 	app := sessionApp(t)
 	app.Post("/finish", func(ctx fiber.Ctx) error {
-		finishErr = liveHandler(t, plexTV, ownerStore(t)).
+		_, finishErr = liveHandler(t, plexTV, ownerStore(t)).
 			finishAuth(ctx, session.FromContext(ctx), "typed-token")
 
 		return ctx.SendStatus(fiber.StatusOK)

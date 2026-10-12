@@ -29,6 +29,10 @@ const (
 
 	// RoleMember may use the installation without managing it.
 	RoleMember Role = "member"
+
+	// RolePending is an account an admin has not approved yet. It may only
+	// wait for approval or log out.
+	RolePending Role = "pending"
 )
 
 // Manages reports whether the user may manage the installation.

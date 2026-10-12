@@ -5,6 +5,7 @@ package preview
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,8 +16,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/playback"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/failure"
-	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/database"
@@ -33,6 +34,9 @@ type Handler struct {
 	cfg      *config.Config
 	db       *database.DB
 	sources  *library.MediaSource
+	// limits admits a member's previews. Without it, only the owner and
+	// admins render previews.
+	limits *quota.Enforcer
 }
 
 const (
@@ -97,6 +101,14 @@ func (handler *Handler) CancelPreview(ctx fiber.Ctx) error {
 	return respond.WriteJSON(ctx, fiber.StatusOK, fiber.Map{"id": id})
 }
 
+// Limits returns the enforcer that admits a member's renders.
+//
+// Returns:
+//   - limits: The enforcer, nil until SetLimits sets one.
+func (handler *Handler) Limits() *quota.Enforcer {
+	return handler.limits
+}
+
 // Preview renders a short low-quality segment without saving a clip.
 //
 // Parameters:
@@ -115,7 +127,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		)
 	}
 
-	inputPath, code, err := handler.resolveSelection(ctx.Context(), middleware.PlexViewer(ctx), req)
+	inputPath, code, err := handler.resolveSelection(ctx, req)
 	if err != nil {
 		return respond.WriteFailure(ctx, fiber.StatusBadRequest, code, respond.Fail(ctx, err))
 	}
@@ -155,13 +167,10 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		return respond.RedirectTo(ctx, location)
 	}
 
-	if !handler.admitRender(ctx, previewID, inputPath, render, maxWidth) {
-		return respond.WriteError(
-			ctx,
-			fiber.StatusTooManyRequests,
-			api.PreviewBusy,
-			failure.MessageFor(clippreview.ErrBusy),
-		)
+	err = handler.admitRender(ctx, previewID, inputPath, render, maxWidth)
+	if err != nil {
+		//nolint:wrapcheck // The refusal is written as the response.
+		return writeAdmitFailure(ctx, err)
 	}
 
 	return respond.RedirectTo(ctx, location)
@@ -257,6 +266,14 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 	return respond.WriteJSON(ctx, fiber.StatusOK, handler.statusPayload(ctx.Context(), view))
 }
 
+// SetLimits sets the enforcer that admits a member's previews.
+//
+// Parameters:
+//   - limits: The enforcer.
+func (handler *Handler) SetLimits(limits *quota.Enforcer) {
+	handler.limits = limits
+}
+
 // admitRender submits a preview's render to the service.
 //
 // The render detaches from this request, so the values it needs are captured
@@ -273,32 +290,44 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 //   - maxWidth: The widest the preview is scaled.
 //
 // Returns:
-//   - admitted: False when the service is full or closing, which the client
-//     can ask again once it has room.
+//   - err: A reached limit, or clippreview.ErrBusy when the service is full
+//     or closing, which the client can ask again once it has room.
 func (handler *Handler) admitRender(
 	ctx fiber.Ctx,
 	previewID, inputPath string,
 	render api.ClipRequest,
 	maxWidth int,
-) bool {
+) error {
 	renderKeepsHDR := api.Flag(render.PreserveHDR)
 
-	admitted := handler.previews.Submit(
-		ctx.Context(),
-		previewID,
-		func(renderCtx context.Context) error {
-			return handler.previews.RenderInto(
-				renderCtx,
-				previewID,
-				inputPath,
-				render,
-				renderKeepsHDR,
-				maxWidth,
-			)
-		},
-	)
+	// The id names the caller, so a preview still rendering under it is the
+	// caller's own, already counted, and asking again starts nothing new.
+	if view, known := handler.previews.Status(previewID); known && !view.Done() {
+		return nil
+	}
 
-	return admitted != clippreview.RefusedFull && admitted != clippreview.RefusedClosed
+	//nolint:wrapcheck // The refusal is answered as it is.
+	return handler.limits.AdmitPreview(ctx.Context(), middleware.RenderMember(ctx), func() error {
+		admitted := handler.previews.Submit(
+			ctx.Context(),
+			previewID,
+			func(renderCtx context.Context) error {
+				return handler.previews.RenderInto(
+					renderCtx,
+					previewID,
+					inputPath,
+					render,
+					renderKeepsHDR,
+					maxWidth,
+				)
+			},
+		)
+		if admitted == clippreview.RefusedFull || admitted == clippreview.RefusedClosed {
+			return clippreview.ErrBusy
+		}
+
+		return nil
+	})
 }
 
 // keepHDR reports whether the clip keeps HDR, which is its profile's setting.
@@ -319,8 +348,7 @@ func (handler *Handler) keepHDR(ctx fiber.Ctx, req api.ClipRequest) bool {
 // configured cap applies here too and a bad window fails before it renders.
 //
 // Parameters:
-//   - ctx: Request context.
-//   - viewer: The account asking, which must be able to see the item.
+//   - ctx: The preview request, whose caller must be able to see the item.
 //   - req: Parsed preview request.
 //
 // Returns:
@@ -328,8 +356,7 @@ func (handler *Handler) keepHDR(ctx fiber.Ctx, req api.ClipRequest) bool {
 //   - code: API error code for whatever failed.
 //   - err: Non-nil when the preview may not be rendered.
 func (handler *Handler) resolveSelection(
-	ctx context.Context,
-	viewer identity.Viewer,
+	ctx fiber.Ctx,
 	req api.ClipRequest,
 ) (string, api.ErrorCode, error) {
 	kind, err := clip.ResolveType(req.ClipType, clip.TypeClip)
@@ -337,21 +364,25 @@ func (handler *Handler) resolveSelection(
 		return "", api.InvalidClipType, fmt.Errorf("resolve type: %w", err)
 	}
 
-	err = handler.sources.CheckAccess(ctx, viewer, req.MediaID)
+	err = handler.sources.CheckAccess(ctx.Context(), middleware.PlexViewer(ctx), req.MediaID)
 	if err != nil {
 		return "", clips.AccessCode(err), fmt.Errorf("check access: %w", err)
 	}
 
-	inputPath, err := handler.sources.Resolve(ctx, req.MediaID)
+	inputPath, err := handler.sources.Resolve(ctx.Context(), req.MediaID)
 	if err != nil {
 		return "", api.MediaPathUnresolved, fmt.Errorf("resolve source: %w", err)
 	}
 
 	err = handler.sources.CheckEdit(
-		ctx,
+		ctx.Context(),
 		inputPath,
 		clips.RequestEdit(req, kind),
-		clip.DurationCap(handler.cfg.MaxClipDur),
+		handler.limits.ClipCap(
+			ctx.Context(),
+			middleware.RenderMember(ctx),
+			clip.DurationCap(handler.cfg.MaxClipDur),
+		),
 	)
 	if err != nil {
 		return "", api.InvalidRequest, fmt.Errorf("check selection: %w", err)
@@ -439,4 +470,39 @@ func reaches(scope clip.Scope, previewID string) bool {
 	owner, _ := clippreview.Owner(previewID)
 
 	return scope.Includes(owner)
+}
+
+// writeAdmitFailure answers a preview its render was refused.
+//
+// Parameters:
+//   - ctx: The preview request.
+//   - err: Why the render was refused.
+//
+// Returns:
+//   - err: Non-nil when the response cannot be written.
+func writeAdmitFailure(ctx fiber.Ctx, err error) error {
+	if quota.IsLimit(err) {
+		return respond.WriteFailure(
+			ctx,
+			fiber.StatusTooManyRequests,
+			api.LimitReached,
+			respond.Fail(ctx, err),
+		)
+	}
+
+	if errors.Is(err, clippreview.ErrBusy) {
+		return respond.WriteError(
+			ctx,
+			fiber.StatusTooManyRequests,
+			api.PreviewBusy,
+			failure.MessageFor(clippreview.ErrBusy),
+		)
+	}
+
+	return respond.WriteFailure(
+		ctx,
+		fiber.StatusInternalServerError,
+		api.PreviewBusy,
+		respond.Fail(ctx, err),
+	)
 }
