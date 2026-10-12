@@ -28,6 +28,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/media"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/thumb"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/live"
 	previews "github.com/PapagoLabs/outtake/internal/web/handlers/preview"
 	profiles "github.com/PapagoLabs/outtake/internal/web/handlers/profile"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/server"
@@ -73,6 +74,7 @@ type routerHandlers struct {
 	thumb    *thumb.Handler
 	profiles *profiles.Handler
 	health   *health.Handler
+	live     *live.Handler
 }
 
 // routeClips is the clips collection path.
@@ -127,7 +129,7 @@ func New(deps Deps) *fiber.App {
 	// The server waits for open connections as it shuts down, and a clip
 	// stream stays open until it is told to end.
 	app.Hooks().OnPreShutdown(func() error {
-		built.clip.CloseStreams()
+		built.live.CloseStreams()
 
 		return nil
 	})
@@ -166,24 +168,33 @@ func newRouterHandlers(deps Deps) routerHandlers {
 	// server picker select the same Plex credentials and the same server.
 	plexAuth := deps.Auth
 
+	clipHandler := clips.New(
+		deps.Queue,
+		deps.Blob,
+		deps.Paths,
+		deps.DB,
+		deps.Cfg,
+		deps.Sources,
+	)
+	homeHandler := home.New(
+		deps.Queue,
+		deps.DB,
+		plexAuth,
+		deps.Cfg,
+		deps.Sources,
+	)
+	previewHandler := previews.New(
+		deps.Previews,
+		deps.Cfg,
+		deps.DB,
+		deps.Sources,
+	)
+
 	return routerHandlers{
-		clip: clips.New(
-			deps.Queue,
-			deps.Blob,
-			deps.Paths,
-			deps.DB,
-			deps.Cfg,
-			deps.Sources,
-		),
+		clip:  clipHandler,
 		media: media.New(plexAuth),
 		auth:  auth.New(plexAuth),
-		home: home.New(
-			deps.Queue,
-			deps.DB,
-			plexAuth,
-			deps.Cfg,
-			deps.Sources,
-		),
+		home:  homeHandler,
 		library: library.New(
 			deps.Queue,
 			deps.DB,
@@ -204,14 +215,14 @@ func newRouterHandlers(deps Deps) routerHandlers {
 			deps.Paths,
 			plexAuth,
 		),
-		preview: previews.New(
-			deps.Previews,
-			deps.Cfg,
-			deps.DB,
-			deps.Sources,
-		),
+		preview:  previewHandler,
 		profiles: profiles.New(profilesettings.New(deps.DB)),
 		health:   health.New(),
+		live: live.New(
+			live.Feed{Name: routes.QueryLiveClips, Start: clipHandler.LiveClips},
+			live.Feed{Name: routes.QueryPreview, Start: previewHandler.LivePreview},
+			live.Feed{Name: routes.QueryLivePlayback, Start: homeHandler.LivePlayback},
+		),
 	}
 }
 
@@ -284,8 +295,8 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get("/clips/:id/file", guard, clipHandler.ClipFile)
 	app.Get("/clips/:id/sdr", guard, clipHandler.ClipSDRFile)
 	app.Get("/clips/:id/row", guard, clipHandler.ClipRow)
-	app.Get(routes.PathClipLive, guard, clipHandler.ClipLive)
 	app.Get(routeClips, guard, clipHandler.Clips)
+	app.Get(routes.PathLive, guard, built.live.Stream)
 	app.Get("/servers", guard, serverHandler.Servers)
 	app.Post("/servers", guard, serverHandler.SelectServer)
 	app.Post("/servers/forget", guard, serverHandler.ForgetServer)

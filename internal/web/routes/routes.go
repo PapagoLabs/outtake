@@ -19,9 +19,9 @@ const (
 	// PathClips is the clips page path.
 	PathClips = "/clips"
 
-	// PathClipLive is the stream that keeps a page's rendering clip cards
-	// current. live.js opens it.
-	PathClipLive = "/clips/live"
+	// PathLive is the event stream that keeps a page current. live.js opens
+	// it.
+	PathLive = "/live"
 
 	// PathServers is the server picker path.
 	PathServers = "/servers"
@@ -47,6 +47,14 @@ const (
 
 // The query parameters the web surface reads.
 const (
+	// QueryLiveClips names the rendering clips a page's stream follows,
+	// separated by commas.
+	QueryLiveClips = "clip"
+
+	// QueryLivePlayback names the media item whose playback panel a page's
+	// stream follows.
+	QueryLivePlayback = "playback"
+
 	// QueryAudioIndex carries the New export audio track.
 	QueryAudioIndex = "audioIndex"
 
@@ -77,7 +85,8 @@ const (
 	// QueryParent is the media container parent id.
 	QueryParent = "parent"
 
-	// QueryPreview is the rendered preview id on a media item page.
+	// QueryPreview is the rendered preview id on a media item page, and the
+	// preview a page's stream follows.
 	QueryPreview = "preview"
 
 	// QueryScreenHDR is the form field and query parameter that says the

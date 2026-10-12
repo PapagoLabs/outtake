@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	fiber "github.com/gofiber/fiber/v3"
 
@@ -31,11 +30,6 @@ type Handler struct {
 	db          *database.DB
 	cfg         *config.Config
 	sources     *library.MediaSource
-	// streamsDone closes when the server shuts down, which ends every clip
-	// stream, because the server waits for open connections.
-	streamsDone chan struct{}
-	// closeStreams closes streamsDone once.
-	closeStreams sync.Once
 }
 
 // New creates a new clip handler.
@@ -59,25 +53,13 @@ func New(
 	sources *library.MediaSource,
 ) *Handler {
 	return &Handler{
-		clipQueue:    jobQueue,
-		clipStorage:  store,
-		clipPaths:    paths,
-		db:           db,
-		cfg:          cfg,
-		sources:      sources,
-		streamsDone:  make(chan struct{}),
-		closeStreams: sync.Once{},
+		clipQueue:   jobQueue,
+		clipStorage: store,
+		clipPaths:   paths,
+		db:          db,
+		cfg:         cfg,
+		sources:     sources,
 	}
-}
-
-// CloseStreams ends every clip stream.
-//
-// The server can then shut down without waiting on them. Later calls do
-// nothing.
-func (handler *Handler) CloseStreams() {
-	handler.closeStreams.Do(func() {
-		close(handler.streamsDone)
-	})
 }
 
 // listJobs returns every clip the catalog knows about.

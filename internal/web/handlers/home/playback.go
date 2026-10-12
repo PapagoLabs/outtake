@@ -34,7 +34,21 @@ const positionTimeout = 3 * time.Second
 // Returns:
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Playback(ctx fiber.Ctx) error {
-	mediaID := ctx.Params(routes.ParamID)
+	props := handler.playbackProps(ctx.Params(routes.ParamID))
+
+	return respond.RenderHTML(ctx, func(writer io.Writer) error {
+		return playback.PlaybackPanel(props).Render(ctx.Context(), writer)
+	})
+}
+
+// playbackProps reads the session monitor's view of a media item's playback.
+//
+// Parameters:
+//   - mediaID: The media item.
+//
+// Returns:
+//   - props: What the playback panel shows.
+func (handler *Handler) playbackProps(mediaID string) view.Playback {
 	props := view.Playback{
 		Playing:     false,
 		Paused:      false,
@@ -52,9 +66,7 @@ func (handler *Handler) Playback(ctx fiber.Ctx) error {
 			url.Values{routes.QuerySession: {session.ID}}.Encode()
 	}
 
-	return respond.RenderHTML(ctx, func(writer io.Writer) error {
-		return playback.PlaybackPanel(props).Render(ctx.Context(), writer)
-	})
+	return props
 }
 
 // Position reports where one Plex session is in a media item.

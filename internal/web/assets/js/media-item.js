@@ -132,6 +132,8 @@
 	var attempts = 0;
 	var stopped = false;
 	var pendingTimer = null;
+	// shownBar is the bar position shown, which never moves back.
+	var shownBar = 0;
 
 	// htmx names its teardown events "htmx:before:cleanup" and
 	// "htmx:after:cleanup". Only a cleanup that reaches this player stops the
@@ -141,12 +143,24 @@
 		return node === videoEl || (node && typeof node.contains === 'function' && node.contains(videoEl));
 	}
 
+	// follow marks the player for live.js, which then streams the preview's
+	// status, or clears the mark once the preview settles.
+	function follow(on) {
+		if (on) {
+			videoEl.setAttribute('data-preview-live', previewId);
+		} else {
+			videoEl.removeAttribute('data-preview-live');
+		}
+		document.dispatchEvent(new Event('outtake:live-sync'));
+	}
+
 	function stopPolling() {
 		stopped = true;
 		if (pendingTimer !== null) {
 			window.clearTimeout(pendingTimer);
 			pendingTimer = null;
 		}
+		follow(false);
 	}
 
 	document.addEventListener('htmx:before:cleanup', function (event) {
@@ -258,11 +272,88 @@
 		});
 	}
 
+	// streamed reports whether live.js is delivering this preview's status,
+	// in which case the poll waits rather than asks.
+	function streamed() {
+		return Boolean(window.outtakeLive && window.outtakeLive.delivering('preview', previewId));
+	}
+
+	// applyState shows one status of the render, from the poll or the stream.
+	// A status that arrives after the render settled is ignored, and so is a
+	// bar position behind the one shown, which a poll answered before the
+	// stream started can carry.
+	function applyState(state) {
+		if (stopped || !document.contains(videoEl)) { return; }
+		if (state.gone) {
+			giveUp('This preview is gone. Select Preview to render it again.');
+
+			return;
+		}
+		if (state.status === 'completed' && state.url) {
+			stopPolling();
+			clearProgress();
+			statusEl.textContent = '';
+			statusEl.classList.add('hidden');
+			showFormat(state.format);
+			videoEl.src = state.url;
+			videoEl.load();
+
+			return;
+		}
+		if (state.status === 'failed' || state.status === 'canceled') {
+			stopPolling();
+			clearProgress();
+			statusEl.classList.remove('hidden');
+			if (state.status === 'canceled') {
+				statusEl.textContent = 'Preview canceled';
+			} else {
+				statusEl.textContent = state.message || 'Preview failed';
+				showDetails(state.details);
+			}
+
+			return;
+		}
+		var bar = state.barPercent || 0;
+		if (bar < shownBar) {
+			return;
+		}
+		shownBar = bar;
+		showProgress(bar);
+		statusEl.textContent = state.progress
+			? 'Rendering preview… ' + state.progress + '%'
+			: 'Rendering preview…';
+		if (state.remaining) {
+			statusEl.textContent += ' · ' + state.remaining;
+		}
+	}
+
+	document.addEventListener('outtake:preview', function (event) {
+		var state = event.detail;
+		if (state && state.id === previewId) {
+			applyState(state);
+		}
+	});
+
 	function pollPreview() {
 		// A response can land after the page moved on, so the player is checked
 		// before it is touched.
 		if (stopped || !document.contains(videoEl)) {
 			stopPolling();
+
+			return;
+		}
+
+		// Each tick counts toward the limit, whether it asks or the stream
+		// answers for it, so the limit is a length of time.
+		attempts++;
+		if (exhausted()) {
+			giveUp('The preview is taking too long. Select Preview to try again.');
+
+			return;
+		}
+
+		if (streamed()) {
+			schedule(pollIntervalMs);
 
 			return;
 		}
@@ -282,50 +373,13 @@
 				return response.json();
 			})
 			.then(function (state) {
-				if (state === null || stopped || !document.contains(videoEl)) { return; }
-				if (state.status === 'completed' && state.url) {
-					stopPolling();
-					clearProgress();
-					statusEl.textContent = '';
-					statusEl.classList.add('hidden');
-					showFormat(state.format);
-					videoEl.src = state.url;
-					videoEl.load();
-
-					return;
-				}
-				if (state.status === 'failed' || state.status === 'canceled') {
-					stopPolling();
-					clearProgress();
-					statusEl.classList.remove('hidden');
-					if (state.status === 'canceled') {
-						statusEl.textContent = 'Preview canceled';
-					} else {
-						statusEl.textContent = state.message || 'Preview failed';
-						showDetails(state.details);
-					}
-
-					return;
-				}
-				attempts++;
-				if (exhausted()) {
-					giveUp('The preview is taking too long. Select Preview to try again.');
-
-					return;
-				}
-				showProgress(state.barPercent);
-				statusEl.textContent = state.progress
-					? 'Rendering preview… ' + state.progress + '%'
-					: 'Rendering preview…';
-				if (state.remaining) {
-					statusEl.textContent += ' · ' + state.remaining;
-				}
+				if (state === null) { return; }
+				applyState(state);
 				schedule(pollIntervalMs);
 			})
 			.catch(function (error) {
 				if (stopped || !document.contains(videoEl)) { return; }
 				console.warn('preview poll failed for ' + previewId, error);
-				attempts++;
 				if (exhausted()) {
 					giveUp('Lost contact with Outtake. Select Preview to try again.');
 
@@ -337,5 +391,6 @@
 			});
 	}
 
+	follow(true);
 	pollPreview();
 })();

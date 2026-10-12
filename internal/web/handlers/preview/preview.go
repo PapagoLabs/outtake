@@ -244,39 +244,7 @@ func (handler *Handler) PreviewStatus(ctx fiber.Ctx) error {
 		return respond.WriteError(ctx, fiber.StatusNotFound, api.NotFound, messagePreviewGone)
 	}
 
-	payload := fiber.Map{
-		"id":       view.ID,
-		"status":   view.Status,
-		"progress": view.Progress,
-		// barPercent moves between the whole percents progress counts, so
-		// the bar keeps moving through a slow encode.
-		"barPercent": clip.BarPercent(view.Progress, view.ExactProgress),
-	}
-
-	// The file is only served once it is published, so the URL is withheld until
-	// then rather than pointing at something that is not there. The poll only
-	// looks the file up, and PreviewFile fetches it when it is asked for.
-	if view.Status == clip.StatusCompleted && handler.previews.Exists(ctx.Context(), view.ID) {
-		payload["url"] = routes.PathPreviewPrefix + view.ID
-	}
-
-	if view.Error != "" {
-		payload["message"] = view.Error
-	}
-
-	if view.ErrorDetails != "" {
-		payload["details"] = view.ErrorDetails
-	}
-
-	if label := view.Format.Label(); label != "" {
-		payload["format"] = label
-	}
-
-	if remaining := previewRemaining(view); remaining != "" {
-		payload["remaining"] = remaining
-	}
-
-	return respond.WriteJSON(ctx, fiber.StatusOK, payload)
+	return respond.WriteJSON(ctx, fiber.StatusOK, handler.statusPayload(ctx.Context(), view))
 }
 
 // admitRender submits a preview's render to the service.
@@ -373,6 +341,53 @@ func (handler *Handler) resolveSelection(
 	}
 
 	return inputPath, "", nil
+}
+
+// statusPayload describes a preview render the way its status reports it.
+//
+// The poll and the page stream both send it.
+//
+// Parameters:
+//   - ctx: Scope for the lookup of a published file.
+//   - view: The render.
+//
+// Returns:
+//   - payload: The status fields, with the URL only once the file is
+//     published.
+func (handler *Handler) statusPayload(ctx context.Context, view clippreview.View) fiber.Map {
+	payload := fiber.Map{
+		"id":       view.ID,
+		"status":   view.Status,
+		"progress": view.Progress,
+		// barPercent moves between the whole percents progress counts, so
+		// the bar keeps moving through a slow encode.
+		"barPercent": clip.BarPercent(view.Progress, view.ExactProgress),
+	}
+
+	// The file is only served once it is published, so the URL is withheld until
+	// then rather than pointing at something that is not there. The poll only
+	// looks the file up, and PreviewFile fetches it when it is asked for.
+	if view.Status == clip.StatusCompleted && handler.previews.Exists(ctx, view.ID) {
+		payload["url"] = routes.PathPreviewPrefix + view.ID
+	}
+
+	if view.Error != "" {
+		payload["message"] = view.Error
+	}
+
+	if view.ErrorDetails != "" {
+		payload["details"] = view.ErrorDetails
+	}
+
+	if label := view.Format.Label(); label != "" {
+		payload["format"] = label
+	}
+
+	if remaining := previewRemaining(view); remaining != "" {
+		payload["remaining"] = remaining
+	}
+
+	return payload
 }
 
 // previewRemaining says how long a rendering preview has left.
