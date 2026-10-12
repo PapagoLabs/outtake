@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestFormatLabelNamesRangeAndResolution covers a player's badge: the range,
-// then the resolution named as the export resolutions are when the width or
-// the height is within 2% of one, so a trimmed 4K clip and a 4:3 clip keep
-// their names, or the size written out for any other size, and nothing for an
-// unread file.
+// TestFormatLabelNamesRangeAndResolution covers a player's badge.
+//
+// The badge gives the range, then the resolution. The resolution is named as
+// the export resolutions are when the width or the height is within 2% of one,
+// so a trimmed 4K clip and a 4:3 clip keep their names. Any other size is
+// written out, and an unread file gets nothing.
 func TestFormatLabelNamesRangeAndResolution(t *testing.T) {
 	t.Parallel()
 

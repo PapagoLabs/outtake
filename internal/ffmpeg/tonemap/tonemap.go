@@ -121,9 +121,10 @@ func ParseSignalstatsYMax(log string) (float64, bool) {
 	return maxY, found
 }
 
-// ToneMapFilter is a CPU HDR to SDR filter chain. It maps highlights with
-// mobius, which keeps in-range colors and contrast and rolls off only what
-// lies above SDR white.
+// ToneMapFilter is a CPU HDR to SDR filter chain.
+//
+// It maps highlights with mobius, which keeps in-range colors and contrast and
+// rolls off only what lies above SDR white.
 //
 // Parameters:
 //   - hdrKind: clip.TransferPQAlias or clip.TransferHLGAlias.

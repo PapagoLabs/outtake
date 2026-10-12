@@ -35,8 +35,10 @@ type Edit struct {
 	PreserveHDR *bool
 }
 
-// EditRequest is a clip update as a caller sends it. A field left out keeps
-// the value the clip already has, so a caller may send only what changes.
+// EditRequest is a clip update as a caller sends it.
+//
+// A field left out keeps the value the clip already has, so a caller may send
+// only what changes.
 type EditRequest struct {
 	Name          *string  `json:"name"`
 	ClipType      *string  `json:"clipType"`
@@ -233,9 +235,10 @@ func validateGIF(kind Type, width, fps int) error {
 	return nil
 }
 
-// validateAudio checks that a video clip's audio track exists. The encode
-// maps the track as optional, so a track the source does not carry would
-// render a clip with no sound instead of failing. A GIF and a screenshot
+// validateAudio checks that a video clip's audio track exists.
+//
+// The encode maps the track as optional, so a track the source does not carry
+// would render a clip with no sound instead of failing. A GIF and a screenshot
 // carry no audio, and a source that could not be probed is not checked.
 //
 // Parameters:

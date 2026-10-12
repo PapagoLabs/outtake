@@ -73,8 +73,11 @@ func Icon(name string) func(...Props) templ.Component {
 	}
 }
 
-// generateSVG creates an SVG string for the specified icon with the given properties.
-// This function is called when an icon-prop combination is not yet in the cache.
+// generateSVG creates an SVG string for the specified icon with the given
+// properties.
+//
+// This function is called when an icon-prop combination is not yet in the
+// cache.
 func generateSVG(name string, props Props) (string, error) {
 	// Get the raw, inner SVG content for the icon name from our internal data map.
 	content, err := getIconContent(name) // This now reads from internalSvgData
@@ -92,6 +95,7 @@ func generateSVG(name string, props Props) (string, error) {
 }
 
 // getIconContent retrieves the raw inner SVG content for a given icon name.
+//
 // It reads from the pre-generated internalSvgData map from icon_data.go.
 func getIconContent(name string) (string, error) {
 	content, exists := internalSvgData[name]

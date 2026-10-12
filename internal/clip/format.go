@@ -51,8 +51,10 @@ const (
 	height2160p = 2160
 )
 
-// namedSizes lists the sizes a file is named after, largest first, so a file
-// as wide as one and as tall as a smaller one takes the larger name.
+// namedSizes lists the sizes a file is named after, largest first.
+//
+// A file as wide as one size and as tall as a smaller one takes the larger
+// name.
 var namedSizes = []namedSize{
 	{width: OutputWidth2160p, height: height2160p},
 	{width: OutputWidth1440p, height: height1440p},
@@ -68,9 +70,10 @@ func (format Format) Known() bool {
 	return format.Width > 0 && format.Height > 0
 }
 
-// Label names the file's range and resolution, such as "HDR · 4K". A size
-// within sizeTolerancePercent of an export resolution's width or height is
-// named as the profile editor names it, so a 4K clip whose black bars were
+// Label names the file's range and resolution, such as "HDR · 4K".
+//
+// A size within sizeTolerancePercent of an export resolution's width or height
+// is named as the profile editor names it, so a 4K clip whose black bars were
 // trimmed is still 4K and a 4:3 clip 1080 lines tall is 1080p. Any other size
 // is written out, such as "720×480".
 //

@@ -70,9 +70,11 @@ var EncoderPresets = []string{
 	"veryslow",
 }
 
-// DefaultPreset is the 1080p profile's settings, which a render uses when no
-// stored profile answers: with no database, or for a clip whose profile is
-// gone. The stored profiles, including the built-ins, live in clip_profiles.
+// DefaultPreset holds the 1080p profile's settings.
+//
+// A render uses them when no stored profile answers, which happens with no
+// database or for a clip whose profile is gone. The stored profiles, including
+// the built-ins, live in clip_profiles.
 var DefaultPreset = QualityPreset{
 	CRF:         defaultCRF,
 	Preset:      presetMedium,

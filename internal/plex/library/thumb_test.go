@@ -9,8 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestCacheIDIsStableAndKeyedByServer covers the cache key: the same server
-// and path always name the same file, and another server or path never does.
+// TestCacheIDIsStableAndKeyedByServer covers the cache key.
+//
+// The same server and path always name the same file, and another server or
+// path never does.
 func TestCacheIDIsStableAndKeyedByServer(t *testing.T) {
 	t.Parallel()
 

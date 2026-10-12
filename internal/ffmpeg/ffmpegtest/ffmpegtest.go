@@ -114,9 +114,10 @@ func Install(tb testing.TB, stub Stub) string {
 	return path
 }
 
-// Dispatch acts out a fake when the test binary started as one, and exits.
-// It returns only when no stub sits beside the binary. Call it first in
-// TestMain.
+// Dispatch acts out a fake when the test binary started as one.
+//
+// It then exits. It returns only when no stub sits beside the binary. Call it
+// first in TestMain.
 func Dispatch() {
 	//nolint:gosec // The spec sits beside the symlink the test binary was started through.
 	spec, err := os.ReadFile(os.Args[0] + specSuffix)
@@ -400,9 +401,11 @@ func fail(err error) {
 	exit(failureExit)
 }
 
-// exit ends a fake at once. [os.Exit] would run the race detector's exit hook,
-// which sleeps a second in every race-enabled test binary. A fake writes its
-// output unbuffered, so there is nothing left to flush.
+// exit ends a fake at once.
+//
+// [os.Exit] would run the race detector's exit hook, which sleeps a second in
+// every race-enabled test binary. A fake writes its output unbuffered, so there
+// is nothing left to flush.
 //
 // Parameters:
 //   - code: The status to exit with.

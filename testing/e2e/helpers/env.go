@@ -109,8 +109,10 @@ func LoadEnv() (EnvFile, error) {
 	return env, nil
 }
 
-// Report writes the loaded key names to the Ginkgo writer, which is what a
-// verbose run prints. Values are never written, because they carry a Plex token.
+// Report writes the loaded key names to the Ginkgo writer.
+//
+// The Ginkgo writer is what a verbose run prints. Values are never written,
+// because they carry a Plex token.
 //
 // Returns:
 //   - nothing.
@@ -163,8 +165,9 @@ func scanEnvFile(reader io.Reader) (EnvFile, error) {
 	return env, nil
 }
 
-// applyEnvLine applies one line's assignment to the process environment and
-// records which side of the split the key fell on. A line that carries no
+// applyEnvLine applies one line's assignment to the process environment.
+//
+// It records which side of the split the key fell on. A line that carries no
 // usable assignment is skipped.
 //
 // Parameters:
@@ -203,10 +206,11 @@ func envPathOverride() string {
 	return strings.TrimSpace(os.Getenv(PathEnv))
 }
 
-// envPath resolves the environment file. The override wins when it is set;
-// otherwise the search walks up from the working directory, which is the package
-// directory go test runs each test binary in, and stops at the first directory
-// named testing/e2e.
+// envPath resolves the environment file.
+//
+// The override wins when it is set. Otherwise the search walks up from the
+// working directory, which is the package directory go test runs each test
+// binary in, and stops at the first directory named testing/e2e.
 //
 // Returns:
 //   - path: The resolved file path, empty when no such directory was found.
@@ -245,8 +249,10 @@ func isSet(key string) bool {
 	return found
 }
 
-// parseEnvLine reads one assignment, tolerating an export prefix, surrounding
-// quotes, and a trailing comment. Blank lines and comments yield no assignment.
+// parseEnvLine reads one assignment from a line of the environment file.
+//
+// It tolerates an export prefix, surrounding quotes, and a trailing comment.
+// Blank lines and comments yield no assignment.
 //
 // Parameters:
 //   - line: One raw line from the environment file.
@@ -276,7 +282,9 @@ func parseEnvLine(line string) (envAssignment, bool) {
 }
 
 // unquote strips a surrounding quote pair, or otherwise drops a trailing
-// comment. A quoted value is taken verbatim, so a hash inside quotes survives.
+// comment.
+//
+// A quoted value is taken verbatim, so a hash inside quotes survives.
 //
 // Parameters:
 //   - raw: The right-hand side of an assignment, quotes and comments included.

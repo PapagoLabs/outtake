@@ -27,8 +27,10 @@ const (
 )
 
 // Fail builds the failure a page shows for err, with the message
-// failure.Classify chooses. A refusal of what the user entered shows its message alone. Any
-// other failure carries details and is logged under the reference they hold.
+// failure.Classify chooses.
+//
+// A refusal of what the user entered shows its message alone. Any other failure
+// carries details and is logged under the reference they hold.
 //
 // Parameters:
 //   - ctx: The request that failed.
@@ -46,10 +48,12 @@ func Fail(ctx fiber.Ctx, err error) view.Failure {
 }
 
 // FailWith builds the failure a page shows for err under a message the caller
-// chose, and logs it under the reference its details carry. The details and
-// the log line carry no Plex token. Only a signed-in session sees the
-// details: anyone else gets the message alone, so an error chain never
-// reaches a visitor who is not the owner.
+// chose.
+//
+// It logs the failure under the reference its details carry. The details and
+// the log line carry no Plex token. Only a signed-in session sees the details.
+// Anyone else gets the message alone, so an error chain never reaches a
+// visitor who is not the owner.
 //
 // Parameters:
 //   - ctx: The request that failed.
@@ -180,8 +184,10 @@ func signedIn(ctx fiber.Ctx) bool {
 	return identity.UserID(sess) != 0 && identity.Token(sess) != ""
 }
 
-// scrub removes Plex tokens from text bound for the page or the log: any
-// X-Plex-Token value, and the session's own token wherever it appears.
+// scrub removes Plex tokens from text bound for the page or the log.
+//
+// It removes any X-Plex-Token value, and the session's own token wherever it
+// appears.
 //
 // Parameters:
 //   - ctx: The request, whose session token is removed by value.

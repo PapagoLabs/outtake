@@ -14,7 +14,9 @@ import (
 )
 
 // storedOnlyFields are the stored profile fields the settings page has no use
-// for. Every other field has to reach the page model under the same name.
+// for.
+//
+// Every other field has to reach the page model under the same name.
 var storedOnlyFields = map[string]bool{"CreatedAt": true, "UpdatedAt": true}
 
 func TestClipProfileItemsMapsEveryField(t *testing.T) {

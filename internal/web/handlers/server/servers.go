@@ -79,8 +79,10 @@ func (handler *Handler) Servers(ctx fiber.Ctx) error {
 	})
 }
 
-// bindSelectedURL binds the Plex server the servers page posted. The page posts
-// a selection key or a typed URL, never a token, and the token comes from Plex.
+// bindSelectedURL binds the Plex server the servers page posted.
+//
+// The page posts a selection key or a typed URL, never a token, and the token
+// comes from Plex.
 //
 // Parameters:
 //   - ctx: Request carrying the form values and the session token.

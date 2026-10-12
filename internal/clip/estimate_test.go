@@ -10,8 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestRemaining covers the estimate: the rate so far carried over the rest,
-// and no estimate before the encode has run long enough or after it is done.
+// TestRemaining covers the estimate.
+//
+// The rate so far is carried over the rest. There is no estimate before the
+// encode has run long enough or after it is done.
 func TestRemaining(t *testing.T) {
 	t.Parallel()
 

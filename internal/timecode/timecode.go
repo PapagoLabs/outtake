@@ -79,8 +79,10 @@ func (t Timecode) Duration() time.Duration {
 }
 
 // FormatSeconds renders the timestamp as a fixed-point decimal carrying exactly
-// three fractional digits. The value is rounded to the nearest millisecond,
-// matching [FFmpegClock.Format], and negative values render as zero.
+// three fractional digits.
+//
+// The value is rounded to the nearest millisecond, matching
+// [FFmpegClock.Format], and negative values render as zero.
 //
 // Returns:
 //   - text: A decimal string carrying exactly three fractional digits.
@@ -128,7 +130,9 @@ func (t Timecode) String() string {
 }
 
 // FormatSeconds renders seconds as a fixed-point decimal carrying exactly three
-// fractional digits. Negative or non-finite values render as zero.
+// fractional digits.
+//
+// Negative or non-finite values render as zero.
 //
 // Parameters:
 //   - seconds: Timestamp in seconds.

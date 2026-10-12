@@ -202,8 +202,10 @@ func TestMonitor_RefreshErrorLeavesCacheUnchanged(t *testing.T) {
 }
 
 // TestMonitorReportsARefusedTokenUntilAPollSucceeds covers a server that
-// rejects the bound token: the monitor says so, keeps one failure on record
-// rather than a new one each poll, and clears both once a poll works again.
+// rejects the bound token.
+//
+// The monitor says so and keeps one failure on record rather than a new one
+// each poll. It clears both once a poll works again.
 func TestMonitorReportsARefusedTokenUntilAPollSucceeds(t *testing.T) {
 	t.Parallel()
 

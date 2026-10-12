@@ -44,9 +44,11 @@ var privateHostSuffixes = []string{
 	".localdomain",
 }
 
-// HostGuard answers 421 Misdirected Request to a request whose Host header
-// names a host this installation does not serve. A DNS rebinding page reaches
-// a LAN server under its own host name, which this refuses.
+// HostGuard refuses a request for a host this installation does not serve.
+//
+// It answers 421 Misdirected Request to a request whose Host header names such
+// a host. A DNS rebinding page reaches a LAN server under its own host name,
+// which this refuses.
 //
 // IP literals, localhost, single-label names, and names under suffixes no
 // public DNS zone serves always pass, so LAN access needs no configuration.

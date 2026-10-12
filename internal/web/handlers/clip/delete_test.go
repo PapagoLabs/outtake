@@ -251,8 +251,9 @@ func storedDeleteJob(id, output string, status clipdom.Status) *clipdom.Job {
 	return job
 }
 
-// TestDeleteClipRemovesItsSDRVersion covers an HDR clip's delete: its SDR
-// version goes with its own file.
+// TestDeleteClipRemovesItsSDRVersion covers an HDR clip's delete.
+//
+// Its SDR version goes with its own file.
 func TestDeleteClipRemovesItsSDRVersion(t *testing.T) {
 	t.Parallel()
 

@@ -101,8 +101,10 @@ func TestPreviewRegistryRecordsFailure(t *testing.T) {
 }
 
 // TestPreviewRegistryDescribesAFailure covers the describer a service was
-// given: a failed preview shows its message and details, and the describer is
-// told which preview failed.
+// given.
+//
+// A failed preview shows its message and details, and the describer is told
+// which preview failed.
 func TestPreviewRegistryDescribesAFailure(t *testing.T) {
 	t.Parallel()
 
@@ -137,8 +139,10 @@ func TestPreviewRegistryDescribesAFailure(t *testing.T) {
 }
 
 // TestPreviewRegistryRecordsWhenARenderStarts covers the time a preview's
-// estimate is made from: none while it waits, and the moment it starts
-// rendering once it runs.
+// estimate is made from.
+//
+// There is none while the preview waits. Once it runs, it is the moment the
+// preview starts rendering.
 func TestPreviewRegistryRecordsWhenARenderStarts(t *testing.T) {
 	t.Parallel()
 

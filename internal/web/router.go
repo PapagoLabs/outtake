@@ -36,8 +36,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
-// Deps is every dependency the route table and its handlers are built from. The
-// composition root fills it in, so this package assembles the HTTP surface
+// Deps is every dependency the route table and its handlers are built from.
+//
+// The composition root fills it in, so this package assembles the HTTP surface
 // without knowing which backend sits behind any of it.
 type Deps struct {
 	// Cfg is the loaded application configuration.
@@ -87,8 +88,10 @@ const idleTimeout = 120 * time.Second
 // routeAPI is the prefix every JSON route sits under.
 const routeAPI = "/api"
 
-// routeHealth is the health check path inside the API group. Probes reach it
-// by IP address or service name, so the host guard lets it through.
+// routeHealth is the health check path inside the API group.
+//
+// Probes reach it by IP address or service name, so the host guard lets it
+// through.
 const routeHealth = "/healthz"
 
 // routeAssets is the path the static files are served under.

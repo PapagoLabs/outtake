@@ -10,9 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCheckHDRChoiceRefusesEitherField covers Keep HDR as a profile setting:
-// a request or an edit that sends preserveHdr or webSafeColor, with any
-// value, is refused, so a caller is never given a file it did not ask for.
+// TestCheckHDRChoiceRefusesEitherField covers Keep HDR as a profile setting.
+//
+// A request or an edit that sends preserveHdr or webSafeColor, with any value,
+// is refused, so a caller is never given a file it did not ask for.
 func TestCheckHDRChoiceRefusesEitherField(t *testing.T) {
 	t.Parallel()
 

@@ -10,8 +10,10 @@ import (
 )
 
 // TestSDRPathSitsBesideTheClipFile covers where a video clip's SDR version is
-// stored: beside the clip's MP4, and nowhere for a GIF, a screenshot, or a
-// clip with no output yet.
+// stored.
+//
+// It sits beside the clip's MP4. It is stored nowhere for a GIF, a screenshot,
+// or a clip with no output yet.
 func TestSDRPathSitsBesideTheClipFile(t *testing.T) {
 	t.Parallel()
 

@@ -34,8 +34,10 @@ type catalogFixture struct {
 // catalogBase is the instant every fixture clip is stamped from.
 var catalogBase = time.Date(2026, time.March, 1, 12, 0, 0, 0, time.UTC)
 
-// fixtures is a realistic catalog: two sources, three clip types, every status,
-// a clip that borrows its source's title, and creation and update times that tie.
+// fixtures returns a realistic catalog.
+//
+// It has two sources, three clip types, every status, a clip that borrows its
+// source's title, and creation and update times that tie.
 func fixtures() []catalogFixture {
 	return []catalogFixture{
 		{
@@ -485,8 +487,10 @@ func renamed(job *clip.Job, name string) clip.Edit {
 	}
 }
 
-// TestIntegration_UpdateChangesTheQueueAndTheDatabaseTogether covers the
-// stale reads an edit used to leave: both stores carry the edit at once.
+// TestIntegration_UpdateChangesTheQueueAndTheDatabaseTogether covers the reads
+// after an edit.
+//
+// Both stores carry the edit at once, so no read is stale.
 func TestIntegration_UpdateChangesTheQueueAndTheDatabaseTogether(t *testing.T) {
 	t.Parallel()
 
@@ -535,8 +539,10 @@ func TestIntegration_UpdateAdoptsAClipOnlyTheDatabaseHas(t *testing.T) {
 	require.ErrorIs(t, err, catalog.ErrClipNotFound)
 }
 
-// TestIntegration_ATypeChangeIsRenderedAgain covers a clip whose file no
-// longer matches its type: it is queued to render the new type's file.
+// TestIntegration_ATypeChangeIsRenderedAgain covers a clip whose type changes.
+//
+// Its file does not match the new type, so it is queued to render the new
+// type's file.
 func TestIntegration_ATypeChangeIsRenderedAgain(t *testing.T) {
 	t.Parallel()
 

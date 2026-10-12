@@ -7,8 +7,9 @@ import (
 	"time"
 )
 
-// Job is one render of a clip: the record, where the files are, and how far
-// the render has got.
+// Job is one render of a clip.
+//
+// It holds the record, where the files are, and how far the render has got.
 type Job struct {
 	Clip
 

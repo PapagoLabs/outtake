@@ -26,9 +26,11 @@ import (
 // of one render.
 const progressInterval = time.Second
 
-// staleRenderAge is how long a staging file has to go unwritten before the
-// startup sweep treats it as left by an interrupted render. ffmpeg writes its
-// output continuously, so a live render's file is never this old.
+// staleRenderAge is how long a staging file goes unwritten before it is stale.
+//
+// The startup sweep treats a staging file this old as left by an interrupted
+// render. ffmpeg writes its output continuously, so a live render's file is
+// never this old.
 const staleRenderAge = time.Hour
 
 // persistProgress returns the callback that records a render's progress.
@@ -67,6 +69,7 @@ func persistProgress(ctx context.Context, job *clip.Job, jobQueue *queue.Queue) 
 }
 
 // saveProgress records how far a render has got, if the job still wants it.
+//
 // The queue reports the change through its status callback, which persists it.
 //
 // Parameters:
@@ -150,8 +153,9 @@ func startQueue(
 	return jobQueue
 }
 
-// removeOtherOutputs deletes a rendered clip's files for every other type, so
-// a clip whose type changed does not keep the files it rendered before,
+// removeOtherOutputs deletes a rendered clip's files for every other type.
+//
+// A clip whose type changed does not keep the files it rendered before,
 // including a video clip's SDR version.
 //
 // Parameters:
@@ -194,10 +198,12 @@ func removeStaleOutput(store blob.Blob, id, stale string) {
 	}
 }
 
-// sweepRenders removes the staging files and GIF palettes an interrupted
-// render left in the output directories. It runs before this process starts a
-// worker, and it only removes files nothing has written for staleRenderAge, so
-// it spares a render another process sharing the storage path is running.
+// sweepRenders removes the staging files and GIF palettes an interrupted render
+// left in the output directories.
+//
+// It runs before this process starts a worker, and it only removes files
+// nothing has written for staleRenderAge, so it spares a render another process
+// sharing the storage path is running.
 //
 // Parameters:
 //   - paths: Output layout naming the directories renders write to.
@@ -239,9 +245,10 @@ func restoreBinding(cfg *config.Config, db *database.DB, bind *identity.Binding)
 	}
 }
 
-// restoreJobs reloads persisted clips into the in-memory queue. Unfinished
-// clips are submitted again oldest first, so they render in the order they
-// were made.
+// restoreJobs reloads persisted clips into the in-memory queue.
+//
+// Unfinished clips are submitted again oldest first, so they render in the
+// order they were made.
 //
 // Parameters:
 //   - ctx: The lifetime context the queue runs under.

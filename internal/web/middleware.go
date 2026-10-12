@@ -142,8 +142,10 @@ func csrfTrustedOrigins(cfg *config.Config) []string {
 	return []string{parsed.Scheme + "://" + parsed.Host}
 }
 
-// hostAllowlist returns the host names the host guard answers to beyond the
-// ones it always allows: the configured list and the public base URL's host.
+// hostAllowlist returns the extra host names the host guard answers to.
+//
+// These go beyond the ones it always allows. They are the configured list and
+// the public base URL's host.
 //
 // Parameters:
 //   - cfg: App config naming the allowed hosts and the public base URL.
@@ -204,10 +206,12 @@ func staticConfig() static.Config {
 	}
 }
 
-// assetCacheControl lets a browser keep an asset for good when the request
-// named its current contents, and makes it check back otherwise. Every asset
-// link the pages render carries that hash, so an upgrade changes the link and
-// the stale copy is never used.
+// assetCacheControl sets how long a browser may keep an asset.
+//
+// A browser keeps an asset for good when the request named its current
+// contents, and checks back otherwise. Every asset link the pages render
+// carries that hash, so an upgrade changes the link and the stale copy is never
+// used.
 //
 // Parameters:
 //   - ctx: Request context of a served asset.

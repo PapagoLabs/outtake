@@ -15,8 +15,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 )
 
-// generatedID matches the ids profiles are stored under: 32 lowercase hex
-// characters.
+// generatedID matches the ids profiles are stored under.
+//
+// Such an id is 32 lowercase hex characters.
 var generatedID = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
 // builtinIDs maps each stored profile's name to its id.
@@ -42,9 +43,11 @@ func builtinIDs(t *testing.T, db *DB) map[string]string {
 	return ids
 }
 
-// TestClipProfilesSeeded covers a fresh database's built-ins: four profiles
-// named after what they produce, under generated ids, with 1080p the default
-// and only 4K HDR keeping HDR. 1080p matches the in-code default preset.
+// TestClipProfilesSeeded covers a fresh database's built-ins.
+//
+// There are four profiles named after what they produce, under generated ids.
+// 1080p is the default, and only 4K HDR keeps HDR. 1080p matches the in-code
+// default preset.
 func TestClipProfilesSeeded(t *testing.T) {
 	t.Parallel()
 
@@ -166,9 +169,10 @@ func TestDeleteDefaultPromotesAnother(t *testing.T) {
 	assert.NotEqual(t, ids["1080p"], def.ID)
 }
 
-// TestSaveClipProfileRefusesADuplicateName covers the unique name: saving a
-// second profile under a name another profile has is refused with
-// ErrDuplicateClipProfileName, read from the driver's constraint code, and the
+// TestSaveClipProfileRefusesADuplicateName covers the unique profile name.
+//
+// Saving a second profile under a name another profile has is refused with
+// ErrDuplicateClipProfileName, read from the driver's constraint code. The
 // first profile stays as it was.
 func TestSaveClipProfileRefusesADuplicateName(t *testing.T) {
 	t.Parallel()
@@ -201,9 +205,11 @@ func TestSaveClipProfileRefusesADuplicateName(t *testing.T) {
 	require.ErrorIs(t, err, ErrClipProfileNotFound)
 }
 
-// TestIsUniqueViolationNeedsADriverCode covers the check itself: an error
-// without a driver's constraint code, such as a libsql one, is not read as a
-// duplicate.
+// TestIsUniqueViolationNeedsADriverCode covers the unique violation check
+// itself.
+//
+// An error without a driver's constraint code, such as a libsql one, is not
+// read as a duplicate.
 func TestIsUniqueViolationNeedsADriverCode(t *testing.T) {
 	t.Parallel()
 

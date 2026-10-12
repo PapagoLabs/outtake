@@ -146,9 +146,11 @@ func TestProfileName(t *testing.T) {
 	assert.Empty(t, ProfileName("", nil))
 }
 
-// TestResolveProfile covers the profile a new clip carries: the stored
-// default for an unnamed quality, a stored profile as it stands, and a refusal
-// for any other id, including an old built-in id no profile carries now.
+// TestResolveProfile covers the profile a new clip carries.
+//
+// An unnamed quality gets the stored default, and a stored profile is used as
+// it stands. Any other id is refused, including an old built-in id no profile
+// carries now.
 func TestResolveProfile(t *testing.T) {
 	t.Parallel()
 

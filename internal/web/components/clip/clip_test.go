@@ -453,8 +453,9 @@ func TestListToolbar(t *testing.T) {
 }
 
 // TestClipCardPostsBackSettingsItDoesNotShow covers a card rendered without
-// probed audio tracks: saving it must keep the stored track rather than reset
-// it.
+// probed audio tracks.
+//
+// Saving it must keep the stored track rather than reset it.
 func TestClipCardPostsBackSettingsItDoesNotShow(t *testing.T) {
 	t.Parallel()
 
@@ -476,9 +477,10 @@ func TestClipCardPostsBackSettingsItDoesNotShow(t *testing.T) {
 	assert.NotContains(t, buf.String(), `type="hidden" name="audioIndex"`, "the select posts the track")
 }
 
-// TestClipCardOffersNoHDRChoice covers Keep HDR as a profile setting: a card
-// for an HDR clip that keeps HDR, or one that converts, posts no HDR field of
-// any kind, so a save never chooses for the profile.
+// TestClipCardOffersNoHDRChoice covers Keep HDR as a profile setting.
+//
+// A card for an HDR clip that keeps HDR, or one that converts, posts no HDR
+// field of any kind, so a save never chooses for the profile.
 func TestClipCardOffersNoHDRChoice(t *testing.T) {
 	t.Parallel()
 
@@ -499,8 +501,9 @@ func TestClipCardOffersNoHDRChoice(t *testing.T) {
 	}
 }
 
-// TestClipStatusVersionsTheFileURLByRender covers a clip rendered again:
-// the card swapped in afterwards names a new file URL, so the browser loads
+// TestClipStatusVersionsTheFileURLByRender covers a clip rendered again.
+//
+// The card swapped in afterwards names a new file URL, so the browser loads
 // the new render instead of the media it kept for the old URL.
 func TestClipStatusVersionsTheFileURLByRender(t *testing.T) {
 	t.Parallel()
@@ -526,8 +529,9 @@ func TestClipStatusVersionsTheFileURLByRender(t *testing.T) {
 	assert.Contains(t, second, `src="/clips/c1/file?v=2000"`)
 }
 
-// TestClipCardMarksItsPlayerForPlaybackErrors covers the clip card's player:
-// the page script finds it by its marker to explain a clip the browser cannot
+// TestClipCardMarksItsPlayerForPlaybackErrors covers the clip card's player.
+//
+// The page script finds it by its marker to explain a clip the browser cannot
 // decode.
 func TestClipCardMarksItsPlayerForPlaybackErrors(t *testing.T) {
 	t.Parallel()
@@ -543,8 +547,10 @@ func TestClipCardMarksItsPlayerForPlaybackErrors(t *testing.T) {
 	assert.Contains(t, buf.String(), "data-clip-video")
 }
 
-// TestClipStatusShowsAFailuresDetails covers a failed clip's card: the plain
-// message, and a collapsed Details section with the report when there is one.
+// TestClipStatusShowsAFailuresDetails covers a failed clip's card.
+//
+// The card shows the plain message, and a collapsed Details section with the
+// report when there is one.
 func TestClipStatusShowsAFailuresDetails(t *testing.T) {
 	t.Parallel()
 
@@ -596,8 +602,9 @@ func TestClipStatusAnimatesItsProgressBar(t *testing.T) {
 	assert.Contains(t, body.String(), "40%", "the label stays a whole percent")
 }
 
-// TestClipStatusShowsTheTimeLeft covers a rendering clip's progress bar: it
-// names the time left once there is an estimate, and nothing before.
+// TestClipStatusShowsTheTimeLeft covers a rendering clip's progress bar.
+//
+// The bar names the time left once there is an estimate, and nothing before.
 func TestClipStatusShowsTheTimeLeft(t *testing.T) {
 	t.Parallel()
 
@@ -617,9 +624,11 @@ func TestClipStatusShowsTheTimeLeft(t *testing.T) {
 	assert.NotContains(t, render(""), "data-render-remaining", "no estimate shows nothing")
 }
 
-// TestClipStatusShowsBothEncodesDuringTheSDRVersion covers the progress of a
-// clip rendering its SDR version: one bar shows the clip done and another the
-// SDR version's progress, while a render in its first encode shows one bar.
+// TestClipStatusShowsBothEncodesDuringTheSDRVersion covers a clip rendering
+// its SDR version.
+//
+// One bar shows the clip done and another the SDR version's progress. A render
+// in its first encode shows one bar.
 func TestClipStatusShowsBothEncodesDuringTheSDRVersion(t *testing.T) {
 	t.Parallel()
 
@@ -646,10 +655,11 @@ func TestClipStatusShowsBothEncodesDuringTheSDRVersion(t *testing.T) {
 	assert.NotContains(t, first, "Preview:")
 }
 
-// TestClipStatusNamesWhatThePlayerPlays covers the format badges: a clip with
-// an SDR version shows its badge and hides the HDR file's for the script to
-// swap, a clip without one names its own file, and a clip whose file was never
-// read shows none.
+// TestClipStatusNamesWhatThePlayerPlays covers the format badges.
+//
+// A clip with an SDR version shows its badge and hides the HDR file's for the
+// script to swap. A clip without one names its own file, and a clip whose file
+// was never read shows none.
 func TestClipStatusNamesWhatThePlayerPlays(t *testing.T) {
 	t.Parallel()
 

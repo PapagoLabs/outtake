@@ -183,9 +183,10 @@ func profileForm(overrides url.Values) url.Values {
 	return values
 }
 
-// createProfile stores a profile under the given name and returns its id. The
-// service refuses to remove the last profile, so specs leave the ones they make
-// in place rather than trying to empty the table again.
+// createProfile stores a profile under the given name and returns its id.
+//
+// The service refuses to remove the last profile, so specs leave the ones they
+// make in place rather than trying to empty the table again.
 func createProfile(ctx SpecContext, name string) string {
 	GinkgoHelper()
 

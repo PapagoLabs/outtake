@@ -166,8 +166,10 @@ func plexIdentity(
 }
 
 // resolveClientID returns the Plex client identifier this installation
-// presents. A configured id wins. Otherwise the first start generates one and
-// keeps it, so Plex sees the same device across restarts.
+// presents.
+//
+// A configured id wins. Otherwise the first start generates one and keeps it,
+// so Plex sees the same device across restarts.
 //
 // Parameters:
 //   - ctx: Lifetime context for the read and the write.

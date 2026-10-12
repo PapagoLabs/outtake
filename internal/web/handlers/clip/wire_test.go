@@ -357,8 +357,10 @@ func TestParseClipRequestKeepsMillisecondPrecisionThroughTheEdit(t *testing.T) {
 }
 
 // TestParseClipRequestTakesNoKeepHDRFromAForm covers Keep HDR as a profile
-// setting: a form that still posts the old checkbox, checked or not, chooses
-// nothing, and the clip takes its profile's setting.
+// setting.
+//
+// A form that still posts the old checkbox, checked or not, chooses nothing,
+// and the clip takes its profile's setting.
 func TestParseClipRequestTakesNoKeepHDRFromAForm(t *testing.T) {
 	t.Parallel()
 
@@ -373,9 +375,11 @@ func TestParseClipRequestTakesNoKeepHDRFromAForm(t *testing.T) {
 	}
 }
 
-// TestParseClipRequestRefusesAKeepHDRChoiceFromAnAPIClient covers a JSON
-// caller that still chooses HDR: it is refused rather than given the
-// profile's file in silence, whichever field and value it sends.
+// TestParseClipRequestRefusesAKeepHDRChoiceFromAnAPIClient covers a JSON caller
+// that still chooses HDR.
+//
+// It is refused rather than given the profile's file in silence, whichever
+// field and value it sends.
 func TestParseClipRequestRefusesAKeepHDRChoiceFromAnAPIClient(t *testing.T) {
 	t.Parallel()
 

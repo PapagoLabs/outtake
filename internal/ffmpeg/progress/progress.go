@@ -16,9 +16,10 @@ import (
 // key is the context key for a progress callback.
 type key struct{}
 
-// Writer parses ffmpeg stderr and reports percent complete. It keeps only the
-// tail of what it was written, for error logs, and parses each write once, so a
-// long encode costs the same per write as a short one.
+// Writer parses ffmpeg stderr and reports percent complete.
+//
+// It keeps only the tail of what it was written, for error logs, and parses
+// each write once, so a long encode costs the same per write as a short one.
 type Writer struct {
 	// duration is the clip length percent is computed against.
 	duration time.Duration
@@ -205,9 +206,11 @@ func (writer *Writer) percent(lines []byte) (float64, bool) {
 	return min(max(percent, 0), maxReportedPercent), true
 }
 
-// report parses the lines a chunk completes and publishes a changed percent.
-// ffmpeg ends a progress line with a carriage return and other lines with a
-// newline, so either one completes a line.
+// report parses the lines a chunk completes.
+//
+// It publishes the percent when it changes. ffmpeg ends a progress line with a
+// carriage return and other lines with a newline, so either one completes a
+// line.
 //
 // Parameters:
 //   - chunk: Chunk of ffmpeg standard error.

@@ -14,7 +14,6 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/theme"
 )
 
-// "/settings/appearance" is the route the appearance page is served on.
 // getAppearance serves one appearance page request.
 //
 // Parameters:

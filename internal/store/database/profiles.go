@@ -179,9 +179,10 @@ func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 	return profiles, nil
 }
 
-// DefaultClipProfile returns the profile marked default. A profile is always
-// marked while any is stored, because the last profile cannot be deleted and
-// a delete assigns a new default.
+// DefaultClipProfile returns the profile marked default.
+//
+// A profile is always marked while any is stored, because the last profile
+// cannot be deleted and a delete assigns a new default.
 //
 // Parameters:
 //   - ctx: Request scope for the read.

@@ -171,11 +171,13 @@ func processJob(
 	return nil
 }
 
-// renderSDRVersion renders the SDR version a video clip that keeps HDR from an
-// HDR source plays on a screen or in a browser that cannot show its file. Any
-// other video clip has no SDR version, so one left by an earlier render is
-// removed. A failed SDR version is logged and removed, and the clip still
-// completes, unless the job was stopped, which the queue settles itself.
+// renderSDRVersion renders the SDR version of a video clip that keeps HDR.
+//
+// The SDR version is what a screen or a browser that cannot show the clip's
+// file plays. Only a clip that keeps HDR from an HDR source has one. Any other
+// video clip has no SDR version, so one left by an earlier render is removed. A
+// failed SDR version is logged and removed, and the clip still completes,
+// unless the job was stopped, which the queue settles itself.
 //
 // Parameters:
 //   - ctx: The job context.
@@ -270,10 +272,12 @@ func fileFormat(ctx context.Context, runner *ffmpeg.ExecFFmpeg, path string) cli
 	}
 }
 
-// needsSDRVersion reports whether a video clip needs an SDR version: it keeps
-// HDR and its source is HDR. A probe cut short by a stopped job reads as an
-// SDR source, so the stop is reported rather than taken for a clip that needs
-// no SDR version, which would remove the one it has.
+// needsSDRVersion reports whether a video clip needs an SDR version.
+//
+// A clip needs one when it keeps HDR and its source is HDR. A probe cut short
+// by a stopped job reads as an SDR source, so the stop is reported rather than
+// taken for a clip that needs no SDR version, which would remove the one it
+// has.
 //
 // Parameters:
 //   - ctx: The job context.
@@ -299,8 +303,10 @@ func needsSDRVersion(ctx context.Context, job *clip.Job, runner *ffmpeg.ExecFFmp
 	return false, nil
 }
 
-// sdrPreset is how an SDR version is encoded: H.264 tone mapped to SDR, no
-// wider than the maximum preview width, with the clip's own audio bitrate.
+// sdrPreset returns the settings an SDR version is encoded with.
+//
+// The SDR version is H.264 tone mapped to SDR, no wider than the maximum
+// preview width, with the clip's own audio bitrate.
 //
 // Parameters:
 //   - clipPreset: The clip's own encode settings.
@@ -350,9 +356,10 @@ func removeSDRVersion(store blob.Blob, id, output string) {
 	}
 }
 
-// checkSource opens a job's source and closes it again, so a file that is
-// missing or that Outtake may not read is reported before FFmpeg runs. A file
-// FFmpeg cannot decode is left to the render.
+// checkSource opens a job's source and closes it again.
+//
+// A file that is missing or that Outtake may not read is reported before FFmpeg
+// runs. A file FFmpeg cannot decode is left to the render.
 //
 // Parameters:
 //   - path: The source media path.

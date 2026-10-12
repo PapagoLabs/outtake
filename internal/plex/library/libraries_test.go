@@ -122,8 +122,11 @@ func librariesClient() *plex.Client {
 	})
 }
 
-// TestLibraryCacheAsksPlexOncePerServer covers several pages asking for the
-// same server's libraries within the cache window: Plex answers once.
+// TestLibraryCacheAsksPlexOncePerServer covers repeated asks for one server's
+// libraries.
+//
+// Several pages ask for the same server's libraries within the cache window,
+// and Plex answers once.
 func TestLibraryCacheAsksPlexOncePerServer(t *testing.T) {
 	t.Parallel()
 
@@ -141,8 +144,9 @@ func TestLibraryCacheAsksPlexOncePerServer(t *testing.T) {
 	assert.Equal(t, int32(1), pms.calls.Load())
 }
 
-// TestLibraryCacheKeepsServersApart covers two servers sharing one cache:
-// each is asked for its own list.
+// TestLibraryCacheKeepsServersApart covers two servers sharing one cache.
+//
+// Each is asked for its own list.
 func TestLibraryCacheKeepsServersApart(t *testing.T) {
 	t.Parallel()
 
@@ -161,8 +165,9 @@ func TestLibraryCacheKeepsServersApart(t *testing.T) {
 	assert.Equal(t, int32(1), second.calls.Load())
 }
 
-// TestLibraryCacheDoesNotKeepAFailure covers a failed request: the next page
-// asks Plex again rather than reading the failure back.
+// TestLibraryCacheDoesNotKeepAFailure covers a failed request.
+//
+// The next page asks Plex again rather than reading the failure back.
 func TestLibraryCacheDoesNotKeepAFailure(t *testing.T) {
 	t.Parallel()
 
@@ -185,7 +190,9 @@ func TestLibraryCacheDoesNotKeepAFailure(t *testing.T) {
 }
 
 // TestLibraryCacheAsksAgainOnceTheListExpires covers an entry older than
-// libraryTTL: it is fetched again, and expired entries are dropped.
+// libraryTTL.
+//
+// It is fetched again, and expired entries are dropped.
 func TestLibraryCacheAsksAgainOnceTheListExpires(t *testing.T) {
 	t.Parallel()
 
@@ -216,7 +223,9 @@ func TestLibraryCacheAsksAgainOnceTheListExpires(t *testing.T) {
 }
 
 // TestLibraryCacheHandsOutCopies covers a caller changing the list it was
-// given: the cached list is untouched.
+// given.
+//
+// The cached list is untouched.
 func TestLibraryCacheHandsOutCopies(t *testing.T) {
 	t.Parallel()
 
@@ -235,9 +244,11 @@ func TestLibraryCacheHandsOutCopies(t *testing.T) {
 	assert.Equal(t, "Movies", second[0].Title)
 }
 
-// TestLibraryCacheSharesOneRequestBetweenConcurrentMisses covers the sidebar
-// and a browse fragment missing together: Plex is asked once and every caller
-// gets the list.
+// TestLibraryCacheSharesOneRequestBetweenConcurrentMisses covers concurrent
+// misses.
+//
+// The sidebar and a browse fragment miss together. Plex is asked once and every
+// caller gets the list.
 func TestLibraryCacheSharesOneRequestBetweenConcurrentMisses(t *testing.T) {
 	t.Parallel()
 
@@ -283,9 +294,11 @@ func TestLibraryCacheSharesOneRequestBetweenConcurrentMisses(t *testing.T) {
 	assert.Equal(t, int32(1), pms.calls.Load())
 }
 
-// TestLibraryCacheStopsWaitingWhenTheCallerLeaves covers a caller whose
-// request ends while Plex is still answering: it returns at once, and the
-// shared request still fills the cache for the next caller.
+// TestLibraryCacheStopsWaitingWhenTheCallerLeaves covers a caller that leaves
+// early.
+//
+// The caller's request ends while Plex is still answering. It returns at once,
+// and the shared request still fills the cache for the next caller.
 func TestLibraryCacheStopsWaitingWhenTheCallerLeaves(t *testing.T) {
 	t.Parallel()
 
@@ -322,7 +335,9 @@ func TestLibraryCacheStopsWaitingWhenTheCallerLeaves(t *testing.T) {
 }
 
 // TestLibraryCacheKeepsTheNewerList covers a slow request finishing after a
-// newer one: the older list does not replace the newer.
+// newer one.
+//
+// The older list does not replace the newer.
 func TestLibraryCacheKeepsTheNewerList(t *testing.T) {
 	t.Parallel()
 

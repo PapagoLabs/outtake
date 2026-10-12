@@ -26,9 +26,11 @@ type queueEdit func(
 // database has.
 var ErrClipNotFound = errors.New("clip not found")
 
-// Update applies a validated edit to a clip and saves it. The queue and the
-// database change together, so every read sees the edit at once. A clip whose
-// type changed is queued again, so its file matches its type.
+// Update applies a validated edit to a clip and saves it.
+//
+// The queue and the database change together, so every read sees the edit at
+// once. A clip whose type changed is queued again, so its file matches its
+// type.
 //
 // Parameters:
 //   - ctx: Request context.

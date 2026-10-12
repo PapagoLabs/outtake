@@ -65,8 +65,9 @@ func sweepSessions(ctx context.Context, sessions sessionSweeper, interval time.D
 	}
 }
 
-// sweepOnce deletes expired sessions and logs the outcome. A failure caused by
-// ctx ending is not logged.
+// sweepOnce deletes expired sessions and logs the outcome.
+//
+// A failure caused by ctx ending is not logged.
 //
 // Parameters:
 //   - ctx: Lifetime context the sweep runs under.

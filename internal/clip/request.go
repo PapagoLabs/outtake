@@ -8,8 +8,10 @@ import (
 	"time"
 )
 
-// Request is the export a caller asked for: the window, the profile, and the
-// flags that shape the file. JSON names are the wire form of the same value.
+// Request is the export a caller asked for.
+//
+// It holds the window, the profile, and the flags that shape the file. JSON
+// names are the wire form of the same value.
 type Request struct {
 	Name          string  `json:"name"`
 	MediaID       string  `json:"mediaId"       validate:"required"`
@@ -31,8 +33,10 @@ type Request struct {
 	WebSafeColor *bool `json:"webSafeColor"`
 }
 
-// Response is a clip as a caller reads it back. Input and output paths are
-// left empty by the catalog mapping that fills this from a stored clip.
+// Response is a clip as a caller reads it back.
+//
+// Input and output paths are left empty by the catalog mapping that fills this
+// from a stored clip.
 type Response struct {
 	ID            string    `json:"id"`
 	Name          string    `json:"name,omitempty"`
@@ -54,6 +58,7 @@ type Response struct {
 }
 
 // ErrHDRIsAProfileSetting refuses a request that chooses Keep HDR itself.
+//
 // A clip keeps HDR when its profile does, so a caller chooses a profile.
 var ErrHDRIsAProfileSetting = errors.New(
 	"keep HDR is a clip profile setting: choose a profile that keeps HDR, such as 4K HDR, " +

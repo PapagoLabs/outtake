@@ -330,8 +330,9 @@ func storedOnlyRemotely(t *testing.T) (*Handler, *storagemocks.MockBlob, string)
 	return handler, store, output
 }
 
-// TestClipFileFetchesAFileOnlyTheStoreHolds covers inline playback on S3: the
-// file is fetched to local disk and streamed.
+// TestClipFileFetchesAFileOnlyTheStoreHolds covers inline playback on S3.
+//
+// The file is fetched to local disk and streamed.
 func TestClipFileFetchesAFileOnlyTheStoreHolds(t *testing.T) {
 	t.Parallel()
 
@@ -358,8 +359,10 @@ func TestClipFileRejectsAFileTheStoreCannotFetch(t *testing.T) {
 	assert.Equal(t, fiber.StatusNotFound, getClips(t, handler, "/clips/remote/file", "").status)
 }
 
-// TestClipsAsksTheStoreWhetherAFileExists covers the card badge on S3: a file
-// the store holds is not reported missing, and nothing is downloaded to say so.
+// TestClipsAsksTheStoreWhetherAFileExists covers the card badge on S3.
+//
+// A file the store holds is not reported missing, and nothing is downloaded to
+// say so.
 func TestClipsAsksTheStoreWhetherAFileExists(t *testing.T) {
 	t.Parallel()
 
@@ -373,8 +376,10 @@ func TestClipsAsksTheStoreWhetherAFileExists(t *testing.T) {
 	assert.NotContains(t, answer.body, "Missing file")
 }
 
-// TestClipsOffersNoHDRChoice covers the clips page: Keep HDR is the profile's,
-// so no card offers it, whether its source is SDR or HDR.
+// TestClipsOffersNoHDRChoice covers the clips page.
+//
+// Keep HDR is the profile's, so no card offers it, whether its source is SDR or
+// HDR.
 func TestClipsOffersNoHDRChoice(t *testing.T) {
 	t.Parallel()
 
@@ -431,8 +436,10 @@ func TestClipSDRFileStreamsTheSDRVersion(t *testing.T) {
 	assertBodyContains(t, answer.body, "sdr version", "the SDR version's bytes are sent")
 }
 
-// TestClipSDRFileRefusesAClipWithNone covers a clip with no SDR version: one
-// that converts to SDR, and an HDR clip rendered before SDR versions existed.
+// TestClipSDRFileRefusesAClipWithNone covers a clip with no SDR version.
+//
+// It covers one that converts to SDR, and an HDR clip rendered before SDR
+// versions existed.
 func TestClipSDRFileRefusesAClipWithNone(t *testing.T) {
 	t.Parallel()
 
@@ -449,9 +456,10 @@ func TestClipSDRFileRefusesAClipWithNone(t *testing.T) {
 	assert.Equal(t, fiber.StatusNotFound, getClips(t, handler, "/clips/converted/sdr", "").status)
 }
 
-// TestClipsPlaysTheSDRVersionFirst covers the card of an HDR clip: it starts
-// on the SDR version and names the HDR file for the page script, and a clip
-// with no SDR version is marked so the script can say so.
+// TestClipsPlaysTheSDRVersionFirst covers the card of an HDR clip.
+//
+// It starts on the SDR version and names the HDR file for the page script. A
+// clip with no SDR version is marked so the script can say so.
 func TestClipsPlaysTheSDRVersionFirst(t *testing.T) {
 	t.Parallel()
 

@@ -43,6 +43,8 @@ func (writer *failingAfterWriter) Write(data []byte) (int, error) {
 	return 0, errFailedWrite
 }
 
+// TestTwMergeResolvesConflicts covers which classes win a TwMerge conflict.
+//
 // The merge builds its result from a map, so the order of the classes it keeps
 // is not stable between runs. Every assertion here is about which classes
 // survive, never about the order they come back in.
@@ -129,6 +131,8 @@ func TestComponentScriptRendersTheMinifiedFile(t *testing.T) {
 		"a request with no nonce carries no nonce attribute")
 }
 
+// TestComponentScriptRendersTheUnminifiedFile covers the unminified switch.
+//
 // The flag this test flips is package state that every other ComponentScript
 // test reads, so the test cannot run beside them.
 //

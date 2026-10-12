@@ -122,8 +122,10 @@ func parseJSONRequest(ctx fiber.Ctx) (api.ClipRequest, error) {
 	return req, nil
 }
 
-// checkMarks refuses marks a JSON caller sent below zero. Converting one to a
-// duration reads it as zero, which would quietly move the clip.
+// checkMarks refuses marks a JSON caller sent below zero.
+//
+// Converting one to a duration reads it as zero, which would quietly move the
+// clip.
 //
 // Parameters:
 //   - start: Start mark in seconds.

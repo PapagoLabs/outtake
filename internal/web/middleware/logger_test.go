@@ -21,8 +21,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
-// logSink is the writer the package-level logger records into. A mutex keeps the
-// buffer safe while the tests that share it run in parallel.
+// logSink is the writer the package-level logger records into.
+//
+// A mutex keeps the buffer safe while the tests that share it run in parallel.
 type logSink struct {
 	mu   sync.Mutex
 	held bytes.Buffer

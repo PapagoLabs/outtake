@@ -364,9 +364,11 @@ func cropBlackBarsColumn(record *clip.Clip) int {
 	return 0
 }
 
-// webSafeColorColumn stores the inverse of the keep-HDR setting in the
-// web_safe_color column, which nothing reads. It keeps the column consistent
-// for a build from before preserve_hdr decided tone mapping.
+// webSafeColorColumn returns the web_safe_color value stored for a clip.
+//
+// The value is the inverse of the keep-HDR setting, and nothing reads the
+// column. It keeps the column consistent for a build from before preserve_hdr
+// decided tone mapping.
 //
 // Parameters:
 //   - record: Clip whose HDR setting is stored.

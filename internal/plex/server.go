@@ -538,6 +538,7 @@ func serversFromDevices(devices []plextv.Device) []Server {
 }
 
 // providesServer reports whether a device role list includes a media server.
+//
 // A device that reports no roles is kept, because nothing says it is not one.
 //
 // Parameters:

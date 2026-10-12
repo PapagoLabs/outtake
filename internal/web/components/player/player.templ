@@ -20,18 +20,22 @@ type BadgeProps struct {
 	Attributes templ.Attributes
 }
 
-// Frame wraps a player so a Badge can sit in its top-left corner, over the
-// picture, taking no room of its own. A script that puts a note beside the
-// player puts it beside the frame, so the badge stays over the picture.
+// Frame wraps a player to hold a Badge over its picture.
+//
+// The badge sits in the player's top-left corner, over the picture, taking no
+// room of its own. A script that puts a note beside the player puts it beside
+// the frame, so the badge stays over the picture.
 templ Frame() {
 	<div class="relative" data-player-frame>
 		{ children... }
 	</div>
 }
 
-// Badge names what the player in a Frame plays. It is hidden with the hidden
-// attribute, which the stylesheet honors whatever else the badge is, and it
-// ignores the pointer so the player under it still takes clicks.
+// Badge names what the player in a Frame plays.
+//
+// It is hidden with the hidden attribute, which the stylesheet honors whatever
+// else the badge is, and it ignores the pointer so the player under it still
+// takes clicks.
 //
 // Parameters:
 //   - props: The badge's label, file, and visibility.

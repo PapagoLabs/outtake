@@ -146,7 +146,9 @@ func ClipDownloadPath(clipID string) string {
 	return fmt.Sprintf(clipDownloadFormat, clipID)
 }
 
-// New returns an unwired harness for one suite package. BeforeSuite fills it in.
+// New returns an unwired harness for one suite package.
+//
+// BeforeSuite fills it in.
 func New() *App {
 	return &App{}
 }
@@ -241,9 +243,10 @@ func (harness *App) SkipWithoutPlex() {
 	ginkgo.Skip(harness.PlexReason)
 }
 
-// config builds the configuration the application under test is wired from. The
-// listen address comes from the reserved listener, so the configuration and the
-// advertised base URL are the same value by construction.
+// config builds the configuration the application under test is wired from.
+//
+// The listen address comes from the reserved listener, so the configuration and
+// the advertised base URL are the same value by construction.
 func (harness *App) config() *config.Config {
 	return &config.Config{
 		ListenAddr:            harness.Listener.Addr().String(),
@@ -281,8 +284,10 @@ func (harness *App) reserve() {
 }
 
 // resolvePlex records whether usable Plex credentials were supplied and builds
-// the server they name. Missing credentials are not an error: they only mean
-// the Plex-dependent specs skip.
+// the server they name.
+//
+// Missing credentials are not an error: they only mean the Plex-dependent specs
+// skip.
 func (harness *App) resolvePlex() {
 	ginkgo.GinkgoHelper()
 

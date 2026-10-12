@@ -391,8 +391,10 @@ func videoEncodeArgs(req *videoEncodeRequest) []string {
 	return append(args, "-movflags", movFlags(req), req.output)
 }
 
-// codecArgs selects the video encoder and its quality. HEVC is encoded as
-// 10-bit Main 10 in an hvc1 track, at the x264 CRF plus hevcCRFOffset.
+// codecArgs selects the video encoder and its quality.
+//
+// HEVC is encoded as 10-bit Main 10 in an hvc1 track, at the x264 CRF plus
+// hevcCRFOffset.
 //
 // Parameters:
 //   - encoder: The planned encoder, empty for H.264.

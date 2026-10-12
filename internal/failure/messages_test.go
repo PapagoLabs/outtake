@@ -38,9 +38,11 @@ var (
 )
 
 // TestMessageForNamesEachFailure covers the plain message for each failure a
-// user can hit, as the wording review lists them, reached through the chain
-// a handler wraps it in, and whether it refuses the user's input, which
-// keeps details off it.
+// user can hit.
+//
+// The failures are the ones the wording review lists, reached through the chain
+// a handler wraps them in. It also covers whether each one refuses the user's
+// input, which keeps details off it.
 func TestMessageForNamesEachFailure(t *testing.T) {
 	t.Parallel()
 

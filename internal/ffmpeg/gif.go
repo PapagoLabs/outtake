@@ -12,7 +12,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
 
-// gifFrames is what a GIF renders: its window, size, rate, crop, and color.
+// gifFrames holds the settings one GIF renders with.
 type gifFrames struct {
 	// start is the seek offset into the source.
 	start time.Duration

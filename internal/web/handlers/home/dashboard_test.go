@@ -189,7 +189,9 @@ func TestDashboardSessionsNeedsNoServerBound(t *testing.T) {
 }
 
 // TestDashboardSessionsExplainsARefusedToken covers the live sessions panel
-// while the bound server refuses its token: it says why no sessions show.
+// while the bound server refuses its token.
+//
+// The panel says why no sessions show.
 func TestDashboardSessionsExplainsARefusedToken(t *testing.T) {
 	t.Parallel()
 

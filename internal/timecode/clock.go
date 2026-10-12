@@ -58,7 +58,9 @@ func (FFmpegClock) Format(duration time.Duration) string {
 	return fmt.Sprintf("%02d:%02d:%02d.%03d", hours, minutes, seconds, millis)
 }
 
-// Parse accepts FFmpeg time durations: [-][HH:]MM:SS[.m...], [-]S+[.m...][s|ms|us].
+// Parse reads an FFmpeg time duration.
+//
+// It accepts the forms [-][HH:]MM:SS[.m...] and [-]S+[.m...][s|ms|us].
 //
 // Parameters:
 //   - value: An FFmpeg time-duration string.

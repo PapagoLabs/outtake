@@ -554,8 +554,9 @@ func workerTestConfig(t *testing.T) *config.Config {
 	return cfg
 }
 
-// TestSweepRendersClearsEveryOutputDirectory covers the startup sweep: each
-// directory a render writes to loses its leftovers and keeps its outputs.
+// TestSweepRendersClearsEveryOutputDirectory covers the startup sweep.
+//
+// Each directory a render writes to loses its leftovers and keeps its outputs.
 func TestSweepRendersClearsEveryOutputDirectory(t *testing.T) {
 	t.Parallel()
 
@@ -589,8 +590,9 @@ func TestSweepRendersClearsEveryOutputDirectory(t *testing.T) {
 	}
 }
 
-// TestPersistProgressRecordsAtMostOnceASecond covers the progress throttle: the
-// first change is recorded at once, later ones only a second apart.
+// TestPersistProgressRecordsAtMostOnceASecond covers the progress throttle.
+//
+// The first change is recorded at once, and later ones only a second apart.
 func TestPersistProgressRecordsAtMostOnceASecond(t *testing.T) {
 	t.Parallel()
 
@@ -623,8 +625,10 @@ func TestPersistProgressRecordsAtMostOnceASecond(t *testing.T) {
 }
 
 // TestRemoveOtherOutputsRemovesAnOldSDRVersion covers a video clip that became
-// a GIF: its old MP4 and the SDR version beside it both go, along with the
-// screenshot file.
+// a GIF.
+//
+// Its old MP4 and the SDR version beside it both go, along with the screenshot
+// file.
 func TestRemoveOtherOutputsRemovesAnOldSDRVersion(t *testing.T) {
 	t.Parallel()
 

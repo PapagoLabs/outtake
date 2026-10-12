@@ -18,9 +18,11 @@ const (
 	percentDone = 100
 )
 
-// Remaining estimates how long an encode has left, assuming it keeps the
-// rate it has had since it started. There is no estimate until the encode
-// has run long enough for the rate to mean something, or once it is done.
+// Remaining estimates how long an encode has left.
+//
+// It assumes the encode keeps the rate it has had since it started. There is no
+// estimate until the encode has run long enough for the rate to mean something,
+// or once it is done.
 //
 // Parameters:
 //   - started: When the encode began, zero when it has not.

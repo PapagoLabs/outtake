@@ -14,8 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestFrameWrapsThePlayer covers the frame: it marks itself for the scripts
-// and holds whatever is rendered into it.
+// TestFrameWrapsThePlayer covers the frame.
+//
+// It marks itself for the scripts and holds whatever is rendered into it.
 func TestFrameWrapsThePlayer(t *testing.T) {
 	t.Parallel()
 
@@ -32,9 +33,10 @@ func TestFrameWrapsThePlayer(t *testing.T) {
 	assert.Equal(t, `<div class="relative" data-player-frame><video></video></div>`, body.String())
 }
 
-// TestBadgeNamesWhatThePlayerPlays covers the badge: its label, the file it
-// names for the scripts, and the hidden attribute a script clears, with any
-// id and attributes a page adds.
+// TestBadgeNamesWhatThePlayerPlays covers the badge.
+//
+// The badge carries its label, the file it names for the scripts, and the
+// hidden attribute a script clears, with any id and attributes a page adds.
 func TestBadgeNamesWhatThePlayerPlays(t *testing.T) {
 	t.Parallel()
 

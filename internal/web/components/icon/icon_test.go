@@ -128,13 +128,15 @@ func TestGenerateSVGWrapsTheGlyph(t *testing.T) {
 	assert.Contains(t, svg, `class="size-4"`)
 }
 
-// TestGenerateSVGInterpolatesTheClassWithoutEscaping documents that
-// generateSVG formats props.Class straight into the class attribute. A class
-// carrying a quote therefore closes the attribute early and the rest of the
-// string is read by the parser as further attributes, so a caller that lets an
-// untrusted value reach Props.Class can inject attributes onto the svg element.
-// Every template that renders an icon passes a literal or a TwMerge result, so
-// the value is trusted today; the escaping is what would close the hole.
+// TestGenerateSVGInterpolatesTheClassWithoutEscaping documents that generateSVG
+// formats props.Class straight into the class attribute.
+//
+// A class carrying a quote therefore closes the attribute early and the rest of
+// the string is read by the parser as further attributes, so a caller that lets
+// an untrusted value reach Props.Class can inject attributes onto the svg
+// element. Every template that renders an icon passes a literal or a TwMerge
+// result, so the value is trusted today. The escaping is what would close the
+// hole.
 func TestGenerateSVGInterpolatesTheClassWithoutEscaping(t *testing.T) {
 	t.Parallel()
 

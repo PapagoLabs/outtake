@@ -333,8 +333,9 @@ func TestUpdateSwapsTheCardBackInAfterAnAcceptedEdit(t *testing.T) {
 	assert.Equal(t, storedProfileID(t, db, "1080p"), stored.Quality)
 }
 
-// TestUpdateRegeneratesACanceledClip covers the regenerate flag: a settled
-// clip is queued again with an output path for its type.
+// TestUpdateRegeneratesACanceledClip covers the regenerate flag.
+//
+// A settled clip is queued again with an output path for its type.
 func TestUpdateRegeneratesACanceledClip(t *testing.T) {
 	t.Parallel()
 
@@ -395,8 +396,9 @@ func TestUpdateOfAPartialJSONBodyKeepsEveryOtherField(t *testing.T) {
 	assert.True(t, saved.PreserveHDR)
 }
 
-// TestUpdateIsReadBackAtOnce covers a clip the queue holds: the list and the
-// status route show the edit without a restart.
+// TestUpdateIsReadBackAtOnce covers a clip the queue holds.
+//
+// The list and the status route show the edit without a restart.
 func TestUpdateIsReadBackAtOnce(t *testing.T) {
 	t.Parallel()
 
@@ -488,9 +490,11 @@ func TestUpdateRefusesANegativeMark(t *testing.T) {
 	}
 }
 
-// TestUpdateSwapsInACardThatKeepsItsSourceChoices covers the card an edit
-// swaps in: it keeps the audio track select the page showed, rather than
-// dropping it until a reload, and offers no HDR choice for an HDR source.
+// TestUpdateSwapsInACardThatKeepsItsSourceChoices covers the card an edit swaps
+// in.
+//
+// It keeps the audio track select the page showed, rather than dropping it
+// until a reload. It offers no HDR choice for an HDR source.
 func TestUpdateSwapsInACardThatKeepsItsSourceChoices(t *testing.T) {
 	t.Parallel()
 
@@ -508,10 +512,11 @@ func TestUpdateSwapsInACardThatKeepsItsSourceChoices(t *testing.T) {
 	assert.Contains(t, answer.body, `id="audio-stored"`, "the audio track select is still offered")
 }
 
-// TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders covers a stored
-// value that no longer matches its profile: an edit that renders the clip
-// again takes the profile's setting, and any other edit keeps the stored
-// one, so it always describes the clip's file.
+// TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders covers a stored value
+// that differs from its profile.
+//
+// An edit that renders the clip again takes the profile's setting. Any other
+// edit keeps the stored one, so it always describes the clip's file.
 func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 	t.Parallel()
 
@@ -605,8 +610,10 @@ func TestUpdateTakesKeepHDRFromTheProfileOnlyWhenItRenders(t *testing.T) {
 }
 
 // TestUpdateRefusesAKeepHDRChoiceFromAnAPICaller covers a JSON caller that
-// still chooses HDR: the edit is refused with a message naming the profile
-// setting, and the clip is unchanged.
+// still chooses HDR.
+//
+// The edit is refused with a message naming the profile setting, and the clip
+// is unchanged.
 func TestUpdateRefusesAKeepHDRChoiceFromAnAPICaller(t *testing.T) {
 	t.Parallel()
 

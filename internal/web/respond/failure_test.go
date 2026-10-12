@@ -138,9 +138,10 @@ func failureFor(t *testing.T, target string, build func(fiber.Ctx) view.Failure)
 	return failure
 }
 
-// TestFailWithWritesTheDetailsBlock covers the details a page offers to copy:
-// the version, the time, and a reference on the first line, the request on
-// the second without its query, and the error chain last.
+// TestFailWithWritesTheDetailsBlock covers the details a page offers to copy.
+//
+// The first line holds the version, the time, and a reference. The second
+// holds the request without its query, and the error chain comes last.
 func TestFailWithWritesTheDetailsBlock(t *testing.T) {
 	t.Parallel()
 
@@ -163,8 +164,9 @@ func TestFailWithWritesTheDetailsBlock(t *testing.T) {
 	assert.Equal(t, "save clip: disk full", lines[2])
 }
 
-// TestFailWithKeepsDetailsFromAVisitor covers a request no one signed in to:
-// it gets the message alone, so an error chain never reaches someone who is
+// TestFailWithKeepsDetailsFromAVisitor covers a request no one signed in to.
+//
+// It gets the message alone, so an error chain never reaches someone who is
 // not the owner.
 func TestFailWithKeepsDetailsFromAVisitor(t *testing.T) {
 	t.Parallel()
@@ -187,7 +189,9 @@ func TestFailWithKeepsDetailsFromAVisitor(t *testing.T) {
 }
 
 // TestFailWithAMessageAloneHasNoDetails covers a refusal the message explains
-// in full: there is no error, so there are no details.
+// in full.
+//
+// There is no error, so there are no details.
 func TestFailWithAMessageAloneHasNoDetails(t *testing.T) {
 	t.Parallel()
 
@@ -198,9 +202,10 @@ func TestFailWithAMessageAloneHasNoDetails(t *testing.T) {
 	assert.Equal(t, view.NewNotice("Paste a Plex token"), failure)
 }
 
-// TestFailKeepsDetailsOffAnInputRefusal covers Fail: a refusal of what the
-// user entered shows its message alone, and any other failure carries
-// details.
+// TestFailKeepsDetailsOffAnInputRefusal covers Fail.
+//
+// A refusal of what the user entered shows its message alone, and any other
+// failure carries details.
 func TestFailKeepsDetailsOffAnInputRefusal(t *testing.T) {
 	t.Parallel()
 
@@ -217,7 +222,9 @@ func TestFailKeepsDetailsOffAnInputRefusal(t *testing.T) {
 }
 
 // TestFailWithScrubsPlexTokens covers the rule that details never carry a
-// Plex token: an X-Plex-Token in a URL or a header line, and the session's
+// Plex token.
+//
+// Details drop an X-Plex-Token in a URL or a header line, and the session's
 // own token wherever it appears.
 func TestFailWithScrubsPlexTokens(t *testing.T) {
 	t.Parallel()
@@ -249,9 +256,11 @@ func TestFailWithScrubsPlexTokens(t *testing.T) {
 	assert.Contains(t, failure.Details, "body [redacted]")
 }
 
-// TestRenderHTMLShowsTheFlashOnce covers the session carrying a failure to the
-// next page: a full page takes it into its banner slot once, and an htmx
-// fragment, such as a background poll, leaves it for the page.
+// TestRenderHTMLShowsTheFlashOnce covers a failure the session carries to the
+// next page.
+//
+// A full page takes it into its banner slot once. An htmx fragment, such as a
+// background poll, leaves it for the page.
 func TestRenderHTMLShowsTheFlashOnce(t *testing.T) {
 	t.Parallel()
 
@@ -301,9 +310,10 @@ func TestRenderHTMLShowsTheFlashOnce(t *testing.T) {
 	assert.Empty(t, page(false), "the failure shows once")
 }
 
-// TestWriteFailureSendsALinkBackToItsPage covers a link the browser followed,
-// such as Download: the failure goes back to the page in the session rather
-// than as a JSON body the browser would save.
+// TestWriteFailureSendsALinkBackToItsPage covers a link the browser followed.
+//
+// Download is one such link. The failure goes back to the page in the session
+// rather than as a JSON body the browser would save.
 func TestWriteFailureSendsALinkBackToItsPage(t *testing.T) {
 	t.Parallel()
 
@@ -331,9 +341,10 @@ func TestWriteFailureSendsALinkBackToItsPage(t *testing.T) {
 	assert.Equal(t, "This clip isn't ready yet", flashAfter(t, app, resp).Message)
 }
 
-// TestWriteFailureGivesAnAPICallerTheDetails covers the JSON answer: the code
-// stays the contract, the message is the plain one, and the details ride
-// beside it.
+// TestWriteFailureGivesAnAPICallerTheDetails covers the JSON answer.
+//
+// The code stays the contract, the message is the plain one, and the details
+// ride beside it.
 func TestWriteFailureGivesAnAPICallerTheDetails(t *testing.T) {
 	t.Parallel()
 

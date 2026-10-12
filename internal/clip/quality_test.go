@@ -10,7 +10,9 @@ import (
 )
 
 // TestDefaultPresetIsThe1080pProfile covers the settings a render falls back
-// on: the 1080p built-in's, which migration 010 stores, converting to SDR.
+// on.
+//
+// They are the 1080p built-in's, which migration 010 stores, converting to SDR.
 func TestDefaultPresetIsThe1080pProfile(t *testing.T) {
 	t.Parallel()
 

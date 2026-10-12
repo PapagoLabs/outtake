@@ -159,12 +159,13 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 	return respond.RedirectTo(ctx, location)
 }
 
-// previewRender decides what a preview renders. An HDR clip that keeps HDR is
-// tone mapped unless the browser can show an HDR preview, because an HDR
-// preview renders black or washed out on an SDR screen in some browsers, and
-// a browser without an HEVC decoder cannot play it at all. The preview's
-// format badge then names what it shows. The request keeps the clip's own
-// choice.
+// previewRender decides what a preview renders.
+//
+// An HDR clip that keeps HDR is tone mapped unless the browser can show an HDR
+// preview, because an HDR preview renders black or washed out on an SDR screen
+// in some browsers, and a browser without an HEVC decoder cannot play it at
+// all. The preview's format badge then names what it shows. The request keeps
+// the clip's own choice.
 //
 // Parameters:
 //   - req: Parsed request whose PreserveHDR holds the clip's resolved choice.
@@ -184,10 +185,11 @@ func previewRender(req api.ClipRequest, sourceHDR, screenHDR bool) api.ClipReque
 	return render
 }
 
-// screenShowsHDR reports whether the browser said it can show an HDR preview:
-// its screen shows HDR and it decodes HEVC Main 10. The export form's script
-// sets the field. Without it, as for an API caller or a
-// browser that cannot tell, the screen is taken to be SDR.
+// screenShowsHDR reports whether the browser said it can show an HDR preview.
+//
+// That means its screen shows HDR and it decodes HEVC Main 10. The export
+// form's script sets the field. Without it, as for an API caller or a browser
+// that cannot tell, the screen is taken to be SDR.
 //
 // Parameters:
 //   - ctx: Preview request carrying the form field or query parameter.
@@ -333,8 +335,9 @@ func (handler *Handler) keepHDR(ctx fiber.Ctx, req api.ClipRequest) bool {
 	return clipprofile.Preset(ctx.Context(), handler.db, req.Quality).PreserveHDR
 }
 
-// resolveSelection resolves a preview's source and checks its window. A
-// preview is held to the same bounds as the clip it previews, so the
+// resolveSelection resolves a preview's source and checks its window.
+//
+// A preview is held to the same bounds as the clip it previews, so the
 // configured cap applies here too and a bad window fails before it renders.
 //
 // Parameters:

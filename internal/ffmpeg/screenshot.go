@@ -59,7 +59,9 @@ func screenshotEncodeArgs(
 	return append(args, output)
 }
 
-// screenshotFilter builds the still's -vf chain: the crop, then the tone map.
+// screenshotFilter builds the still's -vf chain.
+//
+// The chain applies the crop, then the tone map.
 //
 // Parameters:
 //   - rect: Optional black-bar crop.

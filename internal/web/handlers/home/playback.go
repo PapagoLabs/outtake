@@ -24,8 +24,9 @@ import (
 // reach Plex falls back to the panel's position quickly.
 const positionTimeout = 3 * time.Second
 
-// Playback renders live Plex playback for a media item. The mark buttons read
-// their position from the session the panel shows.
+// Playback renders live Plex playback for a media item.
+//
+// The mark buttons read their position from the session the panel shows.
 //
 // Parameters:
 //   - ctx: Request carrying the media item id.
@@ -56,9 +57,10 @@ func (handler *Handler) Playback(ctx fiber.Ctx) error {
 	})
 }
 
-// Position reports where one Plex session is in a media item, read from the
-// server when asked rather than from the session monitor's last poll. Only the
-// named session counts, so a second client playing the same item never
+// Position reports where one Plex session is in a media item.
+//
+// It reads the server when asked rather than the session monitor's last poll.
+// Only the named session counts, so a second client playing the same item never
 // supplies the position.
 //
 // Parameters:

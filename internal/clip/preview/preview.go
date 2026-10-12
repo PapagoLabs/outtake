@@ -139,9 +139,10 @@ func (service *Service) Published(ctx context.Context, previewID string) bool {
 	return service.store.Ensure(ctx, service.OutputPath(previewID)) == nil
 }
 
-// Remember records an id whose preview is already published, so a client
-// polling it finds a terminal status rather than an unknown one, along with
-// what the file holds, read while it is on local disk.
+// Remember records an id whose preview is already published.
+//
+// A client polling it then finds a terminal status rather than an unknown one.
+// It also records what the file holds, read while it is on local disk.
 //
 // Parameters:
 //   - ctx: Request scope for reading the file.
@@ -204,6 +205,7 @@ func (service *Service) RenderInto(
 }
 
 // SetFailureFunc registers how a failed preview is described on the page.
+//
 // Until one is set, a failure shows the error's own text.
 //
 // Parameters:

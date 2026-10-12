@@ -23,9 +23,10 @@ func TestBannerOmitsEmptyMessage(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
-// TestBannerShowsDetailsOnlyWhenThereAreSome covers the Details section: a
-// failure with details offers them collapsed with a copy button, and a notice
-// shows its message alone.
+// TestBannerShowsDetailsOnlyWhenThereAreSome covers the Details section.
+//
+// A failure with details offers them collapsed with a copy button, and a
+// notice shows its message alone.
 func TestBannerShowsDetailsOnlyWhenThereAreSome(t *testing.T) {
 	t.Parallel()
 
@@ -53,8 +54,10 @@ func TestBannerShowsDetailsOnlyWhenThereAreSome(t *testing.T) {
 }
 
 // TestDetailsSlotIsHiddenAndEmpty covers the Details section a page script
-// fills in: it renders hidden, under the id the script looks it up by, with
-// the same markup and Copy button as a filled one.
+// fills in.
+//
+// It renders hidden, under the id the script looks it up by, with the same
+// markup and Copy button as a filled one.
 func TestDetailsSlotIsHiddenAndEmpty(t *testing.T) {
 	t.Parallel()
 

@@ -7,9 +7,11 @@ import (
 	"context"
 )
 
-// Failure is an error as a page shows it: a plain message, and the details
-// someone debugging it or reporting an issue needs, which the page keeps in a
-// collapsed Details section with a copy button.
+// Failure is an error as a page shows it.
+//
+// It holds a plain message and the details someone debugging it or reporting
+// an issue needs. The page keeps the details in a collapsed Details section
+// with a copy button.
 type Failure struct {
 	// Message says what went wrong in plain words.
 	Message string `json:"message"`

@@ -112,7 +112,9 @@ func TestBindingClearWithoutAMonitor(t *testing.T) {
 }
 
 // TestBindingReportsNoRefusedTokenWithoutAServer covers an unbound
-// installation: with no server there is no poll, so no token was refused.
+// installation.
+//
+// With no server there is no poll, so no token was refused.
 func TestBindingReportsNoRefusedTokenWithoutAServer(t *testing.T) {
 	t.Parallel()
 

@@ -10,9 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestRemainingLabel covers how the time left reads on a progress bar: to
-// the second in minutes and seconds under an hour, in hours and minutes past
-// it, never zero, and the empty label before an estimate.
+// TestRemainingLabel covers how the time left reads on a progress bar.
+//
+// It reads to the second, in minutes and seconds under an hour and in hours
+// and minutes past it. It is never zero, and the label is empty before an
+// estimate.
 func TestRemainingLabel(t *testing.T) {
 	t.Parallel()
 
@@ -48,8 +50,10 @@ func TestRemainingLabel(t *testing.T) {
 	}
 }
 
-// TestBarStyle covers a bar's width: a tenth of a percent, so a slow encode's
-// bar moves between whole percents.
+// TestBarStyle covers a bar's width.
+//
+// The width is set to a tenth of a percent, so a slow encode's bar moves
+// between whole percents.
 func TestBarStyle(t *testing.T) {
 	t.Parallel()
 

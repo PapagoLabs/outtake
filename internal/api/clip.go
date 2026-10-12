@@ -9,10 +9,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 )
 
-// ClipRequest is the export request. The value is a clip.Request.
+// ClipRequest is the export request.
 type ClipRequest = clip.Request
 
-// ClipResponse is the clip payload. The value is a clip.Response.
+// ClipResponse is the clip payload.
 type ClipResponse = clip.Response
 
 // Flag reads an optional request flag, treating an absent one as false.

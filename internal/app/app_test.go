@@ -533,8 +533,10 @@ func freeLoopbackAddr(t *testing.T) string {
 	return addr
 }
 
-// serving reports whether an address answers an HTTP request. Any status counts,
-// because a 404 still proves the listener reached the router.
+// serving reports whether an address answers an HTTP request.
+//
+// Any status counts, because a 404 still proves the listener reached the
+// router.
 //
 // Parameters:
 //   - addr: The loopback address to probe.

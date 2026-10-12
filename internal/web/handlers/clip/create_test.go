@@ -115,9 +115,10 @@ func bodyText(t *testing.T, resp *http.Response) string {
 	return string(body)
 }
 
-// TestKeepHDRFollowsTheProfile covers a clip's Keep HDR, which is its
-// profile's setting: 4K HDR keeps HDR, and 4K, 1080p, and the default profile
-// convert.
+// TestKeepHDRFollowsTheProfile covers a clip's Keep HDR.
+//
+// Keep HDR is the profile's setting. 4K HDR keeps HDR, and 4K, 1080p, and the
+// default profile convert.
 func TestKeepHDRFollowsTheProfile(t *testing.T) {
 	t.Parallel()
 

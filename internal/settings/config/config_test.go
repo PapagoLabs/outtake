@@ -276,9 +276,10 @@ func TestRemapMediaPath(t *testing.T) {
 	assert.Equal(t, "/data/media/a.mkv", empty.RemapMediaPath("/data/media/a.mkv"))
 }
 
-// TestRemapMediaPathMapsWindowsPaths covers a Plex server on Windows: drive
-// letter and UNC paths, backslashes, a root matched without regard to case,
-// and traversal still refused.
+// TestRemapMediaPathMapsWindowsPaths covers a Plex server on Windows.
+//
+// It checks drive letter and UNC paths, backslashes, a root matched without
+// regard to case, and traversal still refused.
 func TestRemapMediaPathMapsWindowsPaths(t *testing.T) {
 	t.Parallel()
 
@@ -325,9 +326,11 @@ func TestRemapMediaPathMapsWindowsPaths(t *testing.T) {
 		"a Linux path that starts with two slashes is not a UNC share")
 }
 
-// TestConfigurationPageNamesEveryVariable keeps the documentation in step with
-// the settings: every environment variable outtake reads must appear on the
-// site's Configuration page.
+// TestConfigurationPageNamesEveryVariable covers the settings the Configuration
+// page names.
+//
+// It keeps the documentation in step with the settings. Every environment
+// variable outtake reads must appear on the site's Configuration page.
 func TestConfigurationPageNamesEveryVariable(t *testing.T) {
 	t.Parallel()
 

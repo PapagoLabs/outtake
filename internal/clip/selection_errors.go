@@ -10,15 +10,17 @@ import (
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
 
-// SelectionTooLongError reports a selection longer than a clip may be. It
-// carries the limit, so the page can name it.
+// SelectionTooLongError reports a selection longer than a clip may be.
+//
+// It carries the limit, so the page can name it.
 type SelectionTooLongError struct {
 	// Limit is the longest a clip may be.
 	Limit time.Duration
 }
 
-// PastSourceEndError reports a mark past the end of the source. It carries
-// the source's length, so the page can name it.
+// PastSourceEndError reports a mark past the end of the source.
+//
+// It carries the source's length, so the page can name it.
 type PastSourceEndError struct {
 	// Edge names the mark, MarkStart or MarkEnd.
 	Edge string
@@ -29,6 +31,7 @@ type PastSourceEndError struct {
 }
 
 // MissingAudioTrackError reports an audio track the source does not carry.
+//
 // It carries the track the user chose, counted from one.
 type MissingAudioTrackError struct {
 	// Track is the chosen track, counted from one.

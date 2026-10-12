@@ -116,6 +116,7 @@ func remapDecisionFor(preset clip.QualityPreset) remapDecision {
 }
 
 // hdrColorArgs tags an HEVC encode with the HDR transfer it actually carries.
+//
 // PQ also gets x265's HDR10 quantization. HLG gets none, because it carries no
 // HDR10 metadata.
 //
@@ -185,10 +186,11 @@ func sdrColorArgs(transfer string) []string {
 	}
 }
 
-// decideColor maps a source's transfer onto an encode's color handling and
-// the encoder that carries it. Kept HDR is encoded as HEVC Main 10, which
-// browsers, editors, and upload sites take as HDR. Everything else stays
-// 8-bit H.264.
+// decideColor maps a source's transfer onto an encode's color handling and the
+// encoder that carries it.
+//
+// Kept HDR is encoded as HEVC Main 10, which browsers, editors, and upload
+// sites take as HDR. Everything else stays 8-bit H.264.
 //
 // Parameters:
 //   - transfer: ffprobe's color transfer, empty for SDR.
@@ -268,9 +270,10 @@ func (execFFmpeg *ExecFFmpeg) resolveColor(ctx context.Context, req *videoEncode
 	}
 }
 
-// sdrToneMap returns the tone map chain that brings an HDR source down to
-// Rec.709, for stills and GIFs, which cannot carry HDR. An SDR source, or one
-// that could not be probed, needs none.
+// sdrToneMap returns the chain that brings an HDR source down to Rec.709.
+//
+// It serves stills and GIFs, which cannot carry HDR. An SDR source, or one that
+// could not be probed, needs none.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for the probe and luma sampling.
@@ -302,9 +305,10 @@ func (execFFmpeg *ExecFFmpeg) sdrToneMap(
 	)
 }
 
-// tonePeak returns the peak an HDR tone map scales against. HLG carries a
-// nominal peak. PQ takes the source's MaxCLL or mastering peak, and is sampled
-// from the window when the source carries neither.
+// tonePeak returns the peak an HDR tone map scales against.
+//
+// HLG carries a nominal peak. PQ takes the source's MaxCLL or mastering peak,
+// and is sampled from the window when the source carries neither.
 //
 // Parameters:
 //   - ctx: Cancellation and deadline for luma sampling.

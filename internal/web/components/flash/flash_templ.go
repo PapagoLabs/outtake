@@ -75,10 +75,11 @@ func Banner(failure view.Failure) templ.Component {
 	})
 }
 
-// Details renders an error's technical details in a collapsed section, as
-// selectable text with a copy button, or nothing when there are none. The text
-// stays selectable by hand where the browser offers no clipboard, such as a
-// page opened over plain HTTP on a LAN address.
+// Details renders an error's technical details in a collapsed section.
+//
+// The details show as selectable text with a copy button, and nothing renders
+// when there are none. The text stays selectable by hand where the browser
+// offers no clipboard, such as a page opened over plain HTTP on a LAN address.
 //
 // Parameters:
 //   - details: The technical report.
@@ -154,7 +155,7 @@ func DetailsSlot(id string) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(id)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/flash/flash.templ`, Line: 47, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/flash/flash.templ`, Line: 48, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
 		if templ_7745c5c3_Err != nil {
@@ -176,8 +177,7 @@ func DetailsSlot(id string) templ.Component {
 	})
 }
 
-// detailsBody is what a Details section holds: its summary, the details, and
-// the Copy button.
+// detailsBody renders a Details section's summary, report, and Copy button.
 //
 // Parameters:
 //   - details: The technical report, empty for a slot a script fills in.

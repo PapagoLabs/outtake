@@ -9,9 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestSetRetiredSettingsFindsTheHDRSwitches covers the startup warning: the
-// global HDR switches from earlier releases are reported when set, even to
-// false, and nothing is reported for an environment without them.
+// TestSetRetiredSettingsFindsTheHDRSwitches covers the startup warning.
+//
+// The global HDR switches from earlier releases are reported when set, even to
+// false. Nothing is reported for an environment without them.
 func TestSetRetiredSettingsFindsTheHDRSwitches(t *testing.T) {
 	t.Parallel()
 

@@ -21,6 +21,7 @@ const (
 )
 
 // PreferUniqueServers keeps one connection per server, preferring local ones.
+//
 // Servers are told apart by machine id, or by name when discovery reported
 // none.
 //

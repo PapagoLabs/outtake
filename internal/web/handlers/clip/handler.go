@@ -70,8 +70,10 @@ func New(
 	}
 }
 
-// CloseStreams ends every clip stream, so the server can shut down without
-// waiting on them. Later calls do nothing.
+// CloseStreams ends every clip stream.
+//
+// The server can then shut down without waiting on them. Later calls do
+// nothing.
 func (handler *Handler) CloseStreams() {
 	handler.closeStreams.Do(func() {
 		close(handler.streamsDone)
@@ -101,8 +103,9 @@ func (handler *Handler) lookupJob(ctx context.Context, id string) *clipdom.Job {
 	return catalog.Job(ctx, handler.clipQueue, handler.db, id)
 }
 
-// outputExists returns the check a clip card makes for its rendered file. It
-// asks the configured storage, so a clip rendered elsewhere or before a
+// outputExists returns the check a clip card makes for its rendered file.
+//
+// It asks the configured storage, so a clip rendered elsewhere or before a
 // restart still shows as present, without downloading it.
 //
 // Parameters:
@@ -172,8 +175,10 @@ func (handler *Handler) resolveNewClip(
 	return inputPath, "", nil
 }
 
-// sdrVersionExists reports whether a clip's SDR version is stored. Only a clip
-// that may have one is asked about, so most cards cost no extra lookup.
+// sdrVersionExists reports whether a clip's SDR version is stored.
+//
+// Only a clip that may have one is asked about, so most cards cost no extra
+// lookup.
 //
 // Parameters:
 //   - ctx: Request scope for a storage lookup.

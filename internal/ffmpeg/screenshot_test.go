@@ -118,8 +118,9 @@ func TestScreenshotEncodeArgsOmitsCropWhenEmpty(t *testing.T) {
 	assert.NotContains(t, args, "crop=")
 }
 
-// TestScreenshotEncodeArgsWriteOneImage covers the image muxer flag: a still
-// is one file, so ffmpeg is told not to expect a numbered sequence.
+// TestScreenshotEncodeArgsWriteOneImage covers the image muxer flag.
+//
+// A still is one file, so ffmpeg is told not to expect a numbered sequence.
 func TestScreenshotEncodeArgsWriteOneImage(t *testing.T) {
 	t.Parallel()
 

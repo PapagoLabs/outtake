@@ -39,11 +39,12 @@ var (
 	ErrEmptyOutput = errors.New("ffmpeg wrote an empty file")
 )
 
-// SweepStaged removes the staging files and GIF palettes a render left behind
-// in each directory, as an interrupted process does. Only files last written
-// before cutoff are removed, because ffmpeg keeps writing a staging file while
-// it renders, so a file another process sharing the directory is still
-// rendering is left alone. A missing directory is skipped.
+// SweepStaged removes the staging files and GIF palettes a render left behind.
+//
+// It looks in each directory for what an interrupted process leaves there. Only
+// files last written before cutoff are removed. ffmpeg keeps writing a staging
+// file while it renders, so a file another process sharing the directory is
+// still rendering is left alone. A missing directory is skipped.
 //
 // Parameters:
 //   - cutoff: Files written at or after this time are kept.
@@ -133,8 +134,9 @@ func isLeftover(name string) bool {
 	return strings.HasPrefix(name, stagingPrefix) || strings.HasSuffix(name, legacyPaletteSuffix)
 }
 
-// outputPath resolves the path a render publishes to. An empty path would
-// resolve to the working directory, so it is refused.
+// outputPath resolves the path a render publishes to.
+//
+// An empty path would resolve to the working directory, so it is refused.
 //
 // Parameters:
 //   - path: Destination as the caller named it.
@@ -155,10 +157,11 @@ func outputPath(path string) (string, error) {
 	return abs, nil
 }
 
-// publish renders into a staging file beside output and moves it into place
-// once the render succeeds, so a failed or canceled render leaves the file
-// already at output untouched. A render canceled after ffmpeg finished is not
-// published either.
+// publish renders into a staging file and moves it into place on success.
+//
+// The staging file sits beside output. A failed or canceled render leaves the
+// file already at output untouched. A render canceled after ffmpeg finished is
+// not published either.
 //
 // Parameters:
 //   - ctx: The render's context.
@@ -205,10 +208,11 @@ func publish(ctx context.Context, output string, render func(staging string) err
 	return nil
 }
 
-// stagingPath names the file a render writes before it is published. It sits
-// in the output's directory, so the rename that publishes it never crosses a
-// filesystem, and it keeps the output's extension, which ffmpeg picks the
-// container from.
+// stagingPath names the file a render writes before it is published.
+//
+// It sits in the output's directory, so the rename that publishes it never
+// crosses a filesystem, and it keeps the output's extension, which ffmpeg picks
+// the container from.
 //
 // Parameters:
 //   - output: Absolute destination path.
@@ -222,8 +226,9 @@ func stagingPath(output string) string {
 	)
 }
 
-// removeStaged removes a staging file or palette. A file a publish already
-// moved away is not an error.
+// removeStaged removes a staging file or palette.
+//
+// A file a publish already moved away is not an error.
 //
 // Parameters:
 //   - path: The file to remove.

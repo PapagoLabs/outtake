@@ -164,8 +164,10 @@ func TestExtractClipEncodeArgsCropsBlackBars(t *testing.T) {
 		rect.Filter()+","+scaleFilter(clip.OutputWidth2160p, scaleFlagsLanczos))
 }
 
-// TestExtractClipEncodeArgsToneMapWithoutKeepHDR covers a video clip of an
-// HDR source that does not keep HDR: it is tone mapped to Rec.709.
+// TestExtractClipEncodeArgsToneMapWithoutKeepHDR covers a video clip of an HDR
+// source that does not keep HDR.
+//
+// The clip is tone mapped to Rec.709.
 func TestExtractClipEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {
 	t.Parallel()
 
@@ -215,9 +217,11 @@ func TestExtractPreviewEncodeArgs(t *testing.T) {
 	assert.NotContains(t, strings.Join(args, " "), "tonemap=tonemap=mobius")
 }
 
-// TestExtractPreviewEncodeArgsFollowTheMaximumWidth covers the maximum
-// preview resolution: a preview, cropped first, is scaled no wider than the
-// width its preset names, so a 4K maximum keeps a letterboxed 4K source at 4K.
+// TestExtractPreviewEncodeArgsFollowTheMaximumWidth covers the maximum preview
+// resolution.
+//
+// A preview, cropped first, is scaled no wider than the width its preset names,
+// so a 4K maximum keeps a letterboxed 4K source at 4K.
 func TestExtractPreviewEncodeArgsFollowTheMaximumWidth(t *testing.T) {
 	t.Parallel()
 
@@ -237,8 +241,10 @@ func TestExtractPreviewEncodeArgsFollowTheMaximumWidth(t *testing.T) {
 	assert.NotContains(t, joined, scaleFilter(previewMaxWidth, scaleFlagsFast))
 }
 
-// TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR covers a preview of a
-// clip that does not keep HDR: it is tone mapped like the clip.
+// TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR covers a preview of a clip
+// that does not keep HDR.
+//
+// The preview is tone mapped like the clip.
 func TestExtractPreviewEncodeArgsToneMapWithoutKeepHDR(t *testing.T) {
 	t.Parallel()
 
@@ -286,10 +292,12 @@ func TestScaleFilterForcesEvenWidth(t *testing.T) {
 	assert.Contains(t, scaleFilter(1920, scaleFlagsLanczos), "h=-2")
 }
 
-// TestVideoEncodeArgsPickTheEncoderFromTheColorPlan covers the codec each
-// clip gets: a clip that keeps HDR from an HDR source is HEVC Main 10 in an
-// hvc1 track, tagged for its transfer in x265's own options, and every other
-// clip stays 8-bit H.264. An SDR source is left untagged.
+// TestVideoEncodeArgsPickTheEncoderFromTheColorPlan covers the codec each clip
+// gets.
+//
+// A clip that keeps HDR from an HDR source is HEVC Main 10 in an hvc1 track,
+// tagged for its transfer in x265's own options. Every other clip stays 8-bit
+// H.264. An SDR source is left untagged.
 func TestVideoEncodeArgsPickTheEncoderFromTheColorPlan(t *testing.T) {
 	t.Parallel()
 
@@ -416,9 +424,11 @@ func TestCodecArgsKeepTheHEVCCRFInRange(t *testing.T) {
 		"a request without a plan, such as a source that could not be probed, is H.264")
 }
 
-// TestExtractPreviewEncodesKeptHDRAsHEVC covers a preview for an HDR screen
-// of a clip that keeps HDR: it is encoded like the clip, as HEVC Main 10,
-// at the preview's speed and the preview CRF plus the HEVC offset.
+// TestExtractPreviewEncodesKeptHDRAsHEVC covers a preview for an HDR screen of
+// a clip that keeps HDR.
+//
+// The preview is encoded like the clip, as HEVC Main 10. It uses the preview's
+// speed and the preview CRF plus the HEVC offset.
 func TestExtractPreviewEncodesKeptHDRAsHEVC(t *testing.T) {
 	t.Parallel()
 

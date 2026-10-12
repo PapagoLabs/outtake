@@ -16,9 +16,10 @@ import (
 	"github.com/PapagoLabs/outtake/internal/timecode"
 )
 
-// parseEdit reads a clip update. A JSON body may carry only the fields that
-// change. A form posts every field the card shows, plus hidden copies of the
-// ones it does not.
+// parseEdit reads a clip update.
+//
+// A JSON body may carry only the fields that change. A form posts every field
+// the card shows, plus hidden copies of the ones it does not.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -86,9 +87,11 @@ func parseJSONEdit(ctx fiber.Ctx) (clipdom.EditRequest, error) {
 	return req, nil
 }
 
-// mergeEdit builds the full edit an update makes to a stored clip, taking
-// the stored value for every field the update leaves out. Keep HDR is left
-// for the caller, which takes it from the profile only when the edit renders.
+// mergeEdit builds the full edit an update makes to a stored clip.
+//
+// It takes the stored value for every field the update leaves out. Keep HDR is
+// left for the caller, which takes it from the profile only when the edit
+// renders.
 //
 // Parameters:
 //   - job: The stored clip.
