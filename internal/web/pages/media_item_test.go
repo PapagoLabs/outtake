@@ -72,6 +72,19 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.Contains(t, body, `id="clip-list-type"`)
 	assert.Contains(t, body, `value="intro"`)
 	assert.Contains(t, body, `data-playback-live="42"`, "live.js follows the playback panel")
+	assert.Contains(t, body, `aria-keyshortcuts="ArrowUp ArrowDown Shift+ArrowUp Shift+ArrowDown"`,
+		"the marks say which keys nudge them")
+	assert.Contains(t, body, `title="Preview (P)"`, "the Preview tooltip names its key")
+	assert.Contains(t, body, `aria-keyshortcuts="P"`)
+	assert.Contains(t, body, `id="mark-announcement" role="status" aria-live="polite"`,
+		"a moved mark is announced")
+
+	length := strings.Index(body, `data-export-for="clip,gif">Length:`)
+	require.Positive(t, length)
+
+	lengthEnd := length + strings.Index(body[length:], "</p>")
+	assert.Greater(t, strings.Index(body, `id="mark-announcement"`), lengthEnd,
+		"the announcements sit outside the length, which a screenshot hides")
 }
 
 func TestMediaItemPagePreservesStatusFilter(t *testing.T) {

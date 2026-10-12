@@ -30,6 +30,10 @@ const (
 	// invalidSubmitClass is the styling an export button takes while its selection is out of bounds.
 	invalidSubmitClass = "outline-2 outline-destructive outline-offset-2"
 
+	// nudgeKeys are the keys that nudge a start or end field, which
+	// media-item.js handles.
+	nudgeKeys = "ArrowUp ArrowDown Shift+ArrowUp Shift+ArrowDown"
+
 	// defaultExportType is the export type prefilled in the New export form.
 	defaultExportType = clip.TypeClip
 )
@@ -172,6 +176,10 @@ templ MediaItemPage(props MediaItemPageProps) {
 							Variant: button.VariantOutline,
 							Size:    button.SizeSm,
 							Class:   "hidden",
+							Attributes: map[string]any{
+								"title":             "Set End Here (O)",
+								"aria-keyshortcuts": "O",
+							},
 						}) {
 							Set End Here
 						}
@@ -229,7 +237,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 										<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
 									</div>
 								</div>
-								<input id="startTime" name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ timecode.FromDuration(props.StartTime).String() } class={ utils.ControlClass }/>
+								<input id="startTime" name="startTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ timecode.FromDuration(props.StartTime).String() } class={ utils.ControlClass } aria-keyshortcuts={ nudgeKeys }/>
 							</div>
 							<div class="flex flex-col gap-2" data-export-for="clip,gif">
 								<div class="flex items-baseline gap-2">
@@ -238,12 +246,15 @@ templ MediaItemPage(props MediaItemPageProps) {
 									}
 									<span data-end-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
 								</div>
-								<input id="endTime" name="endTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ timecode.FromDuration(props.EndTime).String() } class={ utils.ControlClass }/>
+								<input id="endTime" name="endTime" type="text" inputmode="decimal" placeholder="00:00:00.000" value={ timecode.FromDuration(props.EndTime).String() } class={ utils.ControlClass } aria-keyshortcuts={ nudgeKeys }/>
 							</div>
 						</div>
 						<input type="hidden" id="duration" name="duration" value="10"/>
 						// The rendered window travels with the form, so a plain Preview finds it in the cache.
 						<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Length: <span data-duration-label id="duration-label">{ timecode.FromDuration(props.EndTime - props.StartTime).Short() }</span> (maximum { timecode.FromDuration(props.MaxDur).Short() }) <span data-duration-warning id="duration-warning" role="status" aria-live="polite" class="sr-only"></span></p>
+						// A screenshot hides the length, so the mark announcements sit beside it
+						// rather than in it.
+						<span id="mark-announcement" role="status" aria-live="polite" class="sr-only"></span>
 						<div class="grid gap-4 sm:grid-cols-2">
 							<div class="flex flex-col gap-2" data-export-for="clip">
 								@label.Label(label.Props{For: "quality"}) {
@@ -282,9 +293,11 @@ templ MediaItemPage(props MediaItemPageProps) {
 								Variant: button.VariantOutline,
 								Class:   "js-export-submit",
 								Attributes: map[string]any{
-									"formaction":       "/api/clips/preview",
-									"formmethod":       "post",
-									"data-invalid-css": invalidSubmitClass,
+									"formaction":        "/api/clips/preview",
+									"formmethod":        "post",
+									"data-invalid-css":  invalidSubmitClass,
+									"title":             "Preview (P)",
+									"aria-keyshortcuts": "P",
 								},
 							}) {
 								<span id="preview-button-label">Preview</span>

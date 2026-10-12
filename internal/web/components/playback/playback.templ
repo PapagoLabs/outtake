@@ -26,8 +26,8 @@ templ PlaybackPanel(props view.Playback) {
 				<p class="text-xs text-muted-foreground mt-1">Pause in Plex for an exact position</p>
 			}
 			<div class="flex flex-wrap gap-2 mt-3">
-				<button type="button" class="js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ timecode.FromDuration(props.ViewOffset).FormatSeconds() } data-position-url={ props.PositionURL }>Set Start From Plex</button>
-				<button type="button" class="js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ timecode.FromDuration(props.ViewOffset).FormatSeconds() } data-position-url={ props.PositionURL }>Set End From Plex</button>
+				<button type="button" title="Set Start From Plex (I)" aria-keyshortcuts="I" class="js-mark-start inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ timecode.FromDuration(props.ViewOffset).FormatSeconds() } data-position-url={ props.PositionURL }>Set Start From Plex</button>
+				<button type="button" title="Set End From Plex (O)" aria-keyshortcuts="O" class="js-mark-end inline-flex items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent" data-offset={ timecode.FromDuration(props.ViewOffset).FormatSeconds() } data-position-url={ props.PositionURL }>Set End From Plex</button>
 			</div>
 		} else {
 			<p class="text-sm text-muted-foreground">Play this title in Plex to set the start and end from its position</p>
