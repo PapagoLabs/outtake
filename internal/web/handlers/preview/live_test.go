@@ -15,11 +15,16 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
 // seesEverything is the scope of the owner or an admin, who sees every
 // preview.
-var seesEverything = clip.Scope{Owner: 42, Everyone: true}
+var seesEverything = middleware.Viewpoint{
+	Viewer: identity.OwnerViewer(42),
+	Scope:  clip.Scope{Owner: 42, Everyone: true},
+}
 
 // TestLivePreviewFollowsOnlyAPreviewID covers a value that names no preview.
 //

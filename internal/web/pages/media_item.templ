@@ -56,14 +56,17 @@ func exportTypeIs(chosen, option clip.Type) bool {
 
 // MediaItemPageProps carries the media item and its New export form state.
 type MediaItemPageProps struct {
-	ID          string
-	Title       string
-	Type        string
-	Quality     string
-	SourceHDR   bool
-	Duration    time.Duration
-	MaxDur      time.Duration
-	Clips       []view.ClipItem
+	ID        string
+	Title     string
+	Type      string
+	Quality   string
+	SourceHDR bool
+	Duration  time.Duration
+	MaxDur    time.Duration
+	Clips     []view.ClipItem
+	// SharedClips are other accounts' clips of this title shared with the
+	// viewer.
+	SharedClips []view.ClipItem
 	ClipStatus  clip.Status
 	ClipType    clip.Type
 	ClipQuery   string
@@ -72,7 +75,7 @@ type MediaItemPageProps struct {
 	AudioTracks []view.AudioTrackOption
 	Error       string
 	PreviewID   string
-	StartTime       time.Duration
+	StartTime   time.Duration
 	EndTime     time.Duration
 	Export      view.ExportForm
 	Crumbs      []view.Crumb
@@ -333,6 +336,14 @@ templ MediaItemPage(props MediaItemPageProps) {
 					@ItemClipList(props.Clips, props.ClipStatus != "" || props.ClipType != "" || props.ClipQuery != "")
 				</div>
 			</div>
+			if len(props.SharedClips) > 0 {
+				<div class="flex flex-col gap-4">
+					<h3 class="text-lg font-semibold">Shared Clips</h3>
+					for _, item := range props.SharedClips {
+						@clipcard.ClipCard(item)
+					}
+				</div>
+			}
 		</div>
 		<div id="clip-form-config" data-max-dur={ strconv.FormatInt(int64(props.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(props.Duration).FormatSeconds() } class="hidden"></div>
 		@progress.Script()

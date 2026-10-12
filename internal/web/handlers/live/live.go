@@ -12,7 +12,6 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
-	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
@@ -25,9 +24,9 @@ type Check = func(ctx context.Context) []string
 
 // Source starts a check from the query value naming what to follow.
 //
-// The scope is whose clips and previews the stream's caller may see. It
-// returns nil when the value names nothing it can follow.
-type Source = func(value string, scope clip.Scope) Check
+// The viewpoint is what the stream's caller may reach. It returns nil when the
+// value names nothing it can follow.
+type Source = func(value string, viewpoint middleware.Viewpoint) Check
 
 // Feed is one kind of update a stream can carry.
 type Feed struct {
@@ -126,7 +125,7 @@ func (handler *Handler) CloseStreams() {
 //   - err: Non-nil when the response cannot be started.
 func (handler *Handler) Stream(ctx fiber.Ctx) error {
 	checks := make([]namedCheck, 0, len(handler.feeds))
-	scope := middleware.ClipScope(ctx)
+	viewpoint := middleware.ViewpointOf(ctx)
 
 	for _, feed := range handler.feeds {
 		value := ctx.Query(feed.Name)
@@ -134,7 +133,7 @@ func (handler *Handler) Stream(ctx fiber.Ctx) error {
 			continue
 		}
 
-		if check := feed.Start(value, scope); check != nil {
+		if check := feed.Start(value, viewpoint); check != nil {
 			checks = append(checks, namedCheck{check: check, name: feed.Name})
 		}
 	}

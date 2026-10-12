@@ -12,6 +12,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 )
 
@@ -161,6 +162,69 @@ func (_c *MockMediaDescriber_DescribePath_Call) Return(sourceInfo library.Source
 }
 
 func (_c *MockMediaDescriber_DescribePath_Call) RunAndReturn(run func(ctx context.Context, path string) library.SourceInfo) *MockMediaDescriber_DescribePath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Sees provides a mock function for the type MockMediaDescriber
+func (_mock *MockMediaDescriber) Sees(ctx context.Context, viewer identity.Viewer, mediaID string) bool {
+	ret := _mock.Called(ctx, viewer, mediaID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Sees")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(context.Context, identity.Viewer, string) bool); ok {
+		r0 = returnFunc(ctx, viewer, mediaID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockMediaDescriber_Sees_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Sees'
+type MockMediaDescriber_Sees_Call struct {
+	*mock.Call
+}
+
+// Sees is a helper method to define mock.On call
+//   - ctx context.Context
+//   - viewer identity.Viewer
+//   - mediaID string
+func (_e *MockMediaDescriber_Expecter) Sees(ctx any, viewer any, mediaID any) *MockMediaDescriber_Sees_Call {
+	return &MockMediaDescriber_Sees_Call{Call: _e.mock.On("Sees", ctx, viewer, mediaID)}
+}
+
+func (_c *MockMediaDescriber_Sees_Call) Run(run func(ctx context.Context, viewer identity.Viewer, mediaID string)) *MockMediaDescriber_Sees_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 identity.Viewer
+		if args[1] != nil {
+			arg1 = args[1].(identity.Viewer)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMediaDescriber_Sees_Call) Return(b bool) *MockMediaDescriber_Sees_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockMediaDescriber_Sees_Call) RunAndReturn(run func(ctx context.Context, viewer identity.Viewer, mediaID string) bool) *MockMediaDescriber_Sees_Call {
 	_c.Call.Return(run)
 	return _c
 }

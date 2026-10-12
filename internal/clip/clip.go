@@ -35,6 +35,9 @@ type Clip struct {
 	// OwnerID is the plex.tv id of the account that made the clip, or zero
 	// for a clip nobody owns.
 	OwnerID int
+	// Shared is true for a clip its owner lets the installation's other users
+	// see, read only, when Plex shares its source title with them.
+	Shared bool
 }
 
 const (

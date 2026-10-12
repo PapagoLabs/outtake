@@ -42,6 +42,15 @@ type ServerTokens interface {
 // callerKey is the request local AuthGuard stores the caller under.
 type callerKey struct{}
 
+// Viewpoint is what a request's caller may reach, kept for work that outlives
+// the request, such as a page stream.
+type Viewpoint struct {
+	// Viewer is the account the caller reads Plex as.
+	Viewer identity.Viewer
+	// Scope is whose clips and previews the caller may change.
+	Scope clip.Scope
+}
+
 // How often AuthGuard asks plex.tv again for a non-owner's server token.
 const (
 	// serverTokenRetry is how long a session without one waits between
@@ -183,6 +192,17 @@ func PlexViewer(ctx fiber.Ctx) identity.Viewer {
 		PlexID: caller.PlexID,
 		Owner:  false,
 	}
+}
+
+// ViewpointOf returns what a request's caller may reach.
+//
+// Parameters:
+//   - ctx: Request that passed AuthGuard.
+//
+// Returns:
+//   - viewpoint: The caller's scope and Plex viewer.
+func ViewpointOf(ctx fiber.Ctx) Viewpoint {
+	return Viewpoint{Viewer: PlexViewer(ctx), Scope: ClipScope(ctx)}
 }
 
 // SetCaller records the user a request is made by, which Caller returns.

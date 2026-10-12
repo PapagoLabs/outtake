@@ -28,6 +28,11 @@ type ClipsProps struct {
 	Type   clip.Type
 	Query  string
 	Sort   string
+	// Shared lists the clips shared with the installation's users.
+	Shared bool
+	// OfferShared shows the choice of the shared clips, once the installation
+	// has another user to share them with.
+	OfferShared bool
 }
 
 // clipsFiltered reports whether any filter narrows the clip list.
@@ -36,9 +41,21 @@ type ClipsProps struct {
 //   - props: Clip list state.
 //
 // Returns:
-//   - ok: True when a status, type, or query filter is set.
+//   - ok: True when a status, type, query, or shared filter is set.
 func clipsFiltered(props ClipsProps) bool {
-	return props.Status != "" || props.Type != "" || props.Query != ""
+	return props.Status != "" || props.Type != "" || props.Query != "" || props.Shared
+}
+
+// onlyShared reports whether the list shows the shared clips with no other
+// filter set.
+//
+// Parameters:
+//   - props: Clip list state.
+//
+// Returns:
+//   - ok: True when only the shared filter is set.
+func onlyShared(props ClipsProps) bool {
+	return props.Shared && props.Status == "" && props.Type == "" && props.Query == ""
 }
 
 // Clips renders the clip list page.
@@ -83,13 +100,15 @@ func Clips(props ClipsProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = clipcard.ListToolbar(clipcard.ListToolbarProps{
-				Action:  "/clips",
-				Target:  "clip-list",
-				PushURL: true,
-				Status:  props.Status,
-				Type:    props.Type,
-				Query:   props.Query,
-				Sort:    props.Sort,
+				Action:      "/clips",
+				Target:      "clip-list",
+				PushURL:     true,
+				Status:      props.Status,
+				Type:        props.Type,
+				Query:       props.Query,
+				Sort:        props.Sort,
+				OfferShared: props.OfferShared,
+				Shared:      props.Shared,
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -102,7 +121,7 @@ func Clips(props ClipsProps) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.Status)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clips.templ`, Line: 57, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clips.templ`, Line: 76, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -189,18 +208,23 @@ func ClipsList(props ClipsProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					if clipsFiltered(props) {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p>No clips match these filters</p>")
+					if onlyShared(props) {
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p>No shared clips yet</p>")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+					} else if clipsFiltered(props) {
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p>No clips match these filters</p>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					} else {
-						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p>No clips yet. Choose a title in Media Libraries to make one.</p><a href=\"/media\" class=\"mt-4 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors\">Browse Media</a>")
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<p>No clips yet. Choose a title in Media Libraries to make one.</p><a href=\"/media\" class=\"mt-4 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors\">Browse Media</a>")
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</div>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

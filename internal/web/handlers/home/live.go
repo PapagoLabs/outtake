@@ -11,6 +11,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/playback"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 )
 
 // playbackFeed reports the playback panel of the media item one page shows.
@@ -44,19 +45,19 @@ var mediaIDPattern = regexp.MustCompile(`^\d{1,12}$`)
 //
 // Parameters:
 //   - value: The media item id.
-//   - scope: Whose sessions the stream's caller may see.
+//   - viewpoint: What the stream's caller may reach.
 //
 // Returns:
 //   - check: The feed's check, nil when the value is not a media item id.
 func (handler *Handler) LivePlayback(
 	value string,
-	scope clip.Scope,
+	viewpoint middleware.Viewpoint,
 ) func(ctx context.Context) []string {
 	if !mediaIDPattern.MatchString(value) {
 		return nil
 	}
 
-	feed := &playbackFeed{handler: handler, mediaID: value, scope: scope, sent: ""}
+	feed := &playbackFeed{handler: handler, mediaID: value, scope: viewpoint.Scope, sent: ""}
 
 	return feed.check
 }

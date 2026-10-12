@@ -45,6 +45,9 @@ type MediaDescriber interface {
 
 	// DescribePath reports what a local media file holds.
 	DescribePath(ctx context.Context, path string) library.SourceInfo
+
+	// Sees reports whether a viewer's Plex account can see a media item.
+	Sees(ctx context.Context, viewer identity.Viewer, mediaID string) bool
 }
 
 // OutputStore reports whether a rendered clip is stored.

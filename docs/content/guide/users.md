@@ -1,6 +1,6 @@
 ---
 title: Users and Limits
-description: Let the people you share your Plex server with use Outtake, choose who manages it, and set how much each member may render
+description: Let the people you share your Plex server with use Outtake, choose who manages it, set how much each member may render, and share clips with each other
 weight: 4
 ---
 
@@ -12,10 +12,10 @@ Outtake belongs to one owner, the Plex account that owns the server Outtake clip
 | --- | --- |
 | **Owner** | Everything, including making members admins and removing admins. There is one owner |
 | **Admin** | Approve and reject new accounts, remove members, set limits, and use every settings page. Admins have no render limits |
-| **Member** | Make, preview, download, and delete their own clips, within their limits |
+| **Member** | Make, preview, download, share, and delete their own clips, within their limits |
 | **Pending** | Wait for approval. A pending account sees only a page saying so |
 
-Each person sees only their own clips. The owner and admins see everyone's.
+Each person sees their own clips and the clips others share with them. The owner and admins see everyone's.
 
 ## Letting someone in
 
@@ -27,9 +27,19 @@ A member browses your server as Plex shares it with them: only the libraries you
 
 ## Removing someone
 
-**Remove** on **Settings → Users** ends their sessions at once. Their clips are kept, and the owner and admins still see them.
+**Remove** on **Settings → Users** ends their sessions at once. Their clips are kept, and the owner and admins still see them. Clips they shared stay shared, and name their maker as "Former user".
 
 Unsharing your Plex server with someone ends their sessions too, within 10 minutes, and they cannot log in again until you share it again. Outtake checks every account's access each time it logs in and every 10 minutes while it is signed in.
+
+## Sharing clips
+
+**Share** on a clip's card lets the other people using Outtake play the clip, download it, and follow its render. A shared clip never leaves Outtake: there is no public link. **Stop Sharing** makes it private again. Both appear once Outtake has a second user.
+
+- Someone sees a shared clip only when Plex shares the clip's title with them, so sharing never shows a title from a library they cannot see. When Plex stops sharing a title with them, its clips disappear within 5 minutes.
+- Others cannot change a shared clip. Editing, regenerating, canceling, deleting, and sharing stay with the person who made it, the owner, and admins.
+- On **Clips**, **Show** switches between your own clips and **Shared Clips**, which lists every shared clip you can see, yours included. A title's page lists the clips others shared from it under **Shared Clips**. Each card names who made it.
+- A shared clip counts toward its maker's storage limit, not the viewer's.
+- Previews are never shared.
 
 ## Limits
 

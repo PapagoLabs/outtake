@@ -370,6 +370,8 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	api.Delete("/clips/preview/:id", guard, previewHandler.CancelPreview)
 	api.Post("/clips/:id/update", guard, clipHandler.Update)
 	api.Post("/clips/:id/cancel", guard, clipHandler.Cancel)
+	api.Post("/clips/:id/share", guard, clipHandler.Share)
+	api.Post("/clips/:id/unshare", guard, clipHandler.Unshare)
 	api.Get(routeClips, guard, clipHandler.List)
 	api.Get("/clips/:id/status", guard, clipHandler.GetStatus)
 	api.Get("/clips/:id/download", guard, clipHandler.Download)

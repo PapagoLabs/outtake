@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -16,10 +18,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/plex/library"
+	librarymocks "github.com/PapagoLabs/outtake/internal/plex/library/mocks"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
@@ -168,13 +175,28 @@ func TestClipFeedReportsEachChange(t *testing.T) {
 	)
 }
 
+// asViewpoint returns the viewpoint of a caller with a scope and no Plex
+// token.
+//
+// Parameters:
+//   - scope: Whose clips the caller may change.
+//
+// Returns:
+//   - viewpoint: The caller's viewpoint.
+func asViewpoint(scope clipdom.Scope) middleware.Viewpoint {
+	return middleware.Viewpoint{
+		Viewer: identity.Viewer{Token: "", PlexID: scope.Owner, Owner: false},
+		Scope:  scope,
+	}
+}
+
 func TestLiveClipsFollowsNothingWithoutIDs(t *testing.T) {
 	t.Parallel()
 
 	handler, _ := clipPageHandler(t)
 
-	assert.Nil(t, handler.LiveClips("", clipdom.Scope{Owner: 42, Everyone: true}))
-	assert.Nil(t, handler.LiveClips(" , ", clipdom.Scope{Owner: 42, Everyone: true}))
+	assert.Nil(t, handler.LiveClips("", asViewpoint(clipdom.Scope{Owner: 42, Everyone: true})))
+	assert.Nil(t, handler.LiveClips(" , ", asViewpoint(clipdom.Scope{Owner: 42, Everyone: true})))
 }
 
 // TestLiveClipsReadsFilesOnlyWhenTheStateChanges covers the storage lookups
@@ -199,7 +221,7 @@ func TestLiveClipsReadsFilesOnlyWhenTheStateChanges(t *testing.T) {
 	store.EXPECT().Exists(mock.Anything, job.OutputPath).Return(true).Twice()
 
 	handler := New(jobQueue, store, blob.Paths{}, db, &config.Config{MaxClipDur: time.Minute}, nil)
-	check := handler.LiveClips(job.ID, clipdom.Scope{Owner: 42, Everyone: true})
+	check := handler.LiveClips(job.ID, asViewpoint(clipdom.Scope{Owner: 42, Everyone: true}))
 	require.NotNil(t, check)
 
 	first := check(t.Context())
@@ -245,10 +267,109 @@ func TestLiveClipsNeverReportsAnotherAccountsClip(t *testing.T) {
 
 	check := handler.LiveClips(
 		job.ID,
-		clipdom.Scope{Owner: middlewaretest.MemberID, Everyone: false},
+		asViewpoint(clipdom.Scope{Owner: middlewaretest.MemberID, Everyone: false}),
 	)
 	require.NotNil(t, check)
 
 	assert.Empty(t, check(t.Context()))
 	assert.Empty(t, check(t.Context()))
+}
+
+// memberSources returns a media source whose bound server shares title 5
+// with the member, whose token is member-token, and no other title.
+//
+// Parameters:
+//   - t: The test the source belongs to.
+//
+// Returns:
+//   - sources: The media source.
+func memberSources(t *testing.T) *library.MediaSource {
+	t.Helper()
+
+	stub := httptest.NewServer(
+		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if request.URL.Path != "/library/metadata/5" {
+				writer.WriteHeader(http.StatusNotFound)
+
+				return
+			}
+
+			writer.Header().Set("Content-Type", "application/json")
+
+			_, _ = writer.Write([]byte(
+				`{"MediaContainer":{"Metadata":[{"ratingKey":"5","title":"Shared","type":"movie"}]}}`,
+			))
+		}),
+	)
+	t.Cleanup(stub.Close)
+
+	server, ok := plex.ParseServerURL(stub.URL)
+	require.True(t, ok)
+
+	server.Token = "member-token"
+
+	selected := librarymocks.NewMockServerSelection(t)
+	selected.EXPECT().
+		ClientWithToken("member-token").
+		Return(plex.NewClient(plex.ClientConfig{
+			Product: "outtake", ClientID: "test", Token: "member-token",
+		}), server, true).
+		Maybe()
+
+	return library.NewMediaSource(&config.Config{}, selected, nil)
+}
+
+// TestLiveClipsReportsASharedClipOnlyWhenItsTitleIsSeen covers a member's
+// page following two of the owner's shared clips.
+//
+// The clip whose title Plex shares with the member is reported, read only.
+// The other is reported no more than an id nothing uses.
+func TestLiveClipsReportsASharedClipOnlyWhenItsTitleIsSeen(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/live.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	seen := rendering("shared-seen")
+
+	seen.OwnerID = middlewaretest.OwnerID
+	seen.MediaID = "5"
+	seen.Shared = true
+
+	hidden := rendering("shared-hidden")
+
+	hidden.OwnerID = middlewaretest.OwnerID
+	hidden.MediaID = "6"
+	hidden.Shared = true
+
+	store := storagemocks.NewMockBlob(t)
+	store.EXPECT().Exists(mock.Anything, mock.Anything).Return(false).Maybe()
+
+	handler := New(
+		queueForTest(t, seen, hidden),
+		store,
+		blob.Paths{},
+		db,
+		&config.Config{MaxClipDur: time.Minute},
+		memberSources(t),
+	)
+
+	member := middleware.Viewpoint{
+		Viewer: identity.Viewer{
+			Token:  "member-token",
+			PlexID: middlewaretest.MemberID,
+			Owner:  false,
+		},
+		Scope: clipdom.Scope{Owner: middlewaretest.MemberID, Everyone: false},
+	}
+
+	check := handler.LiveClips("shared-seen,shared-hidden", member)
+	require.NotNil(t, check)
+
+	assert.Equal(t, []string{"shared-seen"}, updatedIDs(t, check(t.Context())))
+
+	payloads := handler.LiveClips("shared-seen", member)(t.Context())
+	require.Len(t, payloads, 1)
+	assert.NotContains(t, payloads[0], "/cancel", "another account's render cannot be canceled")
 }

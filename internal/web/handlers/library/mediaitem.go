@@ -42,7 +42,8 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 	item, itemErr := handler.loadMediaItem(ctx, id)
 	query := parseClipListQuery(ctx)
 	source := handler.describeItem(ctx, id, item, itemErr)
-	clips := handler.clipsForMedia(ctx, id, source, query)
+	audience := handler.audience(ctx)
+	clips := handler.clipsForMedia(ctx, id, source, query, audience)
 	window := exportform.ClipWindow(ctx)
 
 	props := pages.MediaItemPageProps{
@@ -51,6 +52,7 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 		Type:        "",
 		MaxDur:      clip.DurationCap(handler.cfg.MaxClipDur),
 		Clips:       clips,
+		SharedClips: handler.sharedClipsForMedia(ctx, id, source, audience),
 		ClipStatus:  query.Status,
 		ClipType:    query.Type,
 		ClipQuery:   query.Query,
@@ -97,6 +99,7 @@ func (handler *Handler) MediaItemClips(ctx fiber.Ctx) error {
 		id,
 		handler.sources.Describe(ctx.Context(), id),
 		query,
+		handler.audience(ctx),
 	)
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
@@ -125,6 +128,20 @@ func (*Handler) NewClip(ctx fiber.Ctx) error {
 	return respond.RedirectTo(ctx, routes.ItemURL(mediaID, values))
 }
 
+// audience returns who a request's clip cards are shown to.
+//
+// Parameters:
+//   - ctx: Request whose caller views the cards.
+//
+// Returns:
+//   - audience: The caller's scope and the installation's usernames, which
+//     are nil when they cannot be read.
+func (handler *Handler) audience(ctx fiber.Ctx) view.Audience {
+	names, err := handler.db.Usernames(ctx.Context())
+
+	return view.NewAudience(middleware.ClipScope(ctx), names, err)
+}
+
 // clipsForMedia returns clip cards for one media id, stamped with source information.
 //
 // Parameters:
@@ -132,6 +149,7 @@ func (*Handler) NewClip(ctx fiber.Ctx) error {
 //   - mediaID: Plex media item id.
 //   - source: Probed source information for the media file.
 //   - query: Normalized clip list filters and sort.
+//   - audience: Who the cards are shown to.
 //
 // Returns:
 //   - clips: Clip cards carrying the probed audio, HDR flag, and duration.
@@ -140,11 +158,63 @@ func (handler *Handler) clipsForMedia(
 	mediaID string,
 	source library.SourceInfo,
 	query catalog.ClipListQuery,
+	audience view.Audience,
 ) []view.ClipItem {
 	jobs := catalog.Apply(
-		catalog.ForMedia(ctx.Context(), handler.db, middleware.ClipScope(ctx), mediaID),
+		catalog.ForMedia(ctx.Context(), handler.db, audience.Scope, mediaID),
 		query,
 	)
+
+	return handler.clipCards(ctx, jobs, source, audience)
+}
+
+// sharedClipsForMedia returns cards for other accounts' clips of one media id
+// that are shared with the caller, newest first.
+//
+// Parameters:
+//   - ctx: Incoming page request.
+//   - mediaID: Plex media item id.
+//   - source: Probed source information for the media file.
+//   - audience: Who the cards are shown to.
+//
+// Returns:
+//   - clips: Read-only clip cards, empty when none is shared with the caller.
+func (handler *Handler) sharedClipsForMedia(
+	ctx fiber.Ctx,
+	mediaID string,
+	source library.SourceInfo,
+	audience view.Audience,
+) []view.ClipItem {
+	jobs := catalog.Apply(
+		catalog.SharedForMedia(
+			ctx.Context(),
+			handler.db,
+			audience.Scope,
+			catalog.SeenBy(handler.sources, middleware.PlexViewer(ctx)),
+			mediaID,
+		),
+		catalog.Normalize(catalog.ClipListQuery{}),
+	)
+
+	return handler.clipCards(ctx, jobs, source, audience)
+}
+
+// clipCards builds the cards for clips of one source.
+//
+// Parameters:
+//   - ctx: Incoming page request.
+//   - jobs: The clips, in the order shown.
+//   - source: Probed source information for the media file.
+//   - audience: Who the cards are shown to.
+//
+// Returns:
+//   - clips: Clip cards carrying the probed audio, HDR flag, and duration.
+func (handler *Handler) clipCards(
+	ctx fiber.Ctx,
+	jobs []*clip.Job,
+	source library.SourceInfo,
+	audience view.Audience,
+) []view.ClipItem {
 	clips := view.NewClipItems(
 		jobs,
 		profile.SelectableProfiles(ctx.Context(), handler.db),
@@ -160,6 +230,8 @@ func (handler *Handler) clipsForMedia(
 	for index := range clips {
 		view.ApplySource(&clips[index], source)
 	}
+
+	audience.ApplyEach(clips, jobs)
 
 	return clips
 }

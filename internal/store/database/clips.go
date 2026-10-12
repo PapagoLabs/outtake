@@ -25,7 +25,7 @@ const (
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
 		preserve_hdr, output_width, output_height, output_hdr, sdr_width, sdr_height,
-		error_details, owner_id, output_bytes`
+		error_details, owner_id, output_bytes, shared`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
@@ -49,8 +49,8 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 			input_path, output_path, start_time, duration, quality, width, fps,
 			error_message, created_at, updated_at, name, audio_index, crop_black_bars,
 			web_safe_color, preserve_hdr, output_width, output_height, output_hdr,
-			sdr_width, sdr_height, error_details, owner_id, output_bytes
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			sdr_width, sdr_height, error_details, owner_id, output_bytes, shared
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			clip_type = excluded.clip_type,
@@ -74,6 +74,7 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 			error_message = excluded.error_message,
 			error_details = excluded.error_details,
 			output_bytes = excluded.output_bytes,
+			shared = excluded.shared,
 			updated_at = excluded.updated_at
 	`)
 
@@ -125,6 +126,7 @@ func clipRowValues(job *clip.Job) []any {
 		job.ErrorDetails,
 		job.OwnerID,
 		job.OutputBytes,
+		sharedColumn(&job.Clip),
 	}
 }
 
@@ -280,6 +282,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 	var cropBlackBars int
 	var preserveHDR int
 	var outputHDR int
+	var shared int
 
 	err := row.Scan(
 		&job.ID,
@@ -311,6 +314,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 		&job.ErrorDetails,
 		&job.OwnerID,
 		&job.OutputBytes,
+		&shared,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan clip: %w", err)
@@ -325,6 +329,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 	job.CropBlackBars = cropBlackBars != 0
 	job.PreserveHDR = preserveHDR != 0
 	job.OutputFormat.HDR = outputHDR != 0
+	job.Shared = shared != 0
 
 	return job, nil
 }
@@ -415,6 +420,21 @@ func preserveHDRColumn(record *clip.Clip) int {
 //   - value: 1 when the file is HDR, otherwise 0.
 func outputHDRColumn(job *clip.Job) int {
 	if job.OutputFormat.HDR {
+		return 1
+	}
+
+	return 0
+}
+
+// sharedColumn stores whether a clip is shared as 0 or 1.
+//
+// Parameters:
+//   - record: Clip whose sharing is stored.
+//
+// Returns:
+//   - value: 1 when Shared is set, otherwise 0.
+func sharedColumn(record *clip.Clip) int {
+	if record.Shared {
 		return 1
 	}
 

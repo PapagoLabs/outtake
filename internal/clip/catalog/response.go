@@ -34,6 +34,7 @@ func ClipResponse(job *clip.Job) clip.Response {
 		AudioIndex:    job.AudioIndex,
 		CropBlackBars: job.CropBlackBars,
 		PreserveHDR:   job.PreserveHDR,
+		Shared:        job.Shared,
 	}
 }
 

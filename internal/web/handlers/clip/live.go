@@ -12,6 +12,8 @@ import (
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // storedFiles is which of a clip's files the storage holds.
@@ -53,16 +55,18 @@ type clipFeed struct {
 
 // statusRenderer renders status regions for one stream.
 //
-// It reads the profiles once and a clip's files only when its status or stage
-// changes.
+// It reads the profiles and the usernames once and a clip's files only when
+// its status or stage changes.
 type statusRenderer struct {
 	// handler builds the card models.
 	handler *Handler
 	// files is each clip's stored files as last read.
 	files map[string]fileCheck
+	// audience is who the cards are shown to, its names read on first use.
+	audience view.Audience
 	// profiles are the profiles every card offers, read on first use.
 	profiles []profile.ProfileOption
-	// loaded reports that profiles were read.
+	// loaded reports that profiles and names were read.
 	loaded bool
 }
 
@@ -81,14 +85,14 @@ const (
 //
 // Parameters:
 //   - value: The clip ids, separated by commas.
-//   - scope: Whose clips the stream's caller may see. Any other clip is never
-//     reported.
+//   - viewpoint: What the stream's caller may reach. A clip the caller may
+//     not see is never reported.
 //
 // Returns:
 //   - check: The feed's check, nil when the value names no clip.
 func (handler *Handler) LiveClips(
 	value string,
-	scope clipdom.Scope,
+	viewpoint middleware.Viewpoint,
 ) func(ctx context.Context) []string {
 	ids := liveIDs(value)
 	if len(ids) == 0 {
@@ -98,13 +102,14 @@ func (handler *Handler) LiveClips(
 	renderer := &statusRenderer{
 		handler:  handler,
 		files:    make(map[string]fileCheck, len(ids)),
+		audience: view.Audience{Names: nil, Scope: viewpoint.Scope},
 		profiles: nil,
 		loaded:   false,
 	}
 
 	feed := &clipFeed{
 		lookup: func(ctx context.Context, id string) *clipdom.Job {
-			return handler.lookupJob(ctx, scope, id)
+			return handler.viewJob(ctx, viewpoint, id)
 		},
 		render: renderer.render,
 		sent:   make(map[string]string, len(ids)),
@@ -152,13 +157,20 @@ func (renderer *statusRenderer) filesOf(ctx context.Context, job *clipdom.Job) s
 func (renderer *statusRenderer) render(ctx context.Context, job *clipdom.Job) (string, error) {
 	if !renderer.loaded {
 		renderer.profiles = profile.SelectableProfiles(ctx, renderer.handler.db)
+		renderer.audience = renderer.handler.audienceFor(ctx, renderer.audience.Scope)
 		renderer.loaded = true
 	}
 
-	item := renderer.handler.statusItem(job, renderer.profiles, renderer.filesOf(ctx, job))
+	item := renderer.handler.statusItem(
+		job,
+		renderer.profiles,
+		renderer.filesOf(ctx, job),
+		renderer.audience,
+	)
 
 	var html strings.Builder
 
+	//nolint:contextcheck // Render takes ctx, which templ's generated closures carry on.
 	err := clipcard.ClipStatus(item).Render(ctx, &html)
 	if err != nil {
 		return "", fmt.Errorf("render clip status: %w", err)

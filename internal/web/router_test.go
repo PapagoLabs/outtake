@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
@@ -85,6 +87,12 @@ const (
 	// otherToken is the Plex token the plex.tv stand-in maps to account 7.
 	otherToken = "other-token"
 
+	// sharedTitle is the item the bound server stand-in shares with account 7.
+	sharedTitle = "501"
+
+	// memberServerToken is account 7's token for the bound server.
+	memberServerToken = "member-server-token"
+
 	// routerHost is the Host header every browser request carries.
 	routerHost = "localhost"
 
@@ -92,6 +100,17 @@ const (
 	// short on a loaded CI runner under the race detector.
 	browserTimeout = 30 * time.Second
 )
+
+// clipReadRoutes are the clip routes that read a clip without changing it.
+//
+// Every other route naming a clip by id changes it.
+var clipReadRoutes = map[string]bool{
+	http.MethodGet + " /clips/:id/file":         true,
+	http.MethodGet + " /clips/:id/sdr":          true,
+	http.MethodGet + " /clips/:id/row":          true,
+	http.MethodGet + " /api/clips/:id/status":   true,
+	http.MethodGet + " /api/clips/:id/download": true,
+}
 
 // wantRoutes is the complete route table New must register, in registration
 // order, with each route classified as guarded or open.
@@ -248,6 +267,18 @@ var wantRoutes = []routerRoute{
 		path:    "/api/clips/:id/cancel",
 		guarded: true,
 		sample:  "/api/clips/abc/cancel",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/api/clips/:id/share",
+		guarded: true,
+		sample:  "/api/clips/abc/share",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/api/clips/:id/unshare",
+		guarded: true,
+		sample:  "/api/clips/abc/unshare",
 	},
 	{method: http.MethodGet, path: "/api/clips", guarded: true, sample: "/api/clips"},
 	{
@@ -540,6 +571,141 @@ func TestNewKeepsAMemberOutOfTheOwnersClipsAndPreviews(t *testing.T) {
 		"the owner still sees the clip")
 }
 
+// TestNewShowsAMemberOnlyTheSharedClipsTheyMaySee covers every route that
+// names a clip by id, for a member and three of the owner's clips.
+//
+// A private clip, and a shared clip of a title Plex does not share with the
+// member, answer every route as an id nothing uses does. A shared clip of a
+// title the member sees answers every read route as the member's own clip
+// does, and every change route as an id nothing uses does. Its card offers
+// no change, and the Shared filter lists it.
+func TestNewShowsAMemberOnlyTheSharedClipsTheyMaySee(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+
+	member := owner.member(t)
+	output := filepath.Join(t.TempDir(), "clip.mp4")
+	require.NoError(t, os.WriteFile(output, []byte("clip"), 0o600))
+
+	stamp := time.Now().UTC()
+	saved := func(id string, ownerID int, mediaID string, shared bool) *clip.Job {
+		job := &clip.Job{
+			ID:         id,
+			Type:       clip.TypeClip,
+			Name:       "Clip " + id,
+			MediaID:    mediaID,
+			MediaTitle: "Movie",
+			MediaType:  clip.DefaultMediaType,
+			OutputPath: output,
+			CreatedAt:  stamp,
+			UpdatedAt:  stamp,
+			OwnerID:    ownerID,
+			Status:     clip.StatusCompleted,
+			Shared:     shared,
+		}
+		require.NoError(t, owner.db.SaveClip(t.Context(), job))
+
+		return job
+	}
+
+	mine := saved("members-clip", 7, sharedTitle, false)
+	seen := saved("shared-seen", 42, sharedTitle, true)
+	hidden := saved("shared-hidden", 42, "502", true)
+	private := saved("owners-private", 42, sharedTitle, false)
+
+	for _, route := range wantRoutes {
+		if !strings.Contains(route.path, ":id") || strings.Contains(route.path, "preview") ||
+			!strings.Contains(route.path, "clips/") {
+
+			continue
+		}
+
+		name := route.method + " " + route.path
+		fill := func(id string) string { return strings.Replace(route.path, ":id", id, 1) }
+		absent := member.request(t, route.method, fill("no-such-clip"))
+
+		for _, refused := range []*clip.Job{hidden, private} {
+			got := member.request(t, route.method, fill(refused.ID))
+
+			assert.Equal(t, absent.status, got.status, "%s on %s", name, refused.ID)
+			assert.NotContains(t, got.body, refused.Name, "%s on %s", name, refused.ID)
+		}
+
+		got := member.request(t, route.method, fill(seen.ID))
+
+		if clipReadRoutes[name] {
+			own := member.request(t, route.method, fill(mine.ID))
+
+			assert.Equal(t, own.status, got.status, "%s reads a shared clip", name)
+
+			continue
+		}
+
+		assert.Equal(t, absent.status, got.status, "%s changes no shared clip", name)
+	}
+
+	row := member.request(t, http.MethodGet, "/clips/"+seen.ID+"/row")
+	require.Equal(t, fiber.StatusOK, row.status)
+	assert.Contains(t, row.body, "By owner")
+	assert.NotContains(t, row.body, "Regenerate")
+	assert.NotContains(t, row.body, "Delete")
+
+	listed := member.request(t, http.MethodGet, "/clips?show=shared").body
+	assert.Contains(t, listed, seen.Name)
+	assert.NotContains(t, listed, hidden.Name)
+	assert.NotContains(t, listed, private.Name)
+	assert.NotContains(t, member.request(t, http.MethodGet, "/clips").body, seen.Name,
+		"the member's own list holds only their clips")
+	assert.NotContains(t, member.request(t, http.MethodGet, "/api/clips").body, seen.ID)
+
+	still, err := owner.db.GetClip(t.Context(), seen.ID)
+	require.NoError(t, err)
+	assert.True(t, still.Shared, "the member could not make the clip private")
+}
+
+// TestNewLetsTheOwnerShareAClip covers the share routes for a clip's owner.
+//
+// Sharing makes the clip visible to a member who sees its title, and making
+// it private again hides it.
+func TestNewLetsTheOwnerShareAClip(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+
+	member := owner.member(t)
+	stamp := time.Now().UTC()
+	job := &clip.Job{
+		ID:         "owners-clip",
+		Type:       clip.TypeClip,
+		Name:       "The Owner's Clip",
+		MediaID:    sharedTitle,
+		MediaTitle: "Movie",
+		MediaType:  clip.DefaultMediaType,
+		CreatedAt:  stamp,
+		UpdatedAt:  stamp,
+		OwnerID:    42,
+		Status:     clip.StatusCompleted,
+	}
+	require.NoError(t, owner.db.SaveClip(t.Context(), job))
+
+	status := "/api/clips/" + job.ID + "/status"
+	absent := member.request(t, http.MethodGet, "/api/clips/no-such-clip/status").status
+
+	require.Equal(t, absent, member.request(t, http.MethodGet, status).status)
+
+	shared := owner.request(t, http.MethodPost, "/api/clips/"+job.ID+"/share")
+	require.Equal(t, fiber.StatusSeeOther, shared.status, "a form post is sent back")
+	assert.Equal(t, fiber.StatusOK, member.request(t, http.MethodGet, status).status)
+	assert.Contains(t, member.request(t, http.MethodGet, status).body, `"shared":true`)
+
+	unshared := owner.request(t, http.MethodPost, "/api/clips/"+job.ID+"/unshare")
+	require.Equal(t, fiber.StatusSeeOther, unshared.status)
+	assert.Equal(t, absent, member.request(t, http.MethodGet, status).status)
+}
+
 // TestNewHoldsAPendingAccountAtThePendingPage covers an account the bound
 // server is shared with, signing in before an admin approves it.
 //
@@ -792,6 +958,8 @@ func TestNewResolvesTheAPIClipRoutesWithoutShadowing(t *testing.T) {
 		{method: http.MethodDelete, path: "/api/clips/preview/:id", sample: "/api/clips/preview/abc"},
 		{method: http.MethodPost, path: "/api/clips/:id/update", sample: "/api/clips/abc/update"},
 		{method: http.MethodPost, path: "/api/clips/:id/cancel", sample: "/api/clips/abc/cancel"},
+		{method: http.MethodPost, path: "/api/clips/:id/share", sample: "/api/clips/abc/share"},
+		{method: http.MethodPost, path: "/api/clips/:id/unshare", sample: "/api/clips/abc/unshare"},
 		{method: http.MethodGet, path: "/api/clips/:id/status", sample: "/api/clips/abc/status"},
 		{method: http.MethodGet, path: "/api/clips/:id/download", sample: "/api/clips/abc/download"},
 		{method: http.MethodDelete, path: "/api/clips/:id", sample: "/api/clips/abc"},
@@ -1199,6 +1367,7 @@ func testRouterDepsWith(
 			"outtake", "test-client", "http://localhost", db, selected,
 			identity.WithPlexURL(plexURL),
 		),
+		Sources: library.NewMediaSource(cfg, selected, nil),
 	}
 }
 
@@ -1228,6 +1397,24 @@ func routerPlexTV(t *testing.T) *httptest.Server {
 			writer.WriteHeader(http.StatusUnauthorized)
 		}
 	})
+	mux.HandleFunc(
+		"/library/metadata/{id}",
+		func(writer http.ResponseWriter, request *http.Request) {
+			if request.PathValue("id") != sharedTitle ||
+				request.Header.Get("X-Plex-Token") != memberServerToken {
+
+				writer.WriteHeader(http.StatusNotFound)
+
+				return
+			}
+
+			writer.Header().Set("Content-Type", "application/json")
+
+			_, _ = writer.Write([]byte(
+				`{"MediaContainer":{"Metadata":[{"ratingKey":"501","title":"Shared","type":"movie"}]}}`,
+			))
+		},
+	)
 	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("X-Plex-Token") != otherToken {
 			_, _ = writer.Write([]byte(`<MediaContainer></MediaContainer>`))

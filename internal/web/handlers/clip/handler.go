@@ -23,6 +23,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/database"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
+	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // Handler handles clip-related requests.
@@ -84,6 +85,33 @@ func (handler *Handler) SetLimits(limits *quota.Enforcer) {
 	handler.limits = limits
 }
 
+// audience returns who a request's clip cards are shown to.
+//
+// Parameters:
+//   - ctx: Request whose caller views the cards.
+//
+// Returns:
+//   - audience: The caller's scope and the installation's usernames, which
+//     are nil when they cannot be read.
+func (handler *Handler) audience(ctx fiber.Ctx) view.Audience {
+	return handler.audienceFor(ctx.Context(), middleware.ClipScope(ctx))
+}
+
+// audienceFor returns who clip cards are shown to.
+//
+// Parameters:
+//   - ctx: Context for reading the usernames.
+//   - scope: Whose clips the viewer may change.
+//
+// Returns:
+//   - audience: The scope and the installation's usernames, which are nil
+//     when they cannot be read.
+func (handler *Handler) audienceFor(ctx context.Context, scope clipdom.Scope) view.Audience {
+	names, err := handler.db.Usernames(ctx)
+
+	return view.NewAudience(scope, names, err)
+}
+
 // clipCap returns the longest clip the caller may make.
 //
 // Parameters:
@@ -110,16 +138,16 @@ func (handler *Handler) listJobs(ctx fiber.Ctx) []*clipdom.Job {
 	return catalog.Jobs(ctx.Context(), handler.clipQueue, handler.db, middleware.ClipScope(ctx))
 }
 
-// lookupJob finds a clip the caller may see in the queue or the database.
+// lookupJob finds a clip the caller may change in the queue or the database.
 //
 // Parameters:
 //   - ctx: Request context.
-//   - scope: Whose clips the caller may see.
+//   - scope: Whose clips the caller may change.
 //   - id: Clip id to look up.
 //
 // Returns:
 //   - job: The queued job or stored clip, or nil when neither is found or it
-//     belongs to an account the caller may not see.
+//     belongs to an account the caller may not change.
 func (handler *Handler) lookupJob(
 	ctx context.Context,
 	scope clipdom.Scope,
@@ -252,6 +280,34 @@ func (handler *Handler) validateEdit(
 	}
 
 	return nil
+}
+
+// viewJob finds a clip the caller may see in the queue or the database.
+//
+// The caller sees every clip they may change, and another account's shared
+// clip when Plex shares its source title with them.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - viewpoint: What the caller may reach.
+//   - id: Clip id to look up.
+//
+// Returns:
+//   - job: The queued job or stored clip, or nil when neither is found or the
+//     caller may not see it.
+func (handler *Handler) viewJob(
+	ctx context.Context,
+	viewpoint middleware.Viewpoint,
+	id string,
+) *clipdom.Job {
+	return catalog.Viewable(
+		ctx,
+		handler.clipQueue,
+		handler.db,
+		viewpoint.Scope,
+		catalog.SeenBy(handler.sources, viewpoint.Viewer),
+		id,
+	)
 }
 
 // AccessCode names why a media access check refused a render.

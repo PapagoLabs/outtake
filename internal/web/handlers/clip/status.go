@@ -21,7 +21,7 @@ import (
 //   - err: Response error, or nil on success.
 func (handler *Handler) GetStatus(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
-	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), id)
+	job := handler.viewJob(ctx.Context(), middleware.ViewpointOf(ctx), id)
 	if job == nil {
 		return respond.WriteNotFound(ctx)
 	}

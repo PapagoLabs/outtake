@@ -70,6 +70,21 @@ func clipSDRURL(item view.ClipItem) templ.SafeURL {
 	return templ.SafeURL("/clips/" + item.ID + "/sdr?v=" + item.FileVersion)
 }
 
+// shareURL is where a clip's share button posts.
+//
+// Parameters:
+//   - item: Clip being rendered.
+//
+// Returns:
+//   - url: The route that stops sharing a shared clip, or shares a private one.
+func shareURL(item view.ClipItem) string {
+	if item.Shared {
+		return "/api/clips/" + item.ID + "/unshare"
+	}
+
+	return "/api/clips/" + item.ID + "/share"
+}
+
 // clipPlayback renders the collapsible preview for a clip that can play.
 //
 // An HDR clip with an SDR version plays that version, and the page script moves
@@ -166,6 +181,8 @@ templ clipFileBadge(item view.ClipItem) {
 // ClipStatus renders the status region a clip card keeps current while it
 // encodes.
 //
+// A clip the viewer may not change offers playback and Download only.
+//
 // live.js follows every region marked data-clip-live over one stream, and
 // holds back the region's own poll while the stream delivers. The region
 // carries the clip's window, which app.js copies into the card's form after a
@@ -194,6 +211,11 @@ templ ClipStatus(item view.ClipItem) {
 						{ view.StatusLabel(item.Status) }
 					}
 					@clipFileBadge(item)
+					if item.Shared {
+						@badge.Badge(badge.Props{Variant: badge.VariantOutline}) {
+							Shared
+						}
+					}
 				</div>
 				<div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
 					<span>{ view.ClipTypeLabel(item.ClipType) }</span>
@@ -217,19 +239,25 @@ templ ClipStatus(item view.ClipItem) {
 						<span>&middot;</span>
 						<span>{ item.CreatedAt }</span>
 					}
+					if item.OwnerName != "" {
+						<span>&middot;</span>
+						<span data-clip-owner>By { item.OwnerName }</span>
+					}
 				</div>
 			</div>
-			<button
-				type="button"
-				hx-delete={ "/api/clips/" + item.ID }
-				hx-target={ "#clip-" + item.ID }
-				hx-swap="delete"
-				hx-disable="this"
-				hx-confirm="Delete this clip? This can't be undone."
-				class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
-			>
-				Delete
-			</button>
+			if !item.ReadOnly {
+				<button
+					type="button"
+					hx-delete={ "/api/clips/" + item.ID }
+					hx-target={ "#clip-" + item.ID }
+					hx-swap="delete"
+					hx-disable="this"
+					hx-confirm="Delete this clip? This can't be undone."
+					class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
+				>
+					Delete
+				</button>
+			}
 		</div>
 		if item.Error != "" {
 			<div class="flex flex-col gap-1">
@@ -245,7 +273,7 @@ templ ClipStatus(item view.ClipItem) {
 		}
 		@clipPlayback(item)
 		<div class="flex flex-wrap items-end gap-2">
-			if item.IsActive() {
+			if !item.ReadOnly && item.IsActive() {
 				<button
 					type="button"
 					hx-post={ "/api/clips/" + item.ID + "/cancel" }
@@ -256,12 +284,28 @@ templ ClipStatus(item view.ClipItem) {
 				>
 					Cancel
 				</button>
-			} else {
+			} else if !item.ReadOnly {
 				<button type="submit" name="regenerate" value="1" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
 					Regenerate
 				</button>
 				<button type="submit" class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
 					Save Changes
+				</button>
+			}
+			if item.CanShare {
+				<button
+					type="button"
+					hx-post={ shareURL(item) }
+					hx-target={ "#clip-" + item.ID }
+					hx-swap="outerHTML"
+					hx-disable="this"
+					class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+				>
+					if item.Shared {
+						Stop Sharing
+					} else {
+						Share
+					}
 				</button>
 			}
 			if item.CanPlay() {
@@ -275,98 +319,112 @@ templ ClipStatus(item view.ClipItem) {
 
 // ClipCard renders one clip card and its metadata edit form.
 //
+// A clip the viewer may not change has no form, only its status region.
+//
 // Parameters:
 //   - item: Clip being rendered.
 templ ClipCard(item view.ClipItem) {
 	<div id={ "clip-" + item.ID }>
 		@card.Card() {
 			@card.Content() {
-				<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" hx-post={ templ.SafeURL("/api/clips/" + item.ID + "/update") } hx-target={ "#clip-" + item.ID } hx-swap="outerHTML" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.FormatInt(int64(item.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(item.MediaDuration).FormatSeconds() }>
-					@csrf.Field()
-					<input type="hidden" name="mediaId" value={ item.MediaID }/>
+				if item.ReadOnly {
 					@ClipStatus(item)
-					<div class="grid gap-4 sm:grid-cols-2">
-						<div class="flex flex-col gap-2">
-							@label.Label(label.Props{For: "type-" + item.ID}) {
-								Type
-							}
-							<select id={ "type-" + item.ID } name="clipType" class={ utils.ControlClass }>
-								<option value={ string(domainclip.TypeClip) } selected?={ item.ClipType == domainclip.TypeClip }>Video Clip</option>
-								<option value={ string(domainclip.TypeGIF) } selected?={ item.ClipType == domainclip.TypeGIF }>GIF</option>
-								<option value={ string(domainclip.TypeScreenshot) } selected?={ item.ClipType == domainclip.TypeScreenshot }>Screenshot</option>
-							</select>
-						</div>
-						<div class="flex flex-col gap-2">
-							@label.Label(label.Props{For: "name-" + item.ID}) {
-								Name
-							}
-							<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class={ utils.ControlClass }/>
-						</div>
-						<div class="flex flex-col gap-2">
-							<div class="grid">
-								<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="clip,gif">
-									@label.Label(label.Props{For: "start-" + item.ID}) {
-										Start
-									}
-									<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
-								</div>
-								<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="screenshot">
-									@label.Label(label.Props{For: "start-" + item.ID}) {
-										Time
-									}
-									<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
-								</div>
-							</div>
-							<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" value={ timecode.FromDuration(item.StartTime).String() } class={ utils.ControlClass }/>
-						</div>
-						<div class="flex flex-col gap-2" data-export-for="clip,gif">
-							<div class="flex items-baseline gap-2">
-								@label.Label(label.Props{For: "end-" + item.ID}) {
-									End
-								}
-								<span data-end-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
-							</div>
-							<input id={ "end-" + item.ID } name="endTime" type="text" inputmode="decimal" value={ timecode.FromDuration(item.EndTime()).String() } class={ utils.ControlClass }/>
-						</div>
-						<input type="hidden" id={ "dur-" + item.ID } name="duration" value={ timecode.FromDuration(item.Duration).String() }/>
-						<div class="flex min-w-40 flex-col gap-2" data-export-for="clip">
-							@label.Label(label.Props{For: "quality-" + item.ID}) {
-								Profile
-							}
-							@quality.QualitySelect("quality-"+item.ID, item.Profiles, item.Quality)
-						</div>
-						if len(item.AudioTracks) > 0 {
-							<div class="flex flex-col gap-2" data-export-for="clip">
-								@label.Label(label.Props{For: "audio-" + item.ID}) {
-									Audio Track
-								}
-								@quality.AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
-							</div>
-						} else {
-							// Without probed tracks there is no select, so the stored track is posted back unchanged.
-							<input type="hidden" name="audioIndex" value={ strconv.Itoa(item.AudioIndex) }/>
-						}
-						<div class="flex flex-col gap-2" data-export-for="gif">
-							@label.Label(label.Props{For: "width-" + item.ID}) {
-								GIF Width (px)
-							}
-							// These bounds mirror the server-side GIF width limits, which change for their own reasons.
-							<input id={ "width-" + item.ID } name="width" type="number" min="120" max="1920" value={ strconv.Itoa(item.GIFWidth()) } class={ utils.ControlClass }/>
-						</div>
-						<div class="flex flex-col gap-2" data-export-for="gif">
-							@label.Label(label.Props{For: "fps-" + item.ID}) {
-								GIF Frame Rate (fps)
-							}
-							// These bounds mirror the server-side GIF frame rate limits.
-							<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class={ utils.ControlClass }/>
-						</div>
-					</div>
-					<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Length: <span data-duration-label>{ timecode.FromDuration(item.Duration).Short() }</span> (maximum { timecode.FromDuration(item.MaxDur).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
-					@CropBlackBarsField(item.CropBlackBars)
-				</form>
+				} else {
+					@clipForm(item)
+				}
 			}
 		}
 	</div>
+}
+
+// clipForm renders a clip's status region inside its metadata edit form.
+//
+// Parameters:
+//   - item: Clip being rendered.
+templ clipForm(item view.ClipItem) {
+	<form action={ templ.SafeURL("/api/clips/" + item.ID + "/update") } method="POST" hx-post={ templ.SafeURL("/api/clips/" + item.ID + "/update") } hx-target={ "#clip-" + item.ID } hx-swap="outerHTML" class="flex flex-col gap-4" data-export-form data-max-dur={ strconv.FormatInt(int64(item.MaxDur/time.Second), 10) } data-media-dur={ timecode.FromDuration(item.MediaDuration).FormatSeconds() }>
+		@csrf.Field()
+		<input type="hidden" name="mediaId" value={ item.MediaID }/>
+		@ClipStatus(item)
+		<div class="grid gap-4 sm:grid-cols-2">
+			<div class="flex flex-col gap-2">
+				@label.Label(label.Props{For: "type-" + item.ID}) {
+					Type
+				}
+				<select id={ "type-" + item.ID } name="clipType" class={ utils.ControlClass }>
+					<option value={ string(domainclip.TypeClip) } selected?={ item.ClipType == domainclip.TypeClip }>Video Clip</option>
+					<option value={ string(domainclip.TypeGIF) } selected?={ item.ClipType == domainclip.TypeGIF }>GIF</option>
+					<option value={ string(domainclip.TypeScreenshot) } selected?={ item.ClipType == domainclip.TypeScreenshot }>Screenshot</option>
+				</select>
+			</div>
+			<div class="flex flex-col gap-2">
+				@label.Label(label.Props{For: "name-" + item.ID}) {
+					Name
+				}
+				<input id={ "name-" + item.ID } name="name" value={ item.DisplayName() } class={ utils.ControlClass }/>
+			</div>
+			<div class="flex flex-col gap-2">
+				<div class="grid">
+					<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="clip,gif">
+						@label.Label(label.Props{For: "start-" + item.ID}) {
+							Start
+						}
+						<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
+					</div>
+					<div class="col-start-1 row-start-1 flex items-baseline gap-2" data-export-for="screenshot">
+						@label.Label(label.Props{For: "start-" + item.ID}) {
+							Time
+						}
+						<span data-start-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
+					</div>
+				</div>
+				<input id={ "start-" + item.ID } name="startTime" type="text" inputmode="decimal" value={ timecode.FromDuration(item.StartTime).String() } class={ utils.ControlClass }/>
+			</div>
+			<div class="flex flex-col gap-2" data-export-for="clip,gif">
+				<div class="flex items-baseline gap-2">
+					@label.Label(label.Props{For: "end-" + item.ID}) {
+						End
+					}
+					<span data-end-time-error role="status" aria-live="polite" class="hidden text-xs text-destructive"></span>
+				</div>
+				<input id={ "end-" + item.ID } name="endTime" type="text" inputmode="decimal" value={ timecode.FromDuration(item.EndTime()).String() } class={ utils.ControlClass }/>
+			</div>
+			<input type="hidden" id={ "dur-" + item.ID } name="duration" value={ timecode.FromDuration(item.Duration).String() }/>
+			<div class="flex min-w-40 flex-col gap-2" data-export-for="clip">
+				@label.Label(label.Props{For: "quality-" + item.ID}) {
+					Profile
+				}
+				@quality.QualitySelect("quality-"+item.ID, item.Profiles, item.Quality)
+			</div>
+			if len(item.AudioTracks) > 0 {
+				<div class="flex flex-col gap-2" data-export-for="clip">
+					@label.Label(label.Props{For: "audio-" + item.ID}) {
+						Audio Track
+					}
+					@quality.AudioSelect("audio-"+item.ID, item.AudioTracks, item.AudioIndex)
+				</div>
+			} else {
+				// Without probed tracks there is no select, so the stored track is posted back unchanged.
+				<input type="hidden" name="audioIndex" value={ strconv.Itoa(item.AudioIndex) }/>
+			}
+			<div class="flex flex-col gap-2" data-export-for="gif">
+				@label.Label(label.Props{For: "width-" + item.ID}) {
+					GIF Width (px)
+				}
+				// These bounds mirror the server-side GIF width limits, which change for their own reasons.
+				<input id={ "width-" + item.ID } name="width" type="number" min="120" max="1920" value={ strconv.Itoa(item.GIFWidth()) } class={ utils.ControlClass }/>
+			</div>
+			<div class="flex flex-col gap-2" data-export-for="gif">
+				@label.Label(label.Props{For: "fps-" + item.ID}) {
+					GIF Frame Rate (fps)
+				}
+				// These bounds mirror the server-side GIF frame rate limits.
+				<input id={ "fps-" + item.ID } name="fps" type="number" min="5" max="30" value={ strconv.Itoa(item.GIFFPS()) } class={ utils.ControlClass }/>
+			</div>
+		</div>
+		<p class="text-sm text-muted-foreground" data-export-for="clip,gif">Length: <span data-duration-label>{ timecode.FromDuration(item.Duration).Short() }</span> (maximum { timecode.FromDuration(item.MaxDur).Short() }) <span data-duration-warning role="status" aria-live="polite" class="sr-only"></span></p>
+		@CropBlackBarsField(item.CropBlackBars)
+	</form>
 }
 
 // CropBlackBarsField renders the trim-black-bars checkbox.

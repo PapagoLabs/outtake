@@ -57,6 +57,7 @@ func NewClipItem(
 		Width:         job.Width,
 		FPS:           job.FPS,
 		MaxDur:        limit,
+		Shared:        job.Shared,
 	}
 }
 

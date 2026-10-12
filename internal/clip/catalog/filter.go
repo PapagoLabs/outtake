@@ -16,9 +16,9 @@ import (
 //   - query: Toolbar state.
 //
 // Returns:
-//   - filtered: True when a status, type, or name filter is set.
+//   - filtered: True when a status, type, name, or shared filter is set.
 func (query ClipListQuery) Filtered() bool {
-	return query.Status != "" || query.Type != "" || query.Query != ""
+	return query.Status != "" || query.Type != "" || query.Query != "" || query.Shared
 }
 
 // MatchesStatus reports whether a job belongs to a status filter.
@@ -38,7 +38,8 @@ func MatchesStatus(itemStatus, want clip.Status) bool {
 	}
 }
 
-// matches reports whether a job passes the status, type, and name filters.
+// matches reports whether a job passes the status, type, shared, and name
+// filters.
 //
 // Parameters:
 //   - job: The render to test.
@@ -52,7 +53,7 @@ func matches(job *clip.Job, query ClipListQuery, needle string) bool {
 		return false
 	}
 
-	if query.Type != "" && job.Type != query.Type {
+	if !matchesKind(job, query) {
 		return false
 	}
 
@@ -109,4 +110,16 @@ func compare(left, right *clip.Clip, sort string) int {
 //   - name: The display name in lower case.
 func nameKey(item *clip.Clip) string {
 	return strings.ToLower(clip.DisplayName(item.Name, item.MediaTitle))
+}
+
+// matchesKind reports whether a job passes the type and shared filters.
+//
+// Parameters:
+//   - job: The render to test.
+//   - query: Normalized toolbar state.
+//
+// Returns:
+//   - passes: True when both filters accept the job.
+func matchesKind(job *clip.Job, query ClipListQuery) bool {
+	return (query.Type == "" || job.Type == query.Type) && (!query.Shared || job.Shared)
 }
