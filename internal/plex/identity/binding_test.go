@@ -43,6 +43,33 @@ func TestBindingClientCarriesTheSelectedToken(t *testing.T) {
 	assert.Equal(t, "token-a", server.Token)
 }
 
+// TestBindingClientWithTokenReadsAsAnotherAccount covers a client for an
+// account that does not own the selected server.
+//
+// It carries that account's token, never the bound one, and there is none
+// without a token or a selection.
+func TestBindingClientWithTokenReadsAsAnotherAccount(t *testing.T) {
+	t.Parallel()
+
+	bind := NewBinding("outtake", "test-client", time.Minute)
+
+	_, _, ok := bind.ClientWithToken("member-token")
+	assert.False(t, ok, "nothing is selected yet")
+
+	bind.Set(plex.Server{Name: "server-a", Token: "owner-token"})
+	t.Cleanup(bind.Stop)
+
+	client, server, ok := bind.ClientWithToken("member-token")
+	require.True(t, ok)
+	require.NotNil(t, client)
+	assert.Equal(t, "member-token", client.Token)
+	assert.Equal(t, "member-token", server.Token)
+	assert.Equal(t, "server-a", server.Name)
+
+	_, _, ok = bind.ClientWithToken("")
+	assert.False(t, ok, "an account with no token for the server reads nothing")
+}
+
 func TestBindingClientClearedSelection(t *testing.T) {
 	t.Parallel()
 

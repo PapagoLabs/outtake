@@ -4,11 +4,13 @@
 package middleware
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/stretchr/testify/assert"
@@ -23,8 +25,22 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/middleware/mocks"
 )
 
+// fakeTokens answers server token lookups with a fixed result and counts
+// them.
+type fakeTokens struct {
+	// err is what each lookup fails with, nil for none.
+	err error
+	// token is what each lookup returns.
+	token string
+	// asked counts the lookups.
+	asked int
+}
+
 // errStoreUnreadable reports a user store that cannot be read.
 var errStoreUnreadable = errors.New("user store is unreadable")
+
+// errPlexDown stands in for plex.tv that cannot be asked.
+var errPlexDown = errors.New("plex.tv is down")
 
 func TestAuthGuardPassesTheE2EEnvironmentThroughWithoutAToken(t *testing.T) {
 	t.Parallel()
@@ -101,7 +117,7 @@ func TestAuthGuardSignsOutASessionWhoseUserWasRemoved(t *testing.T) {
 		session.New(),
 		withUser(7),
 		func(ctx fiber.Ctx) error {
-			err := AuthGuard("test", users)(ctx)
+			err := AuthGuard("test", users, nil)(ctx)
 
 			// The guard answered with a redirect. Expose what it left on the
 			// session, so the test can tell the session was reset.
@@ -146,7 +162,7 @@ func TestAuthGuardRecordsTheCaller(t *testing.T) {
 
 	member := issueRequest(
 		t,
-		chainApp(t, callerHandler(), session.New(), withUser(7), AuthGuard("test", users)),
+		chainApp(t, callerHandler(), session.New(), withUser(7), AuthGuard("test", users, nil)),
 		http.MethodGet,
 		"/",
 	)
@@ -154,7 +170,7 @@ func TestAuthGuardRecordsTheCaller(t *testing.T) {
 
 	e2e := issueRequest(
 		t,
-		chainApp(t, callerHandler(), session.New(), AuthGuard(config.EnvE2E, nil)),
+		chainApp(t, callerHandler(), session.New(), AuthGuard(config.EnvE2E, nil, nil)),
 		http.MethodGet,
 		"/",
 	)
@@ -208,6 +224,112 @@ func TestClipScopeFollowsTheCaller(t *testing.T) {
 	}
 }
 
+// TestPlexViewerFollowsTheCaller covers whose token each caller reads the
+// bound server with.
+//
+// The owner reads with the bound token, anyone else with the token stored on
+// their session, and a request without a caller with none.
+func TestPlexViewerFollowsTheCaller(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		caller *identity.User
+		want   identity.Viewer
+	}{
+		"owner": {
+			caller: &identity.User{PlexID: 42, Username: "", Role: identity.RoleOwner},
+			want:   identity.OwnerViewer(42),
+		},
+		"member": {
+			caller: &identity.User{PlexID: 7, Username: "", Role: identity.RoleMember},
+			want:   identity.Viewer{Token: "member-server-token", PlexID: 7, Owner: false},
+		},
+		"admin": {
+			caller: &identity.User{PlexID: 9, Username: "", Role: identity.RoleAdmin},
+			want:   identity.Viewer{Token: "member-server-token", PlexID: 9, Owner: false},
+		},
+		"nobody": {caller: nil, want: identity.Viewer{Token: "", PlexID: 0, Owner: false}},
+	} {
+		var got identity.Viewer
+
+		app := chainApp(t, okHandler(), session.New(), func(ctx fiber.Ctx) error {
+			identity.SetServerToken(session.FromContext(ctx), "member-server-token", time.Now())
+
+			if test.caller != nil {
+				SetCaller(ctx, *test.caller)
+			}
+
+			got = PlexViewer(ctx)
+
+			return ctx.Next()
+		})
+
+		issueRequest(t, app, http.MethodGet, "/")
+
+		assert.Equal(t, test.want, got, name)
+	}
+}
+
+// TestAuthGuardRenewsAMembersServerToken covers asking plex.tv again for a
+// member's own server token.
+//
+// A missing token is asked for, but no more than once a minute. A held token
+// is checked again after ten minutes, and dropped when plex.tv no longer lists
+// it. A failure to ask keeps the held token, and the owner is never asked
+// about.
+func TestAuthGuardRenewsAMembersServerToken(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+
+	for name, test := range map[string]struct {
+		role    string
+		held    string
+		checked time.Time
+		lookup  fakeTokens
+		want    string
+		asks    int
+	}{
+		"missing":          {role: "member", lookup: fakeTokens{token: "fresh"}, want: "fresh", asks: 1},
+		"missing, retried": {role: "member", checked: now.Add(-30 * time.Second), lookup: fakeTokens{token: "fresh"}, want: "", asks: 0},
+		"held, recent":     {role: "member", held: "old", checked: now.Add(-time.Minute * 5), lookup: fakeTokens{token: "fresh"}, want: "old", asks: 0},
+		"held, stale":      {role: "member", held: "old", checked: now.Add(-time.Minute * 11), lookup: fakeTokens{token: "fresh"}, want: "fresh", asks: 1},
+		"share removed":    {role: "member", held: "old", checked: now.Add(-time.Minute * 11), lookup: fakeTokens{token: ""}, want: "", asks: 1},
+		"plex.tv down":     {role: "member", held: "old", checked: now.Add(-time.Minute * 11), lookup: fakeTokens{err: errPlexDown}, want: "old", asks: 1},
+		"owner":            {role: "owner", lookup: fakeTokens{token: "fresh"}, want: "", asks: 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			users := mocks.NewMockUserLookup(t)
+			users.EXPECT().UserRole(mock.Anything, 7).Return(test.role, true, nil).Once()
+
+			lookup := test.lookup
+
+			app := chainApp(t,
+				func(ctx fiber.Ctx) error {
+					return ctx.SendString(identity.ServerToken(session.FromContext(ctx)))
+				},
+				session.New(),
+				withUser(7),
+				func(ctx fiber.Ctx) error {
+					if !test.checked.IsZero() || test.held != "" {
+						identity.SetServerToken(session.FromContext(ctx), test.held, test.checked)
+					}
+
+					return ctx.Next()
+				},
+				AuthGuard("test", users, &lookup),
+			)
+
+			got := issueRequest(t, app, http.MethodGet, "/")
+
+			assert.Equal(t, test.want, got.body)
+			assert.Equal(t, test.asks, lookup.asked)
+		})
+	}
+}
+
 // TestAdminGuardLetsOnlyTheOwnerAndAdminsThrough covers the admin pages'
 // guard.
 func TestAdminGuardLetsOnlyTheOwnerAndAdminsThrough(t *testing.T) {
@@ -226,7 +348,7 @@ func TestAdminGuardLetsOnlyTheOwnerAndAdminsThrough(t *testing.T) {
 			okHandler(),
 			session.New(),
 			withUser(7),
-			AuthGuard("test", users),
+			AuthGuard("test", users, nil),
 			AdminGuard(),
 		)
 
@@ -284,7 +406,11 @@ func guardApp(t *testing.T, env string, seed fiber.Handler) *fiber.App {
 		middle = append(middle, seed)
 	}
 
-	return chainApp(t, okHandler(), append(middle, AuthGuard(env, mocks.NewMockUserLookup(t)))...)
+	return chainApp(
+		t,
+		okHandler(),
+		append(middle, AuthGuard(env, mocks.NewMockUserLookup(t), nil))...,
+	)
 }
 
 // guardAppWith builds a session-backed application whose auth guard resolves
@@ -300,7 +426,7 @@ func guardApp(t *testing.T, env string, seed fiber.Handler) *fiber.App {
 func guardAppWith(t *testing.T, users UserLookup, seed fiber.Handler) *fiber.App {
 	t.Helper()
 
-	return chainApp(t, okHandler(), session.New(), seed, AuthGuard("test", users))
+	return chainApp(t, okHandler(), session.New(), seed, AuthGuard("test", users, nil))
 }
 
 // refusingApp builds an application that answers every request with
@@ -366,4 +492,15 @@ func callerHandler() fiber.Handler {
 
 		return ctx.SendString(strconv.Itoa(caller.PlexID) + " " + string(caller.Role))
 	}
+}
+
+// ServerToken returns the fake's result and counts the lookup.
+//
+// Returns:
+//   - token: The fake's token.
+//   - err: The fake's err.
+func (tokens *fakeTokens) ServerToken(context.Context, string) (string, error) {
+	tokens.asked++
+
+	return tokens.token, tokens.err
 }

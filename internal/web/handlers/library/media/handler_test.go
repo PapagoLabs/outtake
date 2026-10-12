@@ -13,12 +13,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/media/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
 type served struct {
@@ -106,6 +108,7 @@ func serve(
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Add([]string{method}, path, handler)
 
 	req := httptest.NewRequestWithContext(t.Context(), method, target, nil)
@@ -178,6 +181,40 @@ func TestGetSessionsServesTheCachedSessions(t *testing.T) {
 		`[{"id":"session-1","mediaId":"100","title":"Test Movie","duration":0,"viewOffset":900}]`,
 		got.body,
 		"the cached sessions answer without troubling the PMS")
+}
+
+// TestGetSessionsListsOnlyAMembersOwn covers a member asking what is
+// playing, which leaves out other accounts' sessions.
+func TestGetSessionsListsOnlyAMembersOwn(t *testing.T) {
+	t.Parallel()
+
+	auth := mocks.NewMockPlexLookup(t)
+	auth.EXPECT().Sessions().Return([]plex.Session{
+		{ID: "owners", MediaItem: plex.MediaItem{ID: "41"}, Title: "Owner Movie", UserID: 1},
+		{
+			ID:        "mine",
+			MediaItem: plex.MediaItem{ID: "42"},
+			Title:     "Member Movie",
+			UserID:    middlewaretest.MemberID,
+		},
+	})
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Get("/api/plex/sessions", New(auth).GetSessions)
+
+	resp, err := app.Test(
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/plex/sessions", nil),
+	)
+	require.NoError(t, err)
+
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Contains(t, string(body), `"id":"mine"`)
+	assert.NotContains(t, string(body), `"id":"owners"`)
 }
 
 func TestGetSessionsServesAnEmptyArrayWhenNothingHasPolled(t *testing.T) {
@@ -257,7 +294,7 @@ func TestSearchReturnsAnEmptyListWithNoServerBound(t *testing.T) {
 	t.Parallel()
 
 	auth := mocks.NewMockPlexLookup(t)
-	auth.EXPECT().Client().Return(nil, plex.EmptyServer(), false)
+	auth.EXPECT().ClientAs(mock.Anything).Return(nil, plex.EmptyServer(), false)
 
 	got := search(t, New(auth), "/api/plex/search"+"?q=intro")
 
@@ -276,7 +313,7 @@ func TestSearchReportsAFailedSearch(t *testing.T) {
 	client, server := pmsFor(t, ts)
 
 	auth := mocks.NewMockPlexLookup(t)
-	auth.EXPECT().Client().Return(client, server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := search(t, New(auth), "/api/plex/search"+"?q=intro")
 
@@ -297,7 +334,7 @@ func TestSearchReportsAMalformedResponse(t *testing.T) {
 	client, server := pmsFor(t, ts)
 
 	auth := mocks.NewMockPlexLookup(t)
-	auth.EXPECT().Client().Return(client, server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := search(t, New(auth), "/api/plex/search"+"?q=intro")
 
@@ -329,7 +366,7 @@ func TestSearchServesTheMatchingItems(t *testing.T) {
 	client, server := pmsFor(t, ts)
 
 	auth := mocks.NewMockPlexLookup(t)
-	auth.EXPECT().Client().Return(client, server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := search(t, New(auth), "/api/plex/search"+"?q=intro&library=3")
 
@@ -361,7 +398,7 @@ func TestSearchOmitsTheSectionWhenNoLibraryIsAsked(t *testing.T) {
 	client, server := pmsFor(t, ts)
 
 	auth := mocks.NewMockPlexLookup(t)
-	auth.EXPECT().Client().Return(client, server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := search(t, New(auth), "/api/plex/search"+"?q=intro")
 
@@ -380,7 +417,7 @@ func TestSearchReportsNoMatchesAsAnEmptyList(t *testing.T) {
 	client, server := pmsFor(t, ts)
 
 	auth := mocks.NewMockPlexLookup(t)
-	auth.EXPECT().Client().Return(client, server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := search(t, New(auth), "/api/plex/search"+"?q=nothing")
 

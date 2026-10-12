@@ -62,6 +62,9 @@ type Session struct {
 	// State is what the client is doing: StatePlaying, StatePaused, or
 	// buffering. A paused client has reported its exact position.
 	State string `json:"state"`
+	// UserID is the plex.tv id of the account playing, or 1 for the server's
+	// owner on a local server, and zero when the server did not say.
+	UserID int `json:"userId"`
 }
 
 // ServerIdentity represents the server identity.

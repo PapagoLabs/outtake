@@ -143,6 +143,74 @@ func (_c *MockServerBinding_Client_Call) RunAndReturn(run func() (*plex.Client, 
 	return _c
 }
 
+// ClientWithToken provides a mock function for the type MockServerBinding
+func (_mock *MockServerBinding) ClientWithToken(token string) (*plex.Client, plex.Server, bool) {
+	ret := _mock.Called(token)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClientWithToken")
+	}
+
+	var r0 *plex.Client
+	var r1 plex.Server
+	var r2 bool
+	if returnFunc, ok := ret.Get(0).(func(string) (*plex.Client, plex.Server, bool)); ok {
+		return returnFunc(token)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) *plex.Client); ok {
+		r0 = returnFunc(token)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*plex.Client)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) plex.Server); ok {
+		r1 = returnFunc(token)
+	} else {
+		r1 = ret.Get(1).(plex.Server)
+	}
+	if returnFunc, ok := ret.Get(2).(func(string) bool); ok {
+		r2 = returnFunc(token)
+	} else {
+		r2 = ret.Get(2).(bool)
+	}
+	return r0, r1, r2
+}
+
+// MockServerBinding_ClientWithToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClientWithToken'
+type MockServerBinding_ClientWithToken_Call struct {
+	*mock.Call
+}
+
+// ClientWithToken is a helper method to define mock.On call
+//   - token string
+func (_e *MockServerBinding_Expecter) ClientWithToken(token any) *MockServerBinding_ClientWithToken_Call {
+	return &MockServerBinding_ClientWithToken_Call{Call: _e.mock.On("ClientWithToken", token)}
+}
+
+func (_c *MockServerBinding_ClientWithToken_Call) Run(run func(token string)) *MockServerBinding_ClientWithToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockServerBinding_ClientWithToken_Call) Return(client *plex.Client, server plex.Server, b bool) *MockServerBinding_ClientWithToken_Call {
+	_c.Call.Return(client, server, b)
+	return _c
+}
+
+func (_c *MockServerBinding_ClientWithToken_Call) RunAndReturn(run func(token string) (*plex.Client, plex.Server, bool)) *MockServerBinding_ClientWithToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Get provides a mock function for the type MockServerBinding
 func (_mock *MockServerBinding) Get() (plex.Server, bool) {
 	ret := _mock.Called()

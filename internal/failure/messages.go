@@ -90,6 +90,11 @@ var messageRules = []messageRule{
 	},
 	{target: library.ErrNoServer, message: "Choose a Plex server under Servers first", input: true},
 	{
+		target:  library.ErrNotShared,
+		message: "That title isn't shared with your Plex account",
+		input:   true,
+	},
+	{
 		target:  identity.ErrNoServer,
 		message: "Choose a Plex server under Servers first",
 		input:   true,

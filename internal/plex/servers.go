@@ -4,6 +4,8 @@
 package plex
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net"
 	"net/url"
 	"strconv"
@@ -18,6 +20,9 @@ const (
 
 	// httpPort is the default HTTP port.
 	httpPort = 80
+
+	// viewerDigestBytes is how much of a token's digest ViewerKey keeps.
+	viewerDigestBytes = 8
 )
 
 // PreferUniqueServers keeps one connection per server, preferring local ones.
@@ -279,4 +284,21 @@ func portFromURL(parsed *url.URL) (int, bool) {
 	}
 
 	return defaultPortForScheme(parsed.Scheme), true
+}
+
+// ViewerKey names a server as one account reads it.
+//
+// Each account sees only what the server shares with it, so a cache of what
+// the server answered is kept per account. The key holds a digest of the
+// token rather than the token itself.
+//
+// Parameters:
+//   - server: A connection carrying the token it is read with.
+//
+// Returns:
+//   - key: The connection's SelectionKey and the start of its token's digest.
+func ViewerKey(server Server) string {
+	sum := sha256.Sum256([]byte(server.Token))
+
+	return SelectionKey(server) + " " + hex.EncodeToString(sum[:viewerDigestBytes])
 }

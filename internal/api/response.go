@@ -65,6 +65,9 @@ const (
 	// MediaPathUnresolved reports a source that could not be resolved.
 	MediaPathUnresolved ErrorCode = "media_path"
 
+	// NotShared reports a media item the caller's Plex account cannot see.
+	NotShared ErrorCode = "not_shared"
+
 	// InvalidQuality reports a profile id that names no profile.
 	InvalidQuality ErrorCode = "invalid_quality"
 

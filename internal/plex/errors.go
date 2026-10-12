@@ -17,6 +17,11 @@ var (
 	// ErrServerReturnedError is returned when a Plex server request fails.
 	ErrServerReturnedError = errors.New("server returned error")
 
+	// ErrNotFound is returned when a Plex server has nothing at a path for the
+	// token it was asked with, as for an item in a library not shared with
+	// that account.
+	ErrNotFound = errors.New("not found")
+
 	// ErrNoFilePathFound is returned when media metadata has no file path.
 	ErrNoFilePathFound = errors.New("no file path found")
 

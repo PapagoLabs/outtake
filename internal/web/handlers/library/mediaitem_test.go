@@ -173,7 +173,7 @@ func TestMediaItemRendersTheResolvedItem(t *testing.T) {
 	})
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(stub.client, stub.server, true)
 
 	sources := mocks.NewMockMediaDescriber(t)
 	sources.EXPECT().
@@ -356,7 +356,7 @@ func TestLoadMediaItemReportsAFailedLookup(t *testing.T) {
 	})
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(stub.client, stub.server, true)
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
@@ -438,7 +438,7 @@ func TestMediaItemAsksPlexForTheItemOnce(t *testing.T) {
 	})
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(stub.client, stub.server, true)
 
 	sources := mocks.NewMockMediaDescriber(t)
 	sources.EXPECT().
@@ -479,7 +479,7 @@ func TestMediaItemProbesNothingForAnItemWithoutAFile(t *testing.T) {
 	})
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(stub.client, stub.server, true)
 
 	handler, _ := pageHandler(t, auth, mocks.NewMockMediaDescriber(t))
 
@@ -601,7 +601,7 @@ func TestMediaItemNamesTheExportFormFromTheMediaTitle(t *testing.T) {
 	})
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Client().Return(stub.client, stub.server, true)
+	auth.EXPECT().ClientAs(mock.Anything).Return(stub.client, stub.server, true)
 
 	sources := mocks.NewMockMediaDescriber(t)
 	sources.EXPECT().DescribePath(mock.Anything, "/movies/test.mkv").Return(library.SourceInfo{})

@@ -248,10 +248,33 @@ func getPosition(
 ) (api.PlaybackPosition, int) {
 	t.Helper()
 
+	return getPositionAs(t, auth, middlewaretest.AsOwner(), sessionID)
+}
+
+// getPositionAs asks the position route about a session of item 42 as one
+// caller.
+//
+// Parameters:
+//   - t: The test the request belongs to.
+//   - auth: The Plex authentication the handler reads sessions through.
+//   - caller: Middleware recording who asks.
+//   - sessionID: The session to ask about, or empty for none.
+//
+// Returns:
+//   - position: The decoded position, zero unless the route answered 200.
+//   - status: The response status.
+func getPositionAs(
+	t *testing.T,
+	auth *mocks.MockPlexAuth,
+	caller fiber.Handler,
+	sessionID string,
+) (api.PlaybackPosition, int) {
+	t.Helper()
+
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
 	app := fiber.New()
-	app.Use(middlewaretest.AsOwner())
+	app.Use(caller)
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/position", handler.Position)
 
 	target := routes.PathItemPrefix + "42/position"
@@ -354,6 +377,43 @@ func TestPositionReadsPlexWhenAsked(t *testing.T) {
 			assert.Equal(t, test.want, position)
 		})
 	}
+}
+
+// TestPositionReadsOnlyAMembersOwnSession covers a member naming a session
+// someone else is playing.
+//
+// It reads as nothing playing, while their own session on the same item
+// still answers.
+func TestPositionReadsOnlyAMembersOwnSession(t *testing.T) {
+	t.Parallel()
+
+	sessions := []plex.Session{
+		{
+			ID:         "owners",
+			MediaItem:  plex.MediaItem{ID: "42"},
+			ViewOffset: 5,
+			State:      plex.StatePaused,
+			UserID:     1,
+		},
+		{
+			ID:         "mine",
+			MediaItem:  plex.MediaItem{ID: "42"},
+			ViewOffset: 9,
+			State:      plex.StatePaused,
+			UserID:     middlewaretest.MemberID,
+		},
+	}
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().LiveSessions(mock.Anything).Return(sessions, nil).Twice()
+
+	theirs, status := getPositionAs(t, auth, middlewaretest.AsMember(), "owners")
+	require.Equal(t, fiber.StatusOK, status)
+	assert.False(t, theirs.Playing, "another account's session is not read")
+
+	mine, status := getPositionAs(t, auth, middlewaretest.AsMember(), "mine")
+	require.Equal(t, fiber.StatusOK, status)
+	assert.Equal(t, api.PlaybackPosition{Playing: true, Paused: true, Offset: 9}, mine)
 }
 
 // TestPositionReportsAPlexItCannotReach covers a failed read.

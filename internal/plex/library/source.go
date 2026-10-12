@@ -5,6 +5,7 @@ package library
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -13,6 +14,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/probe"
+	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
@@ -80,6 +83,51 @@ func NewMediaSource(
 		cfg:      cfg,
 		selected: selected,
 	}
+}
+
+// CheckAccess checks that a viewer's Plex account can see a media item.
+//
+// A render reads the item's file from disk, which Plex's sharing does not
+// guard, so an account that does not own the server is asked about first.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - viewer: The account asking.
+//   - mediaID: The item's rating key.
+//
+// Returns:
+//   - err: Nil for the owner or an item the viewer can see, ErrNotShared for
+//     one it cannot, or the wrapped failure to ask.
+func (source *MediaSource) CheckAccess(
+	ctx context.Context,
+	viewer identity.Viewer,
+	mediaID string,
+) error {
+	if viewer.Owner {
+		return nil
+	}
+
+	// Without its own token the account sees nothing, and the bound token is
+	// never asked in its place.
+	if source.selected == nil || viewer.Token == "" {
+		return ErrNotShared
+	}
+
+	client, server, ok := source.selected.ClientWithToken(viewer.Token)
+	if !ok || server.Token != viewer.Token {
+		return ErrNotShared
+	}
+
+	_, err := client.GetMediaItem(ctx, server, mediaID)
+	if errors.Is(err, plex.ErrNotFound) {
+		return ErrNotShared
+	}
+
+	if err != nil {
+		return fmt.Errorf("check access: %w", err)
+	}
+
+	return nil
 }
 
 // CheckEdit probes a source once and reports whether an edit fits it.

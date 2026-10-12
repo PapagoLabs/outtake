@@ -175,6 +175,7 @@ func TestGetPMSFailureStatus(t *testing.T) {
 
 	_, err := client.getPMS(t.Context(), server, "/library/metadata/100", "")
 	require.ErrorIs(t, err, ErrServerReturnedError)
+	require.ErrorIs(t, err, ErrNotFound, "a 404 names what it is")
 	require.ErrorContains(t, err, "404")
 }
 

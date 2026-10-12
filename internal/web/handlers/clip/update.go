@@ -14,6 +14,7 @@ import (
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/plex/library"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
@@ -47,6 +48,44 @@ func (handler *Handler) Update(ctx fiber.Ctx) error {
 	return handler.respondWithClipCard(ctx, job)
 }
 
+// editableJob finds a clip the caller may change.
+//
+// The clip must be the caller's, and its source must still be one Plex shares
+// with them, because an edit renders it again from the file on disk.
+//
+// Parameters:
+//   - ctx: Request whose caller edits the clip.
+//   - id: The clip.
+//
+// Returns:
+//   - job: The clip, or nil when the edit is refused.
+//   - rejection: Why the edit is refused, or nil.
+func (handler *Handler) editableJob(ctx fiber.Ctx, id string) (*clipdom.Job, *clipRejection) {
+	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), id)
+	if job == nil {
+		return nil, newRejection(
+			fiber.StatusNotFound,
+			api.NotFound,
+			view.NewNotice(respond.NotFoundMessage),
+		)
+	}
+
+	err := handler.sources.CheckAccess(ctx.Context(), middleware.PlexViewer(ctx), job.MediaID)
+	if errors.Is(err, library.ErrNotShared) {
+		return nil, newRejection(fiber.StatusBadRequest, api.NotShared, respond.Fail(ctx, err))
+	}
+
+	if err != nil {
+		return nil, newRejection(
+			fiber.StatusBadGateway,
+			api.MediaPathUnresolved,
+			respond.Fail(ctx, err),
+		)
+	}
+
+	return job, nil
+}
+
 // stageClipUpdate runs every check, then applies and saves the edit.
 //
 // Parameters:
@@ -58,13 +97,9 @@ func (handler *Handler) Update(ctx fiber.Ctx) error {
 func (handler *Handler) stageClipUpdate(ctx fiber.Ctx) (*clipdom.Job, *clipRejection) {
 	id := ctx.Params(routes.ParamID)
 
-	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), id)
-	if job == nil {
-		return nil, newRejection(
-			fiber.StatusNotFound,
-			api.NotFound,
-			view.NewNotice(respond.NotFoundMessage),
-		)
+	job, rejection := handler.editableJob(ctx, id)
+	if rejection != nil {
+		return nil, rejection
 	}
 
 	req, err := parseEdit(ctx)

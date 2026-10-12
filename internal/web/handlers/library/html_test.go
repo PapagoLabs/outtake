@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -33,7 +34,7 @@ func TestPlexPairHandsBackTheSelectedServer(t *testing.T) {
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
-	client, server, ok := handler.plexPair()
+	client, server, ok := pairAsOwner(t, handler)
 
 	require.True(t, ok, "a bound server has to be reachable through the same pair")
 	assert.NotNil(t, client)
@@ -45,7 +46,7 @@ func TestPlexPairReportsNoSelectedServer(t *testing.T) {
 
 	handler, _ := pageHandler(t, offlineAuth(t), silentSources(t))
 
-	client, server, ok := handler.plexPair()
+	client, server, ok := pairAsOwner(t, handler)
 
 	assert.False(t, ok)
 	assert.Nil(t, client)
@@ -202,7 +203,42 @@ func offlineAuthWithStub(
 	t.Helper()
 
 	auth := mocks.NewMockPlexAuth(t)
-	auth.EXPECT().Client().Return(stub.client, stub.server, true).Maybe()
+	auth.EXPECT().ClientAs(mock.Anything).Return(stub.client, stub.server, true).Maybe()
 
 	return auth
+}
+
+// pairAsOwner asks a handler for its Plex pair inside a request the owner
+// makes.
+//
+// Parameters:
+//   - t: The test asking.
+//   - handler: The handler under test.
+//
+// Returns:
+//   - client: The pair's client.
+//   - server: The pair's server.
+//   - ok: Whether the handler had a pair.
+func pairAsOwner(t *testing.T, handler *Handler) (*plex.Client, plex.Server, bool) {
+	t.Helper()
+
+	var (
+		client *plex.Client
+		server plex.Server
+		ok     bool
+	)
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
+	app.Get("/", func(ctx fiber.Ctx) error {
+		client, server, ok = handler.plexPair(ctx)
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	resp, err := app.Test(httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil))
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	return client, server, ok
 }

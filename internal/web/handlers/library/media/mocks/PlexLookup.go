@@ -11,6 +11,7 @@ import (
 	mock "github.com/stretchr/testify/mock"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 )
 
 // NewMockPlexLookup creates a new instance of MockPlexLookup. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -106,6 +107,74 @@ func (_c *MockPlexLookup_Client_Call) Return(client *plex.Client, server plex.Se
 }
 
 func (_c *MockPlexLookup_Client_Call) RunAndReturn(run func() (*plex.Client, plex.Server, bool)) *MockPlexLookup_Client_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ClientAs provides a mock function for the type MockPlexLookup
+func (_mock *MockPlexLookup) ClientAs(viewer identity.Viewer) (*plex.Client, plex.Server, bool) {
+	ret := _mock.Called(viewer)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClientAs")
+	}
+
+	var r0 *plex.Client
+	var r1 plex.Server
+	var r2 bool
+	if returnFunc, ok := ret.Get(0).(func(identity.Viewer) (*plex.Client, plex.Server, bool)); ok {
+		return returnFunc(viewer)
+	}
+	if returnFunc, ok := ret.Get(0).(func(identity.Viewer) *plex.Client); ok {
+		r0 = returnFunc(viewer)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*plex.Client)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(identity.Viewer) plex.Server); ok {
+		r1 = returnFunc(viewer)
+	} else {
+		r1 = ret.Get(1).(plex.Server)
+	}
+	if returnFunc, ok := ret.Get(2).(func(identity.Viewer) bool); ok {
+		r2 = returnFunc(viewer)
+	} else {
+		r2 = ret.Get(2).(bool)
+	}
+	return r0, r1, r2
+}
+
+// MockPlexLookup_ClientAs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClientAs'
+type MockPlexLookup_ClientAs_Call struct {
+	*mock.Call
+}
+
+// ClientAs is a helper method to define mock.On call
+//   - viewer identity.Viewer
+func (_e *MockPlexLookup_Expecter) ClientAs(viewer any) *MockPlexLookup_ClientAs_Call {
+	return &MockPlexLookup_ClientAs_Call{Call: _e.mock.On("ClientAs", viewer)}
+}
+
+func (_c *MockPlexLookup_ClientAs_Call) Run(run func(viewer identity.Viewer)) *MockPlexLookup_ClientAs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 identity.Viewer
+		if args[0] != nil {
+			arg0 = args[0].(identity.Viewer)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPlexLookup_ClientAs_Call) Return(client *plex.Client, server plex.Server, b bool) *MockPlexLookup_ClientAs_Call {
+	_c.Call.Return(client, server, b)
+	return _c
+}
+
+func (_c *MockPlexLookup_ClientAs_Call) RunAndReturn(run func(viewer identity.Viewer) (*plex.Client, plex.Server, bool)) *MockPlexLookup_ClientAs_Call {
 	_c.Call.Return(run)
 	return _c
 }

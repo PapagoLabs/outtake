@@ -28,6 +28,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/library/thumb/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -54,7 +55,7 @@ var errStoreClosed = errors.New("object store is closed")
 // Returns:
 //   - id: The cache id.
 func cacheIDFor(server plex.Server) string {
-	return library.CacheID(plex.SelectionKey(server), testThumbPath)
+	return library.CacheID(plex.ViewerKey(server), testThumbPath)
 }
 
 // boundServer returns a selection bound to a server no request reaches.
@@ -77,7 +78,9 @@ func boundServer(t *testing.T) (*mocks.MockServerSelection, plex.Server) {
 	}
 
 	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(plex.NewClient(plex.ClientConfig{}), server, true)
+	selected.EXPECT().
+		ClientAs(mock.Anything).
+		Return(plex.NewClient(plex.ClientConfig{}), server, true)
 
 	return selected, server
 }
@@ -164,6 +167,7 @@ func getThumb(t *testing.T, handler *Handler, query string) thumbAnswer {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathThumb, handler.Get)
 
 	req := httptest.NewRequestWithContext(
@@ -320,7 +324,7 @@ func TestGetFetchesAndCachesTheThumbnail(t *testing.T) {
 		})
 
 	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(client, server, true)
+	selected.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
@@ -345,7 +349,7 @@ func TestGetFetchesWhenTheCacheCannotBeRead(t *testing.T) {
 		Return(errStoreClosed)
 
 	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(client, server, true)
+	selected.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
@@ -368,7 +372,7 @@ func TestGetFallsBackToTheFetchedBytesWhenTheCacheCannotBeWritten(t *testing.T) 
 		Return(errStoreClosed)
 
 	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(client, server, true)
+	selected.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
@@ -384,7 +388,7 @@ func TestGetRejectsARequestWithNoServerBound(t *testing.T) {
 	t.Parallel()
 
 	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(nil, plex.EmptyServer(), false)
+	selected.EXPECT().ClientAs(mock.Anything).Return(nil, plex.EmptyServer(), false)
 
 	got := getThumb(t, New(storagemocks.NewMockBlob(t), blob.NewPaths(t.TempDir()), selected),
 		thumbQuery(testThumbPath))
@@ -406,7 +410,7 @@ func TestGetReportsAMissingThumbnailOnTheServer(t *testing.T) {
 	store.EXPECT().Ensure(mock.Anything, cached).Return(fs.ErrNotExist)
 
 	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(client, server, true)
+	selected.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 
@@ -448,7 +452,7 @@ func TestGetReportsAFetchedThumbnailTheStoreDidNotLeaveOnDisk(t *testing.T) {
 		Return(nil)
 
 	selected := mocks.NewMockServerSelection(t)
-	selected.EXPECT().Client().Return(client, server, true)
+	selected.EXPECT().ClientAs(mock.Anything).Return(client, server, true)
 
 	got := getThumb(t, New(store, paths, selected), thumbQuery(testThumbPath))
 

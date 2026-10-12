@@ -78,6 +78,8 @@ func (client *Client) getPMS(
 	switch status := resp.StatusCode(); {
 	case status == http.StatusUnauthorized:
 		return nil, fmt.Errorf("%w %d: %w", ErrServerReturnedError, status, ErrUnauthorized)
+	case status == http.StatusNotFound:
+		return nil, fmt.Errorf("%w %d: %w", ErrServerReturnedError, status, ErrNotFound)
 	case status >= http.StatusBadRequest:
 		return nil, fmt.Errorf("%w %d", ErrServerReturnedError, status)
 	default:
@@ -354,6 +356,7 @@ func (client *Client) GetSessionsOnServer(ctx context.Context, server Server) ([
 			Duration:   item.Duration,
 			ViewOffset: float64(meta.ViewOffset) / scaleMsToS,
 			State:      meta.Player.State,
+			UserID:     sessionUserID(meta),
 		})
 	}
 

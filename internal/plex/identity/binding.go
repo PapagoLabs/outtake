@@ -84,6 +84,31 @@ func (bind *Binding) Client() (*plex.Client, plex.Server, bool) {
 	}), server, true
 }
 
+// ClientWithToken returns a Plex client that reads the selected server with
+// another account's token.
+//
+// Parameters:
+//   - token: The account's own token for the selected server.
+//
+// Returns:
+//   - client: A Plex client carrying the token.
+//   - server: The selected server, carrying the token.
+//   - ok: False when no server has been selected yet or the token is empty.
+func (bind *Binding) ClientWithToken(token string) (*plex.Client, plex.Server, bool) {
+	server, ok := bind.Get()
+	if !ok || token == "" {
+		return nil, plex.EmptyServer(), false
+	}
+
+	server.Token = token
+
+	return plex.NewClient(plex.ClientConfig{
+		Product:  bind.product,
+		ClientID: bind.clientID,
+		Token:    token,
+	}), server, true
+}
+
 // Get returns the selected server.
 //
 // Returns:

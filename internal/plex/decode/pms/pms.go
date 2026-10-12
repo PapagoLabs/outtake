@@ -77,6 +77,7 @@ type Metadata struct {
 	Media                []media    `json:"Media"`
 	Session              session    `json:"Session"`
 	Player               player     `json:"Player"`
+	User                 user       `json:"User"`
 }
 
 // media is a media version on a metadata item.
@@ -94,6 +95,13 @@ type part struct {
 // session is playback session info attached to session metadata.
 type session struct {
 	ID string `json:"id"`
+}
+
+// user is the account playing a session.
+type user struct {
+	// ID is the account's plex.tv id, or "1" for the server's owner on a
+	// local server.
+	ID flexString `json:"id"`
 }
 
 // player is the client playing a session.

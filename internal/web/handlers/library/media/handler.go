@@ -10,15 +10,22 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
 // PlexLookup resolves the Plex client and playback sessions a request reads.
 type PlexLookup interface {
-	// Client builds a Plex client for the selected server.
+	// Client builds a Plex client for the selected server with its bound
+	// token.
 	Client() (*plex.Client, plex.Server, bool)
+
+	// ClientAs builds a Plex client that reads the selected server as a
+	// viewer.
+	ClientAs(viewer identity.Viewer) (*plex.Client, plex.Server, bool)
 
 	// Sessions returns the latest cached playback sessions.
 	Sessions() []plex.Session
@@ -42,6 +49,8 @@ func New(auth PlexLookup) *Handler {
 
 // GetSessions handles the get sessions request.
 //
+// The sessions are kept to the ones the caller may see.
+//
 // Parameters:
 //   - ctx: Request context.
 //
@@ -63,7 +72,9 @@ func (handler *Handler) GetSessions(ctx fiber.Ctx) error {
 		sessions = live
 	}
 
-	return respond.WriteJSON(ctx, fiber.StatusOK, library.SessionResponses(sessions))
+	visible := plex.SessionsWhere(sessions, middleware.ClipScope(ctx).Includes)
+
+	return respond.WriteJSON(ctx, fiber.StatusOK, library.SessionResponses(visible))
 }
 
 // Search handles the search media request.
@@ -84,7 +95,7 @@ func (handler *Handler) Search(ctx fiber.Ctx) error {
 		)
 	}
 
-	plexClient, server, ok := handler.auth.Client()
+	plexClient, server, ok := handler.auth.ClientAs(middleware.PlexViewer(ctx))
 	if !ok {
 		return respond.WriteJSON(ctx, fiber.StatusOK, api.MediaListResponse{
 			Items: []api.MediaItemResponse{},

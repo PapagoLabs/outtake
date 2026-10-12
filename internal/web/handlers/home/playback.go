@@ -12,9 +12,11 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 	"github.com/PapagoLabs/outtake/internal/web/components/playback"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -34,7 +36,7 @@ const positionTimeout = 3 * time.Second
 // Returns:
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Playback(ctx fiber.Ctx) error {
-	props := handler.playbackProps(ctx.Params(routes.ParamID))
+	props := handler.playbackProps(ctx.Params(routes.ParamID), middleware.ClipScope(ctx))
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return playback.PlaybackPanel(props).Render(ctx.Context(), writer)
@@ -45,10 +47,11 @@ func (handler *Handler) Playback(ctx fiber.Ctx) error {
 //
 // Parameters:
 //   - mediaID: The media item.
+//   - scope: Whose sessions the caller may see.
 //
 // Returns:
 //   - props: What the playback panel shows.
-func (handler *Handler) playbackProps(mediaID string) view.Playback {
+func (handler *Handler) playbackProps(mediaID string, scope clip.Scope) view.Playback {
 	props := view.Playback{
 		Playing:     false,
 		Paused:      false,
@@ -57,7 +60,7 @@ func (handler *Handler) playbackProps(mediaID string) view.Playback {
 		PositionURL: "",
 	}
 
-	if session, found := sessionOn(handler.auth.Sessions(), mediaID); found {
+	if session, found := sessionOn(handler.visibleSessions(scope), mediaID); found {
 		props.Playing = true
 		props.Paused = session.State == plex.StatePaused
 		props.ViewOffset = timecode.FromSeconds(session.ViewOffset).Duration()
@@ -97,7 +100,7 @@ func (handler *Handler) Position(ctx fiber.Ctx) error {
 	position := api.PlaybackPosition{Playing: false, Paused: false, Offset: 0}
 
 	session, found := sessionByID(
-		sessions,
+		plex.SessionsWhere(sessions, middleware.ClipScope(ctx).Includes),
 		ctx.Params(routes.ParamID),
 		ctx.Query(routes.QuerySession),
 	)
@@ -108,6 +111,18 @@ func (handler *Handler) Position(ctx fiber.Ctx) error {
 	}
 
 	return respond.WriteJSON(ctx, fiber.StatusOK, position)
+}
+
+// visibleSessions returns the session monitor's sessions the caller may see.
+//
+// Parameters:
+//   - scope: Whose sessions the caller may see.
+//
+// Returns:
+//   - sessions: The caller's own sessions, or every session for the owner and
+//     admins.
+func (handler *Handler) visibleSessions(scope clip.Scope) []plex.Session {
+	return plex.SessionsWhere(handler.auth.Sessions(), scope.Includes)
 }
 
 // sessionOn finds the first session playing a media item.

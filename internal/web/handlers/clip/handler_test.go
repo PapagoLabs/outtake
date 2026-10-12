@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -73,6 +75,7 @@ func newSourceHandler(
 
 	selected := librarymocks.NewMockServerSelection(t)
 	selected.EXPECT().Client().Return(nil, plex.EmptyServer(), false).Maybe()
+	selected.EXPECT().ClientWithToken(mock.Anything).Return(nil, plex.EmptyServer(), false).Maybe()
 
 	jobQueue := queue.NewQueue(1, noopJobHandler)
 	t.Cleanup(jobQueue.Stop)
@@ -581,6 +584,45 @@ func TestCreateQueuesAClipItResolved(t *testing.T) {
 	assert.Equal(t, middlewaretest.OwnerID, stored[0].OwnerID, "the clip belongs to the caller")
 }
 
+// TestCreateRefusesATitleNotSharedWithTheMember covers a member asking for a
+// clip of a title Plex does not share with them.
+//
+// The render would read the file from disk with the owner's access, so the
+// request is refused before anything is stored.
+func TestCreateRefusesATitleNotSharedWithTheMember(t *testing.T) {
+	t.Parallel()
+
+	handler, source := resolvableHandler(t)
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Post("/api/clips/create", handler.Create)
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips/create",
+		strings.NewReader(createJSONBody(source, "")),
+	)
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	assert.Contains(t, string(body), string(api.NotShared))
+	assert.Contains(t, string(body), "That title isn't shared with your Plex account")
+
+	stored, err := handler.db.ListClips(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, stored, "nothing is stored for a refused clip")
+}
+
 func TestCreateSwapsARejectionIntoTheFlash(t *testing.T) {
 	t.Parallel()
 
@@ -642,4 +684,14 @@ func TestCreateRedirectsAFormPostBackToTheMediaItem(t *testing.T) {
 	assert.Equal(t, "/media/item/"+url.PathEscape(source),
 		resp.Header.Get(fiber.HeaderLocation),
 		"a form post lands back on the item the clip was cut from")
+}
+
+// TestAccessCodeTellsARefusalFromAFailureToAsk covers the code an API caller
+// gets when the access check stops a render.
+func TestAccessCodeTellsARefusalFromAFailureToAsk(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, api.NotShared, AccessCode(fmt.Errorf("check: %w", library.ErrNotShared)))
+	assert.Equal(t, api.MediaPathUnresolved, AccessCode(plex.ErrServerReturnedError),
+		"a server that could not be asked does not say the title is unshared")
 }

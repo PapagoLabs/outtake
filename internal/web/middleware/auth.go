@@ -7,8 +7,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
+	"github.com/rs/zerolog/log"
 
 	fiber "github.com/gofiber/fiber/v3"
 
@@ -26,8 +28,27 @@ type UserLookup interface {
 	UserRole(ctx context.Context, plexUserID int) (string, bool, error)
 }
 
+// ServerTokens finds an account's own token for the bound Plex server.
+type ServerTokens interface {
+	// ServerToken returns the account's token for the bound server, empty
+	// when the server is not shared with it, and an error when plex.tv could
+	// not be asked.
+	ServerToken(ctx context.Context, accessToken string) (string, error)
+}
+
 // callerKey is the request local AuthGuard stores the caller under.
 type callerKey struct{}
+
+// How often AuthGuard asks plex.tv again for a non-owner's server token.
+const (
+	// serverTokenRetry is how long a session without one waits between
+	// asks, so an account the server is not shared with does not ask on
+	// every request.
+	serverTokenRetry = time.Minute
+	// serverTokenRefresh is how long a held token is kept before it is
+	// checked, so a rotated token or a removed share is noticed.
+	serverTokenRefresh = 10 * time.Minute
+)
 
 // e2eCaller is the caller of every request in the e2e environment, which skips
 // sign-in and acts as the owner.
@@ -57,16 +78,19 @@ func AdminGuard() fiber.Handler {
 //
 // The user is looked up on every request, so removing it revokes every
 // session it holds at once. The user is recorded as the request's caller, which
-// Caller returns.
+// Caller returns. A caller who does not own the installation reads Plex with
+// their own server token, which is asked for again when it is missing or old.
 //
 // Parameters:
 //   - env: Configured environment. The e2e environment skips the check.
 //   - users: Store the signed-in user is resolved against. A nil store refuses
 //     every request.
+//   - tokens: Finds a caller's own server token, or nil to keep the one the
+//     session holds.
 //
 // Returns:
 //   - handler: Middleware that redirects or answers anonymous requests.
-func AuthGuard(env string, users UserLookup) fiber.Handler {
+func AuthGuard(env string, users UserLookup, tokens ServerTokens) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if env == config.EnvE2E {
 			SetCaller(ctx, e2eCaller)
@@ -84,6 +108,7 @@ func AuthGuard(env string, users UserLookup) fiber.Handler {
 		}
 
 		SetCaller(ctx, caller)
+		renewServerToken(ctx, tokens, caller)
 
 		return ctx.Next()
 	}
@@ -123,6 +148,34 @@ func ClipScope(ctx fiber.Ctx) clip.Scope {
 	return clip.Scope{Owner: caller.PlexID, Everyone: caller.Manages()}
 }
 
+// PlexViewer returns the account a request reads the bound Plex server as.
+//
+// The owner reads it with the bound server's token. Anyone else reads it with
+// their own token for the server, stored on the session when they signed in.
+// A request without a caller reads nothing.
+//
+// Parameters:
+//   - ctx: Request that passed AuthGuard.
+//
+// Returns:
+//   - viewer: The caller as a Plex viewer.
+func PlexViewer(ctx fiber.Ctx) identity.Viewer {
+	caller, ok := Caller(ctx)
+	if !ok {
+		return identity.Viewer{Token: "", PlexID: 0, Owner: false}
+	}
+
+	if caller.Role == identity.RoleOwner {
+		return identity.OwnerViewer(caller.PlexID)
+	}
+
+	return identity.Viewer{
+		Token:  identity.ServerToken(session.FromContext(ctx)),
+		PlexID: caller.PlexID,
+		Owner:  false,
+	}
+}
+
 // SetCaller records the user a request is made by, which Caller returns.
 //
 // AuthGuard records every signed-in request's caller. Handler tests record
@@ -133,6 +186,40 @@ func ClipScope(ctx fiber.Ctx) clip.Scope {
 //   - caller: The user the request is made by.
 func SetCaller(ctx fiber.Ctx, caller identity.User) {
 	ctx.Locals(callerKey{}, caller)
+}
+
+// renewServerToken asks plex.tv again for a caller's own server token when the
+// session's is missing or old.
+//
+// A token plex.tv no longer lists, as after the share was removed, is dropped.
+// When plex.tv cannot be asked, the session keeps what it holds and waits
+// before asking again.
+//
+// Parameters:
+//   - ctx: Request carrying the session.
+//   - tokens: Finds the caller's token, which may be nil.
+//   - caller: The signed-in user.
+func renewServerToken(ctx fiber.Ctx, tokens ServerTokens, caller identity.User) {
+	if tokens == nil || caller.Role == identity.RoleOwner {
+		return
+	}
+
+	sess := session.FromContext(ctx)
+	held := identity.ServerToken(sess)
+	age := time.Since(identity.ServerTokenChecked(sess))
+
+	if age < serverTokenRetry || (held != "" && age < serverTokenRefresh) {
+		return
+	}
+
+	token, err := tokens.ServerToken(ctx.Context(), identity.Token(sess))
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to renew the signed-in account's token for the plex server")
+
+		token = held
+	}
+
+	identity.SetServerToken(sess, token, time.Now())
 }
 
 // signedInUser resolves the user a request's session signed in as.

@@ -13,6 +13,7 @@ import (
 	mock "github.com/stretchr/testify/mock"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 )
 
 // NewMockPlexAuth creates a new instance of MockPlexAuth. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -51,63 +52,70 @@ func (_m *MockPlexAuth) EXPECT() *MockPlexAuth_Expecter {
 	return &MockPlexAuth_Expecter{mock: &_m.Mock}
 }
 
-// Client provides a mock function for the type MockPlexAuth
-func (_mock *MockPlexAuth) Client() (*plex.Client, plex.Server, bool) {
-	ret := _mock.Called()
+// ClientAs provides a mock function for the type MockPlexAuth
+func (_mock *MockPlexAuth) ClientAs(viewer identity.Viewer) (*plex.Client, plex.Server, bool) {
+	ret := _mock.Called(viewer)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Client")
+		panic("no return value specified for ClientAs")
 	}
 
 	var r0 *plex.Client
 	var r1 plex.Server
 	var r2 bool
-	if returnFunc, ok := ret.Get(0).(func() (*plex.Client, plex.Server, bool)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(identity.Viewer) (*plex.Client, plex.Server, bool)); ok {
+		return returnFunc(viewer)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *plex.Client); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(identity.Viewer) *plex.Client); ok {
+		r0 = returnFunc(viewer)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*plex.Client)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() plex.Server); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(identity.Viewer) plex.Server); ok {
+		r1 = returnFunc(viewer)
 	} else {
 		r1 = ret.Get(1).(plex.Server)
 	}
-	if returnFunc, ok := ret.Get(2).(func() bool); ok {
-		r2 = returnFunc()
+	if returnFunc, ok := ret.Get(2).(func(identity.Viewer) bool); ok {
+		r2 = returnFunc(viewer)
 	} else {
 		r2 = ret.Get(2).(bool)
 	}
 	return r0, r1, r2
 }
 
-// MockPlexAuth_Client_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Client'
-type MockPlexAuth_Client_Call struct {
+// MockPlexAuth_ClientAs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClientAs'
+type MockPlexAuth_ClientAs_Call struct {
 	*mock.Call
 }
 
-// Client is a helper method to define mock.On call
-func (_e *MockPlexAuth_Expecter) Client() *MockPlexAuth_Client_Call {
-	return &MockPlexAuth_Client_Call{Call: _e.mock.On("Client")}
+// ClientAs is a helper method to define mock.On call
+//   - viewer identity.Viewer
+func (_e *MockPlexAuth_Expecter) ClientAs(viewer any) *MockPlexAuth_ClientAs_Call {
+	return &MockPlexAuth_ClientAs_Call{Call: _e.mock.On("ClientAs", viewer)}
 }
 
-func (_c *MockPlexAuth_Client_Call) Run(run func()) *MockPlexAuth_Client_Call {
+func (_c *MockPlexAuth_ClientAs_Call) Run(run func(viewer identity.Viewer)) *MockPlexAuth_ClientAs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 identity.Viewer
+		if args[0] != nil {
+			arg0 = args[0].(identity.Viewer)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
 
-func (_c *MockPlexAuth_Client_Call) Return(client *plex.Client, server plex.Server, b bool) *MockPlexAuth_Client_Call {
+func (_c *MockPlexAuth_ClientAs_Call) Return(client *plex.Client, server plex.Server, b bool) *MockPlexAuth_ClientAs_Call {
 	_c.Call.Return(client, server, b)
 	return _c
 }
 
-func (_c *MockPlexAuth_Client_Call) RunAndReturn(run func() (*plex.Client, plex.Server, bool)) *MockPlexAuth_Client_Call {
+func (_c *MockPlexAuth_ClientAs_Call) RunAndReturn(run func(viewer identity.Viewer) (*plex.Client, plex.Server, bool)) *MockPlexAuth_ClientAs_Call {
 	_c.Call.Return(run)
 	return _c
 }
