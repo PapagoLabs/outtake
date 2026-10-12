@@ -578,7 +578,13 @@ func TestQueue_DeleteTombstonesOnlyWorkableJobs(t *testing.T) {
 	})
 }
 
-func TestQueue_DeleteStopsACancelledJobStillWaitingInTheChannel(t *testing.T) {
+// TestQueue_DeleteStopsACancelledJobStillWaitingInLine covers a job canceled
+// and then deleted before any worker takes it.
+//
+// The worker starts only after the delete, so the job is still waiting when it
+// goes. A worker started first could take it between the submit and the
+// cancel, and run it.
+func TestQueue_DeleteStopsACancelledJobStillWaitingInLine(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) {
@@ -594,22 +600,24 @@ func TestQueue_DeleteStopsACancelledJobStillWaitingInTheChannel(t *testing.T) {
 
 			return nil
 		})
-		q.Start(t.Context())
 
 		t.Cleanup(q.Stop)
 
-		q.Submit(testJob("canceled-then-deleted", clip.StatusPending))
-		q.Cancel("canceled-then-deleted")
+		require.NoError(t, q.Submit(testJob("canceled-then-deleted", clip.StatusPending)))
+		require.True(t, q.Cancel("canceled-then-deleted"))
 		q.Delete("canceled-then-deleted")
 
+		q.Start(t.Context())
 		synctest.Wait()
 
 		mu.Lock()
 		defer mu.Unlock()
 
 		assert.False(t, ran, "a job deleted while still queued must not run")
-		assert.Empty(t, q.dropped, "the canceled marker is cleared by the delete")
-		assert.Empty(t, q.deleted, "the worker clears the tombstone it returned on")
+		assert.Nil(t, q.GetJob("canceled-then-deleted"), "the delete took the job out of the map")
+		assert.Empty(t, q.line, "and out of the line")
+		assert.Empty(t, q.dropped, "a waiting job needs no cancel marker")
+		assert.Empty(t, q.deleted, "nor a tombstone, since no worker will reach it")
 	})
 }
 
