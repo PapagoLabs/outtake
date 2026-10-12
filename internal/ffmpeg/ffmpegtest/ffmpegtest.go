@@ -17,6 +17,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"testing"
@@ -52,6 +53,29 @@ type Stub struct {
 
 	// ArgvBesideOutput appends every argument to "<last argument>.argv".
 	ArgvBesideOutput bool `json:"argvBesideOutput"`
+
+	// Output, when set, is written to the file named by the last argument.
+	Output string `json:"output"`
+
+	// Cases replace Stdout, Stderr, ExitCode, and Output for a run whose
+	// arguments include a case's Arg, so one fake can answer each kind of
+	// call a caller makes. The first case that matches wins.
+	Cases []Case `json:"cases"`
+}
+
+// Case is what a fake does instead for a run whose arguments include Arg.
+type Case struct {
+	// Arg is the argument that selects the case.
+	Arg string `json:"arg"`
+
+	// Stdout is written to standard output.
+	Stdout string `json:"stdout"`
+
+	// Stderr is written to standard error.
+	Stderr string `json:"stderr"`
+
+	// ExitCode is the status the fake exits with.
+	ExitCode int `json:"exitCode"`
 
 	// Output, when set, is written to the file named by the last argument.
 	Output string `json:"output"`
@@ -136,12 +160,39 @@ func Dispatch() {
 		fail(fmt.Errorf("decode stub: %w", err))
 	}
 
+	stub = stub.forArgs(os.Args[1:])
+
 	err = run(stub, os.Args[1:])
 	if err != nil {
 		fail(err)
 	}
 
 	exit(stub.ExitCode)
+}
+
+// forArgs returns what the fake does for one run's arguments.
+//
+// Parameters:
+//   - args: The arguments the fake was started with.
+//
+// Returns:
+//   - stub: The stub, with the first matching case's answer in place of its
+//     own.
+func (stub Stub) forArgs(args []string) Stub {
+	for _, answer := range stub.Cases {
+		if !slices.Contains(args, answer.Arg) {
+			continue
+		}
+
+		stub.Stdout = answer.Stdout
+		stub.Stderr = answer.Stderr
+		stub.ExitCode = answer.ExitCode
+		stub.Output = answer.Output
+
+		return stub
+	}
+
+	return stub
 }
 
 // run performs everything a fake does except exiting.

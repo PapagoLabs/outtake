@@ -72,6 +72,35 @@ func TestInstalledStubWritesItsOutputAndExits(t *testing.T) {
 	assert.Equal(t, result{stdout: "out\n", stderr: "err\n", code: 3}, runStub(t, path, "-i", "x"))
 }
 
+// TestInstalledStubAnswersEachCase covers a fake that answers each kind of
+// call differently.
+//
+// The first case whose argument the run carries replaces the stub's own
+// answer, and a run no case matches gets the stub's own.
+func TestInstalledStubAnswersEachCase(t *testing.T) {
+	t.Parallel()
+
+	path := Install(t, Stub{
+		Stdout: "default\n",
+		Cases: []Case{
+			{Arg: "framecrc", Stdout: "landing\n"},
+			{Arg: "null", Stderr: "decode error\n", ExitCode: 4},
+		},
+	})
+
+	assert.Equal(
+		t,
+		result{stdout: "landing\n", stderr: "", code: 0},
+		runStub(t, path, "-f", "framecrc", "-"),
+	)
+	assert.Equal(
+		t,
+		result{stdout: "", stderr: "decode error\n", code: 4},
+		runStub(t, path, "-f", "null", "-"),
+	)
+	assert.Equal(t, result{stdout: "default\n", stderr: "", code: 0}, runStub(t, path, "-i", "x"))
+}
+
 func TestInstalledStubRecordsItsArguments(t *testing.T) {
 	t.Parallel()
 

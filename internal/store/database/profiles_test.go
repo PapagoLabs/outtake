@@ -45,9 +45,9 @@ func builtinIDs(t *testing.T, db *DB) map[string]string {
 
 // TestClipProfilesSeeded covers a fresh database's built-ins.
 //
-// There are four profiles named after what they produce, under generated ids.
-// 1080p is the default, and only 4K HDR keeps HDR. 1080p matches the in-code
-// default preset.
+// There are five profiles named after what they produce, under generated ids.
+// 1080p is the default and matches the in-code default preset. 4K HDR and
+// Original keep HDR, and only Original copies a source that fits.
 func TestClipProfilesSeeded(t *testing.T) {
 	t.Parallel()
 
@@ -57,13 +57,42 @@ func TestClipProfilesSeeded(t *testing.T) {
 
 	profiles, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
-	require.Len(t, profiles, 4)
+	require.Len(t, profiles, 5)
 
 	want := map[string]clip.QualityPreset{
-		"720p":   {CRF: 21, Preset: "medium", AudioKbps: 160, MaxWidth: 1280, PreserveHDR: false},
-		"1080p":  clip.DefaultPreset,
-		"4K":     {CRF: 18, Preset: "slow", AudioKbps: 256, MaxWidth: 3840, PreserveHDR: false},
-		"4K HDR": {CRF: 18, Preset: "slow", AudioKbps: 256, MaxWidth: 3840, PreserveHDR: true},
+		"720p": {
+			CRF:         21,
+			Preset:      "medium",
+			AudioKbps:   160,
+			MaxWidth:    1280,
+			PreserveHDR: false,
+			CopyVideo:   false,
+		},
+		"1080p": clip.DefaultPreset,
+		"4K": {
+			CRF:         18,
+			Preset:      "slow",
+			AudioKbps:   256,
+			MaxWidth:    3840,
+			PreserveHDR: false,
+			CopyVideo:   false,
+		},
+		"4K HDR": {
+			CRF:         18,
+			Preset:      "slow",
+			AudioKbps:   256,
+			MaxWidth:    3840,
+			PreserveHDR: true,
+			CopyVideo:   false,
+		},
+		"Original": {
+			CRF:         18,
+			Preset:      "slow",
+			AudioKbps:   256,
+			MaxWidth:    3840,
+			PreserveHDR: true,
+			CopyVideo:   true,
+		},
 	}
 
 	for i := range profiles {
@@ -142,6 +171,7 @@ func TestDeleteLastClipProfile(t *testing.T) {
 	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["720p"]))
 	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["4K"]))
 	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["4K HDR"]))
+	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["Original"]))
 
 	err = db.DeleteClipProfile(t.Context(), ids["1080p"])
 	require.ErrorIs(t, err, ErrLastClipProfile)
@@ -217,4 +247,74 @@ func TestIsUniqueViolationNeedsADriverCode(t *testing.T) {
 	assert.False(t, isUniqueViolation(ErrClipProfileNotFound))
 	assert.True(t, isUniqueViolation(&pgconn.PgError{Code: pgUniqueViolation}))
 	assert.False(t, isUniqueViolation(&pgconn.PgError{Code: "23503"}))
+}
+
+// TestMigrationCopyProfilesKeepsACustomOriginal covers a database that
+// already has a profile named Original when migration 012 runs.
+//
+// Names are unique, so the custom profile stays as it was and stands in for
+// the built-in, and no second Original appears.
+func TestMigrationCopyProfilesKeepsACustomOriginal(t *testing.T) {
+	t.Parallel()
+
+	path := t.TempDir() + "/custom-original.db"
+
+	db, err := New(path)
+	require.NoError(t, err)
+
+	for _, statement := range []string{
+		`DELETE FROM clip_profiles WHERE name = 'Original'`,
+		`ALTER TABLE clip_profiles DROP COLUMN copy_video`,
+		`DELETE FROM schema_migrations WHERE name = '012_copy_profiles.sql'`,
+		`INSERT INTO clip_profiles (id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr)
+			VALUES ('mine', 'Original', 23, 'fast', 128, 1280, 0, 0)`,
+	} {
+		_, err = db.Conn().ExecContext(t.Context(), statement)
+		require.NoError(t, err, statement)
+	}
+
+	require.NoError(t, db.Close())
+
+	db, err = New(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	profiles, err := db.ListClipProfiles(t.Context())
+	require.NoError(t, err)
+
+	originals := 0
+
+	for i := range profiles {
+		if profiles[i].Name == "Original" {
+			originals++
+
+			assert.Equal(t, "mine", profiles[i].ID, "the custom profile keeps its id")
+			assert.Equal(t, 23, profiles[i].CRF, "and its settings")
+			assert.False(t, profiles[i].CopyVideo, "and does not start copying")
+		}
+	}
+
+	assert.Equal(t, 1, originals)
+}
+
+// TestSaveClipProfileKeepsCopyVideo covers the copy setting through a save
+// and a read.
+func TestSaveClipProfileKeepsCopyVideo(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/copy-video.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	now := time.Now().UTC().Truncate(time.Second)
+
+	require.NoError(t, db.SaveClipProfile(t.Context(), ClipProfile{
+		ID: "copier", Name: "Copier", CRF: 20, Preset: "medium", AudioKbps: 192, MaxWidth: 1920,
+		IsDefault: false, KeepHDR: false, CopyVideo: true, CreatedAt: now, UpdatedAt: now,
+	}))
+
+	stored, err := db.GetClipProfile(t.Context(), "copier")
+	require.NoError(t, err)
+	assert.True(t, stored.CopyVideo)
+	assert.True(t, stored.QualityPreset().CopyVideo, "the preset a render reads carries it")
 }

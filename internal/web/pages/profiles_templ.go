@@ -155,7 +155,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
-						templ_7745c5c3_Err = profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, profile.KeepHDR, props.Presets, props.Widths).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, profile.KeepHDR, profile.CopyVideo, props.Presets, props.Widths).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}
@@ -380,7 +380,7 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = profileFields("new-", "", clip.DefaultPreset.CRF, clip.DefaultPreset.Preset, clip.DefaultPreset.AudioKbps, clip.DefaultPreset.MaxWidth, clip.DefaultPreset.PreserveHDR, props.Presets, props.Widths).Render(ctx, templ_7745c5c3_Buffer)
+					templ_7745c5c3_Err = profileFields("new-", "", clip.DefaultPreset.CRF, clip.DefaultPreset.Preset, clip.DefaultPreset.AudioKbps, clip.DefaultPreset.MaxWidth, clip.DefaultPreset.PreserveHDR, clip.DefaultPreset.CopyVideo, props.Presets, props.Widths).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -458,9 +458,10 @@ func ClipProfiles(props ClipProfilesProps) templ.Component {
 //   - audioKbps: Current audio bitrate in kbps.
 //   - maxWidth: Current export resolution.
 //   - keepHDR: Whether video clips from HDR sources keep HDR.
+//   - copyVideo: Whether video clips copy a source that fits.
 //   - presets: Encoder presets to choose from.
 //   - widths: Export resolutions to choose from.
-func profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, keepHDR bool, presets []string, widths []profile.OutputWidth) templ.Component {
+func profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, keepHDR, copyVideo bool, presets []string, widths []profile.OutputWidth) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -579,7 +580,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 		var templ_7745c5c3_Var22 string
 		templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(idPrefix + "preset")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 141, Col: 35}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 142, Col: 35}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 		if templ_7745c5c3_Err != nil {
@@ -611,7 +612,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 144, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 145, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 				if templ_7745c5c3_Err != nil {
@@ -624,7 +625,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var25 string
 				templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 144, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 145, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 				if templ_7745c5c3_Err != nil {
@@ -642,7 +643,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 146, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 147, Col: 28}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 				if templ_7745c5c3_Err != nil {
@@ -655,7 +656,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(option)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 146, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 147, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -735,7 +736,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(idPrefix + "width")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 162, Col: 34}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 163, Col: 34}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 		if templ_7745c5c3_Err != nil {
@@ -767,7 +768,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(option.Width))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 165, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 166, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
 				if templ_7745c5c3_Err != nil {
@@ -780,7 +781,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var34 string
 				templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 165, Col: 74}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 166, Col: 74}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 				if templ_7745c5c3_Err != nil {
@@ -798,7 +799,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(option.Width))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 167, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 168, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 				if templ_7745c5c3_Err != nil {
@@ -811,7 +812,7 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 				var templ_7745c5c3_Var36 string
 				templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(option.Label)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 167, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/profiles.templ`, Line: 168, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 				if templ_7745c5c3_Err != nil {
@@ -831,7 +832,15 @@ func profileFields(idPrefix, name string, crf int, preset string, audioKbps, max
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, " HDR</label><p class=\"text-sm text-muted-foreground\">Enable to maintain HDR quality from supported sources</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, " HDR</label><p class=\"text-sm text-muted-foreground\">Enable to maintain HDR quality from supported sources</p><label class=\"flex items-center gap-2 text-sm\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = checkbox.Checkbox(checkbox.Props{ID: idPrefix + "copyvideo", Name: "copyVideo", Value: "1", Checked: copyVideo, Class: "rounded border-input"}).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, " Copy the source when possible</label><p class=\"text-sm text-muted-foreground\">Enable to skip re-encoding when the source format already matches the profile</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

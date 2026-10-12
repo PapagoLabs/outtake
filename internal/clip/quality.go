@@ -18,6 +18,9 @@ type QualityPreset struct {
 	// PreserveHDR keeps an HDR source's transfer instead of tone mapping it
 	// to SDR. A clip takes its profile's value each time it renders.
 	PreserveHDR bool
+	// CopyVideo copies a video clip's source video instead of encoding it,
+	// when the source already fits the preset.
+	CopyVideo bool
 }
 
 const (
@@ -81,6 +84,7 @@ var DefaultPreset = QualityPreset{
 	AudioKbps:   defaultAudioKbps,
 	MaxWidth:    OutputWidth1080p,
 	PreserveHDR: false,
+	CopyVideo:   false,
 }
 
 // OutputWidths lists selectable clip export widths.

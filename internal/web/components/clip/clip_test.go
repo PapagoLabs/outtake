@@ -168,6 +168,19 @@ func TestClipStatusSwapsActionButtons(t *testing.T) {
 	assert.Contains(t, finishedBody, "/api/clips/c1/download")
 }
 
+// TestClipStatusCarriesTheWindow covers the window a status region carries,
+// which app.js copies into the card's form once a copy moves the start.
+func TestClipStatusCarriesTheWindow(t *testing.T) {
+	t.Parallel()
+
+	var body strings.Builder
+
+	require.NoError(t, ClipStatus(activeTestItem()).Render(t.Context(), &body))
+
+	assert.Contains(t, body.String(), `data-clip-start="00:00:01.000"`)
+	assert.Contains(t, body.String(), `data-clip-duration="00:00:05.000"`)
+}
+
 func TestClipStatusCarriesEverythingThatChanges(t *testing.T) {
 	t.Parallel()
 

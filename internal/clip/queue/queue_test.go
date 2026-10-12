@@ -1174,6 +1174,26 @@ func TestGetAllJobsHandsBackCopies(t *testing.T) {
 		"the listing handed out a copy, not the entry")
 }
 
+// TestSetWindowRecordsAndReportsTheWindow covers a copied clip's window,
+// which moves to the keyframe it starts on.
+func TestSetWindowRecordsAndReportsTheWindow(t *testing.T) {
+	t.Parallel()
+
+	reported := 0
+
+	q := NewQueue(1, nil)
+	q.Restore(testJob("copied", clip.StatusProcessing))
+	q.SetStatusFunc(func(*clip.Job) { reported++ })
+
+	updated := q.SetWindow("copied", 6*time.Second, 3300*time.Millisecond)
+	require.NotNil(t, updated)
+	assert.Equal(t, 6*time.Second, q.GetJob("copied").StartTime)
+	assert.Equal(t, 3300*time.Millisecond, q.GetJob("copied").Duration)
+	assert.Equal(t, 1, reported, "the window is reported, so it is saved")
+
+	assert.Nil(t, q.SetWindow("never-queued", time.Second, time.Second))
+}
+
 func TestSetProgressWritesUnderTheLock(t *testing.T) {
 	t.Parallel()
 

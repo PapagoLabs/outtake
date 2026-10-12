@@ -308,7 +308,7 @@ func TestIntegration_DeleteClipProfileKeepsExactlyOneDefault(t *testing.T) {
 
 	profiles, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
-	require.Len(t, profiles, 4)
+	require.Len(t, profiles, 5)
 	assert.Equal(t, ids["1080p"], profiles[0].ID, "the default leads the listing")
 	assert.True(t, profiles[0].IsDefault)
 
@@ -333,7 +333,7 @@ func TestIntegration_DeleteClipProfileKeepsExactlyOneDefault(t *testing.T) {
 
 	afterDelete, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)
-	require.Len(t, afterDelete, 3)
+	require.Len(t, afterDelete, 4)
 	assert.True(t, afterDelete[0].IsDefault, "the default leads again after a delete")
 
 	promoted, err := db.DefaultClipProfile(t.Context())
@@ -351,6 +351,7 @@ func TestIntegration_DeletingTheLastClipProfileIsRefused(t *testing.T) {
 	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["720p"]))
 	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["4K"]))
 	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["4K HDR"]))
+	require.NoError(t, db.DeleteClipProfile(t.Context(), ids["Original"]))
 
 	remaining, err := db.ListClipProfiles(t.Context())
 	require.NoError(t, err)

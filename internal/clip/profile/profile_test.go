@@ -87,6 +87,23 @@ func TestProfileFromFieldsCarriesTheRequestedDefault(t *testing.T) {
 	assert.True(t, profile.IsDefault)
 }
 
+// TestProfileFromFieldsCarriesCopyVideo covers the copy setting a profile
+// form posts, through to the stored row.
+func TestProfileFromFieldsCarriesCopyVideo(t *testing.T) {
+	t.Parallel()
+
+	for _, copyVideo := range []bool{true, false} {
+		fields := fieldsWith(t, func(f *ProfileFields) { f.CopyVideo = copyVideo })
+
+		profile, err := ProfileFromFields("id-1", fields)
+		require.NoError(t, err)
+
+		assert.Equal(t, copyVideo, profile.CopyVideo)
+		assert.Equal(t, copyVideo, profile.record().CopyVideo, "the stored row carries it too")
+		assert.Equal(t, copyVideo, profileFrom(profile.record()).CopyVideo, "and it reads back")
+	}
+}
+
 func TestProfileFromFieldsCarriesKeepHDR(t *testing.T) {
 	t.Parallel()
 

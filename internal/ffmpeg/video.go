@@ -369,8 +369,8 @@ func videoEncodeArgs(req *videoEncodeRequest) []string {
 		ssFlag, timecode.FromDuration(req.start).FormatSeconds(),
 		inputFlag, req.input,
 		durationFlag, timecode.FromDuration(req.duration).FormatSeconds(),
-		"-map", "0:v:0",
-		"-map", "0:a:" + strconv.Itoa(audioIndex) + "?",
+		mapFlag, "0:v:0",
+		mapFlag, "0:a:" + strconv.Itoa(audioIndex) + "?",
 	}
 
 	args = append(args, codecArgs(req.encoder, preset)...)
@@ -405,14 +405,14 @@ func videoEncodeArgs(req *videoEncodeRequest) []string {
 func codecArgs(encoder string, preset clip.QualityPreset) []string {
 	if encoder != videoCodecHEVC {
 		return []string{
-			"-c:v", videoCodecH264,
+			videoCodecFlag, videoCodecH264,
 			"-crf", strconv.Itoa(preset.CRF),
 			"-preset", preset.Preset,
 		}
 	}
 
 	return []string{
-		"-c:v", videoCodecHEVC,
+		videoCodecFlag, videoCodecHEVC,
 		"-profile:v", hevcProfile,
 		"-tag:v", hevcTag,
 		"-crf", strconv.Itoa(min(preset.CRF+hevcCRFOffset, clip.MaxCRF)),

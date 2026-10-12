@@ -23,7 +23,10 @@ type ClipProfile struct {
 	MaxWidth  int
 	IsDefault bool
 	// KeepHDR reports whether a video clip rendered with this profile keeps HDR.
-	KeepHDR   bool
+	KeepHDR bool
+	// CopyVideo reports whether a video clip rendered with this profile copies
+	// the source's video when it already fits the profile.
+	CopyVideo bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -31,10 +34,13 @@ type ClipProfile struct {
 const (
 	// clipProfileSelectCols is the clip_profiles projection shared by every read query.
 	clipProfileSelectCols = `id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr,
-		created_at, updated_at`
+		copy_video, created_at, updated_at`
 )
 
 var (
+	// flagValue is the integer a setting's column holds.
+	flagValue = map[bool]int{false: 0, true: 1}
+
 	// ErrClipProfileNotFound is returned when a clip profile row does not exist.
 	ErrClipProfileNotFound = errors.New("clip profile not found")
 
@@ -55,21 +61,11 @@ var (
 // Returns:
 //   - err: Non-nil when the row cannot be written or the default cannot be assigned.
 func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
-	isDefault := 0
-	if profile.IsDefault {
-		isDefault = 1
-	}
-
-	keepHDR := 0
-	if profile.KeepHDR {
-		keepHDR = 1
-	}
-
 	_, err := db.conn.ExecContext(ctx, db.rewrite(`
 		INSERT INTO clip_profiles (
 			id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr,
-			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			copy_video, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			crf = excluded.crf,
@@ -78,6 +74,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 			max_width = excluded.max_width,
 			is_default = excluded.is_default,
 			keep_hdr = excluded.keep_hdr,
+			copy_video = excluded.copy_video,
 			updated_at = excluded.updated_at
 	`),
 		profile.ID,
@@ -86,8 +83,9 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 		profile.Preset,
 		profile.AudioKbps,
 		profile.MaxWidth,
-		isDefault,
-		keepHDR,
+		flagValue[profile.IsDefault],
+		flagValue[profile.KeepHDR],
+		flagValue[profile.CopyVideo],
 		profile.CreatedAt,
 		profile.UpdatedAt,
 	)
@@ -278,6 +276,7 @@ func (profile ClipProfile) QualityPreset() clip.QualityPreset {
 		AudioKbps:   profile.AudioKbps,
 		MaxWidth:    profile.MaxWidth,
 		PreserveHDR: profile.KeepHDR,
+		CopyVideo:   profile.CopyVideo,
 	}
 }
 
@@ -375,6 +374,8 @@ func scanClipProfile(row scannable) (ClipProfile, error) {
 	var isDefault int
 	var keepHDR int
 
+	var copyVideo int
+
 	err := row.Scan(
 		&profile.ID,
 		&profile.Name,
@@ -384,6 +385,7 @@ func scanClipProfile(row scannable) (ClipProfile, error) {
 		&profile.MaxWidth,
 		&isDefault,
 		&keepHDR,
+		&copyVideo,
 		&profile.CreatedAt,
 		&profile.UpdatedAt,
 	)
@@ -393,6 +395,7 @@ func scanClipProfile(row scannable) (ClipProfile, error) {
 
 	profile.IsDefault = isDefault != 0
 	profile.KeepHDR = keepHDR != 0
+	profile.CopyVideo = copyVideo != 0
 
 	return profile, nil
 }

@@ -8,6 +8,8 @@
 package mocks
 
 import (
+	"time"
+
 	mock "github.com/stretchr/testify/mock"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -222,6 +224,71 @@ func (_c *mockrenderReporter_SetStage_Call) Return(job *clip.Job) *mockrenderRep
 }
 
 func (_c *mockrenderReporter_SetStage_Call) RunAndReturn(run func(id string, stage clip.Stage) *clip.Job) *mockrenderReporter_SetStage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetWindow provides a mock function for the type mockrenderReporter
+func (_mock *mockrenderReporter) SetWindow(id string, start time.Duration, duration time.Duration) *clip.Job {
+	ret := _mock.Called(id, start, duration)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetWindow")
+	}
+
+	var r0 *clip.Job
+	if returnFunc, ok := ret.Get(0).(func(string, time.Duration, time.Duration) *clip.Job); ok {
+		r0 = returnFunc(id, start, duration)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*clip.Job)
+		}
+	}
+	return r0
+}
+
+// mockrenderReporter_SetWindow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetWindow'
+type mockrenderReporter_SetWindow_Call struct {
+	*mock.Call
+}
+
+// SetWindow is a helper method to define mock.On call
+//   - id string
+//   - start time.Duration
+//   - duration time.Duration
+func (_e *mockrenderReporter_Expecter) SetWindow(id any, start any, duration any) *mockrenderReporter_SetWindow_Call {
+	return &mockrenderReporter_SetWindow_Call{Call: _e.mock.On("SetWindow", id, start, duration)}
+}
+
+func (_c *mockrenderReporter_SetWindow_Call) Run(run func(id string, start time.Duration, duration time.Duration)) *mockrenderReporter_SetWindow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 time.Duration
+		if args[1] != nil {
+			arg1 = args[1].(time.Duration)
+		}
+		var arg2 time.Duration
+		if args[2] != nil {
+			arg2 = args[2].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *mockrenderReporter_SetWindow_Call) Return(job *clip.Job) *mockrenderReporter_SetWindow_Call {
+	_c.Call.Return(job)
+	return _c
+}
+
+func (_c *mockrenderReporter_SetWindow_Call) RunAndReturn(run func(id string, start time.Duration, duration time.Duration) *clip.Job) *mockrenderReporter_SetWindow_Call {
 	_c.Call.Return(run)
 	return _c
 }

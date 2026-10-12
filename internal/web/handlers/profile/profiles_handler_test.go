@@ -153,7 +153,13 @@ func profileNamed(t *testing.T, service *clipprofile.Service, name string) clipp
 func namedProfiles(t *testing.T, service *clipprofile.Service) []clipprofile.Profile {
 	t.Helper()
 
-	builtIn := map[string]bool{"720p": true, "1080p": true, "4K": true, "4K HDR": true}
+	builtIn := map[string]bool{
+		"720p":     true,
+		"1080p":    true,
+		"4K":       true,
+		"4K HDR":   true,
+		"Original": true,
+	}
 
 	found := make([]clipprofile.Profile, 0)
 
@@ -338,6 +344,13 @@ func TestClipProfilesRendersTheBuiltInProfiles(t *testing.T) {
 	assert.Contains(t, answer.body, `value="20"`,
 		"the 1080p built-in is the stored default")
 	assert.Contains(t, answer.body, "4K HDR", "the built-ins are named after what they produce")
+	assert.Contains(
+		t,
+		answer.body,
+		"Copy the source when possible",
+		"a profile can copy a source that fits",
+	)
+	assert.Contains(t, answer.body, `name="copyVideo"`)
 
 	seeded := New(profileTestService(t))
 	assert.Empty(t, namedProfiles(t, seeded.profiles),

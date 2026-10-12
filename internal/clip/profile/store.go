@@ -23,7 +23,10 @@ type Profile struct {
 	MaxWidth  int
 	IsDefault bool
 	// KeepHDR reports whether a video clip rendered with this profile keeps HDR.
-	KeepHDR   bool
+	KeepHDR bool
+	// CopyVideo reports whether a video clip rendered with this profile copies
+	// the source's video when it already fits the profile.
+	CopyVideo bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -44,6 +47,8 @@ type ProfileFields struct {
 	IsDefault bool
 	// KeepHDR reports whether video clips from HDR sources keep HDR.
 	KeepHDR bool
+	// CopyVideo reports whether video clips copy a source that fits.
+	CopyVideo bool
 }
 
 // Service stores and edits the clip profiles a user manages.
@@ -212,6 +217,7 @@ func (profile Profile) record() database.ClipProfile {
 		MaxWidth:  profile.MaxWidth,
 		IsDefault: profile.IsDefault,
 		KeepHDR:   profile.KeepHDR,
+		CopyVideo: profile.CopyVideo,
 		CreatedAt: profile.CreatedAt,
 		UpdatedAt: profile.UpdatedAt,
 	}
@@ -234,6 +240,7 @@ func profileFrom(record database.ClipProfile) Profile {
 		MaxWidth:  record.MaxWidth,
 		IsDefault: record.IsDefault,
 		KeepHDR:   record.KeepHDR,
+		CopyVideo: record.CopyVideo,
 		CreatedAt: record.CreatedAt,
 		UpdatedAt: record.UpdatedAt,
 	}

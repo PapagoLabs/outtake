@@ -47,7 +47,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 									}
 								}
 							</div>
-							@profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, profile.KeepHDR, props.Presets, props.Widths)
+							@profileFields("profile-"+profile.ID+"-", profile.Name, profile.CRF, profile.Preset, profile.AudioKbps, profile.MaxWidth, profile.KeepHDR, profile.CopyVideo, props.Presets, props.Widths)
 							<div class="flex flex-wrap gap-2">
 								@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm}) {
 									Save
@@ -92,7 +92,7 @@ templ ClipProfiles(props ClipProfilesProps) {
 					<form action="/settings/profiles" method="POST" class="flex flex-col gap-4">
 						@csrf.Field()
 						<p class="font-medium">New Profile</p>
-						@profileFields("new-", "", clip.DefaultPreset.CRF, clip.DefaultPreset.Preset, clip.DefaultPreset.AudioKbps, clip.DefaultPreset.MaxWidth, clip.DefaultPreset.PreserveHDR, props.Presets, props.Widths)
+						@profileFields("new-", "", clip.DefaultPreset.CRF, clip.DefaultPreset.Preset, clip.DefaultPreset.AudioKbps, clip.DefaultPreset.MaxWidth, clip.DefaultPreset.PreserveHDR, clip.DefaultPreset.CopyVideo, props.Presets, props.Widths)
 						<label class="flex items-center gap-2 text-sm">
 							@checkbox.Checkbox(checkbox.Props{Name: "isDefault", Value: "1", Class: "rounded border-input"})
 							Set as default
@@ -117,9 +117,10 @@ templ ClipProfiles(props ClipProfilesProps) {
 //   - audioKbps: Current audio bitrate in kbps.
 //   - maxWidth: Current export resolution.
 //   - keepHDR: Whether video clips from HDR sources keep HDR.
+//   - copyVideo: Whether video clips copy a source that fits.
 //   - presets: Encoder presets to choose from.
 //   - widths: Export resolutions to choose from.
-templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, keepHDR bool, presets []string, widths []profile.OutputWidth) {
+templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, maxWidth int, keepHDR, copyVideo bool, presets []string, widths []profile.OutputWidth) {
 	<div class="flex flex-col gap-2">
 		@label.Label(label.Props{For: idPrefix + "name"}) {
 			Name
@@ -175,4 +176,9 @@ templ profileFields(idPrefix, name string, crf int, preset string, audioKbps, ma
 		HDR
 	</label>
 	<p class="text-sm text-muted-foreground">Enable to maintain HDR quality from supported sources</p>
+	<label class="flex items-center gap-2 text-sm">
+		@checkbox.Checkbox(checkbox.Props{ID: idPrefix + "copyvideo", Name: "copyVideo", Value: "1", Checked: copyVideo, Class: "rounded border-input"})
+		Copy the source when possible
+	</label>
+	<p class="text-sm text-muted-foreground">Enable to skip re-encoding when the source format already matches the profile</p>
 }

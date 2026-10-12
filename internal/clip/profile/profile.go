@@ -85,6 +85,7 @@ func ProfileFromFields(id string, fields ProfileFields) (Profile, error) {
 		MaxWidth:  maxWidth,
 		IsDefault: fields.IsDefault,
 		KeepHDR:   fields.KeepHDR,
+		CopyVideo: fields.CopyVideo,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}, nil
