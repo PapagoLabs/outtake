@@ -20,12 +20,12 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
-// TestShutdownEndsOpenClipStreams covers a clip stream open as the server
+// TestShutdownEndsOpenLiveStreams covers a page stream open as the server
 // shuts down.
 //
 // The server waits for open connections, so the stream has to end on its own
 // for the shutdown to finish before its timeout.
-func TestShutdownEndsOpenClipStreams(t *testing.T) {
+func TestShutdownEndsOpenLiveStreams(t *testing.T) {
 	t.Parallel()
 
 	deps := testRouterDeps(t, testRouterDatabase(t))
@@ -49,8 +49,14 @@ func TestShutdownEndsOpenClipStreams(t *testing.T) {
 		served <- app.Listener(listener, fiber.ListenConfig{DisableStartupMessage: true})
 	}()
 
-	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet,
-		"http://"+listener.Addr().String()+routes.PathClipLive+"?ids="+job.ID, http.NoBody)
+	request, err := http.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"http://"+listener.Addr().
+			String()+
+			routes.PathLive+"?"+routes.QueryLiveClips+"="+job.ID,
+		http.NoBody,
+	)
 	require.NoError(t, err)
 
 	response, err := http.DefaultClient.Do(request)

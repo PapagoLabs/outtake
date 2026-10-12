@@ -118,7 +118,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					}
 				}
 				@card.Content() {
-					<div hx-get={ "/media/item/" + props.ID + "/playback" } hx-trigger="load, every 2s" hx-swap="innerHTML"></div>
+					<div data-playback-live={ props.ID } hx-get={ "/media/item/" + props.ID + "/playback" } hx-trigger="load, every 2s" hx-swap="innerHTML"></div>
 				}
 			}
 			if props.PreviewID != "" {

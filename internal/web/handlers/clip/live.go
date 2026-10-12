@@ -4,19 +4,14 @@
 package clip
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
-
-	fiber "github.com/gofiber/fiber/v3"
 
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
-	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
 
 // storedFiles is which of a clip's files the storage holds.
@@ -44,9 +39,8 @@ type fileCheck struct {
 	files storedFiles
 }
 
-// clipStream sends the status regions of the clips one page shows, each time
-// one changes.
-type clipStream struct {
+// clipFeed reports the status regions of the clips one page shows.
+type clipFeed struct {
 	// lookup finds a clip, nil when it is gone.
 	lookup func(ctx context.Context, id string) *clipdom.Job
 	// render writes a clip's status region.
@@ -57,8 +51,10 @@ type clipStream struct {
 	ids []string
 }
 
-// statusRenderer renders status regions for one stream, reading the profiles
-// once and a clip's files only when its status or stage changes.
+// statusRenderer renders status regions for one stream.
+//
+// It reads the profiles once and a clip's files only when its status or stage
+// changes.
 type statusRenderer struct {
 	// handler builds the card models.
 	handler *Handler
@@ -71,81 +67,29 @@ type statusRenderer struct {
 }
 
 const (
-	// liveIDsQuery names the clips a stream follows, separated by commas.
-	liveIDsQuery = "ids"
-	// liveIDSeparator separates the ids in liveIDsQuery.
+	// liveIDSeparator separates the clip ids a page follows.
 	liveIDSeparator = ","
 	// maxLiveClips is the most clips one stream follows.
 	maxLiveClips = 50
-	// liveTick is how often a stream checks its clips. The card's fallback
-	// poll and its progress bar's glide use the same interval.
-	liveTick = time.Second
-	// liveLifetime is how long one stream runs. The browser then reconnects
-	// through the auth guard, so a revoked session or a logout ends it.
-	liveLifetime = time.Minute
-	// liveRetry tells the browser to reconnect a second after a stream ends.
-	liveRetry = "retry: 1000\n\n"
-	// liveEventClip names an event carrying a liveUpdate.
-	liveEventClip = "clip"
-	// liveEventPing names the event every check ends with, which tells the
-	// page the stream still delivers.
-	liveEventPing = "ping"
-	// livePingData is the body of a ping, which must not be empty for the
-	// browser to deliver it.
-	livePingData = "{}"
-	// contentTypeEventStream is the media type of a server-sent event stream.
-	contentTypeEventStream = "text/event-stream"
-	// headerAccelBuffering asks a reverse proxy not to buffer the stream.
-	headerAccelBuffering = "X-Accel-Buffering"
-	// cacheNoStore keeps the stream out of every cache.
-	cacheNoStore = "no-store"
 )
 
-// ClipLive streams the status regions of the clips a page shows while they
-// render.
+// LiveClips starts the feed of the clip cards a page shows while they render.
 //
-// The page names its rendering clips in the ids query. Each region is sent
-// when it changes, and every check ends with a ping. A request naming no clip
-// answers 204, which tells the browser not to reconnect.
+// The value names the clips, separated by commas. Each check reports the
+// status region of every clip whose region changed, rendered the way
+// /clips/:id/row renders it.
 //
 // Parameters:
-//   - ctx: Request naming the clips to follow.
+//   - value: The clip ids, separated by commas.
 //
 // Returns:
-//   - err: Non-nil when the response cannot be started.
-func (handler *Handler) ClipLive(ctx fiber.Ctx) error {
-	ids := liveIDs(ctx.Query(liveIDsQuery))
+//   - check: The feed's check, nil when the value names no clip.
+func (handler *Handler) LiveClips(value string) func(ctx context.Context) []string {
+	ids := liveIDs(value)
 	if len(ids) == 0 {
-		return respond.SendStatusCode(ctx, fiber.StatusNoContent)
+		return nil
 	}
 
-	ctx.Set(fiber.HeaderContentType, contentTypeEventStream)
-	ctx.Set(fiber.HeaderCacheControl, cacheNoStore)
-	ctx.Set(headerAccelBuffering, "no")
-
-	stream := handler.newClipStream(ids)
-
-	err := ctx.SendStreamWriter(func(writer *bufio.Writer) {
-		streamCtx, cancel := handler.streamContext()
-		defer cancel()
-
-		stream.run(streamCtx, writer)
-	})
-	if err != nil {
-		return fmt.Errorf("start clip stream: %w", err)
-	}
-
-	return nil
-}
-
-// newClipStream builds the stream for the clips a page shows.
-//
-// Parameters:
-//   - ids: The clips to follow.
-//
-// Returns:
-//   - stream: A stream that renders through this handler.
-func (handler *Handler) newClipStream(ids []string) *clipStream {
 	renderer := &statusRenderer{
 		handler:  handler,
 		files:    make(map[string]fileCheck, len(ids)),
@@ -153,35 +97,14 @@ func (handler *Handler) newClipStream(ids []string) *clipStream {
 		loaded:   false,
 	}
 
-	return &clipStream{
+	feed := &clipFeed{
 		lookup: handler.lookupJob,
 		render: renderer.render,
 		sent:   make(map[string]string, len(ids)),
 		ids:    ids,
 	}
-}
 
-// streamContext returns the context a stream runs in, canceled when the
-// server shuts down.
-//
-// The request's own context ends when the handler returns, before the stream
-// starts.
-//
-// Returns:
-//   - ctx: The stream's context.
-//   - cancel: Releases the context once the stream ends.
-func (handler *Handler) streamContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		select {
-		case <-handler.streamsDone:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-
-	return ctx, cancel
+	return feed.check
 }
 
 // filesOf returns which of a clip's files are stored.
@@ -237,129 +160,45 @@ func (renderer *statusRenderer) render(ctx context.Context, job *clipdom.Job) (s
 	return html.String(), nil
 }
 
-// run sends the clips' regions until the stream ends.
-//
-// The first check runs at once, so a page that reconnects catches up with
-// anything that changed while it was away. The stream ends when its context
-// is canceled, when the browser goes away, or after liveLifetime.
-//
-// Parameters:
-//   - ctx: The stream's context.
-//   - writer: The response body.
-func (stream *clipStream) run(ctx context.Context, writer *bufio.Writer) {
-	ticker := time.NewTicker(liveTick)
-	defer ticker.Stop()
-
-	lifetime := time.NewTimer(liveLifetime)
-	defer lifetime.Stop()
-
-	_, err := writer.WriteString(liveRetry)
-
-	for err == nil {
-		err = stream.send(ctx, writer)
-		if err != nil {
-			return
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-lifetime.C:
-			return
-		case <-ticker.C:
-		}
-	}
-}
-
-// send writes the region of every clip that changed, then a ping, and
-// flushes them.
-//
-// Parameters:
-//   - ctx: The stream's context.
-//   - writer: The response body.
-//
-// Returns:
-//   - err: Non-nil when the browser went away.
-func (stream *clipStream) send(ctx context.Context, writer *bufio.Writer) error {
-	for _, id := range stream.ids {
-		err := stream.sendChanged(ctx, writer, id)
-		if err != nil {
-			return fmt.Errorf("send clip %s: %w", id, err)
-		}
-	}
-
-	err := writeEvent(writer, liveEventPing, livePingData)
-	if err != nil {
-		return fmt.Errorf("send ping: %w", err)
-	}
-
-	err = writer.Flush()
-	if err != nil {
-		return fmt.Errorf("flush clip stream: %w", err)
-	}
-
-	return nil
-}
-
-// sendChanged writes a clip's region when it differs from the one last sent.
+// check reports the regions that changed since the last check.
 //
 // A clip that is gone, or whose region cannot be rendered, is skipped, and
 // the next check tries it again.
 //
 // Parameters:
 //   - ctx: The stream's context.
-//   - writer: The response body.
-//   - id: The clip.
 //
 // Returns:
-//   - err: Non-nil when the event cannot be written.
-func (stream *clipStream) sendChanged(ctx context.Context, writer *bufio.Writer, id string) error {
-	job := stream.lookup(ctx, id)
-	if job == nil {
-		return nil
+//   - payloads: One liveUpdate for each clip whose region changed.
+func (feed *clipFeed) check(ctx context.Context) []string {
+	var payloads []string
+
+	for _, id := range feed.ids {
+		job := feed.lookup(ctx, id)
+		if job == nil {
+			continue
+		}
+
+		html, err := feed.render(ctx, job)
+		if err != nil || html == feed.sent[id] {
+			continue
+		}
+
+		// Two strings always encode.
+		payload, _ := json.Marshal(liveUpdate{ID: id, HTML: html})
+
+		payloads = append(payloads, string(payload))
+		feed.sent[id] = html
 	}
 
-	html, err := stream.render(ctx, job)
-	if err != nil || html == stream.sent[id] {
-		return nil //nolint:nilerr // A region that fails to render is tried again next check.
-	}
-
-	// Two strings always encode.
-	payload, _ := json.Marshal(liveUpdate{ID: id, HTML: html})
-
-	err = writeEvent(writer, liveEventClip, string(payload))
-	if err != nil {
-		return fmt.Errorf("send update: %w", err)
-	}
-
-	stream.sent[id] = html
-
-	return nil
+	return payloads
 }
 
-// writeEvent writes one server-sent event.
-//
-// Parameters:
-//   - writer: The response body.
-//   - name: The event's name.
-//   - data: The event's body, on one line.
-//
-// Returns:
-//   - err: Non-nil when the event cannot be written.
-func writeEvent(writer *bufio.Writer, name, data string) error {
-	_, err := writer.WriteString("event: " + name + "\ndata: " + data + "\n\n")
-	if err != nil {
-		return fmt.Errorf("write %s event: %w", name, err)
-	}
-
-	return nil
-}
-
-// liveIDs reads the clips a stream follows, without repeats, up to
+// liveIDs reads the clips a page follows, without repeats, up to
 // maxLiveClips.
 //
 // Parameters:
-//   - raw: The ids query, separated by commas.
+//   - raw: The clip ids, separated by commas.
 //
 // Returns:
 //   - ids: The clips to follow, in the order given.

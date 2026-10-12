@@ -71,6 +71,7 @@ func TestMediaItemPageLoadsExternalScript(t *testing.T) {
 	assert.NotContains(t, body, `hx-push-url`)
 	assert.Contains(t, body, `id="clip-list-type"`)
 	assert.Contains(t, body, `value="intro"`)
+	assert.Contains(t, body, `data-playback-live="42"`, "live.js follows the playback panel")
 }
 
 func TestMediaItemPagePreservesStatusFilter(t *testing.T) {
