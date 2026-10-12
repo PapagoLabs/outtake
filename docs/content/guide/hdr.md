@@ -1,7 +1,7 @@
 ---
 title: HDR and Playback
 description: When a clip keeps HDR, what plays in your browser, and which sources Outtake refuses
-weight: 4
+weight: 5
 ---
 
 ## Keeping HDR

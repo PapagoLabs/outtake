@@ -29,7 +29,7 @@ To fix the server in the configuration instead, set `OUTTAKE_PLEX_SERVER_URL` an
 
 ## The owner
 
-The first Plex account to log in becomes the owner. When a server is already set in the configuration, only an account that owns that server can become the owner. After that, Outtake refuses every other Plex account with "This Outtake belongs to a different Plex account". You can log in as the owner from as many browsers as you like.
+The first Plex account to log in becomes the owner. When a server is already set in the configuration, only an account that owns that server can become the owner. After that, an account you share your Plex server with can ask to use Outtake, and waits until you approve it (see [Users and Limits](/guide/users/)). Outtake refuses every other Plex account with "This Plex account can't use this Outtake". You can log in as the owner from as many browsers as you like.
 
 Outtake checks the account behind every session on every request, so resetting the owner (below) ends every session at once.
 
@@ -44,6 +44,6 @@ docker exec outtake /outtake owner reset
 docker restart outtake
 ```
 
-The reset also forgets the chosen server, and ends every session. The next Plex account to log in becomes the owner.
+The reset also forgets every admin and member and the chosen server, and ends every session. Clips are kept. The next Plex account to log in becomes the owner.
 
 If you upgraded from a version without owners, only the account that logged in most recently can claim Outtake.

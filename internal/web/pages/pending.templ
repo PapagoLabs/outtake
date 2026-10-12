@@ -1,0 +1,53 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
+	"github.com/PapagoLabs/outtake/internal/web/assets"
+	"github.com/PapagoLabs/outtake/internal/web/components/brand"
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/theme"
+)
+
+// Pending renders the page an account waits on until an admin approves it.
+templ Pending() {
+	<!DOCTYPE html>
+	<html lang="en" class="dark" data-palette="plex" data-palettes={ theme.IDList() }>
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Waiting for Approval - Outtake</title>
+			@brand.IconHead()
+			<script src={ assets.URL("js/theme.js") }></script>
+			<link href={ assets.URL("css/output.css") } rel="stylesheet"/>
+			if token := identity.CSRFToken(ctx); token != "" {
+				<meta name="csrf-token" content={ token }/>
+			}
+		</head>
+		<body class="min-h-screen bg-background text-foreground flex items-center justify-center">
+			<div class="w-full max-w-md p-8">
+				@card.Card() {
+					@card.Header(card.HeaderProps{Class: "items-center text-center"}) {
+						<img src={ assets.URL("brand/mascot-128.png") } width="80" height="80" alt="" class="size-20"/>
+						@card.Title() {
+							Waiting for Approval
+						}
+					}
+					@card.Content() {
+						<p class="mb-4 text-center text-sm text-muted-foreground" data-pending>An admin needs to approve your Plex account before you can use Outtake. Check back later.</p>
+						<form method="POST" action="/api/auth/logout">
+							@csrf.Field()
+							@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantOutline, FullWidth: true}) {
+								Logout
+							}
+						</form>
+					}
+				}
+			</div>
+		</body>
+	</html>
+}

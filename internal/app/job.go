@@ -576,3 +576,28 @@ func stopped(ctx context.Context) error {
 
 	return nil
 }
+
+// publishedBytes measures the files a finished render left.
+//
+// Parameters:
+//   - job: The finished render.
+//
+// Returns:
+//   - bytes: The size of the clip's file and its SDR version together, with
+//     a file that is not there counting as nothing.
+func publishedBytes(job *clip.Job) int64 {
+	var bytes int64
+
+	for _, path := range []string{job.OutputPath, job.SDRPath()} {
+		if path == "" {
+			continue
+		}
+
+		info, err := os.Stat(path)
+		if err == nil && info.Mode().IsRegular() {
+			bytes += info.Size()
+		}
+	}
+
+	return bytes
+}

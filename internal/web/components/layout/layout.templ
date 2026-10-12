@@ -132,50 +132,63 @@ templ Layout(props Props) {
 						<div class="flex flex-col gap-1">
 							<span class="px-3 py-2 text-sm font-medium text-sidebar-foreground">Settings</span>
 							<div class="flex flex-col gap-1 pl-2">
-								<a
-									href="/servers"
-									hx-select="#main-content"
-									data-nav="servers"
-									class={ utils.TwMerge(
-										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-										utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-									) }
-								>
-									Servers
-								</a>
-								<a
-									href="/settings/profiles"
-									hx-select="#main-content"
-									data-nav="profiles"
-									class={ utils.TwMerge(
-										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-										utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-									) }
-								>
-									Clip Profiles
-								</a>
-								<a
-									href="/settings/previews"
-									hx-select="#main-content"
-									data-nav="previews"
-									class={ utils.TwMerge(
-										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-										utils.IfElse(props.Active == "previews", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-									) }
-								>
-									Previews
-								</a>
-								<a
-									href="/settings/storage"
-									hx-select="#main-content"
-									data-nav="storage"
-									class={ utils.TwMerge(
-										"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-										utils.IfElse(props.Active == "storage", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
-									) }
-								>
-									Storage
-								</a>
+								if view.ViewerManages(ctx) {
+									<a
+										href="/servers"
+										hx-select="#main-content"
+										data-nav="servers"
+										class={ utils.TwMerge(
+											"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+											utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+										) }
+									>
+										Servers
+									</a>
+									<a
+										href="/settings/profiles"
+										hx-select="#main-content"
+										data-nav="profiles"
+										class={ utils.TwMerge(
+											"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+											utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+										) }
+									>
+										Clip Profiles
+									</a>
+									<a
+										href="/settings/previews"
+										hx-select="#main-content"
+										data-nav="previews"
+										class={ utils.TwMerge(
+											"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+											utils.IfElse(props.Active == "previews", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+										) }
+									>
+										Previews
+									</a>
+									<a
+										href="/settings/storage"
+										hx-select="#main-content"
+										data-nav="storage"
+										class={ utils.TwMerge(
+											"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+											utils.IfElse(props.Active == "storage", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+										) }
+									>
+										Storage
+									</a>
+									<a
+										href="/settings/users"
+										hx-select="#main-content"
+										data-nav="users"
+										class={ utils.TwMerge(
+											"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+											utils.IfElse(props.Active == "users", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
+										) }
+									>
+										Users
+									</a>
+								}
 								<a
 									href="/settings/appearance"
 									hx-select="#main-content"

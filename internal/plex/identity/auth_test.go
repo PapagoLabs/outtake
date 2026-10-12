@@ -860,8 +860,15 @@ func TestSignInKeepsTheRoleOfAKnownUser(t *testing.T) {
 	store.EXPECT().UserRole(mock.Anything, 42).Return("admin", true, nil).Once()
 	store.EXPECT().TouchLogin(mock.Anything, 42, "Nick").Return(nil).Once()
 
-	routes := map[string]plexRoute{"/api/v2/user": userRoute()}
-	auth := testAuth(t, newPlexServer(t, routes).URL, store, nil)
+	// The admin is shared the bound server, machine-2, and owns another.
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(testFriendServer, true).Twice()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+	auth := testAuth(t, newPlexServer(t, routes).URL, store, bound)
 
 	user, err := auth.SignIn(t.Context(), "access-token")
 
@@ -896,15 +903,119 @@ func TestSignInRefusesAnotherAccountOnceOwned(t *testing.T) {
 	store.EXPECT().UserRole(mock.Anything, 42).Return("", false, nil).Once()
 	store.EXPECT().HasOwner(mock.Anything).Return(true, nil).Once()
 
-	// A binding with no expectations fails the test if a refused account binds.
-	bound := mocks.NewMockServerBinding(t)
+	// The bound server is shared with neither of the account's servers, and
+	// the binding answers only Get, so binding anything fails the test.
+	elsewhere := testFriendServer
 
-	routes := map[string]plexRoute{"/api/v2/user": userRoute()}
+	elsewhere.MachineID = "machine-9"
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(elsewhere, true).Once()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
 	auth := testAuth(t, newPlexServer(t, routes).URL, store, bound)
 
 	_, err := auth.SignIn(t.Context(), "access-token")
 
+	require.ErrorIs(
+		t,
+		err,
+		ErrNotAllowed,
+		"nothing is stored for an account the server is not shared with",
+	)
+}
+
+// TestSignInAdmitsASharedAccountAsPending covers an account the owned
+// installation's server is shared with, signing in for the first time.
+//
+// It is stored as pending and signs in as pending, which lets it only wait
+// for an admin.
+func TestSignInAdmitsASharedAccountAsPending(t *testing.T) {
+	t.Parallel()
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 42).Return("", false, nil).Once()
+	store.EXPECT().HasOwner(mock.Anything).Return(true, nil).Once()
+	store.EXPECT().AddPendingUser(mock.Anything, 42, "Nick").Return(nil).Once()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(testFriendServer, true).Twice()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+
+	user, err := testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		store,
+		bound,
+	).SignIn(t.Context(), "access-token")
+
+	require.NoError(t, err)
+	assert.Equal(t, User{PlexID: 42, Username: "Nick", Role: RolePending}, user)
+}
+
+// TestSignInRefusesAMemberWhoseShareWasRemoved covers a stored member whose
+// share of the bound server is gone, refused at sign-in.
+func TestSignInRefusesAMemberWhoseShareWasRemoved(t *testing.T) {
+	t.Parallel()
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 42).Return("member", true, nil).Once()
+
+	elsewhere := testFriendServer
+
+	elsewhere.MachineID = "machine-9"
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(elsewhere, true).Once()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+
+	_, err := testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		store,
+		bound,
+	).SignIn(t.Context(), "access-token")
+
 	require.ErrorIs(t, err, ErrNotAllowed)
+}
+
+// TestSignInRefusesAMemberPlexCannotVouchFor covers plex.tv failing while a
+// member signs in, refused as one to try again rather than as another
+// account's.
+func TestSignInRefusesAMemberPlexCannotVouchFor(t *testing.T) {
+	t.Parallel()
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 42).Return("member", true, nil).Once()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(testFriendServer, true).Once()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusServiceUnavailable, body: ""},
+	}
+
+	_, err := testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		store,
+		bound,
+	).SignIn(t.Context(), "access-token")
+
+	require.ErrorIs(t, err, ErrAccessUnverified)
+	assert.NotErrorIs(t, err, ErrNotAllowed)
 }
 
 func TestSignInRefusesAnInvalidTokenWithoutTouchingTheStore(t *testing.T) {

@@ -2164,3 +2164,30 @@ func TestAdoptKeepsAnEntryTheQueueHolds(t *testing.T) {
 	q.Adopt(testJob("new", clip.StatusCompleted))
 	assert.NotNil(t, q.GetJob("new"), "a record the queue lacks is taken")
 }
+
+// TestCountActiveCountsAnOwnersUnfinishedJobs covers the concurrent renders a
+// member's limit counts, which leave out finished jobs and other accounts'.
+func TestCountActiveCountsAnOwnersUnfinishedJobs(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+
+	for id, test := range map[string]struct {
+		status clip.Status
+		owner  int
+	}{
+		"waiting":   {status: clip.StatusPending, owner: 7},
+		"rendering": {status: clip.StatusProcessing, owner: 7},
+		"done":      {status: clip.StatusCompleted, owner: 7},
+		"theirs":    {status: clip.StatusPending, owner: 42},
+	} {
+		job := testJob(id, test.status)
+
+		job.OwnerID = test.owner
+		q.Restore(job)
+	}
+
+	assert.Equal(t, 2, q.CountActive(7))
+	assert.Equal(t, 1, q.CountActive(42))
+	assert.Zero(t, q.CountActive(9))
+}

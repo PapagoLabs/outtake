@@ -645,3 +645,35 @@ func TestPreviewRegistryEvictsAfterAClear(t *testing.T) {
 	assert.LessOrEqual(t, len(registry.entries), retained)
 	assert.Len(t, registry.order, len(registry.entries), "the order and the entries agree")
 }
+
+// TestPreviewServiceCountsAnOwnersUnfinishedPreviews covers the previews a
+// member's concurrent renders count, which leave out finished ones, other
+// accounts', and ids that name no owner.
+func TestPreviewServiceCountsAnOwnersUnfinishedPreviews(t *testing.T) {
+	t.Parallel()
+
+	registry := newRegistry(func(string) {})
+	digest := ContentID(KeyInput{MediaID: "1"})
+
+	for previewID, status := range map[string]clip.Status{
+		OwnedID(7, digest): clip.StatusPending,
+		OwnedID(7, ContentID(KeyInput{MediaID: "2"})): clip.StatusProcessing,
+		OwnedID(7, ContentID(KeyInput{MediaID: "3"})): clip.StatusCompleted,
+		OwnedID(42, digest):                           clip.StatusPending,
+		digest:                                        clip.StatusPending,
+	} {
+		registry.add(&entry{
+			view:     View{ID: previewID, Status: status},
+			cancel:   func() {},
+			canceled: false,
+			created:  time.Now(),
+			updated:  time.Now(),
+		})
+	}
+
+	service := &Service{entries: registry}
+
+	assert.Equal(t, 2, service.Active(7))
+	assert.Equal(t, 1, service.Active(42))
+	assert.Zero(t, service.Active(9))
+}

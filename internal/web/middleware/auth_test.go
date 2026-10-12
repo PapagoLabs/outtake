@@ -20,6 +20,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/middleware/mocks"
@@ -274,27 +275,28 @@ func TestPlexViewerFollowsTheCaller(t *testing.T) {
 // member's own server token.
 //
 // A missing token is asked for, but no more than once a minute. A held token
-// is checked again after ten minutes, and dropped when plex.tv no longer lists
-// it. A failure to ask keeps the held token, and the owner is never asked
-// about.
+// is checked again after ten minutes, and the session ends when plex.tv no
+// longer lists the server. A failure to ask keeps the held token, and the
+// owner is never asked about.
 func TestAuthGuardRenewsAMembersServerToken(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 
 	for name, test := range map[string]struct {
-		role    string
-		held    string
-		checked time.Time
-		lookup  fakeTokens
-		want    string
-		asks    int
+		role      string
+		held      string
+		checked   time.Time
+		lookup    fakeTokens
+		want      string
+		asks      int
+		signedOut bool
 	}{
 		"missing":          {role: "member", lookup: fakeTokens{token: "fresh"}, want: "fresh", asks: 1},
 		"missing, retried": {role: "member", checked: now.Add(-30 * time.Second), lookup: fakeTokens{token: "fresh"}, want: "", asks: 0},
 		"held, recent":     {role: "member", held: "old", checked: now.Add(-time.Minute * 5), lookup: fakeTokens{token: "fresh"}, want: "old", asks: 0},
 		"held, stale":      {role: "member", held: "old", checked: now.Add(-time.Minute * 11), lookup: fakeTokens{token: "fresh"}, want: "fresh", asks: 1},
-		"share removed":    {role: "member", held: "old", checked: now.Add(-time.Minute * 11), lookup: fakeTokens{token: ""}, want: "", asks: 1},
+		"share removed":    {role: "member", held: "old", checked: now.Add(-time.Minute * 11), lookup: fakeTokens{token: ""}, signedOut: true, asks: 1},
 		"plex.tv down":     {role: "member", held: "old", checked: now.Add(-time.Minute * 11), lookup: fakeTokens{err: errPlexDown}, want: "old", asks: 1},
 		"owner":            {role: "owner", lookup: fakeTokens{token: "fresh"}, want: "", asks: 0},
 	} {
@@ -324,9 +326,67 @@ func TestAuthGuardRenewsAMembersServerToken(t *testing.T) {
 
 			got := issueRequest(t, app, http.MethodGet, "/")
 
-			assert.Equal(t, test.want, got.body)
 			assert.Equal(t, test.asks, lookup.asked)
+
+			if test.signedOut {
+				assert.Equal(t, "/login", got.location, "a removed share ends the session")
+
+				return
+			}
+
+			assert.Equal(t, test.want, got.body)
 		})
+	}
+}
+
+// TestAuthGuardHoldsAPendingAccountAtThePendingPage covers an account an
+// admin has not approved.
+//
+// A page sends it to the pending page, the API refuses it, and the pending
+// page itself opens.
+func TestAuthGuardHoldsAPendingAccountAtThePendingPage(t *testing.T) {
+	t.Parallel()
+
+	users := mocks.NewMockUserLookup(t)
+	users.EXPECT().UserRole(mock.Anything, 7).Return("pending", true, nil).Times(3)
+
+	app := guardAppWith(t, users, withUser(7))
+
+	page := issueRequest(t, app, http.MethodGet, "/clips")
+	assert.Equal(t, fiber.StatusSeeOther, page.status)
+	assert.Equal(t, "/pending", page.location)
+
+	call := issueRequest(t, app, http.MethodGet, "/api/clips")
+	assert.Equal(t, fiber.StatusForbidden, call.status)
+	assert.Contains(t, call.body, `"error":"pending"`)
+
+	assert.Equal(t, fiber.StatusOK, issueRequest(t, app, http.MethodGet, "/pending").status)
+}
+
+// TestRenderMemberExemptsOnlyManagers covers whom the render limits bind.
+func TestRenderMemberExemptsOnlyManagers(t *testing.T) {
+	t.Parallel()
+
+	for role, exempt := range map[identity.Role]bool{
+		identity.RoleOwner:   true,
+		identity.RoleAdmin:   true,
+		identity.RoleMember:  false,
+		identity.RolePending: false,
+	} {
+		var got quota.Member
+
+		app := fiber.New()
+		app.Use(func(ctx fiber.Ctx) error {
+			SetCaller(ctx, identity.User{PlexID: 7, Username: "", Role: role})
+
+			got = RenderMember(ctx)
+
+			return ctx.SendStatus(fiber.StatusOK)
+		})
+
+		issueRequest(t, app, http.MethodGet, "/")
+
+		assert.Equal(t, quota.Member{ID: 7, Exempt: exempt}, got, string(role))
 	}
 }
 

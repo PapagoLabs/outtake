@@ -146,6 +146,7 @@ func startQueue(
 		}
 
 		removeOtherOutputs(store, paths, job)
+		jobQueue.SetOutputBytes(job.ID, publishedBytes(job))
 
 		return nil
 	})

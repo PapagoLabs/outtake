@@ -213,6 +213,28 @@ func (registry *registry) clearFinished() {
 	}
 }
 
+// countActive counts an owner's previews waiting for a slot or rendering.
+//
+// Parameters:
+//   - owner: The plex.tv id of the account the previews belong to.
+//
+// Returns:
+//   - active: How many of the owner's previews are not finished.
+func (registry *registry) countActive(owner int) int {
+	registry.mu.Lock()
+	defer registry.mu.Unlock()
+
+	active := 0
+
+	for previewID, job := range registry.entries {
+		if id, ok := Owner(previewID); ok && id == owner && !job.view.Done() {
+			active++
+		}
+	}
+
+	return active
+}
+
 // countFinishedLocked reports how many registered previews have finished.
 //
 // Returns:

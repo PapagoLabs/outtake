@@ -204,6 +204,30 @@ func (q *Queue) Cancel(id string) bool {
 	return true
 }
 
+// CountActive counts an owner's jobs waiting or rendering.
+//
+// Parameters:
+//   - owner: The plex.tv id of the account the jobs belong to.
+//
+// Returns:
+//   - active: How many of the owner's jobs are pending or processing.
+func (q *Queue) CountActive(owner int) int {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+
+	active := 0
+
+	for _, job := range q.jobs {
+		if job.OwnerID == owner &&
+			(job.Status == clip.StatusPending || job.Status == clip.StatusProcessing) {
+
+			active++
+		}
+	}
+
+	return active
+}
+
 // Delete removes a job from the in-memory map.
 //
 // A waiting job leaves the line, and a running one is canceled and tombstoned,
@@ -458,6 +482,20 @@ func (q *Queue) SetFailureFunc(fn clip.DescribeFunc) {
 	defer q.mu.Unlock()
 
 	q.describe = fn
+}
+
+// SetOutputBytes records how many bytes a finished render's files take.
+//
+// Parameters:
+//   - id: The clip.
+//   - bytes: The size of the clip's file and its SDR version together.
+//
+// Returns:
+//   - job: The updated job, nil when the queue no longer has it.
+func (q *Queue) SetOutputBytes(id string, bytes int64) *clip.Job {
+	return q.updateEntry(id, func(job *clip.Job) {
+		job.OutputBytes = bytes
+	})
 }
 
 // SetOutputFormat records what a render's own file holds once it is

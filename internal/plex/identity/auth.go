@@ -39,6 +39,9 @@ type Store interface {
 	// TouchLogin records a sign-in.
 	TouchLogin(ctx context.Context, plexUserID int, username string) error
 
+	// AddPendingUser records an account that waits for an admin's approval.
+	AddPendingUser(ctx context.Context, plexUserID int, username string) error
+
 	// LegacyToken returns the newest stored Plex token, or empty when none is
 	// stored.
 	LegacyToken(ctx context.Context) (string, error)
@@ -131,6 +134,10 @@ var (
 	// ErrNoServer reports a request that needs a Plex server before one is
 	// selected.
 	ErrNoServer = errors.New("no plex server is selected")
+
+	// ErrAccessUnverified reports a sign-in refused because Plex could not say
+	// whether the bound server is shared with the account.
+	ErrAccessUnverified = errors.New("access to the bound plex server could not be checked")
 
 	// ErrOwnershipUnverified reports a claim refused because Plex could not
 	// say whether the account owns the bound server.
@@ -545,9 +552,12 @@ func (auth *Auth) Sessions() []plex.Session {
 //
 // The first Plex account to sign in claims the installation as its owner. When
 // a Plex token is stored, only the account behind that token may claim it, and
-// when a server is bound, only an account that owns it may. Every other account
-// is refused. A token that is invalid or refused is never used to bind a
-// server, and only the bound server's owner refreshes its token.
+// when a server is bound, only an account that owns it may. Once it is owned, an
+// account the bound server is shared with signs in as pending until an admin
+// approves it, and every account but the owner must still reach the server
+// each time it signs in. Every other account is refused. A token that is
+// invalid or refused is never used to bind a server, and only the bound
+// server's owner refreshes its token.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -556,7 +566,8 @@ func (auth *Auth) Sessions() []plex.Session {
 // Returns:
 //   - user: The user the token signs in as.
 //   - err: ErrInvalidToken when Plex rejects the token, ErrNotAllowed when the
-//     account may not use this installation, otherwise the wrapped store failure.
+//     account may not use this installation, ErrAccessUnverified when Plex
+//     cannot say whether it may, otherwise the wrapped store failure.
 func (auth *Auth) SignIn(ctx context.Context, accessToken string) (User, error) {
 	candidate, ok := auth.validate(ctx, accessToken)
 	if !ok {
@@ -588,6 +599,60 @@ func (auth *Auth) TokenRejected() bool {
 	return auth.selected.TokenRejected()
 }
 
+// admitNewAccount lets an account this installation has never seen sign in.
+//
+// It claims an installation nobody owns. Once one is owned, an account the
+// bound server is shared with is stored as pending until an admin approves
+// it, and any other account is refused without being stored.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - candidate: The account Plex vouched for.
+//   - accessToken: The account's Plex access token.
+//
+// Returns:
+//   - user: The owner, or the account as pending.
+//   - err: ErrNotAllowed, ErrAccessUnverified, ErrOwnershipUnverified, or the
+//     wrapped store failure.
+func (auth *Auth) admitNewAccount(
+	ctx context.Context,
+	candidate User,
+	accessToken string,
+) (User, error) {
+	owned, err := auth.store.HasOwner(ctx)
+	if err != nil {
+		return User{}, fmt.Errorf("check owner: %w", err)
+	}
+
+	if !owned {
+		owner, claimErr := auth.claimOwner(ctx, candidate, accessToken)
+		if claimErr != nil {
+			return User{}, fmt.Errorf("claim installation: %w", claimErr)
+		}
+
+		return owner, nil
+	}
+
+	err = auth.requireAccess(ctx, accessToken)
+	if err != nil {
+		return User{}, fmt.Errorf("check access: %w", err)
+	}
+
+	err = auth.store.AddPendingUser(ctx, candidate.PlexID, candidate.Username)
+	if err != nil {
+		return User{}, fmt.Errorf("add pending user: %w", err)
+	}
+
+	log.Info().
+		Int("plex_user_id", candidate.PlexID).
+		Str("username", candidate.Username).
+		Msg("a plex account is waiting for approval")
+
+	candidate.Role = RolePending
+
+	return candidate, nil
+}
+
 // authorize decides whether a validated Plex account may use this installation.
 //
 // Parameters:
@@ -609,22 +674,16 @@ func (auth *Auth) authorize(ctx context.Context, candidate User, accessToken str
 	}
 
 	if !found {
-		owner, claimErr := auth.claimOwner(ctx, candidate, accessToken)
-		if claimErr != nil {
-			return User{}, fmt.Errorf("claim installation: %w", claimErr)
+		admitted, admitErr := auth.admitNewAccount(ctx, candidate, accessToken)
+		if admitErr != nil {
+			return User{}, fmt.Errorf("admit account: %w", admitErr)
 		}
 
-		return owner, nil
+		return admitted, nil
 	}
 
-	touchErr := auth.store.TouchLogin(ctx, candidate.PlexID, candidate.Username)
-	if touchErr != nil {
-		log.Warn().Err(touchErr).Msg("failed to record plex sign-in")
-	}
-
-	candidate.Role = Role(role)
-
-	return candidate, nil
+	//nolint:wrapcheck // signInKnownAccount wraps its own failures.
+	return auth.signInKnownAccount(ctx, candidate, Role(role), accessToken)
 }
 
 // bindServer selects the single Plex server the account owns and persists the
@@ -844,10 +903,11 @@ func (auth *Auth) legacyOwnerAllows(ctx context.Context, plexUserID int) bool {
 	return account.ID == plexUserID
 }
 
-// mayClaim checks that an account may claim an installation.
+// mayClaim checks that an account may claim an installation nobody owns.
 //
-// The installation must have no owner, no stored token naming another
-// account, and no bound server the account does not own.
+// No stored token may name another account, and no server the account does
+// not own may be bound. A race between two claims is settled when the owner is
+// stored.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -858,16 +918,11 @@ func (auth *Auth) legacyOwnerAllows(ctx context.Context, plexUserID int) bool {
 //   - err: ErrNotAllowed, ErrOwnershipUnverified, or the wrapped store
 //     failure, and nil when the account may claim.
 func (auth *Auth) mayClaim(ctx context.Context, plexUserID int, accessToken string) error {
-	owned, err := auth.store.HasOwner(ctx)
-	if err != nil {
-		return fmt.Errorf("check owner: %w", err)
-	}
-
-	if owned || !auth.legacyOwnerAllows(ctx, plexUserID) {
+	if !auth.legacyOwnerAllows(ctx, plexUserID) {
 		return ErrNotAllowed
 	}
 
-	err = auth.boundOwnership(ctx, accessToken)
+	err := auth.boundOwnership(ctx, accessToken)
 	if err != nil {
 		return fmt.Errorf("check bound server: %w", err)
 	}
@@ -918,6 +973,29 @@ func (auth *Auth) refreshBoundToken(ctx context.Context, client *plex.Client, bo
 	log.Info().Str("server", bound.Name).Msg("refreshed the bound plex server's token")
 }
 
+// requireAccess checks that the bound server is shared with an account.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - accessToken: The account's Plex access token.
+//
+// Returns:
+//   - err: Nil when the account has its own token for the bound server,
+//     ErrNotAllowed when it has none, or ErrAccessUnverified wrapping why Plex
+//     could not say.
+func (auth *Auth) requireAccess(ctx context.Context, accessToken string) error {
+	token, err := auth.ServerToken(ctx, accessToken)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrAccessUnverified, err)
+	}
+
+	if token == "" {
+		return ErrNotAllowed
+	}
+
+	return nil
+}
+
 // settleClaim completes a claim this sign-in won and deletes the stored Plex
 // tokens.
 //
@@ -941,6 +1019,43 @@ func (auth *Auth) settleClaim(ctx context.Context, candidate User) User {
 	candidate.Role = RoleOwner
 
 	return candidate
+}
+
+// signInKnownAccount signs in an account this installation has stored.
+//
+// Every account but the owner must still reach the bound server.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - candidate: The account Plex vouched for.
+//   - role: The account's stored role.
+//   - accessToken: The account's Plex access token.
+//
+// Returns:
+//   - user: The account with its stored role.
+//   - err: ErrNotAllowed or ErrAccessUnverified, wrapped, when it no longer
+//     reaches the server.
+func (auth *Auth) signInKnownAccount(
+	ctx context.Context,
+	candidate User,
+	role Role,
+	accessToken string,
+) (User, error) {
+	if role != RoleOwner {
+		err := auth.requireAccess(ctx, accessToken)
+		if err != nil {
+			return User{}, fmt.Errorf("check access: %w", err)
+		}
+	}
+
+	err := auth.store.TouchLogin(ctx, candidate.PlexID, candidate.Username)
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to record plex sign-in")
+	}
+
+	candidate.Role = role
+
+	return candidate, nil
 }
 
 // validate resolves the Plex account behind an access token.

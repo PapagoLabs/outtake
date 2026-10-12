@@ -18,8 +18,8 @@ import (
 
 const (
 	// msgReset confirms that an owner was forgotten.
-	msgReset = "Owner cleared, along with the server it bound. The next Plex account " +
-		"to sign in claims outtake. Restart outtake if it is running.\n"
+	msgReset = "Owner cleared, along with every other user and the server it bound. " +
+		"The next Plex account to sign in claims outtake. Restart outtake if it is running.\n"
 
 	// msgNoOwner reports that there was no owner to forget.
 	msgNoOwner = "No owner was set. The next Plex account to sign in claims outtake.\n"
@@ -49,9 +49,9 @@ func newResetCommand() *cobra.Command {
 
 	cmd.Use = "reset"
 	cmd.Short = "Forget the owner so the next Plex account to sign in claims outtake"
-	cmd.Long = "Forget the Plex account that owns outtake and the server it bound. " +
-		"Every signed-in browser is signed out, and the next Plex account to sign in " +
-		"becomes the owner."
+	cmd.Long = "Forget the Plex account that owns outtake, every admin and member, and " +
+		"the server it bound. Their clips are kept. Every signed-in browser is signed " +
+		"out, and the next Plex account to sign in becomes the owner."
 	cmd.RunE = func(cmd *cobra.Command, _ []string) error {
 		return runReset(cmd.OutOrStdout())
 	}

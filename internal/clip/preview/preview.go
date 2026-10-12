@@ -77,6 +77,17 @@ func (service *Service) Acquire(ctx context.Context, timeout time.Duration) (fun
 	return release, nil
 }
 
+// Active counts an owner's previews waiting for a slot or rendering.
+//
+// Parameters:
+//   - owner: The plex.tv id of the account the previews belong to.
+//
+// Returns:
+//   - active: How many of the owner's previews are not finished.
+func (service *Service) Active(owner int) int {
+	return service.entries.countActive(owner)
+}
+
 // Cancel stops an in-flight preview render.
 //
 // Parameters:

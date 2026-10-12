@@ -5,10 +5,12 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
@@ -16,6 +18,15 @@ import (
 type sessionSweeper interface {
 	// Sweep deletes expired sessions and reports how many it removed.
 	Sweep(ctx context.Context) (int64, error)
+}
+
+// expirySweeper deletes expired sessions and the render log rows the weekly
+// limit no longer counts, on one schedule.
+type expirySweeper struct {
+	// sessions is the session store.
+	sessions *database.SessionStore
+	// db holds the render log.
+	db *database.DB
 }
 
 // sessionSweepInterval is how often expired sessions are deleted.
@@ -45,7 +56,7 @@ func startSessionStore(
 	go func() {
 		defer close(swept)
 
-		sweepSessions(ctx, store, sessionSweepInterval)
+		sweepSessions(ctx, expirySweeper{sessions: store, db: db}, sessionSweepInterval)
 	}()
 
 	return store, swept
@@ -88,12 +99,35 @@ func sweepSessions(ctx context.Context, sessions sessionSweeper, interval time.D
 func sweepOnce(ctx context.Context, sessions sessionSweeper) {
 	removed, err := sessions.Sweep(ctx)
 	if err != nil && ctx.Err() == nil {
-		log.Warn().Err(err).Msg("failed to delete expired sessions")
+		log.Warn().Err(err).Msg("failed to delete expired sessions and render records")
 
 		return
 	}
 
 	if removed > 0 {
-		log.Debug().Int64("removed", removed).Msg("deleted expired sessions")
+		log.Debug().Int64("removed", removed).Msg("deleted expired sessions and render records")
 	}
+}
+
+// Sweep deletes expired sessions and the render log rows older than the
+// weekly window.
+//
+// Parameters:
+//   - ctx: Lifetime context the sweep runs under.
+//
+// Returns:
+//   - removed: How many sessions and rows were deleted.
+//   - err: The wrapped failure of either delete.
+func (sweeper expirySweeper) Sweep(ctx context.Context) (int64, error) {
+	sessions, err := sweeper.sessions.Sweep(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("sweep sessions: %w", err)
+	}
+
+	renders, err := sweeper.db.SweepRenderLog(ctx, time.Now().Add(-quota.Window))
+	if err != nil {
+		return sessions, fmt.Errorf("sweep render log: %w", err)
+	}
+
+	return sessions + renders, nil
 }

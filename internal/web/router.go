@@ -16,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	profilesettings "github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	plexlib "github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
@@ -33,6 +34,7 @@ import (
 	profiles "github.com/PapagoLabs/outtake/internal/web/handlers/profile"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/server"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/storage"
+	"github.com/PapagoLabs/outtake/internal/web/handlers/users"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -77,6 +79,7 @@ type routerHandlers struct {
 	health   *health.Handler
 	live     *live.Handler
 	storage  *storage.Handler
+	users    *users.Handler
 }
 
 // routeClips is the clips collection path.
@@ -118,6 +121,8 @@ const (
 //   - app: The Fiber application with every route registered.
 func New(deps Deps) *fiber.App {
 	built := newRouterHandlers(deps)
+
+	wireLimits(built, newLimits(deps))
 
 	app := fiber.New(appConfig())
 	useEdgeMiddleware(app, deps.Cfg)
@@ -228,6 +233,7 @@ func newRouterHandlers(deps Deps) routerHandlers {
 		profiles: profiles.New(profilesettings.New(deps.DB)),
 		health:   health.New(),
 		storage:  newStorageHandler(deps),
+		users:    users.New(deps.DB, deps.DB),
 		live: live.New(
 			live.Feed{Name: routes.QueryLiveClips, Start: clipHandler.LiveClips},
 			live.Feed{Name: routes.QueryPreview, Start: previewHandler.LivePreview},
@@ -306,6 +312,7 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get(routeClips, guard, clipHandler.Clips)
 	app.Get(routes.PathLive, guard, built.live.Stream)
 	app.Get("/settings/appearance", guard, homeHandler.Appearance)
+	app.Get(routes.PathPending, guard, built.users.Pending)
 }
 
 // mountAdminPages registers the pages and actions that manage the
@@ -335,6 +342,13 @@ func mountAdminPages(app *fiber.App, guard fiber.Handler, built routerHandlers) 
 	app.Post("/settings/profiles/:id/default", guard, admin, profilesHandler.SetDefaultClipProfile)
 	app.Post("/settings/profiles/:id/delete", guard, admin, profilesHandler.DeleteClipProfile)
 	app.Post("/settings/profiles/:id", guard, admin, profilesHandler.UpdateClipProfile)
+	app.Get(routes.PathSettingsUsers, guard, admin, built.users.Page)
+	app.Post(routes.PathSettingsUsers+"/limits", guard, admin, built.users.SaveGlobalLimits)
+	app.Post(routes.PathSettingsUsers+"/:id/approve", guard, admin, built.users.Approve)
+	app.Post(routes.PathSettingsUsers+"/:id/reject", guard, admin, built.users.Reject)
+	app.Post(routes.PathSettingsUsers+"/:id/remove", guard, admin, built.users.Remove)
+	app.Post(routes.PathSettingsUsers+"/:id/role", guard, admin, built.users.SetRole)
+	app.Post(routes.PathSettingsUsers+"/:id/limits", guard, admin, built.users.SaveUserLimits)
 }
 
 // mountAPI registers JSON API routes.
@@ -366,6 +380,46 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	api.Get("/auth/callback", authHandler.Callback)
 	api.Get("/auth/status", authHandler.Status)
 	api.Post("/auth/logout", authHandler.Logout)
+}
+
+// wireLimits hands the enforcer to every handler that starts a render.
+//
+// Parameters:
+//   - built: The handlers New mounts.
+//   - limits: The enforcer.
+func wireLimits(built routerHandlers, limits *quota.Enforcer) {
+	built.clip.SetLimits(limits)
+	built.preview.SetLimits(limits)
+}
+
+// newLimits builds the enforcer that admits a member's renders.
+//
+// A member's concurrent renders count their clips waiting or rendering and their
+// previews not yet finished.
+//
+// Parameters:
+//   - deps: Every dependency the route table and its handlers are built from.
+//
+// Returns:
+//   - limits: The enforcer, nil without a database, which refuses members.
+func newLimits(deps Deps) *quota.Enforcer {
+	if deps.DB == nil {
+		return nil
+	}
+
+	return quota.New(deps.DB, func(owner int) int {
+		active := 0
+
+		if deps.Queue != nil {
+			active += deps.Queue.CountActive(owner)
+		}
+
+		if deps.Previews != nil {
+			active += deps.Previews.Active(owner)
+		}
+
+		return active
+	})
 }
 
 // newStorageHandler builds the storage page, which clears previews only when

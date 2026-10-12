@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	fiber "github.com/gofiber/fiber/v3"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
+	"github.com/PapagoLabs/outtake/internal/clip/quota"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
@@ -31,6 +33,9 @@ type Handler struct {
 	db          *database.DB
 	cfg         *config.Config
 	sources     *library.MediaSource
+	// limits admits a member's renders. Without it, only the owner and
+	// admins render.
+	limits *quota.Enforcer
 }
 
 // New creates a new clip handler.
@@ -61,6 +66,37 @@ func New(
 		cfg:         cfg,
 		sources:     sources,
 	}
+}
+
+// Limits returns the enforcer that admits a member's renders.
+//
+// Returns:
+//   - limits: The enforcer, nil until SetLimits sets one.
+func (handler *Handler) Limits() *quota.Enforcer {
+	return handler.limits
+}
+
+// SetLimits sets the enforcer that admits a member's renders.
+//
+// Parameters:
+//   - limits: The enforcer.
+func (handler *Handler) SetLimits(limits *quota.Enforcer) {
+	handler.limits = limits
+}
+
+// clipCap returns the longest clip the caller may make.
+//
+// Parameters:
+//   - ctx: Request whose caller makes the clip.
+//
+// Returns:
+//   - limit: The installation's maximum, or a member's own shorter limit.
+func (handler *Handler) clipCap(ctx fiber.Ctx) time.Duration {
+	return handler.limits.ClipCap(
+		ctx.Context(),
+		middleware.RenderMember(ctx),
+		clipdom.DurationCap(handler.cfg.MaxClipDur),
+	)
 }
 
 // listJobs returns every clip the caller may see.
@@ -160,7 +196,12 @@ func (handler *Handler) resolveNewClip(
 		return "", api.MediaPathUnresolved, fmt.Errorf("resolve input: %w", err)
 	}
 
-	err = handler.validateEdit(ctx.Context(), inputPath, RequestEdit(*req, jobType))
+	err = handler.validateEdit(
+		ctx.Context(),
+		inputPath,
+		RequestEdit(*req, jobType),
+		handler.clipCap(ctx),
+	)
 	if err != nil {
 		//nolint:wrapcheck // The handler writes the error as the response body.
 		return "", api.InvalidRequest, err
@@ -190,6 +231,7 @@ func (handler *Handler) sdrVersionExists(ctx context.Context, job *clipdom.Job) 
 //   - ctx: Request context.
 //   - inputPath: Resolved source media path.
 //   - edit: The change the request describes, with its type resolved.
+//   - limit: The longest clip the caller may make.
 //
 // Returns:
 //   - err: Non-nil when the edit may not be persisted.
@@ -197,12 +239,13 @@ func (handler *Handler) validateEdit(
 	ctx context.Context,
 	inputPath string,
 	edit clipdom.Edit,
+	limit time.Duration,
 ) error {
 	err := handler.sources.CheckEdit(
 		ctx,
 		inputPath,
 		edit,
-		clipdom.DurationCap(handler.cfg.MaxClipDur),
+		limit,
 	)
 	if err != nil {
 		return fmt.Errorf("validate range: %w", err)
@@ -236,11 +279,24 @@ func AccessCode(err error) api.ErrorCode {
 // Returns:
 //   - failure: The rejection to report.
 func submitFailure(ctx fiber.Ctx, err error) *clipRejection {
-	if errors.Is(err, queue.ErrJobActive) {
+	switch {
+	case errors.Is(err, queue.ErrJobActive):
 		return newRejection(fiber.StatusConflict, api.JobActive, respond.Fail(ctx, err))
+	case quota.IsLimit(err):
+		return newRejection(fiber.StatusTooManyRequests, api.LimitReached, respond.Fail(ctx, err))
+	case errors.Is(err, errSaveClip):
+		return newRejection(
+			fiber.StatusInternalServerError,
+			api.PersistFailed,
+			respond.FailWith(ctx, msgSaveFailed, err),
+		)
+	default:
+		return newRejection(
+			fiber.StatusInternalServerError,
+			api.PersistFailed,
+			respond.Fail(ctx, err),
+		)
 	}
-
-	return newRejection(fiber.StatusInternalServerError, api.PersistFailed, respond.Fail(ctx, err))
 }
 
 // writeJobSubmitError reports a job the queue would not take.

@@ -43,9 +43,14 @@ const (
 	// msgInvalidPlexToken is shown when Plex refuses the token that was typed.
 	msgInvalidPlexToken = "Plex rejected that token. Check it and try again."
 
-	// msgNotOwner is shown when a Plex account other than the owner signs in.
-	msgNotOwner = "This Outtake belongs to a different Plex account. " +
-		"Login with the account that set it up."
+	// msgNotOwner is shown when a Plex account that may not use the
+	// installation signs in.
+	msgNotOwner = "This Plex account can't use this Outtake. " +
+		"Ask its owner to share their Plex server with you."
+
+	// msgAccessUnverified is shown when Plex cannot say whether the account
+	// may reach the server Outtake is set to.
+	msgAccessUnverified = "Outtake couldn't check your access to the Plex server. Try again."
 
 	// msgOwnershipUnverified is shown when Plex cannot say whether the account
 	// owns the server Outtake is set to.
@@ -107,14 +112,14 @@ func (handler *Handler) Callback(ctx fiber.Ctx) error {
 
 	identity.ClearStoredPIN(sess)
 
-	err = handler.finishAuth(ctx, sess, accessToken)
+	user, err := handler.finishAuth(ctx, sess, accessToken)
 	if err != nil {
 		log.Warn().Err(err).Msg("refused plex sign-in")
 
 		return sendAuthComplete(ctx, routes.PathLogin, refusal(ctx, err))
 	}
 
-	return sendAuthComplete(ctx, handler.postAuthPath(), view.NewNotice(""))
+	return sendAuthComplete(ctx, handler.postAuthPath(user), view.NewNotice(""))
 }
 
 // Login starts PIN auth or accepts a manual token.
@@ -212,7 +217,7 @@ func (handler *Handler) Status(ctx fiber.Ctx) error {
 
 	identity.ClearStoredPIN(sess)
 
-	err = handler.finishAuth(ctx, sess, accessToken)
+	user, err := handler.finishAuth(ctx, sess, accessToken)
 	if err != nil {
 		log.Warn().Err(err).Msg("refused plex sign-in")
 
@@ -222,7 +227,7 @@ func (handler *Handler) Status(ctx fiber.Ctx) error {
 		return respond.SendText(ctx, statusRefused)
 	}
 
-	ctx.Set(routes.HeaderHXRedirect, handler.postAuthPath())
+	ctx.Set(routes.HeaderHXRedirect, handler.postAuthPath(user))
 
 	return respond.SendText(ctx, statusAuthed)
 }
@@ -237,7 +242,7 @@ func (handler *Handler) Status(ctx fiber.Ctx) error {
 // Returns:
 //   - err: Redirect error, or nil on success.
 func (handler *Handler) acceptEnteredToken(ctx fiber.Ctx, accessToken string) error {
-	err := handler.finishAuth(ctx, session.FromContext(ctx), accessToken)
+	user, err := handler.finishAuth(ctx, session.FromContext(ctx), accessToken)
 	if err != nil {
 		log.Warn().Err(err).Msg("refused entered plex token")
 
@@ -246,7 +251,7 @@ func (handler *Handler) acceptEnteredToken(ctx fiber.Ctx, accessToken string) er
 		return wrapAuth(respond.RedirectTo(ctx, routes.PathLogin), "refuse sign-in")
 	}
 
-	return wrapAuth(respond.RedirectTo(ctx, handler.postAuthPath()), "finish auth")
+	return wrapAuth(respond.RedirectTo(ctx, handler.postAuthPath(user)), "finish auth")
 }
 
 // finishAuth signs a Plex token in and carries the user on a fresh session.
@@ -261,22 +266,23 @@ func (handler *Handler) acceptEnteredToken(ctx fiber.Ctx, accessToken string) er
 //   - accessToken: Plex access token to sign in with.
 //
 // Returns:
+//   - user: The user the session signed in as.
 //   - err: The wrapped sign-in or session failure. The session is left
 //     anonymous when it is non-nil.
 func (handler *Handler) finishAuth(
 	ctx fiber.Ctx,
 	sess *session.Middleware,
 	accessToken string,
-) error {
+) (identity.User, error) {
 	user, err := handler.auth.SignIn(ctx.Context(), accessToken)
 	if err != nil {
-		return fmt.Errorf("sign in: %w", err)
+		return identity.User{}, fmt.Errorf("sign in: %w", err)
 	}
 
 	if sess != nil {
 		err = sess.Regenerate()
 		if err != nil {
-			return fmt.Errorf("regenerate session: %w", err)
+			return identity.User{}, fmt.Errorf("regenerate session: %w", err)
 		}
 	}
 
@@ -297,7 +303,7 @@ func (handler *Handler) finishAuth(
 		}
 	}
 
-	return nil
+	return user, nil
 }
 
 // refusalMessage explains a failed sign-in to the user.
@@ -315,6 +321,8 @@ func refusalMessage(err error) string {
 		return msgInvalidPlexToken
 	case errors.Is(err, identity.ErrOwnershipUnverified):
 		return msgOwnershipUnverified
+	case errors.Is(err, identity.ErrAccessUnverified):
+		return msgAccessUnverified
 	default:
 		return msgSignInFailed
 	}
@@ -341,9 +349,18 @@ func refusal(ctx fiber.Ctx, err error) view.Failure {
 
 // postAuthPath returns the next page after authentication.
 //
+// Parameters:
+//   - user: The user the session signed in as.
+//
 // Returns:
-//   - path: routes.PathServers until a server is selected, then routes.PathRoot.
-func (handler *Handler) postAuthPath() string {
+//   - path: routes.PathPending for an account waiting for approval,
+//     otherwise routes.PathServers until a server is selected, then
+//     routes.PathRoot.
+func (handler *Handler) postAuthPath(user identity.User) string {
+	if user.Role == identity.RolePending {
+		return routes.PathPending
+	}
+
 	if handler.auth.Bound() {
 		return routes.PathRoot
 	}

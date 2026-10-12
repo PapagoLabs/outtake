@@ -14,10 +14,11 @@ func TestUserManages(t *testing.T) {
 	t.Parallel()
 
 	for role, want := range map[Role]bool{
-		RoleOwner:  true,
-		RoleAdmin:  true,
-		RoleMember: false,
-		"":         false,
+		RoleOwner:   true,
+		RoleAdmin:   true,
+		RoleMember:  false,
+		RolePending: false,
+		"":          false,
 	} {
 		assert.Equal(t, want, User{PlexID: 1, Username: "", Role: role}.Manages(), string(role))
 	}

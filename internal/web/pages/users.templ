@@ -1,0 +1,219 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package pages
+
+import (
+	"strconv"
+
+	"github.com/PapagoLabs/outtake/internal/web/components/badge"
+	"github.com/PapagoLabs/outtake/internal/web/components/button"
+	"github.com/PapagoLabs/outtake/internal/web/components/card"
+	"github.com/PapagoLabs/outtake/internal/web/components/csrf"
+	"github.com/PapagoLabs/outtake/internal/web/components/input"
+	"github.com/PapagoLabs/outtake/internal/web/components/label"
+	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/routes"
+	"github.com/PapagoLabs/outtake/internal/web/view"
+)
+
+// UsersProps carries the users and the limits every member has.
+type UsersProps struct {
+	// Users are every user, the owner first.
+	Users []view.UserItem
+	// Global is the limits every member has.
+	Global view.LimitFields
+	// CanSetGlobal shows the global limits form.
+	CanSetGlobal bool
+}
+
+// Users renders the users, the accounts waiting for approval, and the limits
+// every member has.
+//
+// Parameters:
+//   - props: The users and the global limits.
+templ Users(props UsersProps) {
+	@layout.Layout(layout.Props{Title: "Users", Active: "users"}) {
+		<div class="flex flex-col gap-6 max-w-xl">
+			<h2 class="text-2xl font-bold tracking-tight">Users</h2>
+			if waiting := pendingUsers(props.Users); len(waiting) > 0 {
+				@card.Card() {
+					@card.Content() {
+						<div class="flex flex-col gap-4" data-pending-users>
+							<p class="font-medium">Waiting for Approval</p>
+							for _, user := range waiting {
+								<div class="flex flex-wrap items-center justify-between gap-2" data-user={ strconv.Itoa(user.PlexID) }>
+									<div class="flex flex-col">
+										<span class="text-sm font-medium">{ user.Username }</span>
+										<span class="text-xs text-muted-foreground">Asked { user.LastLogin }</span>
+									</div>
+									if user.CanApprove {
+										<div class="flex gap-2">
+											@userAction(user.PlexID, "approve", "", "Approve", button.VariantDefault, "")
+											@userAction(user.PlexID, "reject", "", "Reject", button.VariantOutline, "Turn this account away? It can ask again by logging in.")
+										</div>
+									}
+								</div>
+							}
+						</div>
+					}
+				}
+			}
+			if props.CanSetGlobal {
+				@card.Card() {
+					@card.Content() {
+						<form action={ templ.SafeURL(routes.PathSettingsUsers + "/limits") } method="POST" class="flex flex-col gap-4" data-global-limits>
+							@csrf.Field()
+							<p class="font-medium">Limits for Members</p>
+							@limitFields("global-", props.Global, view.LimitPlaceholders(view.LimitFields{}))
+							<p class="text-sm text-muted-foreground">The owner and admins have no limits</p>
+							@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Class: "self-start"}) {
+								Save Limits
+							}
+						</form>
+					}
+				}
+			}
+			for _, user := range props.Users {
+				if !user.Pending {
+					@userCard(user, props.Global)
+				}
+			}
+		</div>
+	}
+}
+
+// userCard renders one approved user with the changes the viewer may make.
+//
+// Parameters:
+//   - user: The user.
+//   - global: The limits every member has, shown as each field's placeholder.
+templ userCard(user view.UserItem, global view.LimitFields) {
+	@card.Card() {
+		@card.Content() {
+			<div class="flex flex-col gap-4" data-user={ strconv.Itoa(user.PlexID) }>
+				<div class="flex flex-wrap items-center justify-between gap-2">
+					<div class="flex flex-col">
+						<span class="flex items-center gap-2 text-sm font-medium">
+							{ user.Username }
+							@badge.Badge(badge.Props{Variant: badge.VariantSecondary}) {
+								{ user.Role }
+							}
+						</span>
+						<span class="text-xs text-muted-foreground">{ user.Usage }</span>
+						if user.LastLogin != "" {
+							<span class="text-xs text-muted-foreground">Last login { user.LastLogin }</span>
+						}
+					</div>
+					<div class="flex flex-wrap gap-2">
+						if user.CanMakeAdmin {
+							@userAction(user.PlexID, "role", "admin", "Make Admin", button.VariantOutline, "")
+						}
+						if user.CanMakeMember {
+							@userAction(user.PlexID, "role", "member", "Make Member", button.VariantOutline, "")
+						}
+						if user.CanRemove {
+							@userAction(user.PlexID, "remove", "", "Remove", button.VariantDestructive, "Remove this user? Their clips are kept.")
+						}
+					</div>
+				</div>
+				if user.CanLimit {
+					<form action={ templ.SafeURL(routes.PathSettingsUsers + "/" + strconv.Itoa(user.PlexID) + "/limits") } method="POST" class="flex flex-col gap-4">
+						@csrf.Field()
+						@limitFields("user-"+strconv.Itoa(user.PlexID)+"-", user.Limits, view.LimitPlaceholders(global))
+						<p class="text-sm text-muted-foreground">Leave a field empty to use the limit for every member, or enter 0 for none</p>
+						@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Variant: button.VariantOutline, Class: "self-start"}) {
+							Save Limits
+						}
+					</form>
+				}
+			</div>
+		}
+	}
+}
+
+// userAction renders a button that posts one change to a user.
+//
+// Parameters:
+//   - plexID: The user.
+//   - action: The change's path segment, such as "approve".
+//   - role: The role a role change sets, empty for any other change.
+//   - text: The button's text.
+//   - variant: The button's look.
+//   - confirm: The question asked first, empty to ask nothing.
+templ userAction(plexID int, action, role, text string, variant button.Variant, confirm string) {
+	<form
+		action={ templ.SafeURL(routes.PathSettingsUsers + "/" + strconv.Itoa(plexID) + "/" + action) }
+		method="POST"
+		if confirm != "" {
+			data-confirm={ confirm }
+		}
+	>
+		@csrf.Field()
+		if role != "" {
+			<input type="hidden" name="role" value={ role }/>
+		}
+		@button.Button(button.Props{Type: button.TypeSubmit, Size: button.SizeSm, Variant: variant}) {
+			{ text }
+		}
+	</form>
+}
+
+// limitFields renders the four limit inputs.
+//
+// Parameters:
+//   - idPrefix: Id prefix that keeps two forms apart.
+//   - values: The current values.
+//   - placeholders: What an empty field stands for, empty for none.
+templ limitFields(idPrefix string, values, placeholders view.LimitFields) {
+	<div class="grid gap-4 sm:grid-cols-2">
+		@limitField(idPrefix+"active", "active", "Concurrent Renders", values.Active, placeholders.Active, "1")
+		@limitField(idPrefix+"weekly", "weekly", "Renders per Week", values.Weekly, placeholders.Weekly, "1")
+		@limitField(idPrefix+"storage", "storageGB", "Storage (GB)", values.StorageGB, placeholders.StorageGB, "any")
+		@limitField(idPrefix+"clip", "clipSeconds", "Longest Clip (seconds)", values.ClipSeconds, placeholders.ClipSeconds, "1")
+	</div>
+}
+
+// limitField renders one limit input.
+//
+// Parameters:
+//   - id: The input's id.
+//   - name: The field's name.
+//   - text: The label.
+//   - value: The current value.
+//   - placeholder: What an empty field stands for.
+//   - step: The number input's step.
+templ limitField(id, name, text, value, placeholder, step string) {
+	<div class="flex flex-col gap-2">
+		@label.Label(label.Props{For: id}) {
+			{ text }
+		}
+		@input.Input(input.Props{
+			ID:          id,
+			Name:        name,
+			Type:        input.TypeNumber,
+			Value:       value,
+			Placeholder: placeholder,
+			Attributes:  map[string]any{"min": "0", "step": step},
+		})
+	</div>
+}
+
+// pendingUsers keeps the accounts waiting for approval.
+//
+// Parameters:
+//   - users: Every user.
+//
+// Returns:
+//   - waiting: The pending accounts, in their order.
+func pendingUsers(users []view.UserItem) []view.UserItem {
+	waiting := make([]view.UserItem, 0, len(users))
+
+	for _, user := range users {
+		if user.Pending {
+			waiting = append(waiting, user)
+		}
+	}
+
+	return waiting
+}
