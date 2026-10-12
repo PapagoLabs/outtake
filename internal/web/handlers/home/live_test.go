@@ -13,6 +13,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/home/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
 // TestLivePlaybackFollowsOnlyAMediaItemID covers a value that is not a media
@@ -48,7 +49,7 @@ func TestLivePlaybackReportsEachChange(t *testing.T) {
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
-	check := handler.LivePlayback("42", clip.Scope{})
+	check := handler.LivePlayback("42", clip.Scope{Owner: middlewaretest.OwnerID, Everyone: true})
 	require.NotNil(t, check)
 
 	first := check(t.Context())

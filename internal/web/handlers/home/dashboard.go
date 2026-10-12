@@ -33,7 +33,7 @@ func (handler *Handler) Dashboard(ctx fiber.Ctx) error {
 			PendingClips:  stats.Pending,
 			Completed:     stats.Completed,
 			Failed:        stats.Failed,
-			Sessions:      view.SessionItems(handler.auth.Sessions()),
+			Sessions:      view.SessionItems(handler.visibleSessions(middleware.ClipScope(ctx))),
 			TokenRejected: handler.auth.TokenRejected(),
 		}).Render(ctx.Context(), writer)
 	})
@@ -49,7 +49,7 @@ func (handler *Handler) Dashboard(ctx fiber.Ctx) error {
 func (handler *Handler) DashboardSessions(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.LiveSessions(
-			view.SessionItems(handler.auth.Sessions()),
+			view.SessionItems(handler.visibleSessions(middleware.ClipScope(ctx))),
 			handler.auth.TokenRejected(),
 		).Render(ctx.Context(), writer)
 	})

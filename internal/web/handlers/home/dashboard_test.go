@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -183,6 +184,41 @@ func TestDashboardSessionsServesThePollFragment(t *testing.T) {
 	assertBodyContains(t, answer.body, routes.ItemURL("42",
 		url.Values{routes.QueryStart: {"900"}}),
 		"the resume link starts where Plex is")
+}
+
+// TestDashboardSessionsShowAMemberOnlyTheirOwn covers a member's live
+// sessions, which leave out what other accounts are playing.
+func TestDashboardSessionsShowAMemberOnlyTheirOwn(t *testing.T) {
+	t.Parallel()
+
+	auth := mocks.NewMockPlexAuth(t)
+	auth.EXPECT().TokenRejected().Return(false).Maybe()
+	auth.EXPECT().Sessions().Return([]plex.Session{
+		{
+			ID:        "owners",
+			MediaItem: plex.MediaItem{ID: "41", Title: "Owner Movie", Type: "movie"},
+			Title:     "Owner Movie",
+			UserID:    1,
+		},
+		{
+			ID:        "mine",
+			MediaItem: plex.MediaItem{ID: "42", Title: "Member Movie", Type: "movie"},
+			Title:     "Member Movie",
+			UserID:    middlewaretest.MemberID,
+		},
+	})
+
+	handler, _ := pageHandler(t, auth, silentSources(t))
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Get("/dashboard/sessions", handler.DashboardSessions)
+
+	answer := serve(t, app, "/dashboard/sessions", true)
+
+	require.Equal(t, fiber.StatusOK, answer.status)
+	assertBodyContains(t, answer.body, "Member Movie", "the member's own session is shown")
+	assert.NotContains(t, answer.body, "Owner Movie", "another account's session is not")
 }
 
 func TestDashboardSessionsIsEmptyWithNothingPlaying(t *testing.T) {

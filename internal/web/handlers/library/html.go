@@ -10,16 +10,19 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
 // PlexAuth is the slice of Plex authentication the HTML pages depend on.
 type PlexAuth interface {
-	// Client returns a Plex client for the selected server.
-	Client() (*plex.Client, plex.Server, bool)
+	// ClientAs returns a Plex client that reads the selected server as a
+	// viewer.
+	ClientAs(viewer identity.Viewer) (*plex.Client, plex.Server, bool)
 
 	// Discover lists the Plex servers an access token can reach.
 	Discover(ctx context.Context, accessToken string) ([]plex.Server, error)
@@ -96,14 +99,21 @@ func New(
 	}
 }
 
-// plexPair returns a client for the currently selected server.
+// plexPair returns a client that reads the selected server as the caller.
+//
+// The owner reads it with the bound token, and anyone else with their own, so
+// Plex's sharing decides what they see.
+//
+// Parameters:
+//   - ctx: Request whose caller reads the server.
 //
 // Returns:
 //   - client: PMS client scoped to the selected server.
-//   - server: The selected server.
-//   - ok: False when no server has been selected yet.
-func (handler *Handler) plexPair() (*plex.Client, plex.Server, bool) {
-	return handler.auth.Client()
+//   - server: The selected server, carrying the caller's token.
+//   - ok: False when no server has been selected yet or the caller has no
+//     token for it.
+func (handler *Handler) plexPair(ctx fiber.Ctx) (*plex.Client, plex.Server, bool) {
+	return handler.auth.ClientAs(middleware.PlexViewer(ctx))
 }
 
 // sidebarLibraries lists libraries for the sidebar.
@@ -114,7 +124,7 @@ func (handler *Handler) plexPair() (*plex.Client, plex.Server, bool) {
 // Returns:
 //   - libraries: Page models for every library, or nil when Plex is unreachable.
 func (handler *Handler) sidebarLibraries(ctx fiber.Ctx) []view.LibraryItem {
-	plexClient, server, ok := handler.plexPair()
+	plexClient, server, ok := handler.plexPair(ctx)
 	if !ok {
 		return nil
 	}

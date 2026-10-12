@@ -479,7 +479,9 @@ func TestGetSessionsOnServer(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 
 		_, _ = w.Write([]byte(`{"MediaContainer":{"Metadata":[
-			{"ratingKey":"42","title":"Now Playing","type":"movie","duration":3600000,"viewOffset":120000,"Session":{"id":"sess-123"},"Player":{"state":"paused"}}
+			{"ratingKey":"42","title":"Now Playing","type":"movie","duration":3600000,"viewOffset":120000,"Session":{"id":"sess-123"},"Player":{"state":"paused"},"User":{"id":"9001"}},
+			{"ratingKey":"43","title":"Owner's","type":"movie","duration":60000,"Session":{"id":"sess-1"},"User":{"id":"1"}},
+			{"ratingKey":"44","title":"Unknown","type":"movie","duration":60000,"Session":{"id":"sess-0"}}
 		]}}`))
 	}))
 	defer ts.Close()
@@ -505,8 +507,11 @@ func TestGetSessionsOnServer(t *testing.T) {
 
 	sessions, err := c.GetSessionsOnServer(t.Context(), server)
 	require.NoError(t, err)
-	require.Len(t, sessions, 1)
+	require.Len(t, sessions, 3)
 	assert.Equal(t, "42", sessions[0].MediaItem.ID)
+	assert.Equal(t, 9001, sessions[0].UserID, "a session names the account playing it")
+	assert.Equal(t, 1, sessions[1].UserID, "the server's owner on a local server")
+	assert.Zero(t, sessions[2].UserID, "a session that names no account")
 	assert.InEpsilon(t, 120.0, sessions[0].ViewOffset, 0.01)
 	assert.Equal(t, StatePaused, sessions[0].State, "a paused client's position is exact")
 }

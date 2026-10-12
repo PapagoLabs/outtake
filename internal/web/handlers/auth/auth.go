@@ -283,6 +283,20 @@ func (handler *Handler) finishAuth(
 	identity.SetToken(sess, accessToken)
 	identity.SetUserID(sess, user.PlexID)
 
+	// Anyone but the owner reads the bound server with their own token, so
+	// Plex's sharing decides what they see. When plex.tv cannot be asked, the
+	// auth guard asks again on a later request.
+	if user.Role != identity.RoleOwner {
+		serverToken, tokenErr := handler.auth.ServerToken(ctx.Context(), accessToken)
+		if tokenErr != nil {
+			log.Warn().
+				Err(tokenErr).
+				Msg("failed to find the signed-in account's token for the plex server")
+		} else {
+			identity.SetServerToken(sess, serverToken, time.Now())
+		}
+	}
+
 	return nil
 }
 

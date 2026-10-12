@@ -150,6 +150,11 @@ func (handler *Handler) resolveNewClip(
 
 	req.Quality = quality
 
+	err = handler.sources.CheckAccess(ctx.Context(), middleware.PlexViewer(ctx), req.MediaID)
+	if err != nil {
+		return "", AccessCode(err), fmt.Errorf("check access: %w", err)
+	}
+
 	inputPath, err := handler.resolveInput(ctx.Context(), req.MediaID)
 	if err != nil {
 		return "", api.MediaPathUnresolved, fmt.Errorf("resolve input: %w", err)
@@ -204,6 +209,22 @@ func (handler *Handler) validateEdit(
 	}
 
 	return nil
+}
+
+// AccessCode names why a media access check refused a render.
+//
+// Parameters:
+//   - err: The check's failure.
+//
+// Returns:
+//   - code: api.NotShared when Plex does not share the item with the caller,
+//     and api.MediaPathUnresolved when Plex could not be asked.
+func AccessCode(err error) api.ErrorCode {
+	if errors.Is(err, library.ErrNotShared) {
+		return api.NotShared
+	}
+
+	return api.MediaPathUnresolved
 }
 
 // submitFailure describes a clip the queue would not take.

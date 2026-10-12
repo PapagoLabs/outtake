@@ -62,6 +62,10 @@ type ServerBinding interface {
 	// Client builds a Plex client for the selected server.
 	Client() (*plex.Client, plex.Server, bool)
 
+	// ClientWithToken builds a Plex client that reads the selected server
+	// with another account's token.
+	ClientWithToken(token string) (*plex.Client, plex.Server, bool)
+
 	// Sessions returns the latest cached playback sessions.
 	Sessions() []plex.Session
 
@@ -339,6 +343,27 @@ func (auth *Auth) Client() (*plex.Client, plex.Server, bool) {
 	return auth.selected.Client()
 }
 
+// ClientAs builds a Plex client that reads the bound server as a viewer.
+//
+// Parameters:
+//   - viewer: The account reading the server.
+//
+// Returns:
+//   - client: A Plex client carrying the viewer's token for the server.
+//   - server: The bound server, carrying that token.
+//   - ok: False when no server is bound, or the viewer has no token for it.
+func (auth *Auth) ClientAs(viewer Viewer) (*plex.Client, plex.Server, bool) {
+	if viewer.Owner {
+		return auth.Client()
+	}
+
+	if auth.selected == nil {
+		return nil, plex.EmptyServer(), false
+	}
+
+	return auth.selected.ClientWithToken(viewer.Token)
+}
+
 // Discover lists the Plex servers the account behind an access token owns.
 //
 // A server shared with the account is left out, because only a server's owner
@@ -466,6 +491,42 @@ func (auth *Auth) Selected() (plex.Server, bool) {
 	}
 
 	return auth.selected.Get()
+}
+
+// ServerToken returns an account's own token for the bound server.
+//
+// A server shared with the account counts as well as one it owns.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - accessToken: The account's Plex access token.
+//
+// Returns:
+//   - token: The account's token for the bound server, or empty when no
+//     server is bound or the server is not shared with the account.
+//   - err: errUnidentified or the wrapped discovery failure when Plex could
+//     not be asked, which says nothing about whether the server is shared.
+func (auth *Auth) ServerToken(ctx context.Context, accessToken string) (string, error) {
+	bound, ok := auth.Selected()
+	if !ok {
+		return "", nil
+	}
+
+	client := auth.clientFor(accessToken)
+
+	machineID := boundMachineID(ctx, client, bound)
+	if machineID == "" {
+		return "", errUnidentified
+	}
+
+	servers, err := client.DiscoverServers(ctx)
+	if err != nil {
+		return "", fmt.Errorf("find the account's server token: %w", err)
+	}
+
+	token, _ := discoveredToken(servers, machineID)
+
+	return token, nil
 }
 
 // Sessions returns the live Plex playback sessions of the selected server.

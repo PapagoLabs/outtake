@@ -5,6 +5,7 @@ package plex
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
 )
@@ -90,4 +91,20 @@ func metadataItems(metas []pms.Metadata, libraryTitle string) []MediaItem {
 //   - path: The first non-empty part file, or empty when none exist.
 func firstMediaFile(meta *pms.Metadata) string {
 	return meta.File()
+}
+
+// sessionUserID reads the account a session belongs to.
+//
+// Parameters:
+//   - meta: The session's metadata.
+//
+// Returns:
+//   - id: The account's plex.tv id, or zero when the server did not say.
+func sessionUserID(meta *pms.Metadata) int {
+	id, err := strconv.Atoi(string(meta.User.ID))
+	if err != nil {
+		return 0
+	}
+
+	return id
 }

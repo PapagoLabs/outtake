@@ -5,6 +5,7 @@ package identity
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
 )
@@ -22,6 +23,14 @@ const (
 
 	// SessionKeyUserID stores the authenticated Plex user id.
 	SessionKeyUserID = "plex_user_id"
+
+	// SessionKeyServerToken stores the signed-in account's own token for the
+	// bound server, which an account that does not own it reads it with.
+	SessionKeyServerToken = "plex_server_token"
+
+	// SessionKeyServerTokenChecked stores when plex.tv was last asked for that
+	// token, in Unix seconds.
+	SessionKeyServerTokenChecked = "plex_server_token_checked"
 )
 
 // ClearStoredPIN removes the pending Plex PIN values from the session.
@@ -70,6 +79,58 @@ func SetStoredPIN(sess *session.Middleware, pinID int, pinCode string) {
 
 	sess.Set(SessionKeyPinID, pinID)
 	sess.Set(SessionKeyPinCode, pinCode)
+}
+
+// ServerToken returns the account's own token for the bound server stored on
+// the session.
+//
+// Parameters:
+//   - sess: Fiber session, which may be nil.
+//
+// Returns:
+//   - token: The server token, or empty when the session carries none.
+func ServerToken(sess *session.Middleware) string {
+	return storedString(sess, SessionKeyServerToken)
+}
+
+// ServerTokenChecked returns when plex.tv was last asked for the account's
+// own token for the bound server.
+//
+// Parameters:
+//   - sess: Fiber session, which may be nil.
+//
+// Returns:
+//   - checked: The time of the last check, or the zero time when there was
+//     none.
+func ServerTokenChecked(sess *session.Middleware) time.Time {
+	seconds := storedInt(sess, SessionKeyServerTokenChecked)
+	if seconds == 0 {
+		return time.Time{}
+	}
+
+	return time.Unix(int64(seconds), 0)
+}
+
+// SetServerToken records the account's own token for the bound server on the
+// session, and when plex.tv was asked for it.
+//
+// Parameters:
+//   - sess: Fiber session, which may be nil.
+//   - serverToken: The account's token for the bound server, empty when the
+//     server is not shared with it, which removes a stored one.
+//   - checked: When plex.tv was asked.
+func SetServerToken(sess *session.Middleware, serverToken string, checked time.Time) {
+	if sess == nil {
+		return
+	}
+
+	if serverToken == "" {
+		sess.Delete(SessionKeyServerToken)
+	} else {
+		sess.Set(SessionKeyServerToken, serverToken)
+	}
+
+	sess.Set(SessionKeyServerTokenChecked, int(checked.Unix()))
 }
 
 // SetToken stores the Plex access token on the session.

@@ -11,15 +11,18 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/plex"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
 
 // ServerSelection resolves the Plex client a thumbnail request is served from.
 type ServerSelection interface {
-	// Client builds a Plex client for the selected server.
-	Client() (*plex.Client, plex.Server, bool)
+	// ClientAs returns a Plex client that reads the selected server as a
+	// viewer.
+	ClientAs(viewer identity.Viewer) (*plex.Client, plex.Server, bool)
 }
 
 // Handler proxies and caches Plex thumbnails.
@@ -53,6 +56,9 @@ func New(
 
 // Get serves a cached thumbnail or fetches it from the selected Plex server.
 //
+// The server is read as the caller, and the cache is kept per caller, so a
+// poster one account may see never reaches another that may not.
+//
 // Parameters:
 //   - ctx: Request context carrying the path query parameter.
 //
@@ -64,12 +70,12 @@ func (handler *Handler) Get(ctx fiber.Ctx) error {
 		return respond.SendStatusCode(ctx, fiber.StatusBadRequest)
 	}
 
-	client, server, ok := handler.selected.Client()
+	client, server, ok := handler.selected.ClientAs(middleware.PlexViewer(ctx))
 	if !ok {
 		return respond.SendStatusCode(ctx, fiber.StatusBadRequest)
 	}
 
-	cacheID := library.CacheID(plex.SelectionKey(server), thumbPath)
+	cacheID := library.CacheID(plex.ViewerKey(server), thumbPath)
 	cached := handler.paths.ThumbnailPath(cacheID)
 
 	if handler.store.Ensure(ctx.Context(), cached) == nil {

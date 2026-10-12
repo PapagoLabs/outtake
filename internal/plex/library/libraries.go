@@ -59,7 +59,7 @@ func (cache *LibraryCache) Libraries(
 	client *plex.Client,
 	server plex.Server,
 ) ([]plex.Library, error) {
-	key := plex.SelectionKey(server)
+	key := plex.ViewerKey(server)
 
 	cache.mu.Lock()
 

@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/stretchr/testify/assert"
@@ -695,11 +696,80 @@ func TestFinishAuthCarriesTheOwnerOnAFreshSession(t *testing.T) {
 	got := readSession(t, browser, func(sess *session.Middleware) any {
 		seeded, _ := sess.Get("seeded").(bool)
 
-		return []any{identity.Token(sess), identity.UserID(sess), seeded}
+		return []any{
+			identity.Token(sess),
+			identity.UserID(sess),
+			seeded,
+			identity.ServerToken(sess),
+		}
 	})
 
-	assert.Equal(t, []any{"typed-token", 42, true}, got,
-		"the new session carries the token, the user, and what the old one held")
+	assert.Equal(t, []any{"typed-token", 42, true, ""}, got,
+		"the new session carries the token, the user, and what the old one held, "+
+			"and the owner reads the server with its bound token")
+}
+
+// TestFinishAuthGivesAMemberTheirOwnServerToken covers a member signing in.
+//
+// Their session keeps the token plex.tv lists for them on the bound server, so
+// they read it as Plex shares it with them rather than as the owner.
+func TestFinishAuthGivesAMemberTheirOwnServerToken(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v2/user", func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(`{"id": 7, "username": "friend"}`))
+	})
+	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(`<MediaContainer>
+	<Device name="Attic" owned="0" clientIdentifier="machine-1" provides="server" accessToken="member-server-token">
+		<Connection protocol="http" address="127.0.0.1" port="32400" local="1"/>
+	</Device>
+</MediaContainer>`))
+	})
+
+	plexTV := httptest.NewServer(mux)
+	t.Cleanup(plexTV.Close)
+
+	bind := identity.NewBinding("outtake", "test-client", time.Hour)
+	bind.Set(plex.Server{
+		Name: "Attic", Address: "127.0.0.1", Port: 1, Token: "owner-token",
+		Scheme: "http", MachineID: "machine-1",
+	})
+	t.Cleanup(bind.Stop)
+
+	store := identitymocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 7).Return("member", true, nil)
+	store.EXPECT().TouchLogin(mock.Anything, 7, mock.Anything).Return(nil)
+
+	handler := New(identity.New(
+		"outtake", "test-client", "http://localhost", store, bind,
+		identity.WithPlexURL(plexTV.URL),
+	))
+
+	var finishErr error
+
+	app := sessionApp(t)
+	app.Post("/finish", func(ctx fiber.Ctx) error {
+		finishErr = handler.finishAuth(ctx, session.FromContext(ctx), "member-token")
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	browser := newBrowser(t, app)
+	browser.do(http.MethodPost, "/finish", "", false)
+
+	require.NoError(t, finishErr)
+
+	got := readSession(t, browser, func(sess *session.Middleware) any {
+		return identity.ServerToken(sess)
+	})
+
+	assert.Equal(t, "member-server-token", got)
+
+	bound, ok := bind.Get()
+	require.True(t, ok)
+	assert.Equal(t, "owner-token", bound.Token, "a member's sign-in leaves the bound token alone")
 }
 
 func TestFinishAuthRefusesAnAccountTheInstallationDoesNotBelongTo(t *testing.T) {

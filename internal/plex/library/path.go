@@ -20,11 +20,19 @@ type ServerSelection interface {
 
 	// Client builds a Plex client for the selected server.
 	Client() (*plex.Client, plex.Server, bool)
+
+	// ClientWithToken builds a Plex client that reads the selected server
+	// with another account's token.
+	ClientWithToken(token string) (*plex.Client, plex.Server, bool)
 }
 
 var (
 	// ErrNoServer is returned when no Plex server is selected.
 	ErrNoServer = errors.New("no plex server selected")
+
+	// ErrNotShared is returned for a media item the asking account's Plex
+	// account cannot see, because its library is not shared with it.
+	ErrNotShared = errors.New("media item is not shared with this plex account")
 
 	// ErrDolbyVisionBaseLayer is returned for a Dolby Vision source, such as
 	// profile 5, whose base layer only shows correct colors after Dolby's

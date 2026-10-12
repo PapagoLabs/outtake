@@ -331,6 +331,88 @@ func TestClientFromTheBinding(t *testing.T) {
 	assert.Equal(t, "access-token", server.Token)
 }
 
+// TestClientAsFollowsTheViewer covers the client each viewer reads the bound
+// server with.
+//
+// The owner gets the bound client, and anyone else a client carrying their
+// own token.
+func TestClientAsFollowsTheViewer(t *testing.T) {
+	t.Parallel()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().
+		Client().
+		Return(nil, plex.Server{Name: "Attic", Token: "owner-token"}, true).
+		Once()
+	bound.EXPECT().
+		ClientWithToken("member-token").
+		Return(nil, plex.Server{Name: "Attic", Token: "member-token"}, true).
+		Once()
+
+	auth := New("outtake", "test-client", "http://localhost:8080", nil, bound)
+
+	_, server, ok := auth.ClientAs(OwnerViewer(42))
+	require.True(t, ok)
+	assert.Equal(t, "owner-token", server.Token)
+
+	_, server, ok = auth.ClientAs(Viewer{Token: "member-token", PlexID: 7, Owner: false})
+	require.True(t, ok)
+	assert.Equal(t, "member-token", server.Token)
+
+	_, _, ok = New("outtake", "test-client", "http://localhost:8080", nil, nil).
+		ClientAs(Viewer{Token: "member-token", PlexID: 7, Owner: false})
+	assert.False(t, ok, "nothing is read without a binding")
+}
+
+// TestServerTokenFindsTheAccountsTokenForTheBoundServer covers the token a
+// member reads the bound server with.
+//
+// It is the one the account's own discovery lists for the bound machine,
+// shared or owned, and there is none for an account that cannot reach it.
+func TestServerTokenFindsTheAccountsTokenForTheBoundServer(t *testing.T) {
+	t.Parallel()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(testFriendServer, true).Once()
+
+	routes := map[string]plexRoute{
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+
+	auth := testAuth(t, newPlexServer(t, routes).URL, nil, bound)
+
+	token, err := auth.ServerToken(t.Context(), "access-token")
+	require.NoError(t, err)
+	assert.Equal(t, "shared-token", token, "a server shared with the account")
+
+	unknown := testFriendServer
+
+	unknown.MachineID = "machine-9"
+
+	elsewhere := mocks.NewMockServerBinding(t)
+	elsewhere.EXPECT().Get().Return(unknown, true).Once()
+
+	token, err = testAuth(t, newPlexServer(t, routes).URL, nil, elsewhere).
+		ServerToken(t.Context(), "access-token")
+	require.NoError(t, err)
+	assert.Empty(t, token, "a server not shared with the account")
+
+	failing := mocks.NewMockServerBinding(t)
+	failing.EXPECT().Get().Return(testFriendServer, true).Once()
+
+	down := map[string]plexRoute{
+		"/api/resources": {status: http.StatusServiceUnavailable, body: ""},
+	}
+
+	_, err = testAuth(
+		t,
+		newPlexServer(t, down).URL,
+		nil,
+		failing,
+	).ServerToken(t.Context(), "access-token")
+	require.Error(t, err, "plex.tv that cannot be asked is not an unshared server")
+}
+
 func TestSelectedWithoutABinding(t *testing.T) {
 	t.Parallel()
 

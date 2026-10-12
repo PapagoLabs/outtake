@@ -16,6 +16,7 @@ import (
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/failure"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/database"
@@ -114,7 +115,7 @@ func (handler *Handler) Preview(ctx fiber.Ctx) error {
 		)
 	}
 
-	inputPath, code, err := handler.resolveSelection(ctx.Context(), req)
+	inputPath, code, err := handler.resolveSelection(ctx.Context(), middleware.PlexViewer(ctx), req)
 	if err != nil {
 		return respond.WriteFailure(ctx, fiber.StatusBadRequest, code, respond.Fail(ctx, err))
 	}
@@ -319,6 +320,7 @@ func (handler *Handler) keepHDR(ctx fiber.Ctx, req api.ClipRequest) bool {
 //
 // Parameters:
 //   - ctx: Request context.
+//   - viewer: The account asking, which must be able to see the item.
 //   - req: Parsed preview request.
 //
 // Returns:
@@ -327,11 +329,17 @@ func (handler *Handler) keepHDR(ctx fiber.Ctx, req api.ClipRequest) bool {
 //   - err: Non-nil when the preview may not be rendered.
 func (handler *Handler) resolveSelection(
 	ctx context.Context,
+	viewer identity.Viewer,
 	req api.ClipRequest,
 ) (string, api.ErrorCode, error) {
 	kind, err := clip.ResolveType(req.ClipType, clip.TypeClip)
 	if err != nil {
 		return "", api.InvalidClipType, fmt.Errorf("resolve type: %w", err)
+	}
+
+	err = handler.sources.CheckAccess(ctx, viewer, req.MediaID)
+	if err != nil {
+		return "", clips.AccessCode(err), fmt.Errorf("check access: %w", err)
 	}
 
 	inputPath, err := handler.sources.Resolve(ctx, req.MediaID)

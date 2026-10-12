@@ -124,7 +124,13 @@ func New(deps Deps) *fiber.App {
 	mountSessionless(app, built)
 	useSessionMiddleware(app, deps.Cfg, deps.Sessions)
 
-	guard := middleware.AuthGuard(deps.Cfg.Env, deps.DB)
+	var tokens middleware.ServerTokens
+
+	if deps.Auth != nil {
+		tokens = deps.Auth
+	}
+
+	guard := middleware.AuthGuard(deps.Cfg.Env, deps.DB, tokens)
 	mountPages(app, guard, built)
 	mountAdminPages(app, guard, built)
 	mountAPI(app, guard, built)

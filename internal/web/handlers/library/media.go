@@ -68,7 +68,7 @@ func (handler *Handler) mediaPageProps(
 	ctx fiber.Ctx,
 	query library.Query,
 ) view.MediaProps {
-	plexClient, server, hasServer := handler.plexPair()
+	plexClient, server, hasServer := handler.plexPair(ctx)
 
 	var letters []plex.LetterIndex
 

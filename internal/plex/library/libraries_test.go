@@ -202,11 +202,11 @@ func TestLibraryCacheAsksAgainOnceTheListExpires(t *testing.T) {
 
 	cache := LibraryCache{
 		entries: map[string]libraryEntry{
-			plex.SelectionKey(pms.server): {
+			plex.ViewerKey(pms.server): {
 				libraries: []plex.Library{{ID: "9", Title: "Old"}},
 				fetched:   time.Now().Add(-2 * libraryTTL),
 			},
-			plex.SelectionKey(stale.server): {
+			plex.ViewerKey(stale.server): {
 				libraries: nil,
 				fetched:   time.Now().Add(-2 * libraryTTL),
 			},
@@ -218,7 +218,7 @@ func TestLibraryCacheAsksAgainOnceTheListExpires(t *testing.T) {
 
 	assert.Len(t, libraries, 2, "the expired list is replaced by what Plex reports")
 	assert.Equal(t, int32(1), pms.calls.Load())
-	assert.NotContains(t, cache.entries, plex.SelectionKey(stale.server),
+	assert.NotContains(t, cache.entries, plex.ViewerKey(stale.server),
 		"an expired entry for another server is dropped")
 }
 
@@ -323,7 +323,7 @@ func TestLibraryCacheStopsWaitingWhenTheCallerLeaves(t *testing.T) {
 		cache.mu.Lock()
 		defer cache.mu.Unlock()
 
-		_, ok := cache.entries[plex.SelectionKey(pms.server)]
+		_, ok := cache.entries[plex.ViewerKey(pms.server)]
 
 		return ok
 	}, 5*time.Second, time.Millisecond)

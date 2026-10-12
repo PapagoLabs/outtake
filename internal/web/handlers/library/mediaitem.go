@@ -183,12 +183,26 @@ func (handler *Handler) describeItem(
 	item plex.MediaItem,
 	itemErr error,
 ) library.SourceInfo {
+	owner := middleware.PlexViewer(ctx).Owner
+
+	// Only the owner's lookup is retried, because an account the item is not
+	// shared with may learn nothing about its file.
 	if itemErr != nil {
+		if !owner {
+			return library.SourceInfo{}
+		}
+
 		return handler.sources.Describe(ctx.Context(), mediaID)
 	}
 
+	// A shared account's view of an item may leave out its file, which the
+	// bound token still finds.
 	if item.FilePath == "" {
-		return library.SourceInfo{}
+		if owner {
+			return library.SourceInfo{}
+		}
+
+		return handler.sources.Describe(ctx.Context(), mediaID)
 	}
 
 	return handler.sources.DescribePath(ctx.Context(), handler.cfg.RemapMediaPath(item.FilePath))
@@ -204,7 +218,7 @@ func (handler *Handler) describeItem(
 //   - item: Media item metadata.
 //   - err: Non-nil when no server is bound or the PMS lookup fails.
 func (handler *Handler) loadMediaItem(ctx fiber.Ctx, mediaID string) (plex.MediaItem, error) {
-	plexClient, server, ok := handler.plexPair()
+	plexClient, server, ok := handler.plexPair(ctx)
 	if !ok {
 		return plex.MediaItem{}, library.ErrNoServer
 	}

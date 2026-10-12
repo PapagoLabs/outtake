@@ -19,6 +19,8 @@ type playbackFeed struct {
 	handler *Handler
 	// mediaID is the media item.
 	mediaID string
+	// scope is whose sessions the stream's caller may see.
+	scope clip.Scope
 	// sent is the panel last sent, empty before the first.
 	sent string
 }
@@ -40,24 +42,21 @@ var mediaIDPattern = regexp.MustCompile(`^\d{1,12}$`)
 // playback route does, and reports it when it changed. The monitor reads Plex
 // on its own interval, so the panel changes only as often as that.
 //
-// The panel shows the bound server's sessions whoever follows it, so the
-// caller's scope is not read.
-//
 // Parameters:
 //   - value: The media item id.
-//   - _: Whose records the stream's caller may see.
+//   - scope: Whose sessions the stream's caller may see.
 //
 // Returns:
 //   - check: The feed's check, nil when the value is not a media item id.
 func (handler *Handler) LivePlayback(
 	value string,
-	_ clip.Scope,
+	scope clip.Scope,
 ) func(ctx context.Context) []string {
 	if !mediaIDPattern.MatchString(value) {
 		return nil
 	}
 
-	feed := &playbackFeed{handler: handler, mediaID: value, sent: ""}
+	feed := &playbackFeed{handler: handler, mediaID: value, scope: scope, sent: ""}
 
 	return feed.check
 }
@@ -72,7 +71,8 @@ func (handler *Handler) LivePlayback(
 func (feed *playbackFeed) check(ctx context.Context) []string {
 	var html strings.Builder
 
-	err := playback.PlaybackPanel(feed.handler.playbackProps(feed.mediaID)).Render(ctx, &html)
+	err := playback.PlaybackPanel(feed.handler.playbackProps(feed.mediaID, feed.scope)).
+		Render(ctx, &html)
 	if err != nil || html.String() == feed.sent {
 		return nil
 	}

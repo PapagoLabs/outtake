@@ -493,5 +493,5 @@ func collectAddedAtItems(
 // Returns:
 //   - key: Cache key.
 func addedAtCacheKey(server plex.Server, libraryID, sortKey string) string {
-	return server.Address + ":" + strconv.Itoa(server.Port) + "|" + libraryID + "|" + sortKey
+	return plex.ViewerKey(server) + "|" + libraryID + "|" + sortKey
 }

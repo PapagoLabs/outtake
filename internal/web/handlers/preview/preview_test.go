@@ -886,6 +886,39 @@ func TestPreviewStartsARender(t *testing.T) {
 	assert.Equal(t, middlewaretest.OwnerID, owner)
 }
 
+// TestPreviewRefusesATitleNotSharedWithTheMember covers a member asking for a
+// preview of a title Plex does not share with them, which is refused before
+// anything renders.
+func TestPreviewRefusesATitleNotSharedWithTheMember(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := e2ePreviewHandler(t, 2)
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Post("/api/clips/preview", handler.Preview)
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"/api/clips/preview",
+		strings.NewReader(`{"mediaId":"`+sourceFile(t)+`","startTime":10,"duration":5}`),
+	)
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+
+	defer func() { _ = resp.Body.Close() }()
+
+	var failure api.ErrorResponse
+
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&failure))
+
+	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+	assert.Equal(t, api.NotShared, failure.Error)
+}
+
 // TestPreviewRoutesRefuseAnotherAccountsPreview covers a member naming the
 // owner's preview by id.
 //

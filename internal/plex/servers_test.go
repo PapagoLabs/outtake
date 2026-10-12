@@ -6,6 +6,7 @@ package plex
 import (
 	"math"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -530,4 +531,31 @@ func TestProvidesServer(t *testing.T) {
 	for provides, want := range tests {
 		assert.Equal(t, want, providesServer(provides), provides)
 	}
+}
+
+// TestViewerKeySeparatesAccounts covers one server read by two accounts.
+//
+// Each token gets its own key, the key never holds the token, and the same
+// token always gets the same key.
+func TestViewerKeySeparatesAccounts(t *testing.T) {
+	t.Parallel()
+
+	owner := Server{
+		Name:    "Attic",
+		Address: "10.0.0.5",
+		Port:    32400,
+		Token:   "owner-token",
+		Scheme:  "http",
+	}
+	member := owner
+
+	member.Token = "member-token"
+
+	assert.NotEqual(t, ViewerKey(owner), ViewerKey(member))
+
+	again := owner
+
+	assert.Equal(t, ViewerKey(owner), ViewerKey(again), "the same token gets the same key")
+	assert.NotContains(t, ViewerKey(owner), "owner-token")
+	assert.True(t, strings.HasPrefix(ViewerKey(owner), SelectionKey(owner)+" "))
 }
