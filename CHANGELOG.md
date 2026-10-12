@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Open every doc comment with a one-sentence summary by @nicholas-fedor in [#473](https://github.com/PapagoLabs/outtake/pull/473)
 - Push rendering clip progress over one event stream by @nicholas-fedor in [#467](https://github.com/PapagoLabs/outtake/pull/467)
 - Estimate the time left on rendering clips and previews by @nicholas-fedor in [#461](https://github.com/PapagoLabs/outtake/pull/461)
 - Describe failed clips and previews with a plain message and details by @nicholas-fedor in [#450](https://github.com/PapagoLabs/outtake/pull/450)
