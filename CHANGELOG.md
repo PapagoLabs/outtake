@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Lock file maintenance by @renovate[bot] in [#469](https://github.com/PapagoLabs/outtake/pull/469)
 - Update module modernc.org/libc to v1.78.0 by @renovate[bot] in [#459](https://github.com/PapagoLabs/outtake/pull/459)
 - Update golang.org/x/exp digest to faecfb2 by @renovate[bot] in [#457](https://github.com/PapagoLabs/outtake/pull/457)
 - Update module github.com/molecule-man/go-brrr to v1.3.0 by @renovate[bot] in [#455](https://github.com/PapagoLabs/outtake/pull/455)
