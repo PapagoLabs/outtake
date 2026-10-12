@@ -15,6 +15,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -101,6 +102,7 @@ func hxTargetKind(
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(route, func(ctx fiber.Ctx) error {
 		if match(ctx) {
 			return ctx.SendString(hit)

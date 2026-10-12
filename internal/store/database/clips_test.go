@@ -271,8 +271,10 @@ func TestSaveClipKeepsImmutableColumnsOnConflict(t *testing.T) {
 
 	job.Width = 640
 	job.FPS = 15
+	job.OwnerID = 42
 	require.NoError(t, db.SaveClip(t.Context(), job))
 
+	job.OwnerID = 7
 	job.MediaID = "999"
 	job.MediaTitle = "Other Title"
 	job.MediaType = "movie"
@@ -288,6 +290,7 @@ func TestSaveClipKeepsImmutableColumnsOnConflict(t *testing.T) {
 	assert.Equal(t, "show", got.MediaType)
 	assert.Equal(t, "/media/order.mkv", got.InputPath)
 	assert.WithinDuration(t, created, got.CreatedAt, time.Second)
+	assert.Equal(t, 42, got.OwnerID, "a clip never moves to another account")
 	assert.Equal(t, 1920, got.Width, "the editable column still updates")
 }
 
@@ -326,8 +329,10 @@ func TestScanJobReadsEveryColumn(t *testing.T) {
 		CropBlackBars: true,
 		PreserveHDR:   true,
 
-		CreatedAt: stamp,
-		UpdatedAt: stamp.Add(time.Minute), InputPath: "/media/movie.mkv",
+		CreatedAt:  stamp,
+		UpdatedAt:  stamp.Add(time.Minute),
+		OwnerID:    42,
+		InputPath:  "/media/movie.mkv",
 		OutputPath: "/out/scan-1.gif",
 
 		Status:   clip.StatusCompleted,
@@ -788,6 +793,58 @@ func TestMigrationErrorDetailsKeepsOlderFailures(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "extract: ffmpeg: exit status 1", older.Error)
 	assert.Empty(t, older.ErrorDetails)
+}
+
+// TestMigrationClipOwnersGivesOlderClipsToTheOwner covers clips made before
+// owners were recorded.
+//
+// They belong to the account that claimed the installation, and to nobody on
+// an installation no account has claimed.
+func TestMigrationClipOwnersGivesOlderClipsToTheOwner(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		owner string
+		want  int
+	}{
+		"claimed":   {owner: `INSERT INTO users (plex_user_id, username, role) VALUES (42, 'nick', 'owner')`, want: 42},
+		"unclaimed": {owner: "", want: 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			path := t.TempDir() + "/older-owner.db"
+
+			db, err := New(path)
+			require.NoError(t, err)
+
+			stamp := time.Date(2026, time.October, 1, 0, 0, 0, 0, time.UTC)
+			require.NoError(t, db.SaveClip(t.Context(), testStoredClip("older", "1", stamp)))
+
+			statements := []string{
+				`ALTER TABLE clips DROP COLUMN owner_id`,
+				`DELETE FROM schema_migrations WHERE name = '013_clip_owners.sql'`,
+			}
+			if test.owner != "" {
+				statements = append(statements, test.owner)
+			}
+
+			for _, statement := range statements {
+				_, err = db.Conn().ExecContext(t.Context(), statement)
+				require.NoError(t, err, statement)
+			}
+
+			require.NoError(t, db.Close())
+
+			db, err = New(path)
+			require.NoError(t, err)
+			t.Cleanup(func() { _ = db.Close() })
+
+			older, err := db.GetClip(t.Context(), "older")
+			require.NoError(t, err)
+			assert.Equal(t, test.want, older.OwnerID)
+		})
+	}
 }
 
 // TestMigrationOutputFormatsLeavesOlderClipsUnread covers clips rendered before

@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/timecode"
 	"github.com/PapagoLabs/outtake/internal/web/exportform"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
@@ -140,7 +141,10 @@ func (handler *Handler) clipsForMedia(
 	source library.SourceInfo,
 	query catalog.ClipListQuery,
 ) []view.ClipItem {
-	jobs := catalog.Apply(catalog.ForMedia(ctx.Context(), handler.db, mediaID), query)
+	jobs := catalog.Apply(
+		catalog.ForMedia(ctx.Context(), handler.db, middleware.ClipScope(ctx), mediaID),
+		query,
+	)
 	clips := view.NewClipItems(
 		jobs,
 		profile.SelectableProfiles(ctx.Context(), handler.db),

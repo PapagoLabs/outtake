@@ -20,6 +20,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
 // fakeClips stands in for the catalog and the card renderer behind a feed.
@@ -172,8 +173,8 @@ func TestLiveClipsFollowsNothingWithoutIDs(t *testing.T) {
 
 	handler, _ := clipPageHandler(t)
 
-	assert.Nil(t, handler.LiveClips(""))
-	assert.Nil(t, handler.LiveClips(" , "))
+	assert.Nil(t, handler.LiveClips("", clipdom.Scope{Owner: 42, Everyone: true}))
+	assert.Nil(t, handler.LiveClips(" , ", clipdom.Scope{Owner: 42, Everyone: true}))
 }
 
 // TestLiveClipsReadsFilesOnlyWhenTheStateChanges covers the storage lookups
@@ -198,7 +199,7 @@ func TestLiveClipsReadsFilesOnlyWhenTheStateChanges(t *testing.T) {
 	store.EXPECT().Exists(mock.Anything, job.OutputPath).Return(true).Twice()
 
 	handler := New(jobQueue, store, blob.Paths{}, db, &config.Config{MaxClipDur: time.Minute}, nil)
-	check := handler.LiveClips(job.ID)
+	check := handler.LiveClips(job.ID, clipdom.Scope{Owner: 42, Everyone: true})
 	require.NotNil(t, check)
 
 	first := check(t.Context())
@@ -213,4 +214,41 @@ func TestLiveClipsReadsFilesOnlyWhenTheStateChanges(t *testing.T) {
 	require.True(t, jobQueue.Cancel(job.ID), "a settled render reads its files again")
 
 	check(t.Context())
+}
+
+// TestLiveClipsNeverReportsAnotherAccountsClip covers a member's page naming
+// a clip the owner made.
+//
+// The feed reports it no more than an id nothing uses, and never asks the
+// storage about it.
+func TestLiveClipsNeverReportsAnotherAccountsClip(t *testing.T) {
+	t.Parallel()
+
+	db, err := database.New(t.TempDir() + "/live.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := rendering("owners-clip")
+
+	job.OwnerID = middlewaretest.OwnerID
+
+	// The storage mock expects nothing, so a lookup of the clip's files fails
+	// the test.
+	handler := New(
+		queueForTest(t, job),
+		storagemocks.NewMockBlob(t),
+		blob.Paths{},
+		db,
+		&config.Config{MaxClipDur: time.Minute},
+		nil,
+	)
+
+	check := handler.LiveClips(
+		job.ID,
+		clipdom.Scope{Owner: middlewaretest.MemberID, Everyone: false},
+	)
+	require.NotNil(t, check)
+
+	assert.Empty(t, check(t.Context()))
+	assert.Empty(t, check(t.Context()))
 }

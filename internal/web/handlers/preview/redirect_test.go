@@ -18,6 +18,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/timecode"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -167,6 +168,7 @@ func TestScreenShowsHDRReadsTheFormOrTheQuery(t *testing.T) {
 			var got bool
 
 			app := fiber.New()
+			app.Use(middlewaretest.AsOwner())
 			app.Post("/x", func(ctx fiber.Ctx) error {
 				got = screenShowsHDR(ctx)
 

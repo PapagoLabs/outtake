@@ -10,6 +10,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -31,7 +32,7 @@ const (
 //   - err: Response error, or nil on success.
 func (handler *Handler) Download(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
-	job := handler.lookupJob(ctx.Context(), id)
+	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), id)
 	if job == nil {
 		return respond.WriteNotFound(ctx)
 	}

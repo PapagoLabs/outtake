@@ -21,6 +21,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
 // htmxNoSwap are the statuses that would leave a card on the page after a swap.
@@ -54,6 +55,7 @@ func deleteClip(t *testing.T, handler *Handler, id string) int {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Delete("/api/clips/:id", handler.Delete)
 
 	req := httptest.NewRequestWithContext(

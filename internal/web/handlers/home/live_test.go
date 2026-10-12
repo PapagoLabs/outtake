@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/home/mocks"
 )
 
@@ -24,7 +25,7 @@ func TestLivePlaybackFollowsOnlyAMediaItemID(t *testing.T) {
 	handler, _ := pageHandler(t, mocks.NewMockPlexAuth(t), silentSources(t))
 
 	for _, value := range []string{"", "abc", "42/../1", strings.Repeat("9", 13)} {
-		assert.Nil(t, handler.LivePlayback(value), value)
+		assert.Nil(t, handler.LivePlayback(value, clip.Scope{}), value)
 	}
 }
 
@@ -47,7 +48,7 @@ func TestLivePlaybackReportsEachChange(t *testing.T) {
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
-	check := handler.LivePlayback("42")
+	check := handler.LivePlayback("42", clip.Scope{})
 	require.NotNil(t, check)
 
 	first := check(t.Context())

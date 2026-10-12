@@ -21,6 +21,6 @@ func (handler *Handler) List(ctx fiber.Ctx) error {
 	return respond.WriteJSON(
 		ctx,
 		fiber.StatusOK,
-		fiber.Map{"clips": catalog.ClipResponses(handler.listJobs(ctx.Context()))},
+		fiber.Map{"clips": catalog.ClipResponses(handler.listJobs(ctx))},
 	)
 }

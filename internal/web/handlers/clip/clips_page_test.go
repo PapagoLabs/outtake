@@ -23,6 +23,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	storagemocks "github.com/PapagoLabs/outtake/internal/store/blob/mocks"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
 
@@ -35,6 +36,7 @@ import (
 //   - app: The app the routes are mounted on.
 func clipsApp(handler *Handler) *fiber.App {
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathClips, handler.Clips)
 	app.Get("/clips/:id/file", handler.ClipFile)
 	app.Get("/clips/:id/sdr", handler.ClipSDRFile)
@@ -263,6 +265,7 @@ func clipQueryOf(t *testing.T, target string) catalog.ClipListQuery {
 	var query catalog.ClipListQuery
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathClips, func(ctx fiber.Ctx) error {
 		query = parseClipListQuery(ctx)
 

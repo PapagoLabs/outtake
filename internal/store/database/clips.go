@@ -25,13 +25,16 @@ const (
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
 		preserve_hdr, output_width, output_height, output_hdr, sdr_width, sdr_height,
-		error_details`
+		error_details, owner_id`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
 var ErrClipNotFound = errors.New("clip not found")
 
 // SaveClip inserts or replaces a job.
+//
+// The owner is written only when the row is inserted, so saving a clip again
+// never moves it to another account.
 //
 // Parameters:
 //   - ctx: Request scope for the write.
@@ -46,8 +49,8 @@ func (db *DB) SaveClip(ctx context.Context, job *clip.Job) error {
 			input_path, output_path, start_time, duration, quality, width, fps,
 			error_message, created_at, updated_at, name, audio_index, crop_black_bars,
 			web_safe_color, preserve_hdr, output_width, output_height, output_hdr,
-			sdr_width, sdr_height, error_details
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			sdr_width, sdr_height, error_details, owner_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name = excluded.name,
 			clip_type = excluded.clip_type,
@@ -119,6 +122,7 @@ func clipRowValues(job *clip.Job) []any {
 		job.SDRFormat.Width,
 		job.SDRFormat.Height,
 		job.ErrorDetails,
+		job.OwnerID,
 	}
 }
 
@@ -303,6 +307,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 		&job.SDRFormat.Width,
 		&job.SDRFormat.Height,
 		&job.ErrorDetails,
+		&job.OwnerID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan clip: %w", err)

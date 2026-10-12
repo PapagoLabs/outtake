@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/playback"
 )
 
@@ -39,12 +40,19 @@ var mediaIDPattern = regexp.MustCompile(`^\d{1,12}$`)
 // playback route does, and reports it when it changed. The monitor reads Plex
 // on its own interval, so the panel changes only as often as that.
 //
+// The panel shows the bound server's sessions whoever follows it, so the
+// caller's scope is not read.
+//
 // Parameters:
 //   - value: The media item id.
+//   - _: Whose records the stream's caller may see.
 //
 // Returns:
 //   - check: The feed's check, nil when the value is not a media item id.
-func (handler *Handler) LivePlayback(value string) func(ctx context.Context) []string {
+func (handler *Handler) LivePlayback(
+	value string,
+	_ clip.Scope,
+) func(ctx context.Context) []string {
 	if !mediaIDPattern.MatchString(value) {
 		return nil
 	}

@@ -20,6 +20,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
 // renderedOutput writes a rendered file and returns the path a clip records as
@@ -62,6 +63,7 @@ func downloadClip(t *testing.T, handler *Handler, id string) *http.Response {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/api/clips/:id/download", handler.Download)
 
 	resp, err := app.Test(httptest.NewRequestWithContext(

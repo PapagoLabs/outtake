@@ -11,6 +11,7 @@ import (
 
 	fiber "github.com/gofiber/fiber/v3"
 
+	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/theme"
 )
 
@@ -27,6 +28,7 @@ func getAppearance(t *testing.T, handler *Handler, target string) pageAnswer {
 	t.Helper()
 
 	app := fiber.New()
+	app.Use(middlewaretest.AsOwner())
 	app.Get("/settings/appearance", handler.Appearance)
 
 	return serve(t, app, target, false)

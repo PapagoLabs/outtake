@@ -12,9 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	clippreview "github.com/PapagoLabs/outtake/internal/clip/preview"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
 )
+
+// seesEverything is the scope of the owner or an admin, who sees every
+// preview.
+var seesEverything = clip.Scope{Owner: 42, Everyone: true}
 
 // TestLivePreviewFollowsOnlyAPreviewID covers a value that names no preview.
 //
@@ -24,8 +29,8 @@ func TestLivePreviewFollowsOnlyAPreviewID(t *testing.T) {
 
 	handler, _ := previewTestHandler(t, 1)
 
-	assert.Nil(t, handler.LivePreview(""))
-	assert.Nil(t, handler.LivePreview(strings.Repeat("a", maxLivePreviewID+1)))
+	assert.Nil(t, handler.LivePreview("", seesEverything))
+	assert.Nil(t, handler.LivePreview(strings.Repeat("a", maxLivePreviewID+1), seesEverything))
 }
 
 // TestLivePreviewReportsEachChange covers the status the feed reports.
@@ -54,7 +59,7 @@ func TestLivePreviewReportsEachChange(t *testing.T) {
 
 	setProgress(20)
 
-	check := handler.LivePreview("p1")
+	check := handler.LivePreview("p1", seesEverything)
 	require.NotNil(t, check)
 
 	first := check(t.Context())
@@ -90,7 +95,7 @@ func TestLivePreviewReportsAGonePreviewOnce(t *testing.T) {
 
 	handler, _ := previewTestHandler(t, 1)
 
-	check := handler.LivePreview("never-registered")
+	check := handler.LivePreview("never-registered", seesEverything)
 	require.NotNil(t, check)
 
 	assert.Equal(t, []string{`{"id":"never-registered","gone":true}`}, check(t.Context()))

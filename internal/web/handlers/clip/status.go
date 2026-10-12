@@ -7,6 +7,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -20,7 +21,7 @@ import (
 //   - err: Response error, or nil on success.
 func (handler *Handler) GetStatus(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
-	job := handler.lookupJob(ctx.Context(), id)
+	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), id)
 	if job == nil {
 		return respond.WriteNotFound(ctx)
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
@@ -24,7 +25,9 @@ const msgNotRendering = "This clip isn't rendering"
 //   - err: Response or redirect error, or nil on success.
 func (handler *Handler) Cancel(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
-	job := handler.lookupJob(ctx.Context(), id)
+	scope := middleware.ClipScope(ctx)
+
+	job := handler.lookupJob(ctx.Context(), scope, id)
 	if job == nil {
 		return respond.WriteNotFound(ctx)
 	}
@@ -40,7 +43,7 @@ func (handler *Handler) Cancel(ctx fiber.Ctx) error {
 
 	// The queue marks the job canceled and persists that itself. Reading it
 	// again lets the response carry the status after the cancel.
-	if canceled := handler.lookupJob(ctx.Context(), id); canceled != nil {
+	if canceled := handler.lookupJob(ctx.Context(), scope, id); canceled != nil {
 		job = canceled
 	}
 

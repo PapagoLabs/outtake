@@ -14,6 +14,7 @@ import (
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	clipprofile "github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
 
@@ -61,6 +62,7 @@ func (handler *Handler) Create(ctx fiber.Ctx) error {
 	)
 
 	job.OutputPath = handler.clipPaths.OutputPath(job.ID, job.Type)
+	job.OwnerID = middleware.ClipScope(ctx).Owner
 
 	job.ApplyDefaults()
 

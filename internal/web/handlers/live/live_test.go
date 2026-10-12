@@ -21,6 +21,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	fiber "github.com/gofiber/fiber/v3"
+
+	"github.com/PapagoLabs/outtake/internal/clip"
 )
 
 // streamedEvent is one server-sent event a test read back.
@@ -274,7 +276,7 @@ func TestStreamEndsWhenTheBrowserLeaves(t *testing.T) {
 func TestStreamAnswersNoContentWhenNothingIsFollowed(t *testing.T) {
 	t.Parallel()
 
-	refusing := Feed{Name: "clip", Start: func(string) Check { return nil }}
+	refusing := Feed{Name: "clip", Start: func(string, clip.Scope) Check { return nil }}
 
 	app := fiber.New()
 	app.Get("/live", New(refusing).Stream)
@@ -300,7 +302,7 @@ func TestStreamServesUntilItsStreamsClose(t *testing.T) {
 
 	var started string
 
-	feed := Feed{Name: "preview", Start: func(value string) Check {
+	feed := Feed{Name: "preview", Start: func(value string, _ clip.Scope) Check {
 		started = value
 
 		return (&queuedFeed{mu: sync.Mutex{}, pending: []string{`{"id":"p1"}`}}).check

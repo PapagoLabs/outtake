@@ -6,6 +6,8 @@ package preview
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/PapagoLabs/outtake/internal/clip"
 )
 
 // previewFeed reports the status of the preview one page renders.
@@ -38,11 +40,16 @@ const maxLivePreviewID = 128
 //
 // Parameters:
 //   - value: The preview id.
+//   - scope: Whose previews the stream's caller may see.
 //
 // Returns:
-//   - check: The feed's check, nil when the value is not a preview id.
-func (handler *Handler) LivePreview(value string) func(ctx context.Context) []string {
-	if value == "" || len(value) > maxLivePreviewID {
+//   - check: The feed's check, nil when the value is not a preview id or the
+//     preview is another account's.
+func (handler *Handler) LivePreview(
+	value string,
+	scope clip.Scope,
+) func(ctx context.Context) []string {
+	if value == "" || len(value) > maxLivePreviewID || !reaches(scope, value) {
 		return nil
 	}
 

@@ -34,6 +34,9 @@ type catalogFixture struct {
 // catalogBase is the instant every fixture clip is stamped from.
 var catalogBase = time.Date(2026, time.March, 1, 12, 0, 0, 0, time.UTC)
 
+// seesEverything is the scope of the owner or an admin, who sees every clip.
+var seesEverything = clip.Scope{Owner: 42, Everyone: true}
+
 // fixtures returns a realistic catalog.
 //
 // It has two sources, three clip types, every status, a clip that borrows its
@@ -403,23 +406,23 @@ func TestIntegration_JobsPrefersTheQueueOverTheDatabase(t *testing.T) {
 	db := catalogDatabase(t)
 	work := queue.NewQueue(1, func(context.Context, *clip.Job) error { return nil })
 
-	fromDB := catalog.Jobs(t.Context(), work, db)
+	fromDB := catalog.Jobs(t.Context(), work, db, seesEverything)
 	assert.Len(t, fromDB, len(fixtureClips()), "an empty queue falls back to storage")
 
 	live := queueJobFixture("live-job")
 	work.Restore(live)
 
-	fromQueue := catalog.Jobs(t.Context(), work, db)
+	fromQueue := catalog.Jobs(t.Context(), work, db, seesEverything)
 	require.Len(t, fromQueue, 1)
 	assert.Equal(t, "live-job", fromQueue[0].ID,
 		"a queued clip is the whole listing while one is queued")
 
-	found := catalog.Job(t.Context(), work, db, "b-intro")
+	found := catalog.Job(t.Context(), work, db, seesEverything, "b-intro")
 	require.NotNil(t, found)
 	assert.Equal(t, "b-intro", found.ID, "a stored clip is found when the queue lacks it")
 
-	assert.Equal(t, "live-job", catalog.Job(t.Context(), work, db, "live-job").ID)
-	assert.Nil(t, catalog.Job(t.Context(), work, db, "absent"))
+	assert.Equal(t, "live-job", catalog.Job(t.Context(), work, db, seesEverything, "live-job").ID)
+	assert.Nil(t, catalog.Job(t.Context(), work, db, seesEverything, "absent"))
 }
 
 func TestIntegration_ForMediaReturnsOnlyThatSourcesClips(t *testing.T) {
@@ -427,7 +430,7 @@ func TestIntegration_ForMediaReturnsOnlyThatSourcesClips(t *testing.T) {
 
 	db := catalogDatabase(t)
 
-	feature := catalog.ForMedia(t.Context(), db, "100")
+	feature := catalog.ForMedia(t.Context(), db, seesEverything, "100")
 	assert.Equal(
 		t,
 		[]string{"d-gif", "c-outro", "e-shot", "b-intro", "a-intro"},
@@ -435,10 +438,10 @@ func TestIntegration_ForMediaReturnsOnlyThatSourcesClips(t *testing.T) {
 		"one source's clips come back newest first",
 	)
 
-	trailer := catalog.ForMedia(t.Context(), db, "200")
+	trailer := catalog.ForMedia(t.Context(), db, seesEverything, "200")
 	assert.Len(t, trailer, 3)
 
-	assert.Empty(t, catalog.ForMedia(t.Context(), db, "absent"))
+	assert.Empty(t, catalog.ForMedia(t.Context(), db, seesEverything, "absent"))
 }
 
 // queueJobFixture returns a queued clip for the catalog source tests.
@@ -507,7 +510,12 @@ func TestIntegration_UpdateChangesTheQueueAndTheDatabaseTogether(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Renamed", edited.Name)
 
-	assert.Equal(t, "Renamed", catalog.Job(t.Context(), work, db, "live").Name, "a lookup sees it")
+	assert.Equal(
+		t,
+		"Renamed",
+		catalog.Job(t.Context(), work, db, seesEverything, "live").Name,
+		"a lookup sees it",
+	)
 
 	row, err := db.GetClip(t.Context(), "live")
 	require.NoError(t, err)

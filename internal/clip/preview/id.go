@@ -10,6 +10,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
@@ -47,6 +48,16 @@ const (
 
 	// decimalBase is the base integers are rendered in before hashing.
 	decimalBase = 10
+
+	// ownerPrefix opens an owned preview id, before the owner's account id.
+	ownerPrefix = "u"
+
+	// ownerSeparator ends the owner's account id in an owned preview id.
+	ownerSeparator = "-"
+
+	// ownedDigestLength is how much of the content digest an owned preview id
+	// keeps, so the owner's account id fits within ValidID's 64 characters.
+	ownedDigestLength = 40
 )
 
 // idPattern is the safe subset of characters a storage id may contain.
@@ -86,22 +97,26 @@ func sourceIdentity(source string) (time.Time, int64, bool) {
 
 // RequestID derives the id of the preview a request describes.
 //
+// The id names the account that asked for it, so two accounts never share a
+// preview and Owner can tell whose it is.
+//
 // Parameters:
 //   - req: Parsed request carrying the window and encoding options.
 //   - source: Resolved source path.
 //   - maxWidth: The widest the preview is scaled, so a changed maximum
 //     preview resolution renders a new preview.
+//   - owner: The plex.tv account id of the caller, zero for none.
 //
 // Returns:
 //   - previewID: The preview id, within the allowlist ValidID checks.
 //   - err: Non-nil when the source file cannot be read.
-func RequestID(req clip.Request, source string, maxWidth int) (string, error) {
+func RequestID(req clip.Request, source string, maxWidth, owner int) (string, error) {
 	modTime, size, ok := sourceIdentity(source)
 	if !ok {
 		return "", ErrSourceUnreadable
 	}
 
-	return ContentID(KeyInput{
+	return OwnedID(owner, ContentID(KeyInput{
 		MediaID: req.MediaID,
 		Path:    source,
 		ModTime: modTime,
@@ -114,7 +129,49 @@ func RequestID(req clip.Request, source string, maxWidth int) (string, error) {
 		Crop:        req.CropBlackBars,
 		PreserveHDR: clip.Flag(req.PreserveHDR),
 		MaxWidth:    maxWidth,
-	}), nil
+	})), nil
+}
+
+// OwnedID names a preview after the account it belongs to and its content.
+//
+// Parameters:
+//   - owner: The plex.tv account id of the preview's owner, zero for none.
+//   - contentID: The preview's ContentID.
+//
+// Returns:
+//   - previewID: The owner's id, then the start of the content digest, within
+//     the allowlist ValidID checks.
+func OwnedID(owner int, contentID string) string {
+	return ownerPrefix + strconv.Itoa(
+		max(owner, 0),
+	) + ownerSeparator + contentID[:ownedDigestLength]
+}
+
+// Owner reads the account a preview id belongs to.
+//
+// Parameters:
+//   - previewID: A preview id.
+//
+// Returns:
+//   - owner: The owner's plex.tv account id, zero for none.
+//   - ok: False for an id OwnedID did not make, whose owner is unknown.
+func Owner(previewID string) (int, bool) {
+	rest, found := strings.CutPrefix(previewID, ownerPrefix)
+	if !found {
+		return 0, false
+	}
+
+	digits, digest, found := strings.Cut(rest, ownerSeparator)
+	if !found || len(digest) != ownedDigestLength {
+		return 0, false
+	}
+
+	owner, err := strconv.Atoi(digits)
+	if err != nil || owner < 0 {
+		return 0, false
+	}
+
+	return owner, true
 }
 
 // ContentID derives the id of a preview from what determines its bytes.

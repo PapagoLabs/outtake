@@ -13,6 +13,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
@@ -68,7 +69,7 @@ func AdminGuard() fiber.Handler {
 func AuthGuard(env string, users UserLookup) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if env == config.EnvE2E {
-			ctx.Locals(callerKey{}, e2eCaller)
+			SetCaller(ctx, e2eCaller)
 
 			return ctx.Next()
 		}
@@ -82,7 +83,7 @@ func AuthGuard(env string, users UserLookup) fiber.Handler {
 			return unauthenticated(ctx)
 		}
 
-		ctx.Locals(callerKey{}, caller)
+		SetCaller(ctx, caller)
 
 		return ctx.Next()
 	}
@@ -100,6 +101,38 @@ func Caller(ctx fiber.Ctx) (identity.User, bool) {
 	caller, ok := ctx.Locals(callerKey{}).(identity.User)
 
 	return caller, ok
+}
+
+// ClipScope returns whose clips and previews a request's caller may see and
+// change.
+//
+// A request AuthGuard never saw has no caller and reaches nothing.
+//
+// Parameters:
+//   - ctx: Request that passed AuthGuard.
+//
+// Returns:
+//   - scope: The caller's own records, or every record for the owner and
+//     admins.
+func ClipScope(ctx fiber.Ctx) clip.Scope {
+	caller, ok := Caller(ctx)
+	if !ok {
+		return clip.Scope{Owner: 0, Everyone: false}
+	}
+
+	return clip.Scope{Owner: caller.PlexID, Everyone: caller.Manages()}
+}
+
+// SetCaller records the user a request is made by, which Caller returns.
+//
+// AuthGuard records every signed-in request's caller. Handler tests record
+// one through middlewaretest.
+//
+// Parameters:
+//   - ctx: The request.
+//   - caller: The user the request is made by.
+func SetCaller(ctx fiber.Ctx, caller identity.User) {
+	ctx.Locals(callerKey{}, caller)
 }
 
 // signedInUser resolves the user a request's session signed in as.

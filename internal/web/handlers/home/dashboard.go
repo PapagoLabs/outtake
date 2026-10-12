@@ -9,6 +9,7 @@ import (
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
 	"github.com/PapagoLabs/outtake/internal/web/view"
@@ -22,7 +23,9 @@ import (
 // Returns:
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Dashboard(ctx fiber.Ctx) error {
-	stats := catalog.Summarize(catalog.Jobs(ctx.Context(), handler.queue, handler.db))
+	stats := catalog.Summarize(
+		catalog.Jobs(ctx.Context(), handler.queue, handler.db, middleware.ClipScope(ctx)),
+	)
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Dashboard(pages.DashboardProps{
