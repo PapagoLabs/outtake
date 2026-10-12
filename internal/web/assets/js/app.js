@@ -734,9 +734,33 @@
 		results.dataset.prevScrollTop = String(results.scrollTop);
 	});
 
+	// syncClipWindows copies each clip's window from its status region into
+	// its card's form. A copied clip's start moves to the keyframe it starts
+	// on as it renders, and the form, outside the swapped region, would
+	// otherwise post the old start back. A start field the user is editing,
+	// or has changed, is left alone.
+	function syncClipWindows() {
+		document.querySelectorAll('[data-clip-start]').forEach(function (region) {
+			var id = region.id.replace(/^clip-/, '').replace(/-status$/, '');
+			var start = document.getElementById('start-' + id);
+			var duration = document.getElementById('dur-' + id);
+			var shown = region.getAttribute('data-clip-start');
+			if (!start || !duration || start.value === shown) { return; }
+			if (start === document.activeElement || start.value !== start.defaultValue) { return; }
+			start.value = shown;
+			start.defaultValue = shown;
+			duration.value = region.getAttribute('data-clip-duration');
+			duration.defaultValue = duration.value;
+			if (start.form) {
+				syncExportDuration(start.form);
+			}
+		});
+	}
+
 	document.addEventListener('htmx:after:swap', function (event) {
 		bindExportForms();
 		chooseClipSources();
+		syncClipWindows();
 		syncPaletteButtons();
 		syncNav();
 		bindMediaJump();

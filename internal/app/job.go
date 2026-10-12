@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -28,6 +29,9 @@ type renderReporter interface {
 	SetOutputFormat(id string, format clip.Format) *clip.Job
 	// SetSDRFormat records what the clip's SDR version holds.
 	SetSDRFormat(id string, format clip.Format) *clip.Job
+	// SetWindow records where the clip starts in its source and how long it
+	// runs.
+	SetWindow(id string, start, duration time.Duration) *clip.Job
 }
 
 const (
@@ -36,6 +40,9 @@ const (
 	// sdrEncoderPreset is the x264 preset an SDR version is encoded with,
 	// quick because it is for watching in the app rather than for export.
 	sdrEncoderPreset = "veryfast"
+	// copyReach is how far before its start mark a copied clip may start.
+	// A source whose keyframes are further apart is encoded instead.
+	copyReach = 5 * time.Second
 )
 
 // errUnknownClipType is returned when a job's clip has an unrecognized export type.
@@ -49,6 +56,7 @@ var errUnknownClipType = errors.New("unknown clip type")
 //   - ffmpeg: The FFmpeg runner.
 //   - db: Clip profile store, may be nil.
 //   - rect: The black-bar crop, detected once for every encode of the job.
+//   - limit: The longest clip the installation accepts.
 //
 // Returns:
 //   - error: Non-nil when the extract fails or the clip type is unknown.
@@ -58,22 +66,12 @@ func extractJob(
 	runner *ffmpeg.ExecFFmpeg,
 	db *database.DB,
 	rect crop.CropRect,
+	limit time.Duration,
 ) error {
 	switch job.Type {
 	case clip.TypeClip:
-		err := runner.ExtractClip(
-			ctx,
-			job.InputPath,
-			job.OutputPath,
-			job.StartTime,
-			job.Duration,
-			clipEncodePreset(ctx, db, &job.Clip),
-			job.AudioIndex,
-			rect,
-		)
-		if err != nil {
-			return fmt.Errorf("extract clip: %w", err)
-		}
+		//nolint:wrapcheck // extractVideoClip names the step that failed.
+		return extractVideoClip(ctx, job, runner, db, rect, limit)
 	case clip.TypeGIF:
 		err := runner.ExtractGIF(
 			ctx,
@@ -117,6 +115,7 @@ func extractJob(
 //   - store: The storage backend the rendered output is uploaded to.
 //   - reporter: The queue, told when the render moves on to the SDR version
 //     and what each published file holds.
+//   - limit: The longest clip the installation accepts.
 //
 // Returns:
 //   - error: Non-nil when the extract or the upload fails, or the job was
@@ -128,6 +127,7 @@ func processJob(
 	db *database.DB,
 	store blob.Blob,
 	reporter renderReporter,
+	limit time.Duration,
 ) error {
 	err := checkSource(job.InputPath)
 	if err != nil {
@@ -136,7 +136,7 @@ func processJob(
 
 	rect := detectJobCrop(ctx, runner, job)
 
-	err = extractJob(ctx, job, runner, db, rect)
+	err = extractJob(ctx, job, runner, db, rect, limit)
 	if err != nil {
 		return fmt.Errorf("extract: %w", err)
 	}
@@ -160,8 +160,10 @@ func processJob(
 	}
 
 	// Recorded as soon as the file is published, so a job stopped during its
-	// SDR version still describes the file it left.
+	// SDR version still describes the file it left. A copied clip starts on
+	// a keyframe, so its window is recorded with it.
 	reporter.SetOutputFormat(job.ID, fileFormat(ctx, runner, job.OutputPath))
+	reporter.SetWindow(job.ID, job.StartTime, job.Duration)
 
 	err = renderSDRVersion(ctx, job, runner, db, store, reporter, rect)
 	if err != nil {
@@ -401,4 +403,176 @@ func detectJobCrop(ctx context.Context, runner *ffmpeg.ExecFFmpeg, job *clip.Job
 	}
 
 	return rect
+}
+
+// extractVideoClip copies a video clip when its profile and source allow it,
+// and encodes it otherwise.
+//
+// Parameters:
+//   - ctx: The job context, canceled when the job is canceled or deleted.
+//   - job: The video clip. A copy moves its start to the keyframe it starts on.
+//   - runner: The FFmpeg runner.
+//   - db: Clip profile store, may be nil.
+//   - rect: The black-bar crop detected for the clip.
+//   - limit: The longest clip the installation accepts.
+//
+// Returns:
+//   - err: Non-nil when the clip could not be rendered.
+func extractVideoClip(
+	ctx context.Context,
+	job *clip.Job,
+	runner *ffmpeg.ExecFFmpeg,
+	db *database.DB,
+	rect crop.CropRect,
+	limit time.Duration,
+) error {
+	preset := clipEncodePreset(ctx, db, &job.Clip)
+
+	copied, err := copyVideoClip(ctx, job, runner, preset, rect, limit)
+	if err != nil {
+		return fmt.Errorf("copy clip: %w", err)
+	}
+
+	if copied {
+		return nil
+	}
+
+	err = runner.ExtractClip(
+		ctx,
+		job.InputPath,
+		job.OutputPath,
+		job.StartTime,
+		job.Duration,
+		preset,
+		job.AudioIndex,
+		rect,
+	)
+	if err != nil {
+		return fmt.Errorf("extract clip: %w", err)
+	}
+
+	return nil
+}
+
+// copyVideoClip copies a video clip from its source when it fits.
+//
+// The copy starts on the keyframe at or just before the start mark, so the
+// job's window moves there once the copy is published. A clip that does not
+// fit, or whose copy fails, is left to the encode.
+//
+// Parameters:
+//   - ctx: The job context, canceled when the job is canceled or deleted.
+//   - job: The video clip.
+//   - runner: The FFmpeg runner.
+//   - preset: The clip's encode settings.
+//   - rect: The black-bar crop detected for the clip.
+//   - limit: The longest clip the installation accepts.
+//
+// Returns:
+//   - copied: True when the clip's file is the copy.
+//   - err: Non-nil only when the job was stopped.
+//
+//nolint:nonamedreturns // The named results tell the outcome from the stop.
+func copyVideoClip(
+	ctx context.Context,
+	job *clip.Job,
+	runner *ffmpeg.ExecFFmpeg,
+	preset clip.QualityPreset,
+	rect crop.CropRect,
+	limit time.Duration,
+) (copied bool, err error) {
+	keyframe, plan, fits := planCopy(ctx, job, runner, preset, rect, limit)
+	if !fits {
+		//nolint:wrapcheck // stopped wraps the context's error itself.
+		return false, stopped(ctx)
+	}
+
+	end := job.StartTime + job.Duration
+
+	err = runner.CopyClip(
+		ctx,
+		job.InputPath,
+		job.OutputPath,
+		keyframe,
+		end,
+		preset,
+		job.AudioIndex,
+		plan,
+	)
+	if err != nil {
+		if ctx.Err() != nil {
+			return false, fmt.Errorf("copy stopped: %w", err)
+		}
+
+		log.Info().Err(err).Str("job_id", job.ID).Msg("encoding a clip whose copy was refused")
+
+		return false, nil
+	}
+
+	job.StartTime = keyframe
+	job.Duration = end - keyframe
+
+	return true, nil
+}
+
+// planCopy decides whether a video clip can be copied, and from where.
+//
+// Parameters:
+//   - ctx: The job context.
+//   - job: The video clip.
+//   - runner: The FFmpeg runner.
+//   - preset: The clip's encode settings.
+//   - rect: The black-bar crop detected for the clip.
+//   - limit: The longest clip the installation accepts.
+//
+// Returns:
+//   - keyframe: The keyframe the copy starts on.
+//   - plan: How to copy the clip.
+//   - fits: False when the clip has to be encoded.
+//
+//nolint:nonamedreturns // The named results tell the keyframe and plan from the flag.
+func planCopy(
+	ctx context.Context,
+	job *clip.Job,
+	runner *ffmpeg.ExecFFmpeg,
+	preset clip.QualityPreset,
+	rect crop.CropRect,
+	limit time.Duration,
+) (keyframe time.Duration, plan ffmpeg.CopyPlan, fits bool) {
+	if !preset.CopyVideo {
+		return 0, ffmpeg.CopyPlan{}, false
+	}
+
+	info, err := runner.Probe(ctx, job.InputPath)
+	if err != nil {
+		return 0, ffmpeg.CopyPlan{}, false
+	}
+
+	plan, fits = ffmpeg.CopyFits(info, preset, rect, job.AudioIndex)
+	if !fits {
+		return 0, ffmpeg.CopyPlan{}, false
+	}
+
+	keyframe, found, err := runner.KeyframeBefore(ctx, job.InputPath, job.StartTime, copyReach)
+	if err != nil || !found || job.StartTime+job.Duration-keyframe > limit {
+		return 0, ffmpeg.CopyPlan{}, false
+	}
+
+	return keyframe, plan, true
+}
+
+// stopped reports a job context that ended.
+//
+// Parameters:
+//   - ctx: The job context.
+//
+// Returns:
+//   - err: The context's error, wrapped, or nil while the job runs.
+func stopped(ctx context.Context) error {
+	err := ctx.Err()
+	if err != nil {
+		return fmt.Errorf("render stopped: %w", err)
+	}
+
+	return nil
 }

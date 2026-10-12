@@ -30,6 +30,10 @@ const (
 	framesFlag = "-frames:v"
 	// videoFilterFlag is the FFmpeg video-filter flag.
 	videoFilterFlag = "-vf"
+	// mapFlag selects an input stream for the output.
+	mapFlag = "-map"
+	// videoCodecFlag names the output's video codec.
+	videoCodecFlag = "-c:v"
 	// anFlag disables audio decoding.
 	anFlag = "-an"
 	// abortOnFlag names the conditions that make ffmpeg fail instead of finish.

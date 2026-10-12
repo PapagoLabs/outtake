@@ -562,6 +562,26 @@ func (q *Queue) SetStatusFunc(fn StatusFunc) {
 	q.statusFn = fn
 }
 
+// SetWindow records where a render's clip starts in its source and how long
+// it runs, and reports it.
+//
+// A copied clip starts on the keyframe before its start mark, so its window
+// is recorded once its file is published.
+//
+// Parameters:
+//   - id: The clip being rendered.
+//   - start: Where the clip starts in its source.
+//   - duration: How long the clip runs.
+//
+// Returns:
+//   - job: The updated job, nil when the queue no longer has it.
+func (q *Queue) SetWindow(id string, start, duration time.Duration) *clip.Job {
+	return q.updateEntry(id, func(job *clip.Job) {
+		job.StartTime = start
+		job.Duration = duration
+	})
+}
+
 // Start starts the job queue workers.
 //
 // Parameters:

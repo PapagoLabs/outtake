@@ -268,7 +268,10 @@ func TestProcessJobClearsTheFormatsOfAClipThatIsNoLongerAVideo(t *testing.T) {
 		sdr:    clip.Format{Width: 1920, Height: 804, HDR: false},
 	}
 
-	require.NoError(t, processJob(t.Context(), job, execFFmpeg, nil, store, stages))
+	require.NoError(
+		t,
+		processJob(t.Context(), job, execFFmpeg, nil, store, stages, clip.MaxDuration),
+	)
 
 	output, sdr, sdrReported := stages.formats()
 	assert.Equal(t, clip.Format{}, output, "the old video's format is cleared")
@@ -315,7 +318,10 @@ func TestProcessJobUploadsTheRenderedOutput(t *testing.T) {
 
 	stages := &recordedStages{}
 
-	require.NoError(t, processJob(t.Context(), job, execFFmpeg, nil, store, stages))
+	require.NoError(
+		t,
+		processJob(t.Context(), job, execFFmpeg, nil, store, stages, clip.MaxDuration),
+	)
 	assert.Empty(t, stages.reported(), "a clip that converts to SDR has no second encode")
 
 	_, sdr, sdrReported := stages.formats()
@@ -340,7 +346,7 @@ func TestProcessJobReportsAnUploadFailure(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, errStoreFailed)
 	assert.ErrorContains(t, err, "store output")
 }
@@ -360,7 +366,7 @@ func TestProcessJobRefusesAJobWithoutAnOutput(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, ffmpeg.ErrNoOutputPath,
 		"a job with nowhere to write is refused before anything renders or uploads")
 	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
@@ -388,7 +394,7 @@ func TestProcessJobRefusesAJobWhoseSourceIsGone(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, clip.ErrSourceUnreadable)
 	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
 }
@@ -420,7 +426,7 @@ func TestProcessJobRefusesASourceItMayNotRead(t *testing.T) {
 		missingBinary(dir),
 	)
 
-	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{})
+	err := processJob(t.Context(), job, execFFmpeg, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, clip.ErrSourceUnreadable)
 	assert.Empty(t, stubInvocations(t, filepath.Join(dir, "argv.log")), "ffmpeg never runs")
 }
@@ -438,7 +444,7 @@ func TestProcessJobReportsAnExtractFailureBeforeUploading(t *testing.T) {
 
 	store := storagemocks.NewMockBlob(t)
 
-	err := processJob(t.Context(), job, nil, nil, store, &recordedStages{})
+	err := processJob(t.Context(), job, nil, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, errUnknownClipType)
 	assert.ErrorContains(t, err, "extract")
 }
@@ -616,7 +622,7 @@ func TestProcessJobRendersAnSDRVersionOfAClipThatKeepsHDR(t *testing.T) {
 
 	stages := &recordedStages{}
 
-	require.NoError(t, processJob(t.Context(), job, runner, nil, store, stages))
+	require.NoError(t, processJob(t.Context(), job, runner, nil, store, stages, clip.MaxDuration))
 
 	assert.Equal(t, []clip.Stage{clip.StageSDR}, stages.reported())
 
@@ -663,7 +669,7 @@ func TestProcessJobKeepsTheClipWhenItsSDRVersionFails(t *testing.T) {
 
 	stages := &recordedStages{}
 
-	require.NoError(t, processJob(t.Context(), job, runner, nil, store, stages))
+	require.NoError(t, processJob(t.Context(), job, runner, nil, store, stages, clip.MaxDuration))
 
 	_, sdr, sdrReported := stages.formats()
 	assert.True(t, sdrReported, "the removed SDR version is reported gone")
@@ -693,7 +699,7 @@ func TestProcessJobStopsWhenTheJobStopsDuringItsSDRVersion(t *testing.T) {
 			return context.Canceled
 		}).Once()
 
-	err := processJob(ctx, job, runner, nil, store, &recordedStages{})
+	err := processJob(ctx, job, runner, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, context.Canceled)
 	assert.ErrorContains(t, err, "sdr version")
 }
@@ -731,6 +737,6 @@ func TestProcessJobKeepsTheSDRVersionWhenTheJobStopsBeforeItsProbe(t *testing.T)
 			return nil
 		}).Once()
 
-	err := processJob(ctx, job, runner, nil, store, &recordedStages{})
+	err := processJob(ctx, job, runner, nil, store, &recordedStages{}, clip.MaxDuration)
 	require.ErrorIs(t, err, context.Canceled)
 }

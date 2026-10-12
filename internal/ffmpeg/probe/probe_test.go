@@ -65,6 +65,24 @@ func TestParseProbeOutput_HDRTransfer(t *testing.T) {
 	assert.True(t, clip.IsHDRTransfer(info.ColorTransfer))
 }
 
+// TestParseProbeOutput_PixelFormat covers the video stream's pixel format,
+// which decides whether a clip can be copied.
+func TestParseProbeOutput_PixelFormat(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{
+		"format": {"duration": "10.0", "bit_rate": "1000", "format_name": "matroska"},
+		"streams": [
+			{"codec_type": "video", "codec_name": "hevc", "width": 3840, "height": 2160,
+				"pix_fmt": "yuv420p10le"}
+		]
+	}`)
+
+	info, err := parseProbeOutput(data)
+	require.NoError(t, err)
+	assert.Equal(t, "yuv420p10le", info.PixelFormat)
+}
+
 func TestParseProbeOutput_AudioTracks(t *testing.T) {
 	t.Parallel()
 

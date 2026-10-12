@@ -18,6 +18,9 @@ type ClipProfileItem struct {
 	IsDefault bool
 	// KeepHDR reports whether a video clip rendered with this profile keeps HDR.
 	KeepHDR bool
+	// CopyVideo reports whether a video clip rendered with this profile copies
+	// a source that fits.
+	CopyVideo bool
 }
 
 // ClipProfileItems maps stored clip profiles onto the settings page models.
@@ -40,6 +43,7 @@ func ClipProfileItems(stored []profile.Profile) []ClipProfileItem {
 			MaxWidth:  stored[index].MaxWidth,
 			IsDefault: stored[index].IsDefault,
 			KeepHDR:   stored[index].KeepHDR,
+			CopyVideo: stored[index].CopyVideo,
 		})
 	}
 

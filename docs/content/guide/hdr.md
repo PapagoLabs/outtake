@@ -11,7 +11,7 @@ Whether a video clip keeps HDR is a setting of its [profile](/guide/profiles/), 
 - **HDR on** keeps the source's HDR. The clip is a 10-bit HEVC (H.265) file that carries the source's mastering display and light level data unchanged. Phones, Apple devices, and YouTube take it as HDR.
 - **HDR off** tone-maps the clip to SDR: an 8-bit H.264 file in standard BT.709 color, which upload sites and editors expect, and which most social sites need.
 
-The built-in **4K HDR** profile keeps HDR, and **720p**, **1080p**, and **4K** do not. GIFs and screenshots are always SDR, because neither format can carry HDR, so an HDR source is tone-mapped for them too.
+The built-in **4K HDR** and **Original** profiles keep HDR, and **720p**, **1080p**, and **4K** do not. GIFs and screenshots are always SDR, because neither format can carry HDR, so an HDR source is tone-mapped for them too.
 
 A clip takes the setting each time it renders. To change a finished clip, change its profile or pick another, then choose **Regenerate**.
 

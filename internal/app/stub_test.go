@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -32,6 +33,10 @@ type recordedStages struct {
 	sdr clip.Format
 	// sdrReported reports that an SDR format was reported at all.
 	sdrReported bool
+	// start is the last reported start of the clip's window.
+	start time.Duration
+	// duration is the last reported length of the clip's window.
+	duration time.Duration
 }
 
 // stubInvocationSeparator ends each run's argv in a fake's log.
@@ -198,7 +203,14 @@ func extractWithCrop(t *testing.T, job *clip.Job, runner *ffmpeg.ExecFFmpeg) err
 	t.Helper()
 
 	//nolint:wrapcheck // The test reads the extract's own error.
-	return extractJob(t.Context(), job, runner, nil, detectJobCrop(t.Context(), runner, job))
+	return extractJob(
+		t.Context(),
+		job,
+		runner,
+		nil,
+		detectJobCrop(t.Context(), runner, job),
+		clip.MaxDuration,
+	)
 }
 
 // SetOutputFormat records the clip file's reported format.
@@ -253,6 +265,25 @@ func (recorded *recordedStages) SetStage(_ string, stage clip.Stage) *clip.Job {
 	return nil
 }
 
+// SetWindow records the clip's reported window.
+//
+// Parameters:
+//   - _: The clip id, which the record ignores.
+//   - start: Where the clip starts in its source.
+//   - duration: How long the clip runs.
+//
+// Returns:
+//   - job: Always nil, as for a job the queue no longer has.
+func (recorded *recordedStages) SetWindow(_ string, start, duration time.Duration) *clip.Job {
+	recorded.mu.Lock()
+	defer recorded.mu.Unlock()
+
+	recorded.start = start
+	recorded.duration = duration
+
+	return nil
+}
+
 // formats returns the last reported formats.
 //
 // Returns:
@@ -277,4 +308,18 @@ func (recorded *recordedStages) reported() []clip.Stage {
 	defer recorded.mu.Unlock()
 
 	return slices.Clone(recorded.stages)
+}
+
+// window returns the last reported window.
+//
+// Returns:
+//   - start: Where the clip starts in its source.
+//   - duration: How long the clip runs.
+//
+//nolint:nonamedreturns // Same-type returns need names.
+func (recorded *recordedStages) window() (start, duration time.Duration) {
+	recorded.mu.Lock()
+	defer recorded.mu.Unlock()
+
+	return recorded.start, recorded.duration
 }

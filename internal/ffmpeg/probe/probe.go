@@ -26,7 +26,9 @@ type Info struct {
 	Format        string        `json:"format"`
 	BitRate       int64         `json:"bit_rate"`
 	ColorTransfer string        `json:"color_transfer"`
-	AudioTracks   []Track       `json:"audio_tracks"`
+	// PixelFormat is the video stream's pixel format, such as yuv420p.
+	PixelFormat string  `json:"pixel_format"`
+	AudioTracks []Track `json:"audio_tracks"`
 	// DolbyVision is the video stream's Dolby Vision configuration, the zero
 	// value when the stream carries none.
 	DolbyVision DolbyVision `json:"dolby_vision"`
@@ -73,6 +75,7 @@ type probeStream struct {
 	Height        int             `json:"height"`
 	Channels      int             `json:"channels"`
 	ColorTransfer string          `json:"color_transfer"`
+	PixFmt        string          `json:"pix_fmt"`
 	Tags          probeTags       `json:"tags"`
 	SideData      []probeSideData `json:"side_data_list"`
 }
@@ -273,6 +276,7 @@ func parseStream(stream probeStream, info *Info) {
 			info.Width = stream.Width
 			info.Height = stream.Height
 			info.ColorTransfer = stream.ColorTransfer
+			info.PixelFormat = stream.PixFmt
 			info.DolbyVision = dolbyVision(stream.SideData)
 			info.MaxCLLNits, info.MasteringMaxNits = lightLevels(stream.SideData)
 		}

@@ -167,13 +167,17 @@ templ clipFileBadge(item view.ClipItem) {
 // encodes.
 //
 // live.js follows every region marked data-clip-live over one stream, and
-// holds back the region's own poll while the stream delivers.
+// holds back the region's own poll while the stream delivers. The region
+// carries the clip's window, which app.js copies into the card's form after a
+// swap, because a copied clip's start moves to a keyframe as it renders.
 //
 // Parameters:
 //   - item: Clip being rendered.
 templ ClipStatus(item view.ClipItem) {
 	<div
 		id={ "clip-" + item.ID + "-status" }
+		data-clip-start={ timecode.FromDuration(item.StartTime).String() }
+		data-clip-duration={ timecode.FromDuration(item.Duration).String() }
 		if item.IsActive() {
 			data-clip-live={ item.ID }
 			hx-get={ "/clips/" + item.ID + "/row" }

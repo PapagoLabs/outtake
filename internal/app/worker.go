@@ -131,7 +131,15 @@ func startQueue(
 	jobQueue = queue.NewQueue(cfg.NumWorkers, func(ctx context.Context, job *clip.Job) error {
 		progressCtx := progress.WithProgress(ctx, persistProgress(ctx, job, jobQueue))
 
-		err := processJob(progressCtx, job, runner, db, store, jobQueue)
+		err := processJob(
+			progressCtx,
+			job,
+			runner,
+			db,
+			store,
+			jobQueue,
+			clip.DurationCap(cfg.MaxClipDur),
+		)
 		if err != nil {
 			//nolint:wrapcheck // The error already names the step that failed, and the clip shows it as it is.
 			return err
