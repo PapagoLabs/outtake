@@ -16,6 +16,9 @@ type Server struct {
 	MachineID string `json:"machineId"`
 	// Relay is true for a connection through the Plex relay.
 	Relay bool `json:"relay"`
+	// Owned is true when the account that discovered the server owns it,
+	// rather than having it shared with them.
+	Owned bool `json:"owned"`
 }
 
 // Library represents a Plex library.

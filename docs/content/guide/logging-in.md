@@ -17,19 +17,19 @@ Every page asks you to log in first.
 
 ## Choosing a server
 
-If your account has exactly one Plex Media Server that Outtake can reach, Outtake uses it after you log in and opens the dashboard. Otherwise it opens **Servers**, which you can also reach later under **Settings → Servers**. It lists the Plex Media Servers your account can reach.
+If your account owns exactly one Plex Media Server that Outtake can reach, Outtake uses it after you log in and opens the dashboard. Otherwise it opens **Servers**, which you can also reach later under **Settings → Servers**. It lists the Plex Media Servers your account owns. A server someone shared with you is not listed, because Outtake uses only a server its owner chose.
 
 - **Use This Server** chooses one. Outtake tries all of the server's connections at once and keeps the most direct one that answers: local first, then a direct remote connection, and the Plex relay last.
-- **Custom Server URL** takes an address, such as `https://plex.example.com`, for a server Outtake reaches differently from how Plex advertises it. Outtake asks that address who it is and uses it only if it is one of your servers.
+- **Custom Server URL** takes an address, such as `https://plex.example.com`, for a server Outtake reaches differently from how Plex advertises it. Outtake asks that address who it is and uses it only if it is a server your account owns.
 - **Forget Server** stops Outtake from using the current server, until you choose one again.
 
-Each login refreshes the token Outtake uses for the chosen server, so a server that starts refusing the token recovers the next time you log in. Until then, the dashboard and the servers page say the server refused the token.
+Each login by the server's owner refreshes the token Outtake uses for the chosen server, so a server that starts refusing the token recovers the next time you log in. Until then, the dashboard and the servers page say the server refused the token.
 
 To fix the server in the configuration instead, set `OUTTAKE_PLEX_SERVER_URL` and `OUTTAKE_PLEX_TOKEN` (see [Configuration](/setup/configuration/#plex)).
 
 ## The owner
 
-The first Plex account to log in becomes the owner. After that, Outtake refuses every other Plex account with "This Outtake belongs to a different Plex account". You can log in as the owner from as many browsers as you like.
+The first Plex account to log in becomes the owner. When a server is already set in the configuration, only an account that owns that server can become the owner. After that, Outtake refuses every other Plex account with "This Outtake belongs to a different Plex account". You can log in as the owner from as many browsers as you like.
 
 Outtake checks the account behind every session on every request, so resetting the owner (below) ends every session at once.
 

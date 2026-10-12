@@ -47,6 +47,10 @@ const (
 	msgNotOwner = "This Outtake belongs to a different Plex account. " +
 		"Login with the account that set it up."
 
+	// msgOwnershipUnverified is shown when Plex cannot say whether the account
+	// owns the server Outtake is set to.
+	msgOwnershipUnverified = "Outtake couldn't check who owns the Plex server. Try again."
+
 	// msgSignInFailed is shown when the login fails for a reason the user
 	// cannot fix, with the details behind it.
 	msgSignInFailed = "Login failed"
@@ -295,6 +299,8 @@ func refusalMessage(err error) string {
 		return msgNotOwner
 	case errors.Is(err, identity.ErrInvalidToken):
 		return msgInvalidPlexToken
+	case errors.Is(err, identity.ErrOwnershipUnverified):
+		return msgOwnershipUnverified
 	default:
 		return msgSignInFailed
 	}

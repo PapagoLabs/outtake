@@ -22,6 +22,10 @@ type httpErrorView struct {
 	title   string
 }
 
+// ErrAdminOnly refuses a page or action that only the owner or an admin may
+// use.
+var ErrAdminOnly = fiber.NewError(fiber.StatusForbidden, "Only the owner or an admin can use this")
+
 // PageError renders HTML error pages for browser requests and JSON for the API.
 //
 // Parameters:
@@ -112,6 +116,10 @@ func httpErrorCopy(err error) httpErrorView {
 	if page.code == fiber.StatusNotFound {
 		page.message = "That page doesn't exist"
 		page.title = "Page Not Found"
+	}
+
+	if errors.Is(err, ErrAdminOnly) {
+		page.title = "Admins Only"
 	}
 
 	return page

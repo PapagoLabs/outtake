@@ -15,7 +15,7 @@ type: docs
 
 ## Servers and media
 
-**No Plex servers found.** Enter the server's address under **Custom Server URL** on the servers page. Outtake must be able to reach that address.
+**This account owns no Plex servers.** Outtake lists and uses only a server the signed-in account owns, not one shared with it. Log in with the account that owns the server.
 
 **No media found.** Choose a server first, then search or browse again.
 

@@ -398,10 +398,10 @@ func TestSelectServerExplainsARefusedChoice(t *testing.T) {
 		err  error
 		want string
 	}{
-		"not on the account": {err: identity.ErrServerNotFound, want: "That isn't a Plex server on this account"},
-		"unreachable":        {err: identity.ErrServerUnreachable, want: "Outtake can't reach that server. Check the address."},
-		"not http":           {err: identity.ErrInvalidServerURL, want: "Enter an http or https URL for the Plex server"},
-		"anything else":      {err: errListFailed, want: "Outtake couldn't use that server. Try again."},
+		"not owned by the account": {err: identity.ErrServerNotFound, want: "That isn't a Plex server this account owns"},
+		"unreachable":              {err: identity.ErrServerUnreachable, want: "Outtake can't reach that server. Check the address."},
+		"not http":                 {err: identity.ErrInvalidServerURL, want: "Enter an http or https URL for the Plex server"},
+		"anything else":            {err: errListFailed, want: "Outtake couldn't use that server. Try again."},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

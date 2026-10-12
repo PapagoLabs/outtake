@@ -34,9 +34,21 @@ type plexRoute struct {
 // remote and a local connection.
 const testOneServerXML = `<?xml version="1.0" encoding="UTF-8"?>
 <MediaContainer>
-	<Device name="Attic" address="10.0.0.5" port="32400" accessToken="discovered-token">
+	<Device name="Attic" owned="1" address="10.0.0.5" port="32400" accessToken="discovered-token">
 		<Connection protocol="https" address="10.0.0.5" port="32400"/>
 		<Connection protocol="http" address="192.168.1.9" port="32400" local="1"/>
+	</Device>
+</MediaContainer>`
+
+// testSharedServerXML is a plex.tv resources answer listing a server the
+// account owns and a server shared with it.
+const testSharedServerXML = `<?xml version="1.0" encoding="UTF-8"?>
+<MediaContainer>
+	<Device name="Attic" owned="1" clientIdentifier="machine-1" provides="server" accessToken="owner-token">
+		<Connection protocol="http" address="192.168.1.9" port="32400" local="1"/>
+	</Device>
+	<Device name="Friend" owned="0" clientIdentifier="machine-2" provides="server" accessToken="shared-token">
+		<Connection protocol="http" address="192.168.1.10" port="32400" local="1"/>
 	</Device>
 </MediaContainer>`
 
@@ -48,6 +60,21 @@ var testBoundServer = plex.Server{
 	Token:   "discovered-token",
 	Scheme:  "http",
 	Local:   true,
+	Owned:   true,
+}
+
+// testFriendServer is the server testSharedServerXML lists as shared, bound
+// with its owner's token.
+var testFriendServer = plex.Server{
+	Name:      "Friend",
+	Address:   "192.168.1.10",
+	Port:      32400,
+	Token:     "friend-owner-token",
+	Scheme:    "http",
+	Local:     true,
+	MachineID: "machine-2",
+	Relay:     false,
+	Owned:     false,
 }
 
 // newPlexServer serves canned Plex API responses keyed by request path.
@@ -173,7 +200,7 @@ func reachablePlexTV(t *testing.T) (string, plex.Server, plex.Server) {
 
 	mux.HandleFunc("/api/resources", func(writer http.ResponseWriter, _ *http.Request) {
 		_, _ = fmt.Fprintf(writer, `<MediaContainer>
-	<Device name="Attic" clientIdentifier="machine-1" provides="server" accessToken="discovered-token">
+	<Device name="Attic" owned="1" clientIdentifier="machine-1" provides="server" accessToken="discovered-token">
 		<Connection protocol="https" address="127.0.0.1" port="%d" local="0"/>
 		<Connection protocol="http" address="127.0.0.1" port="%d" local="1"/>
 	</Device>
@@ -189,6 +216,7 @@ func reachablePlexTV(t *testing.T) (string, plex.Server, plex.Server) {
 		Local:     true,
 		MachineID: "machine-1",
 		Relay:     false,
+		Owned:     true,
 	}
 
 	dead := bound
@@ -589,6 +617,27 @@ func TestDiscoverReturnsEveryConnection(t *testing.T) {
 	assert.Equal(t, testBoundServer, servers[1])
 }
 
+// TestDiscoverLeavesOutAServerSharedWithTheAccount covers discovery for the
+// servers page and the server choice.
+//
+// Only a server the account owns may be bound, so a shared one is not listed.
+func TestDiscoverLeavesOutAServerSharedWithTheAccount(t *testing.T) {
+	t.Parallel()
+
+	routes := map[string]plexRoute{
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+
+	auth := testAuth(t, newPlexServer(t, routes).URL, nil, nil)
+
+	servers, err := auth.Discover(t.Context(), "access-token")
+	require.NoError(t, err)
+
+	require.Len(t, servers, 1)
+	assert.Equal(t, "machine-1", servers[0].MachineID)
+	assert.True(t, servers[0].Owned)
+}
+
 func TestDiscoverReportsAFailedRequest(t *testing.T) {
 	t.Parallel()
 
@@ -619,6 +668,107 @@ func TestSignInClaimsAnUnownedInstallation(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, User{PlexID: 42, Username: "Nick", Role: RoleOwner}, user)
+}
+
+// TestSignInRefusesAClaimOnABoundServerTheAccountDoesNotOwn covers an
+// installation bound to a server before anyone owns it.
+//
+// The bound server is only shared with the account, so the account may not
+// claim the installation.
+func TestSignInRefusesAClaimOnABoundServerTheAccountDoesNotOwn(t *testing.T) {
+	t.Parallel()
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 42).Return("", false, nil).Once()
+	store.EXPECT().HasOwner(mock.Anything).Return(false, nil).Once()
+	store.EXPECT().LegacyToken(mock.Anything).Return("", nil).Once()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(testFriendServer, true).Once()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+
+	_, err := testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		store,
+		bound,
+	).SignIn(t.Context(), "access-token")
+
+	require.ErrorIs(t, err, ErrNotAllowed)
+}
+
+// TestSignInRefusesAClaimPlexCannotConfirm covers an installation bound to a
+// server before anyone owns it, while plex.tv cannot list the account's
+// servers.
+//
+// The claim is refused as one to try again, not as another account's.
+func TestSignInRefusesAClaimPlexCannotConfirm(t *testing.T) {
+	t.Parallel()
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 42).Return("", false, nil).Once()
+	store.EXPECT().HasOwner(mock.Anything).Return(false, nil).Once()
+	store.EXPECT().LegacyToken(mock.Anything).Return("", nil).Once()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(testFriendServer, true).Once()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusServiceUnavailable, body: ""},
+	}
+
+	_, err := testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		store,
+		bound,
+	).SignIn(t.Context(), "access-token")
+
+	require.ErrorIs(t, err, ErrOwnershipUnverified)
+	assert.NotErrorIs(t, err, ErrNotAllowed)
+}
+
+// TestSignInLetsTheBoundServersOwnerClaim covers an installation bound to a
+// server before anyone owns it, claimed by the server's owner.
+func TestSignInLetsTheBoundServersOwnerClaim(t *testing.T) {
+	t.Parallel()
+
+	owned := testFriendServer
+
+	owned.Name = "Attic"
+	owned.Address = "192.168.1.9"
+	owned.Token = "owner-token"
+	owned.MachineID = "machine-1"
+
+	store := mocks.NewMockStore(t)
+	store.EXPECT().UserRole(mock.Anything, 42).Return("", false, nil).Once()
+	store.EXPECT().HasOwner(mock.Anything).Return(false, nil).Once()
+	store.EXPECT().LegacyToken(mock.Anything).Return("", nil).Once()
+	store.EXPECT().ClaimOwner(mock.Anything, 42, "Nick").Return(true, nil).Once()
+	store.EXPECT().ClearLegacyTokens(mock.Anything).Return(nil).Once()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(owned, true).Twice()
+
+	routes := map[string]plexRoute{
+		"/api/v2/user":   userRoute(),
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+
+	user, err := testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		store,
+		bound,
+	).SignIn(t.Context(), "access-token")
+
+	require.NoError(t, err)
+	assert.Equal(t, RoleOwner, user.Role)
 }
 
 func TestSignInKeepsTheRoleOfAKnownUser(t *testing.T) {
@@ -1031,7 +1181,7 @@ func TestBindServerSkipsAServerWithNoReachableConnection(t *testing.T) {
 	t.Parallel()
 
 	xml := fmt.Sprintf(`<MediaContainer>
-	<Device name="Attic" clientIdentifier="machine-1" provides="server" accessToken="discovered-token">
+	<Device name="Attic" owned="1" clientIdentifier="machine-1" provides="server" accessToken="discovered-token">
 		<Connection protocol="http" address="127.0.0.1" port="%d" local="1"/>
 	</Device>
 </MediaContainer>`, deadPort(t))
@@ -1105,10 +1255,10 @@ func TestBindServerSkipsSeveralDiscoveredServers(t *testing.T) {
 	routes := map[string]plexRoute{
 		"/api/resources": {status: http.StatusOK, body: `<?xml version="1.0" encoding="UTF-8"?>
 <MediaContainer>
-	<Device name="Attic" address="10.0.0.5" port="32400" accessToken="discovered-token">
+	<Device name="Attic" owned="1" address="10.0.0.5" port="32400" accessToken="discovered-token">
 		<Connection protocol="http" address="192.168.1.9" port="32400" local="1"/>
 	</Device>
-	<Device name="Cellar" address="10.0.0.6" port="32400" accessToken="other-token">
+	<Device name="Cellar" owned="1" address="10.0.0.6" port="32400" accessToken="other-token">
 		<Connection protocol="http" address="192.168.1.10" port="32400"/>
 	</Device>
 </MediaContainer>`},
@@ -1391,6 +1541,56 @@ func TestBindServerLeavesAServerTheAccountDoesNotList(t *testing.T) {
 	bound.EXPECT().Get().Return(other, true).Once()
 
 	testAuth(t, origin, mocks.NewMockStore(t), bound).bindServer(t.Context(), "access-token")
+}
+
+// TestBindServerDoesNotBindAServerSharedWithTheAccount covers a first sign-in
+// by an account that owns no server.
+//
+// Its only server is shared with it, so nothing is bound.
+func TestBindServerDoesNotBindAServerSharedWithTheAccount(t *testing.T) {
+	t.Parallel()
+
+	shared := `<MediaContainer>
+	<Device name="Friend" owned="0" clientIdentifier="machine-2" provides="server" accessToken="shared-token">
+		<Connection protocol="http" address="192.168.1.10" port="32400" local="1"/>
+	</Device>
+</MediaContainer>`
+
+	// The binding only answers Get, so binding the shared server fails the test.
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(plex.EmptyServer(), false).Once()
+
+	routes := map[string]plexRoute{"/api/resources": {status: http.StatusOK, body: shared}}
+
+	testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		mocks.NewMockStore(t),
+		bound,
+	).bindServer(t.Context(), "access-token")
+}
+
+// TestBindServerKeepsTheOwnersTokenWhenASharedAccountSignsIn covers a sign-in
+// by an account the bound server is shared with.
+//
+// Its token for the server reaches only what is shared with it, so the
+// owner's token stays.
+func TestBindServerKeepsTheOwnersTokenWhenASharedAccountSignsIn(t *testing.T) {
+	t.Parallel()
+
+	bound := mocks.NewMockServerBinding(t)
+	bound.EXPECT().Get().Return(testFriendServer, true).Once()
+
+	routes := map[string]plexRoute{
+		"/api/resources": {status: http.StatusOK, body: testSharedServerXML},
+	}
+
+	testAuth(
+		t,
+		newPlexServer(t, routes).URL,
+		mocks.NewMockStore(t),
+		bound,
+	).bindServer(t.Context(), "access-token")
 }
 
 // TestTokenRejectedFollowsTheBinding covers the refused-token check pages show.

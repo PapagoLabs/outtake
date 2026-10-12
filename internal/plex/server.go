@@ -529,6 +529,7 @@ func serversFromDevices(devices []plextv.Device) []Server {
 
 			server.MachineID = device.ClientIdentifier
 			server.Relay = conn.Relay == 1
+			server.Owned = device.Owned == 1
 
 			servers = append(servers, server)
 		}

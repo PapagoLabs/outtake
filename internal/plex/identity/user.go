@@ -30,3 +30,13 @@ const (
 	// RoleMember may use the installation without managing it.
 	RoleMember Role = "member"
 )
+
+// Manages reports whether the user may manage the installation.
+//
+// The owner and admins may, and a member may not.
+//
+// Returns:
+//   - manages: True for the owner or an admin.
+func (user User) Manages() bool {
+	return user.Role == RoleOwner || user.Role == RoleAdmin
+}
