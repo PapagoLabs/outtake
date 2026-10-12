@@ -132,7 +132,7 @@ templ renderProgress(label string, percent int, bar float64, remaining string) {
 	<div class="flex flex-col gap-1" data-render-progress>
 		<div class="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
 			<div
-				class="h-full rounded-full bg-primary transition-[width] duration-2000 ease-linear"
+				class="h-full rounded-full bg-primary transition-[width] duration-1000 ease-linear"
 				style={ view.BarStyle(bar) }
 			></div>
 		</div>
@@ -161,7 +161,11 @@ templ clipFileBadge(item view.ClipItem) {
 	}
 }
 
-// ClipStatus renders the status region a clip card polls while it encodes.
+// ClipStatus renders the status region a clip card keeps current while it
+// encodes.
+//
+// live.js follows every region marked data-clip-live over one stream, and
+// holds back the region's own poll while the stream delivers.
 //
 // Parameters:
 //   - item: Clip being rendered.
@@ -169,8 +173,9 @@ templ ClipStatus(item view.ClipItem) {
 	<div
 		id={ "clip-" + item.ID + "-status" }
 		if item.IsActive() {
+			data-clip-live={ item.ID }
 			hx-get={ "/clips/" + item.ID + "/row" }
-			hx-trigger="every 2s"
+			hx-trigger="every 1s"
 			hx-swap="outerMorph"
 		}
 		class="flex flex-col gap-4"

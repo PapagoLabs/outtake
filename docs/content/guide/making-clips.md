@@ -37,6 +37,8 @@ Outtake checks the selection before it renders anything: it must fit within the 
 
 Saved exports render in the background. Each card shows its progress and, once the render has run for a few seconds, about how long it has left, judged from how fast it has gone so far. Previews show the same estimate under the player. The card stays usable when you leave the page.
 
+While anything renders, the page keeps one connection open to Outtake, which sends each card's progress every second. The connection closes when no card is rendering or the tab is hidden. Behind a reverse proxy that holds the connection's data back, the cards ask for their progress every second instead, so they keep moving either way.
+
 ## The Clips page
 
 ![The Clips page, with filters by type, name, and sort order, and a card for each clip](/images/screenshots/clips.png)

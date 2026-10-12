@@ -121,6 +121,14 @@ func New(deps Deps) *fiber.App {
 	mountPages(app, guard, built)
 	mountAPI(app, guard, built)
 
+	// The server waits for open connections as it shuts down, and a clip
+	// stream stays open until it is told to end.
+	app.Hooks().OnPreShutdown(func() error {
+		built.clip.CloseStreams()
+
+		return nil
+	})
+
 	return app
 }
 
@@ -273,6 +281,7 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get("/clips/:id/file", guard, clipHandler.ClipFile)
 	app.Get("/clips/:id/sdr", guard, clipHandler.ClipSDRFile)
 	app.Get("/clips/:id/row", guard, clipHandler.ClipRow)
+	app.Get(routes.PathClipLive, guard, clipHandler.ClipLive)
 	app.Get(routeClips, guard, clipHandler.Clips)
 	app.Get("/servers", guard, serverHandler.Servers)
 	app.Post("/servers", guard, serverHandler.SelectServer)
