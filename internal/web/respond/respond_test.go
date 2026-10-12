@@ -738,6 +738,30 @@ func TestPageErrorRendersAPageForABrowser(t *testing.T) {
 	assert.Contains(t, bodyText(t, resp), "That page doesn&#39;t exist")
 }
 
+// TestPageErrorNamesAnAdminOnlyRefusal covers a member opening a page only
+// the owner or an admin may use.
+func TestPageErrorNamesAnAdminOnlyRefusal(t *testing.T) {
+	t.Parallel()
+
+	app := newTestApp(fiber.Config{ErrorHandler: PageError})
+	app.Get("/x", func(fiber.Ctx) error {
+		return ErrAdminOnly
+	})
+
+	resp, err := app.Test(httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet, "/x", nil,
+	))
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	body := bodyText(t, resp)
+
+	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
+	assert.Contains(t, body, "Admins Only")
+	assert.Contains(t, body, "Only the owner or an admin can use this")
+}
+
 func TestPageErrorAnswersAnHTMXFlash(t *testing.T) {
 	t.Parallel()
 

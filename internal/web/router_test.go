@@ -35,6 +35,8 @@ type routerRoute struct {
 	path string
 	// guarded is true when the auth guard sits in front of the handler.
 	guarded bool
+	// admin is true when the admin guard follows the auth guard.
+	admin bool
 	// sample is a concrete request path with the parameters filled in.
 	sample string
 }
@@ -123,7 +125,7 @@ var wantRoutes = []routerRoute{
 	{method: http.MethodGet, path: "/clips/:id/row", guarded: true, sample: "/clips/7/row"},
 	{method: http.MethodGet, path: routeClips, guarded: true, sample: routeClips},
 	{method: http.MethodGet, path: "/live", guarded: true, sample: "/live"},
-	{method: http.MethodGet, path: "/servers", guarded: true, sample: "/servers"},
+	{method: http.MethodGet, path: "/servers", guarded: true, admin: true, sample: "/servers"},
 	{
 		method:  http.MethodGet,
 		path:    "/settings/appearance",
@@ -134,62 +136,78 @@ var wantRoutes = []routerRoute{
 		method:  http.MethodGet,
 		path:    "/settings/previews",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/previews",
 	},
 	{
 		method:  http.MethodGet,
 		path:    "/settings/profiles",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/profiles",
 	},
-	{method: http.MethodPost, path: "/servers", guarded: true, sample: "/servers"},
-	{method: http.MethodPost, path: "/servers/forget", guarded: true, sample: "/servers/forget"},
+	{method: http.MethodPost, path: "/servers", guarded: true, admin: true, sample: "/servers"},
+	{
+		method:  http.MethodPost,
+		path:    "/servers/forget",
+		guarded: true,
+		admin:   true,
+		sample:  "/servers/forget",
+	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/previews",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/previews",
 	},
 	{
 		method:  http.MethodGet,
 		path:    "/settings/storage",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/storage",
 	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/storage/previews/clear",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/storage/previews/clear",
 	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/storage/thumbnails/clear",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/storage/thumbnails/clear",
 	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/profiles",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/profiles",
 	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/profiles/:id/default",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/profiles/abc/default",
 	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/profiles/:id/delete",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/profiles/abc/delete",
 	},
 	{
 		method:  http.MethodPost,
 		path:    "/settings/profiles/:id",
 		guarded: true,
+		admin:   true,
 		sample:  "/settings/profiles/abc",
 	},
 	{method: http.MethodPost, path: "/api/clips", guarded: true, sample: "/api/clips"},
@@ -296,6 +314,10 @@ func TestNewMountsTheAuthGuardOnEveryGuardedRoute(t *testing.T) {
 			want = 2
 		}
 
+		if route.admin {
+			want = 3
+		}
+
 		assert.Equal(t, want, handlers[route.method+" "+route.path],
 			"%s %s", route.method, route.path)
 	}
@@ -377,6 +399,42 @@ func TestNewRefusesASecondPlexAccount(t *testing.T) {
 		"the second account is sent back to the login page, which the session tells why")
 	assert.Equal(t, "/login", intruder.request(t, http.MethodGet, "/").location,
 		"the refused account holds no session")
+}
+
+// TestNewRefusesAMemberEveryAdminRoute covers a member, who may use Outtake
+// but not manage it.
+//
+// Every admin route answers 403, and a page every user may open still works.
+func TestNewRefusesAMemberEveryAdminRoute(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+
+	_, err := owner.db.Conn().ExecContext(
+		t.Context(),
+		"INSERT INTO users (plex_user_id, username, role) VALUES (7, 'friend', 'member')",
+	)
+	require.NoError(t, err)
+
+	member := owner.sibling(t)
+
+	got := member.submit(t, "/api/auth/login", url.Values{"token": {otherToken}})
+	require.Equal(t, fiber.StatusSeeOther, got.status)
+	require.False(t, strings.HasPrefix(got.location, "/login"),
+		"the member was refused: %s", got.location)
+
+	for _, route := range wantRoutes {
+		if !route.admin {
+			continue
+		}
+
+		assert.Equal(t, fiber.StatusForbidden, member.send(t, route).status,
+			"%s %s", route.method, route.path)
+	}
+
+	assert.Equal(t, fiber.StatusOK, member.request(t, http.MethodGet, "/").status,
+		"a member still opens the dashboard")
 }
 
 func TestNewLogoutEndsOnlyThatBrowsersSession(t *testing.T) {

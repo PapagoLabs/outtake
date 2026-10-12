@@ -80,6 +80,28 @@ func ConnectionsOf(servers []Server, server Server) []Server {
 	return connections
 }
 
+// OwnedServers keeps the connections of servers the discovering account owns.
+//
+// A server shared with the account is left out, because only its owner may
+// bind it to this installation.
+//
+// Parameters:
+//   - servers: Discovered server connections.
+//
+// Returns:
+//   - owned: The connections of owned servers, in discovery order.
+func OwnedServers(servers []Server) []Server {
+	owned := make([]Server, 0, len(servers))
+
+	for _, server := range servers {
+		if server.Owned {
+			owned = append(owned, server)
+		}
+	}
+
+	return owned
+}
+
 // SelectionKey names one discovered connection without carrying its token, so
 // a page can post it back and the choice can be looked up again.
 //

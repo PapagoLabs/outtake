@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
+	"github.com/PapagoLabs/outtake/internal/web/respond"
 )
 
 // UserLookup resolves the user a session signed in as.
@@ -24,11 +25,38 @@ type UserLookup interface {
 	UserRole(ctx context.Context, plexUserID int) (string, bool, error)
 }
 
+// callerKey is the request local AuthGuard stores the caller under.
+type callerKey struct{}
+
+// e2eCaller is the caller of every request in the e2e environment, which skips
+// sign-in and acts as the owner.
+var e2eCaller = identity.User{PlexID: 0, Username: "", Role: identity.RoleOwner}
+
+// AdminGuard refuses a request whose caller may not manage the installation.
+//
+// It runs after AuthGuard, which records the caller, so a request that reaches
+// it without one is refused too.
+//
+// Returns:
+//   - handler: Middleware that answers a refused request with
+//     respond.ErrAdminOnly.
+func AdminGuard() fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		caller, ok := Caller(ctx)
+		if !ok || !caller.Manages() {
+			return respond.ErrAdminOnly
+		}
+
+		return ctx.Next()
+	}
+}
+
 // AuthGuard rejects a request whose session has not signed in as a user this
 // installation still recognizes.
 //
 // The user is looked up on every request, so removing it revokes every
-// session it holds at once.
+// session it holds at once. The user is recorded as the request's caller, which
+// Caller returns.
 //
 // Parameters:
 //   - env: Configured environment. The e2e environment skips the check.
@@ -40,10 +68,12 @@ type UserLookup interface {
 func AuthGuard(env string, users UserLookup) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if env == config.EnvE2E {
+			ctx.Locals(callerKey{}, e2eCaller)
+
 			return ctx.Next()
 		}
 
-		signedIn, err := signedInUser(ctx, users)
+		caller, signedIn, err := signedInUser(ctx, users)
 		if err != nil {
 			return fmt.Errorf("auth guard: %w", err)
 		}
@@ -52,43 +82,61 @@ func AuthGuard(env string, users UserLookup) fiber.Handler {
 			return unauthenticated(ctx)
 		}
 
+		ctx.Locals(callerKey{}, caller)
+
 		return ctx.Next()
 	}
 }
 
-// signedInUser reports whether a request's session signed in as a user this
-// installation still recognizes, resetting a session whose user is gone.
+// Caller returns the user a request is made by.
+//
+// Parameters:
+//   - ctx: Request that passed AuthGuard.
+//
+// Returns:
+//   - caller: The signed-in user, with its stored role.
+//   - ok: False when AuthGuard did not run for the request.
+func Caller(ctx fiber.Ctx) (identity.User, bool) {
+	caller, ok := ctx.Locals(callerKey{}).(identity.User)
+
+	return caller, ok
+}
+
+// signedInUser resolves the user a request's session signed in as.
+//
+// A session whose user is gone is reset.
 //
 // Parameters:
 //   - ctx: Request context carrying the session.
 //   - users: Store the user is resolved against, which may be nil.
 //
 // Returns:
+//   - caller: The signed-in user, with its stored role and no username.
 //   - signedIn: True when the session belongs to a stored user.
 //   - err: Wrapped error when the user or the reset could not be handled.
-func signedInUser(ctx fiber.Ctx, users UserLookup) (bool, error) {
+func signedInUser(ctx fiber.Ctx, users UserLookup) (identity.User, bool, error) {
 	sess := session.FromContext(ctx)
 
 	plexUserID := identity.UserID(sess)
 	if users == nil || plexUserID == 0 || identity.Token(sess) == "" {
-		return false, nil
+		return identity.User{}, false, nil
 	}
 
-	_, found, err := users.UserRole(ctx.Context(), plexUserID)
+	role, found, err := users.UserRole(ctx.Context(), plexUserID)
 	if err != nil {
-		return false, fmt.Errorf("resolve session user: %w", err)
+		return identity.User{}, false, fmt.Errorf("resolve session user: %w", err)
 	}
 
 	if found {
-		return true, nil
+		return identity.User{PlexID: plexUserID, Username: "", Role: identity.Role(role)}, true, nil
 	}
 
 	err = identity.Reset(sess)
 	if err != nil {
-		return false, fmt.Errorf("reset revoked session: %w", err)
+		return identity.User{}, false, fmt.Errorf("reset revoked session: %w", err)
 	}
 
-	return false, nil
+	return identity.User{}, false, nil
 }
 
 // unauthenticated rejects an anonymous request.

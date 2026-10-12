@@ -154,7 +154,7 @@ func choiceRefusal(err error) string {
 	case errors.Is(err, identity.ErrServerUnreachable):
 		return "Outtake can't reach that server. Check the address."
 	case errors.Is(err, identity.ErrServerNotFound):
-		return "That isn't a Plex server on this account"
+		return "That isn't a Plex server this account owns"
 	default:
 		return "Outtake couldn't use that server. Try again."
 	}

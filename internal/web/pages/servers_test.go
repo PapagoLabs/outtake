@@ -113,7 +113,7 @@ func TestServersEmptyState(t *testing.T) {
 
 	body := renderServers(t)
 
-	assert.Contains(t, body, "No Plex servers found for this account")
+	assert.Contains(t, body, "This account owns no Plex servers")
 	assert.NotContains(t, body, "ring-sidebar-primary")
 	assert.NotContains(t, body, `aria-current="true"`)
 }

@@ -69,6 +69,47 @@ func TestServersFromDevices_AccessTokenAndURI(t *testing.T) {
 	assert.True(t, got[1].Local)
 }
 
+// TestOwnedServersKeepsTheAccountsOwnServers covers telling owned servers from
+// shared ones.
+//
+// Discovery marks each connection with its device's owned flag, and only the
+// owned server's connections are kept.
+func TestOwnedServersKeepsTheAccountsOwnServers(t *testing.T) {
+	t.Parallel()
+
+	devices := []plextv.Device{
+		{
+			Name:             "Attic",
+			ClientIdentifier: "mine",
+			Provides:         "server",
+			Owned:            1,
+			AccessToken:      "owner-token",
+			Connection: []plextv.Connection{
+				{Address: "10.0.0.5", Port: 32400, Protocol: "http"},
+			},
+		},
+		{
+			Name:             "Friend",
+			ClientIdentifier: "theirs",
+			Provides:         "server",
+			Owned:            0,
+			AccessToken:      "shared-token",
+			Connection: []plextv.Connection{
+				{Address: "10.0.0.6", Port: 32400, Protocol: "http"},
+			},
+		},
+	}
+
+	servers := serversFromDevices(devices)
+	require.Len(t, servers, 2)
+	assert.True(t, servers[0].Owned)
+	assert.False(t, servers[1].Owned, "a shared server is not owned")
+
+	owned := OwnedServers(servers)
+	require.Len(t, owned, 1)
+	assert.Equal(t, "mine", owned[0].MachineID)
+}
+
 func TestServerFromURL(t *testing.T) {
 	t.Parallel()
 

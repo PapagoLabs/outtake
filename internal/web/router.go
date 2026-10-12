@@ -126,6 +126,7 @@ func New(deps Deps) *fiber.App {
 
 	guard := middleware.AuthGuard(deps.Cfg.Env, deps.DB)
 	mountPages(app, guard, built)
+	mountAdminPages(app, guard, built)
 	mountAPI(app, guard, built)
 
 	// The server waits for open connections as it shuts down, and a clip
@@ -277,11 +278,9 @@ func useSessionMiddleware(app *fiber.App, cfg *config.Config, sessionStorage fib
 func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	homeHandler := built.home
 	libraryHandler := built.library
-	serverHandler := built.server
 	clipHandler := built.clip
 	previewHandler := built.preview
 	thumbHandler := built.thumb
-	profilesHandler := built.profiles
 
 	app.Get("/login", homeHandler.Login)
 	app.Get("/", guard, homeHandler.Dashboard)
@@ -300,20 +299,36 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	app.Get("/clips/:id/row", guard, clipHandler.ClipRow)
 	app.Get(routeClips, guard, clipHandler.Clips)
 	app.Get(routes.PathLive, guard, built.live.Stream)
-	app.Get("/servers", guard, serverHandler.Servers)
-	app.Post("/servers", guard, serverHandler.SelectServer)
-	app.Post("/servers/forget", guard, serverHandler.ForgetServer)
 	app.Get("/settings/appearance", guard, homeHandler.Appearance)
-	app.Get(routes.PathSettingsPreviews, guard, homeHandler.PreviewSettings)
-	app.Get("/settings/profiles", guard, profilesHandler.ClipProfiles)
-	app.Post("/settings/profiles", guard, profilesHandler.CreateClipProfile)
-	app.Post(routes.PathSettingsPreviews, guard, homeHandler.SavePreviewSettings)
-	app.Get(routes.PathSettingsStorage, guard, built.storage.Page)
-	app.Post(routes.PathClearPreviews, guard, built.storage.ClearPreviews)
-	app.Post(routes.PathClearThumbnails, guard, built.storage.ClearThumbnails)
-	app.Post("/settings/profiles/:id/default", guard, profilesHandler.SetDefaultClipProfile)
-	app.Post("/settings/profiles/:id/delete", guard, profilesHandler.DeleteClipProfile)
-	app.Post("/settings/profiles/:id", guard, profilesHandler.UpdateClipProfile)
+}
+
+// mountAdminPages registers the pages and actions that manage the
+// installation, which only the owner and admins may use.
+//
+// Parameters:
+//   - app: The Fiber application to register on.
+//   - guard: The authentication middleware, which records the caller the
+//     admin guard checks.
+//   - built: Every handler the route table mounts.
+func mountAdminPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
+	admin := middleware.AdminGuard()
+	homeHandler := built.home
+	serverHandler := built.server
+	profilesHandler := built.profiles
+
+	app.Get("/servers", guard, admin, serverHandler.Servers)
+	app.Post("/servers", guard, admin, serverHandler.SelectServer)
+	app.Post("/servers/forget", guard, admin, serverHandler.ForgetServer)
+	app.Get(routes.PathSettingsPreviews, guard, admin, homeHandler.PreviewSettings)
+	app.Get("/settings/profiles", guard, admin, profilesHandler.ClipProfiles)
+	app.Post("/settings/profiles", guard, admin, profilesHandler.CreateClipProfile)
+	app.Post(routes.PathSettingsPreviews, guard, admin, homeHandler.SavePreviewSettings)
+	app.Get(routes.PathSettingsStorage, guard, admin, built.storage.Page)
+	app.Post(routes.PathClearPreviews, guard, admin, built.storage.ClearPreviews)
+	app.Post(routes.PathClearThumbnails, guard, admin, built.storage.ClearThumbnails)
+	app.Post("/settings/profiles/:id/default", guard, admin, profilesHandler.SetDefaultClipProfile)
+	app.Post("/settings/profiles/:id/delete", guard, admin, profilesHandler.DeleteClipProfile)
+	app.Post("/settings/profiles/:id", guard, admin, profilesHandler.UpdateClipProfile)
 }
 
 // mountAPI registers JSON API routes.

@@ -29,7 +29,7 @@ var _ = Describe("Servers", func() {
 		It("reports that nothing was discovered without a session", func(ctx SpecContext) {
 			body := helpers.ReadBody(testApp.Do(ctx, http.MethodGet, "/servers"))
 
-			Expect(body).To(ContainSubstring("No Plex servers found for this account"))
+			Expect(body).To(ContainSubstring("This account owns no Plex servers"))
 		})
 	})
 

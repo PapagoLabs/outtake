@@ -854,6 +854,11 @@ func TestRefusalMessageExplainsEachFailure(t *testing.T) {
 		msgInvalidPlexToken,
 		refusalMessage(fmt.Errorf("sign in: %w", identity.ErrInvalidToken)),
 	)
+	assert.Equal(
+		t,
+		msgOwnershipUnverified,
+		refusalMessage(fmt.Errorf("sign in: %w", identity.ErrOwnershipUnverified)),
+	)
 	assert.Equal(t, msgSignInFailed, refusalMessage(assert.AnError))
 }
 

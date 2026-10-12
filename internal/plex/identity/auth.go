@@ -127,6 +127,17 @@ var (
 	// ErrNoServer reports a request that needs a Plex server before one is
 	// selected.
 	ErrNoServer = errors.New("no plex server is selected")
+
+	// ErrOwnershipUnverified reports a claim refused because Plex could not
+	// say whether the account owns the bound server.
+	ErrOwnershipUnverified = errors.New("ownership of the bound plex server could not be checked")
+
+	// errUnidentified reports a bound server whose machine identifier is not
+	// stored and that does not answer for its identity.
+	errUnidentified = errors.New("bound plex server cannot be identified")
+
+	// errNotOwned reports an account that does not own the bound server.
+	errNotOwned = errors.New("account does not own the bound plex server")
 )
 
 // New creates the Plex authentication service.
@@ -328,15 +339,18 @@ func (auth *Auth) Client() (*plex.Client, plex.Server, bool) {
 	return auth.selected.Client()
 }
 
-// Discover lists the Plex servers an access token can reach, so a client can be
-// pointed at one.
+// Discover lists the Plex servers the account behind an access token owns.
+//
+// A server shared with the account is left out, because only a server's owner
+// may bind it to this installation.
 //
 // Parameters:
 //   - ctx: Request context.
 //   - accessToken: Plex access token to discover servers with.
 //
 // Returns:
-//   - servers: Every connection Plex reported, in the order it reported them.
+//   - servers: Every connection of an owned server, in the order Plex reported
+//     them.
 //   - err: Wrapped error when Plex could not be asked.
 func (auth *Auth) Discover(ctx context.Context, accessToken string) ([]plex.Server, error) {
 	servers, err := auth.clientFor(accessToken).DiscoverServers(ctx)
@@ -344,7 +358,7 @@ func (auth *Auth) Discover(ctx context.Context, accessToken string) ([]plex.Serv
 		return nil, fmt.Errorf("discover servers: %w", err)
 	}
 
-	return servers, nil
+	return plex.OwnedServers(servers), nil
 }
 
 // ForgetServer drops the persisted Plex server record and then the live
@@ -469,9 +483,10 @@ func (auth *Auth) Sessions() []plex.Session {
 // SignIn authenticates a Plex access token as a user of this installation.
 //
 // The first Plex account to sign in claims the installation as its owner. When
-// a Plex token is stored, only the account behind that token may claim it.
-// Every other account is refused. A token that is invalid or
-// refused is never used to bind a server.
+// a Plex token is stored, only the account behind that token may claim it, and
+// when a server is bound, only an account that owns it may. Every other account
+// is refused. A token that is invalid or refused is never used to bind a
+// server, and only the bound server's owner refreshes its token.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -487,7 +502,7 @@ func (auth *Auth) SignIn(ctx context.Context, accessToken string) (User, error) 
 		return User{}, ErrInvalidToken
 	}
 
-	user, err := auth.authorize(ctx, candidate)
+	user, err := auth.authorize(ctx, candidate, accessToken)
 	if err != nil {
 		return User{}, fmt.Errorf("authorize: %w", err)
 	}
@@ -517,11 +532,12 @@ func (auth *Auth) TokenRejected() bool {
 // Parameters:
 //   - ctx: Request context.
 //   - candidate: The account Plex vouched for.
+//   - accessToken: The account's Plex access token.
 //
 // Returns:
 //   - user: The stored user the account signs in as.
 //   - err: ErrNotAllowed for a refused account, otherwise the wrapped store failure.
-func (auth *Auth) authorize(ctx context.Context, candidate User) (User, error) {
+func (auth *Auth) authorize(ctx context.Context, candidate User, accessToken string) (User, error) {
 	if auth.store == nil {
 		return User{}, ErrNotAllowed
 	}
@@ -532,7 +548,7 @@ func (auth *Auth) authorize(ctx context.Context, candidate User) (User, error) {
 	}
 
 	if !found {
-		owner, claimErr := auth.claimOwner(ctx, candidate)
+		owner, claimErr := auth.claimOwner(ctx, candidate, accessToken)
 		if claimErr != nil {
 			return User{}, fmt.Errorf("claim installation: %w", claimErr)
 		}
@@ -550,7 +566,8 @@ func (auth *Auth) authorize(ctx context.Context, candidate User) (User, error) {
 	return candidate, nil
 }
 
-// bindServer selects the single discovered Plex server and persists the choice.
+// bindServer selects the single Plex server the account owns and persists the
+// choice.
 //
 // It binds the server through its most preferred connection that answers. When
 // a server is bound already, its token is refreshed instead.
@@ -571,13 +588,14 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 		return
 	}
 
-	servers, err := client.DiscoverServers(ctx)
+	discovered, err := client.DiscoverServers(ctx)
 	if err != nil {
 		log.Warn().Err(err).Msg("failed to discover plex servers")
 
 		return
 	}
 
+	servers := plex.OwnedServers(discovered)
 	unique := plex.PreferUniqueServers(servers)
 	if len(unique) != 1 {
 		return
@@ -600,25 +618,68 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 	}
 }
 
+// boundOwnership checks that an account owns the bound server.
+//
+// An installation with no bound server holds nothing back, so any account may
+// claim it. A claim Plex cannot confirm is refused too, as one to try again.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - accessToken: The account's Plex access token.
+//
+// Returns:
+//   - err: Nil when no server is bound or the account owns the bound one,
+//     ErrNotAllowed when it does not, or ErrOwnershipUnverified wrapping why
+//     Plex could not say.
+func (auth *Auth) boundOwnership(ctx context.Context, accessToken string) error {
+	if auth.selected == nil {
+		return nil
+	}
+
+	bound, ok := auth.selected.Get()
+	if !ok {
+		return nil
+	}
+
+	_, _, err := ownedServerToken(ctx, auth.clientFor(accessToken), bound)
+	if err == nil {
+		return nil
+	}
+
+	log.Warn().
+		Err(err).
+		Str("server", bound.Name).
+		Msg("only the owner of the bound plex server may claim this installation")
+
+	if errors.Is(err, errNotOwned) {
+		return ErrNotAllowed
+	}
+
+	return fmt.Errorf("%w: %w", ErrOwnershipUnverified, err)
+}
+
 // claimOwner makes a validated Plex account the owner of an installation that
 // has none.
 //
 // Parameters:
 //   - ctx: Request context.
 //   - candidate: The account Plex vouched for.
+//   - accessToken: The account's Plex access token.
 //
 // Returns:
 //   - user: The owner.
-//   - err: ErrNotAllowed when the installation is owned or held for another
-//     account, otherwise the wrapped store failure.
-func (auth *Auth) claimOwner(ctx context.Context, candidate User) (User, error) {
-	owned, err := auth.store.HasOwner(ctx)
+//   - err: ErrNotAllowed when the installation is owned, held for another
+//     account, or bound to a server the account does not own,
+//     ErrOwnershipUnverified when Plex cannot say whether it owns that server,
+//     otherwise the wrapped store failure.
+func (auth *Auth) claimOwner(
+	ctx context.Context,
+	candidate User,
+	accessToken string,
+) (User, error) {
+	err := auth.mayClaim(ctx, candidate.PlexID, accessToken)
 	if err != nil {
-		return User{}, fmt.Errorf("check owner: %w", err)
-	}
-
-	if owned || !auth.legacyOwnerAllows(ctx, candidate.PlexID) {
-		return User{}, ErrNotAllowed
+		return User{}, fmt.Errorf("check claim: %w", err)
 	}
 
 	claimed, err := auth.store.ClaimOwner(ctx, candidate.PlexID, candidate.Username)
@@ -722,38 +783,55 @@ func (auth *Auth) legacyOwnerAllows(ctx context.Context, plexUserID int) bool {
 	return account.ID == plexUserID
 }
 
+// mayClaim checks that an account may claim an installation.
+//
+// The installation must have no owner, no stored token naming another
+// account, and no bound server the account does not own.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - plexUserID: The account claiming ownership.
+//   - accessToken: The account's Plex access token.
+//
+// Returns:
+//   - err: ErrNotAllowed, ErrOwnershipUnverified, or the wrapped store
+//     failure, and nil when the account may claim.
+func (auth *Auth) mayClaim(ctx context.Context, plexUserID int, accessToken string) error {
+	owned, err := auth.store.HasOwner(ctx)
+	if err != nil {
+		return fmt.Errorf("check owner: %w", err)
+	}
+
+	if owned || !auth.legacyOwnerAllows(ctx, plexUserID) {
+		return ErrNotAllowed
+	}
+
+	err = auth.boundOwnership(ctx, accessToken)
+	if err != nil {
+		return fmt.Errorf("check bound server: %w", err)
+	}
+
+	return nil
+}
+
 // refreshBoundToken replaces the bound server's stored token with the one
 // discovery reports.
 //
 // The new token is the one the signed-in account's discovery reports for the
-// same server, matched by machine identifier. A server token can change after
-// it was bound, and Plex then refuses every request made with the stored one.
-// The connection itself, which may be a custom URL, is kept.
+// same server, matched by machine identifier, and only an account that owns
+// the server refreshes it. A shared account's token reaches only what is
+// shared with it, so it never replaces the owner's. A server token can change
+// after it was bound, and Plex then refuses every request made with the stored
+// one. The connection itself, which may be a custom URL, is kept.
 //
 // Parameters:
 //   - ctx: Request context.
 //   - client: Plex client carrying the signed-in account's token.
 //   - bound: The server bound now.
 func (auth *Auth) refreshBoundToken(ctx context.Context, client *plex.Client, bound plex.Server) {
-	machineID := boundMachineID(ctx, client, bound)
-	if machineID == "" {
-		log.Warn().Str("server", bound.Name).Msg("could not identify the bound plex server")
-
-		return
-	}
-
-	servers, err := client.DiscoverServers(ctx)
+	machineID, token, err := ownedServerToken(ctx, client, bound)
 	if err != nil {
-		log.Warn().Err(err).Msg("failed to discover plex servers")
-
-		return
-	}
-
-	token, found := discoveredToken(servers, machineID)
-	if !found {
-		log.Warn().
-			Str("server", bound.Name).
-			Msg("the bound plex server is not among the signed-in account's servers")
+		log.Warn().Err(err).Str("server", bound.Name).Msg("kept the bound plex server's token")
 
 		return
 	}
@@ -891,4 +969,41 @@ func discoveredToken(servers []plex.Server, machineID string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// ownedServerToken finds the token an account's discovery reports for the
+// bound server, when the account owns it.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - client: Plex client carrying the account's token.
+//   - bound: The server bound now.
+//
+// Returns:
+//   - machineID: The bound server's machine identifier.
+//   - token: The server's token as its owner's discovery reports it.
+//   - err: errUnidentified, errNotOwned, or the wrapped discovery failure.
+//
+//nolint:nonamedreturns // Same-type returns need names.
+func ownedServerToken(
+	ctx context.Context,
+	client *plex.Client,
+	bound plex.Server,
+) (machineID, token string, err error) {
+	machineID = boundMachineID(ctx, client, bound)
+	if machineID == "" {
+		return "", "", errUnidentified
+	}
+
+	servers, err := client.DiscoverServers(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("discover servers: %w", err)
+	}
+
+	token, found := discoveredToken(plex.OwnedServers(servers), machineID)
+	if !found {
+		return "", "", errNotOwned
+	}
+
+	return machineID, token, nil
 }

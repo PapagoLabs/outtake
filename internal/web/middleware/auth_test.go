@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gofiber/fiber/v3/middleware/session"
@@ -131,6 +132,68 @@ func TestAuthGuardFailsClosedWhenTheUserCannotBeResolved(t *testing.T) {
 	assert.Equal(t, fiber.StatusInternalServerError, got.status)
 }
 
+// TestAuthGuardRecordsTheCaller covers the caller AuthGuard hands the
+// handlers behind it.
+//
+// A signed-in session's caller carries its stored role, and the e2e
+// environment acts as the owner.
+func TestAuthGuardRecordsTheCaller(t *testing.T) {
+	t.Parallel()
+
+	users := mocks.NewMockUserLookup(t)
+	users.EXPECT().UserRole(mock.Anything, 7).Return("member", true, nil).Once()
+
+	member := issueRequest(
+		t,
+		chainApp(t, callerHandler(), session.New(), withUser(7), AuthGuard("test", users)),
+		http.MethodGet,
+		"/",
+	)
+	assert.Equal(t, "7 member", member.body)
+
+	e2e := issueRequest(
+		t,
+		chainApp(t, callerHandler(), session.New(), AuthGuard(config.EnvE2E, nil)),
+		http.MethodGet,
+		"/",
+	)
+	assert.Equal(t, "0 owner", e2e.body)
+
+	anonymous := issueRequest(t, chainApp(t, callerHandler()), http.MethodGet, "/")
+	assert.Equal(t, "none", anonymous.body, "a request AuthGuard never saw has no caller")
+}
+
+// TestAdminGuardLetsOnlyTheOwnerAndAdminsThrough covers the admin pages'
+// guard.
+func TestAdminGuardLetsOnlyTheOwnerAndAdminsThrough(t *testing.T) {
+	t.Parallel()
+
+	for role, want := range map[string]int{
+		"owner":  fiber.StatusOK,
+		"admin":  fiber.StatusOK,
+		"member": fiber.StatusForbidden,
+	} {
+		users := mocks.NewMockUserLookup(t)
+		users.EXPECT().UserRole(mock.Anything, 7).Return(role, true, nil).Once()
+
+		app := chainApp(
+			t,
+			okHandler(),
+			session.New(),
+			withUser(7),
+			AuthGuard("test", users),
+			AdminGuard(),
+		)
+
+		assert.Equal(t, want, issueRequest(t, app, http.MethodGet, "/").status, role)
+	}
+
+	unguarded := chainApp(t, okHandler(), AdminGuard())
+
+	assert.Equal(t, fiber.StatusForbidden, issueRequest(t, unguarded, http.MethodGet, "/").status,
+		"a request without a caller is refused")
+}
+
 func TestUnauthenticatedRedirectsAPathWithoutTheAPIPrefix(t *testing.T) {
 	t.Parallel()
 
@@ -241,5 +304,21 @@ func withUser(plexUserID int) fiber.Handler {
 		identity.SetUserID(sess, plexUserID)
 
 		return ctx.Next()
+	}
+}
+
+// callerHandler answers with the caller AuthGuard recorded.
+//
+// Returns:
+//   - handler: A terminal handler writing the caller's Plex id and role, or
+//     "none".
+func callerHandler() fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		caller, ok := Caller(ctx)
+		if !ok {
+			return ctx.SendString("none")
+		}
+
+		return ctx.SendString(strconv.Itoa(caller.PlexID) + " " + string(caller.Role))
 	}
 }
