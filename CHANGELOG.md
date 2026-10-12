@@ -88,6 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Let only the server's owner bind it and refresh its token by @nicholas-fedor in [#487](https://github.com/PapagoLabs/outtake/pull/487)
 - Animate progress bars smoothly between polls by @nicholas-fedor in [#463](https://github.com/PapagoLabs/outtake/pull/463)
 - Check plex.tv status and drop the dead sessions call by @nicholas-fedor in [#430](https://github.com/PapagoLabs/outtake/pull/430)
 - Own the data volume as the app user and repair the e2e harness by @nicholas-fedor in [#424](https://github.com/PapagoLabs/outtake/pull/424)
