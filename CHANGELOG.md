@@ -103,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Give old clips to the owner and keep the server owner-only by @nicholas-fedor in [#517](https://github.com/PapagoLabs/outtake/pull/517)
 - Let only the server's owner bind it and refresh its token by @nicholas-fedor in [#487](https://github.com/PapagoLabs/outtake/pull/487)
 - Animate progress bars smoothly between polls by @nicholas-fedor in [#463](https://github.com/PapagoLabs/outtake/pull/463)
 - Check plex.tv status and drop the dead sessions call by @nicholas-fedor in [#430](https://github.com/PapagoLabs/outtake/pull/430)
