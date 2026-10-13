@@ -353,6 +353,8 @@ func (handler *Handler) respondWithClipCard(ctx fiber.Ctx, job *clipdom.Job) err
 
 		item.SDRExists = handler.sdrVersionExists(ctx.Context(), job)
 
+		handler.audience(ctx).Apply(&item, job.OwnerID)
+
 		// The swapped-in card replaces one the page filled in from the source,
 		// so it is filled in the same way or it loses the HDR checkbox, the
 		// audio tracks, and the source length.

@@ -557,6 +557,21 @@ func (q *Queue) SetSDRFormat(id string, format clip.Format) *clip.Job {
 	})
 }
 
+// SetShared records whether a job's clip is shared with the installation's
+// other users, and reports it.
+//
+// Parameters:
+//   - id: The clip.
+//   - shared: Whether it is shared.
+//
+// Returns:
+//   - job: The updated job, nil when the queue no longer has it.
+func (q *Queue) SetShared(id string, shared bool) *clip.Job {
+	return q.updateEntry(id, func(job *clip.Job) {
+		job.Shared = shared
+	})
+}
+
 // SetStage records that a render moved on to another encode, whose progress
 // starts again from zero, and reports it.
 //

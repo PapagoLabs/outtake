@@ -66,7 +66,7 @@ func clipsForMediaOf(
 	app := fiber.New()
 	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID, func(ctx fiber.Ctx) error {
-		clips = handler.clipsForMedia(ctx, "42", source, normalizedQuery())
+		clips = handler.clipsForMedia(ctx, "42", source, normalizedQuery(), handler.audience(ctx))
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -680,4 +680,65 @@ func TestNewClipSendsAnEmptyMediaIDToTheBrowser(t *testing.T) {
 	require.Equal(t, fiber.StatusSeeOther, answer.status)
 	assert.Equal(t, routes.PathMedia, answer.header.Get(fiber.HeaderLocation),
 		"with no media id there is no item page to open")
+}
+
+// TestSharedClipsForMediaListsOtherAccountsSharedClips covers a title's
+// Shared Clips section for a member.
+//
+// It holds the owner's shared clip of the title as a read-only card naming
+// the owner, and leaves out the owner's private clip and the member's own
+// clip, which their own list holds.
+func TestSharedClipsForMediaListsOtherAccountsSharedClips(t *testing.T) {
+	t.Parallel()
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().Sees(mock.Anything, mock.Anything, "42").Return(true).Once()
+
+	handler, db := pageHandler(t, mocks.NewMockPlexAuth(t), sources)
+
+	_, err := db.Conn().ExecContext(
+		t.Context(),
+		"INSERT INTO users (plex_user_id, username, role) VALUES (42, 'owner', 'owner'), "+
+			"(7, 'friend', 'member')",
+	)
+	require.NoError(t, err)
+
+	for _, stored := range []struct {
+		id     string
+		owner  int
+		shared bool
+	}{
+		{id: "owners-shared", owner: middlewaretest.OwnerID, shared: true},
+		{id: "owners-private", owner: middlewaretest.OwnerID, shared: false},
+		{id: "members-shared", owner: middlewaretest.MemberID, shared: true},
+	} {
+		job := clipJob(stored.id, clip.StatusCompleted)
+
+		job.OwnerID = stored.owner
+		job.Shared = stored.shared
+		storeClip(t, db, job)
+	}
+
+	var clips []view.ClipItem
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Get(routes.PathItemPrefix+":"+routes.ParamID, func(ctx fiber.Ctx) error {
+		clips = handler.sharedClipsForMedia(ctx, "42", library.SourceInfo{}, handler.audience(ctx))
+
+		return ctx.SendStatus(fiber.StatusOK)
+	})
+
+	resp, err := app.Test(httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet, routes.PathItemPrefix+"42", nil,
+	))
+	require.NoError(t, err)
+
+	defer closeBody(t, resp)
+
+	require.Len(t, clips, 1)
+	assert.Equal(t, "owners-shared", clips[0].ID)
+	assert.True(t, clips[0].ReadOnly)
+	assert.True(t, clips[0].Shared)
+	assert.Equal(t, "owner", clips[0].OwnerName)
 }

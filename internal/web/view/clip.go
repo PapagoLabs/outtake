@@ -59,6 +59,17 @@ type ClipItem struct {
 	// ErrorDetails is the technical report behind Error, empty when Error
 	// says all there is.
 	ErrorDetails string
+	// OwnerName names the account that made the clip, empty when it is the
+	// viewer's own.
+	OwnerName string
+	// Shared reports that the clip's owner shares it with the installation's
+	// other users.
+	Shared bool
+	// ReadOnly reports that the viewer may play and download the clip but
+	// not change it.
+	ReadOnly bool
+	// CanShare reports that the viewer may share the clip or make it private.
+	CanShare bool
 }
 
 // AudioTrackOption is a probed audio stream in an audio select.

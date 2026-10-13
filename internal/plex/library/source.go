@@ -62,6 +62,8 @@ type MediaSource struct {
 	prober   Prober
 	cfg      *config.Config
 	selected ServerSelection
+	// sights remembers which titles each account was found to see.
+	sights *sightCache
 }
 
 // NewMediaSource returns a source resolver bound to the selected Plex server.
@@ -82,6 +84,7 @@ func NewMediaSource(
 		prober:   prober,
 		cfg:      cfg,
 		selected: selected,
+		sights:   newSightCache(time.Now),
 	}
 }
 

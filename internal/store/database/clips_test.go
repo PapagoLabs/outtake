@@ -913,3 +913,61 @@ func TestSaveClipWritesTheLegacyWebSafeColumnAsTheInverse(t *testing.T) {
 		assert.Equal(t, keep, webSafe == 0)
 	}
 }
+
+// TestSaveClipChangesWhetherAClipIsShared covers sharing a stored clip and
+// sharing it no more, which a save writes like any edit.
+func TestSaveClipChangesWhetherAClipIsShared(t *testing.T) {
+	t.Parallel()
+
+	db, err := New(t.TempDir() + "/shared.db")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	job := testStoredClip("shared", "1", time.Now().UTC().Truncate(time.Second))
+	require.NoError(t, db.SaveClip(t.Context(), job))
+
+	for _, shared := range []bool{true, false} {
+		job.Shared = shared
+		require.NoError(t, db.SaveClip(t.Context(), job))
+
+		got, getErr := db.GetClip(t.Context(), "shared")
+		require.NoError(t, getErr)
+		assert.Equal(t, shared, got.Shared)
+	}
+}
+
+// TestMigrationSharedClipsKeepsOlderClipsPrivate covers clips made before
+// they could be shared, which stay private.
+func TestMigrationSharedClipsKeepsOlderClipsPrivate(t *testing.T) {
+	t.Parallel()
+
+	path := t.TempDir() + "/older-shared.db"
+
+	db, err := New(path)
+	require.NoError(t, err)
+	require.NoError(
+		t,
+		db.SaveClip(
+			t.Context(),
+			testStoredClip("older", "1", time.Now().UTC().Truncate(time.Second)),
+		),
+	)
+
+	for _, statement := range []string{
+		`ALTER TABLE clips DROP COLUMN shared`,
+		`DELETE FROM schema_migrations WHERE name = '015_shared_clips.sql'`,
+	} {
+		_, err = db.Conn().ExecContext(t.Context(), statement)
+		require.NoError(t, err, statement)
+	}
+
+	require.NoError(t, db.Close())
+
+	db, err = New(path)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	older, err := db.GetClip(t.Context(), "older")
+	require.NoError(t, err)
+	assert.False(t, older.Shared)
+}

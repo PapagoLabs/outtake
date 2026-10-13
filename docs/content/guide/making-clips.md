@@ -54,7 +54,7 @@ Each page keeps one connection open to Outtake while it has something to follow:
 
 ![The Clips page, with filters by type, name, and sort order, and a card for each clip](/images/screenshots/clips.png)
 
-**Clips** lists everything you made, newest first. Filter by **Type** or name, or change the sort order.
+**Clips** lists everything you made, newest first. Filter by **Type** or name, or change the sort order. Once others use Outtake, **Show** switches to **Shared Clips**, the shared clips of titles Plex shares with you (see [Users and Limits](/guide/users/#sharing-clips)).
 
 ![A completed screenshot clip, open to its preview, with Regenerate, Save Changes, and Download](/images/screenshots/clip-card.png)
 
@@ -63,6 +63,7 @@ Each card opens to a **Preview** of its file and carries the same settings as th
 - **Save Changes** keeps the settings on the card. A new type renders the clip again right away. Any other change, such as a new selection or profile, describes the clip's next render.
 - **Regenerate** saves the settings on the card and renders the clip with them, using the profile's current values. The old file stays in place until the new one is ready, so a failed or canceled render loses nothing.
 - **Download** saves the file once the clip is **Completed**.
+- **Share** lets the other people using Outtake who can see the title in Plex play and download the clip, and **Stop Sharing** makes it private again. It appears once Outtake has a second user.
 - **Delete** removes the clip and its files.
 
 A clip that is still rendering only takes a rename. Wait for it to finish, or choose **Cancel** to stop it, to change anything else.

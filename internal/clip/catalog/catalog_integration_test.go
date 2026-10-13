@@ -610,3 +610,65 @@ func TestIntegration_UpdateAndRegenerateQueuesTheClip(t *testing.T) {
 	)
 	require.NoError(t, err, "a clip still waiting renders the edit when its turn comes")
 }
+
+// TestIntegration_EditsKeepAClipShared covers a shared clip that is renamed,
+// then rendered again.
+//
+// Neither edit nor the render's reports make the clip private, in the queue
+// or in storage.
+func TestIntegration_EditsKeepAClipShared(t *testing.T) {
+	t.Parallel()
+
+	db := catalogDatabase(t)
+	paths := blob.NewPaths(t.TempDir())
+	rendered := make(chan struct{}, 1)
+
+	work := queue.NewQueue(1, func(context.Context, *clip.Job) error {
+		rendered <- struct{}{}
+
+		return nil
+	})
+	t.Cleanup(work.Stop)
+
+	// The composition root persists every change the queue reports.
+	work.SetStatusFunc(func(job *clip.Job) {
+		assert.NoError(t, db.SaveClip(context.WithoutCancel(t.Context()), job))
+	})
+
+	stored := queueJobFixture("shared")
+	require.NoError(t, db.SaveClip(t.Context(), stored))
+	work.Restore(stored)
+
+	_, err := catalog.Share(t.Context(), work, db, "shared", true)
+	require.NoError(t, err)
+
+	edited, err := catalog.Update(
+		t.Context(),
+		work,
+		db,
+		paths,
+		"shared",
+		renamed(stored, "Renamed"),
+	)
+	require.NoError(t, err)
+	assert.True(t, edited.Shared, "a rename keeps the clip shared")
+
+	_, err = catalog.UpdateAndRegenerate(
+		t.Context(), work, db, paths, "shared", renamed(stored, "Renamed"),
+	)
+	require.NoError(t, err)
+
+	work.Start(t.Context())
+	<-rendered
+
+	require.Eventually(t, func() bool {
+		row, getErr := db.GetClip(t.Context(), "shared")
+
+		return getErr == nil && row.Status == clip.StatusCompleted
+	}, 5*time.Second, 10*time.Millisecond)
+
+	row, err := db.GetClip(t.Context(), "shared")
+	require.NoError(t, err)
+	assert.True(t, row.Shared, "the render's reports keep the clip shared")
+	assert.True(t, work.GetJob("shared").Shared)
+}

@@ -399,3 +399,27 @@ func TestSetUserRoleNeedsTheOtherRole(t *testing.T) {
 		"making an admin an admin finds no member to change")
 	require.NoError(t, db.SetUserRole(t.Context(), 7, RoleMember))
 }
+
+// TestUsernamesNamesEveryApprovedUser covers the names shown on another
+// account's shared clip.
+//
+// An account waiting for approval is named only once it is approved.
+func TestUsernamesNamesEveryApprovedUser(t *testing.T) {
+	t.Parallel()
+
+	db := usersDatabase(t)
+
+	_, err := db.ClaimOwner(t.Context(), 42, "nick")
+	require.NoError(t, err)
+	require.NoError(t, db.AddPendingUser(t.Context(), 7, "friend"))
+
+	names, err := db.Usernames(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, map[int]string{42: "nick"}, names)
+
+	require.NoError(t, db.ApproveUser(t.Context(), 7))
+
+	names, err = db.Usernames(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, map[int]string{42: "nick", 7: "friend"}, names)
+}

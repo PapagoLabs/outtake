@@ -55,6 +55,7 @@ type Response struct {
 	AudioIndex    int       `json:"audioIndex"`
 	CropBlackBars bool      `json:"cropBlackBars"`
 	PreserveHDR   bool      `json:"preserveHdr"`
+	Shared        bool      `json:"shared"`
 }
 
 // ErrHDRIsAProfileSetting refuses a request that chooses Keep HDR itself.

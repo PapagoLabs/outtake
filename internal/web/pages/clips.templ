@@ -18,6 +18,11 @@ type ClipsProps struct {
 	Type   clip.Type
 	Query  string
 	Sort   string
+	// Shared lists the clips shared with the installation's users.
+	Shared bool
+	// OfferShared shows the choice of the shared clips, once the installation
+	// has another user to share them with.
+	OfferShared bool
 }
 
 // clipsFiltered reports whether any filter narrows the clip list.
@@ -26,9 +31,21 @@ type ClipsProps struct {
 //   - props: Clip list state.
 //
 // Returns:
-//   - ok: True when a status, type, or query filter is set.
+//   - ok: True when a status, type, query, or shared filter is set.
 func clipsFiltered(props ClipsProps) bool {
-	return props.Status != "" || props.Type != "" || props.Query != ""
+	return props.Status != "" || props.Type != "" || props.Query != "" || props.Shared
+}
+
+// onlyShared reports whether the list shows the shared clips with no other
+// filter set.
+//
+// Parameters:
+//   - props: Clip list state.
+//
+// Returns:
+//   - ok: True when only the shared filter is set.
+func onlyShared(props ClipsProps) bool {
+	return props.Shared && props.Status == "" && props.Type == "" && props.Query == ""
 }
 
 // Clips renders the clip list page.
@@ -45,13 +62,15 @@ templ Clips(props ClipsProps) {
 				</a>
 			</div>
 			@clipcard.ListToolbar(clipcard.ListToolbarProps{
-				Action:  "/clips",
-				Target:  "clip-list",
-				PushURL: true,
-				Status:  props.Status,
-				Type:    props.Type,
-				Query:   props.Query,
-				Sort:    props.Sort,
+				Action:      "/clips",
+				Target:      "clip-list",
+				PushURL:     true,
+				Status:      props.Status,
+				Type:        props.Type,
+				Query:       props.Query,
+				Sort:        props.Sort,
+				OfferShared: props.OfferShared,
+				Shared:      props.Shared,
 			})
 			if props.Status != "" {
 				<p class="text-sm text-muted-foreground">Showing { props.Status } clips <a href="/clips" class="underline hover:text-foreground">Show All</a></p>
@@ -72,7 +91,9 @@ templ ClipsList(props ClipsProps) {
 		@card.Card() {
 			@card.Content() {
 				<div class="text-center py-12 text-muted-foreground">
-					if clipsFiltered(props) {
+					if onlyShared(props) {
+						<p>No shared clips yet</p>
+					} else if clipsFiltered(props) {
 						<p>No clips match these filters</p>
 					} else {
 						<p>No clips yet. Choose a title in Media Libraries to make one.</p>

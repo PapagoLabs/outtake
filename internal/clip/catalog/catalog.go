@@ -16,6 +16,8 @@ type ClipListQuery struct {
 	Type   clip.Type
 	Query  string
 	Sort   string
+	// Shared keeps the list to clips shared with the installation's users.
+	Shared bool
 }
 
 const (

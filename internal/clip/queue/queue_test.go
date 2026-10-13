@@ -1324,6 +1324,27 @@ func TestSetFormatsRecordWhatEachFileHolds(t *testing.T) {
 	assert.Nil(t, q.SetSDRFormat("never-queued", sdr))
 }
 
+// TestSetSharedReportsTheChange covers sharing a clip the queue holds.
+//
+// The entry and the report carry the change, and a job the queue does not
+// have records nothing.
+func TestSetSharedReportsTheChange(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	q.Restore(testJob("shared", clip.StatusCompleted))
+
+	reported := make(chan bool, 1)
+
+	q.SetStatusFunc(func(job *clip.Job) { reported <- job.Shared })
+
+	require.True(t, q.SetShared("shared", true).Shared)
+	assert.True(t, q.GetJob("shared").Shared)
+	assert.True(t, <-reported, "the report saves the change")
+
+	assert.Nil(t, q.SetShared("never-queued", true))
+}
+
 // TestASettledRenderLeavesNoStage covers a render that ended during its SDR
 // version.
 //

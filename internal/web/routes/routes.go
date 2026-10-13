@@ -70,6 +70,12 @@ const (
 	// stream follows.
 	QueryLivePlayback = "playback"
 
+	// QueryShow names which clips the clips page lists.
+	QueryShow = "show"
+
+	// ShowShared lists the clips shared with the installation's users.
+	ShowShared = "shared"
+
 	// QueryAudioIndex carries the New export audio track.
 	QueryAudioIndex = "audioIndex"
 

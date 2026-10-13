@@ -43,7 +43,7 @@ const (
 // Returns:
 //   - err: Non-nil when the clip is missing or the stream fails.
 func (handler *Handler) ClipFile(ctx fiber.Ctx) error {
-	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), ctx.Params(routes.ParamID))
+	job := handler.viewJob(ctx.Context(), middleware.ViewpointOf(ctx), ctx.Params(routes.ParamID))
 	if job == nil || job.Status != clipdom.StatusCompleted {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
@@ -62,7 +62,7 @@ func (handler *Handler) ClipFile(ctx fiber.Ctx) error {
 //   - err: Non-nil when the clip or its SDR version is missing, or the stream
 //     fails.
 func (handler *Handler) ClipSDRFile(ctx fiber.Ctx) error {
-	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), ctx.Params(routes.ParamID))
+	job := handler.viewJob(ctx.Context(), middleware.ViewpointOf(ctx), ctx.Params(routes.ParamID))
 	if job == nil || job.Status != clipdom.StatusCompleted || !job.MayHaveSDRVersion() {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
@@ -106,7 +106,7 @@ func (handler *Handler) sendClipFile(ctx fiber.Ctx, path string) error {
 // Returns:
 //   - err: Non-nil when the clip is missing or rendering fails.
 func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
-	job := handler.lookupJob(ctx.Context(), middleware.ClipScope(ctx), ctx.Params(routes.ParamID))
+	job := handler.viewJob(ctx.Context(), middleware.ViewpointOf(ctx), ctx.Params(routes.ParamID))
 	if job == nil {
 		return respond.SendStatusCode(ctx, fiber.StatusNotFound)
 	}
@@ -116,6 +116,7 @@ func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
 			job,
 			profile.SelectableProfiles(ctx.Context(), handler.db),
 			handler.storedFiles(ctx.Context(), job),
+			handler.audience(ctx),
 		)
 
 		return clipcard.ClipStatus(item).Render(ctx.Context(), writer)
@@ -128,6 +129,7 @@ func (handler *Handler) ClipRow(ctx fiber.Ctx) error {
 //   - job: The clip.
 //   - profiles: Profiles the card offers as a quality choice.
 //   - files: Which of the clip's files are stored.
+//   - audience: Who the card is shown to.
 //
 // Returns:
 //   - item: The card model.
@@ -135,6 +137,7 @@ func (handler *Handler) statusItem(
 	job *clipdom.Job,
 	profiles []profile.ProfileOption,
 	files storedFiles,
+	audience view.Audience,
 ) view.ClipItem {
 	item := view.NewClipItem(
 		job,
@@ -144,6 +147,8 @@ func (handler *Handler) statusItem(
 	)
 
 	item.SDRExists = files.sdr
+
+	audience.Apply(&item, job.OwnerID)
 
 	return item
 }
@@ -172,7 +177,24 @@ func (handler *Handler) storedFiles(ctx context.Context, job *clipdom.Job) store
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Clips(ctx fiber.Ctx) error {
 	query := parseClipListQuery(ctx)
-	jobs := catalog.Apply(handler.listJobs(ctx), query)
+
+	var listed []*clipdom.Job
+
+	if query.Shared {
+		viewpoint := middleware.ViewpointOf(ctx)
+
+		listed = catalog.Shared(
+			ctx.Context(),
+			handler.clipQueue,
+			handler.db,
+			viewpoint.Scope,
+			catalog.SeenBy(handler.sources, viewpoint.Viewer),
+		)
+	} else {
+		listed = handler.listJobs(ctx)
+	}
+
+	jobs := catalog.Apply(listed, query)
 	items := view.NewClipItems(
 		jobs,
 		profile.SelectableProfiles(ctx.Context(), handler.db),
@@ -192,12 +214,17 @@ func (handler *Handler) Clips(ctx fiber.Ctx) error {
 		view.ApplySource(&items[index], sources[job.InputPath])
 	}
 
+	audience := handler.audience(ctx)
+	audience.ApplyEach(items, jobs)
+
 	props := pages.ClipsProps{
-		Items:  items,
-		Status: query.Status,
-		Type:   query.Type,
-		Query:  query.Query,
-		Sort:   query.Sort,
+		Items:       items,
+		Status:      query.Status,
+		Type:        query.Type,
+		Query:       query.Query,
+		Sort:        query.Sort,
+		Shared:      query.Shared,
+		OfferShared: audience.Shares(),
 	}
 
 	if wantsClipList(ctx) {
@@ -222,10 +249,12 @@ func wantsClipList(ctx fiber.Ctx) bool {
 	return respond.TargetsElement(ctx, routes.TargetClipList)
 }
 
-// parseClipListQuery reads type, name, sort, and status from the request.
+// parseClipListQuery reads type, name, sort, status, and which clips to show
+// from the request.
 //
 // Parameters:
-//   - ctx: Request with optional type, q, sort, and status query parameters.
+//   - ctx: Request with optional type, q, sort, status, and show query
+//     parameters.
 //
 // Returns:
 //   - query: Normalized list filters and sort.
@@ -235,5 +264,6 @@ func parseClipListQuery(ctx fiber.Ctx) catalog.ClipListQuery {
 		Type:   clipdom.Type(ctx.Query(queryType)),
 		Query:  strings.TrimSpace(ctx.Query(queryQ)),
 		Sort:   ctx.Query(querySort),
+		Shared: ctx.Query(routes.QueryShow) == routes.ShowShared,
 	})
 }

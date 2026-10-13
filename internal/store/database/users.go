@@ -405,6 +405,51 @@ func (db *DB) SetUserRole(ctx context.Context, plexUserID int, role string) erro
 	return nil
 }
 
+// Usernames returns every approved user's Plex username by plex.tv id.
+//
+// An account still waiting for approval is left out, so it neither turns on
+// sharing nor names a removed member who asked again.
+//
+// Parameters:
+//   - ctx: Request scope for the read.
+//
+// Returns:
+//   - names: Each approved user's username.
+//   - err: Non-nil when the read fails.
+func (db *DB) Usernames(ctx context.Context) (map[int]string, error) {
+	rows, err := db.conn.QueryContext(ctx, db.rewrite(
+		`SELECT plex_user_id, username FROM users WHERE approved = 1`,
+	))
+	if err != nil {
+		return nil, fmt.Errorf("usernames: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	names := make(map[int]string)
+
+	for rows.Next() {
+		var (
+			id   int
+			name string
+		)
+
+		err = rows.Scan(&id, &name)
+		if err != nil {
+			return nil, fmt.Errorf("scan usernames: %w", err)
+		}
+
+		names[id] = name
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("read usernames: %w", err)
+	}
+
+	return names, nil
+}
+
 // changeUser runs one change to a user and reports a change that matched no
 // row.
 //

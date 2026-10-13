@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/PapagoLabs/outtake/internal/clip"
+	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/web/handlers/home/mocks"
+	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 )
 
@@ -26,7 +28,7 @@ func TestLivePlaybackFollowsOnlyAMediaItemID(t *testing.T) {
 	handler, _ := pageHandler(t, mocks.NewMockPlexAuth(t), silentSources(t))
 
 	for _, value := range []string{"", "abc", "42/../1", strings.Repeat("9", 13)} {
-		assert.Nil(t, handler.LivePlayback(value, clip.Scope{}), value)
+		assert.Nil(t, handler.LivePlayback(value, middleware.Viewpoint{}), value)
 	}
 }
 
@@ -49,7 +51,10 @@ func TestLivePlaybackReportsEachChange(t *testing.T) {
 
 	handler, _ := pageHandler(t, auth, silentSources(t))
 
-	check := handler.LivePlayback("42", clip.Scope{Owner: middlewaretest.OwnerID, Everyone: true})
+	check := handler.LivePlayback("42", middleware.Viewpoint{
+		Viewer: identity.OwnerViewer(middlewaretest.OwnerID),
+		Scope:  clip.Scope{Owner: middlewaretest.OwnerID, Everyone: true},
+	})
 	require.NotNil(t, check)
 
 	first := check(t.Context())
