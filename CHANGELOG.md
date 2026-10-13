@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to 2af12c3 by @renovate[bot] in [#501](https://github.com/PapagoLabs/outtake/pull/501)
+- Update golang.org/x/telemetry digest to 3c2f983 by @renovate[bot] in [#502](https://github.com/PapagoLabs/outtake/pull/502)
 - Update golang.org/x/telemetry digest to 5b3465c by @renovate[bot] in [#498](https://github.com/PapagoLabs/outtake/pull/498)
 - Update github.com/google/pprof digest to 4ba64fc by @renovate[bot] in [#497](https://github.com/PapagoLabs/outtake/pull/497)
 - Update module github.com/gofiber/fiber/v3 to v3.6.0 by @renovate[bot] in [#489](https://github.com/PapagoLabs/outtake/pull/489)
