@@ -4,6 +4,7 @@
 package clip
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -172,7 +173,22 @@ func (handler *Handler) renderedKeepHDR(
 		return nil
 	}
 
-	keep, found := profile.KeepHDR(ctx.Context(), handler.db, edit.Quality)
+	return handler.profileKeepHDR(ctx.Context(), edit.Quality)
+}
+
+// profileKeepHDR reads whether a profile keeps HDR.
+//
+// The profile is read from the database under ctx, so a request that ends
+// stops the read, which then reads as a profile that is gone.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - quality: The profile id.
+//
+// Returns:
+//   - keep: The profile's setting, nil when the profile is gone.
+func (handler *Handler) profileKeepHDR(ctx context.Context, quality string) *bool {
+	keep, found := profile.KeepHDR(ctx, handler.db, quality)
 	if !found {
 		return nil
 	}

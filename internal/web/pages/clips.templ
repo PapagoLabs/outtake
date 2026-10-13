@@ -26,6 +26,8 @@ type ClipsProps struct {
 	OfferShared bool
 	// MoreURL loads the list's next page, empty when no clip follows.
 	MoreURL string
+	// Bulk describes the list's bulk actions.
+	Bulk clipcard.BulkBarProps
 }
 
 // clipsFiltered reports whether any filter narrows the clip list.
@@ -65,6 +67,7 @@ templ Clips(props ClipsProps) {
 				</a>
 			</div>
 			@clipcard.ListToolbar(clipcard.ListToolbarProps{
+				ID:          routes.ClipListToolbar,
 				Action:      "/clips",
 				Target:      "clip-list",
 				PushURL:     true,
@@ -78,6 +81,7 @@ templ Clips(props ClipsProps) {
 			if props.Status != "" {
 				<p class="text-sm text-muted-foreground">Showing { props.Status } clips <a href="/clips" class="underline hover:text-foreground">Show All</a></p>
 			}
+			@clipcard.BulkStatusLine(routes.ClipBulkStatus)
 			<div id="clip-list" class="flex flex-col gap-6">
 				@ClipsList(props)
 			</div>
@@ -90,6 +94,7 @@ templ Clips(props ClipsProps) {
 // Parameters:
 //   - props: Clip list state.
 templ ClipsList(props ClipsProps) {
+	@clipcard.BulkBar(props.Bulk)
 	if len(props.Items) == 0 {
 		@card.Card() {
 			@card.Content() {

@@ -1,0 +1,163 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package clip
+
+import (
+	"encoding/json"
+
+	"github.com/PapagoLabs/outtake/internal/web/components/checkbox"
+)
+
+// BulkBarProps describes the actions a clip list applies to its selected
+// cards.
+type BulkBarProps struct {
+	// ListID is the list whose cards the bar acts on.
+	ListID string
+	// ToolbarID is the list's toolbar form, which the page submits again
+	// after an action so the list shows what changed.
+	ToolbarID string
+	// StatusID is the status line outside the list that an action's result
+	// goes to, so it outlives the list's refresh.
+	StatusID string
+	// MediaID keeps Retry Failed to one title, empty for every title.
+	MediaID string
+	// Failed counts the failed clips Retry Failed renders again.
+	Failed int
+	// Selectable reports that the list holds a card the viewer may change.
+	Selectable bool
+	// CanShare offers Share and Stop Sharing.
+	CanShare bool
+}
+
+// Bulk action routes.
+const (
+	// bulkPath is where a list posts an action for its selected cards.
+	bulkPath = "/api/clips/bulk"
+	// retryPath is where Retry Failed posts.
+	retryPath = "/api/clips/retry"
+)
+
+// bulkValues encodes the fields an action posts beside the selected cards.
+//
+// Parameters:
+//   - fields: The fields.
+//
+// Returns:
+//   - values: The fields as hx-vals JSON.
+func bulkValues(fields map[string]string) string {
+	// A map of strings always encodes.
+	encoded, _ := json.Marshal(fields)
+
+	return string(encoded)
+}
+
+// selectedCards is the selector for a list's selected cards.
+//
+// Parameters:
+//   - props: The bar.
+//
+// Returns:
+//   - selector: The hx-include selector.
+func selectedCards(props BulkBarProps) string {
+	return "#" + props.ListID + " [data-bulk-select]:checked"
+}
+
+// BulkBar renders a list's select-all box and the actions for its selected
+// cards.
+//
+// The actions show while any card is selected, which app.js tracks. Retry
+// Failed shows while the list holds a failed clip, selected or not.
+//
+// Parameters:
+//   - props: The bar.
+templ BulkBar(props BulkBarProps) {
+	if props.Selectable || props.Failed > 0 {
+		<div
+			class="flex flex-wrap items-center gap-2"
+			data-bulk-bar
+			data-bulk-list={ props.ListID }
+			data-bulk-refresh={ props.ToolbarID }
+		>
+			if props.Selectable {
+				<label class="flex items-center gap-2 text-sm">
+					@checkbox.Checkbox(checkbox.Props{Class: "rounded border-input", Attributes: templ.Attributes{"data-bulk-all": true}})
+					Select all
+				</label>
+				<span class="text-sm text-muted-foreground" data-bulk-count hidden></span>
+				<div class="flex flex-wrap items-center gap-2" data-bulk-actions hidden>
+					@bulkButton(props, "regenerate", "Regenerate", "")
+					@bulkButton(props, "cancel", "Cancel", "")
+					if props.CanShare {
+						@bulkButton(props, "share", "Share", "")
+						@bulkButton(props, "unshare", "Stop Sharing", "")
+					}
+					@bulkButton(props, "delete", "Delete", "Delete the selected clips? This can't be undone.")
+				</div>
+			}
+			if props.Failed > 0 {
+				<button
+					type="button"
+					hx-post={ retryPath }
+					if props.MediaID != "" {
+						hx-vals={ bulkValues(map[string]string{"mediaId": props.MediaID}) }
+					}
+					hx-target={ "#" + props.StatusID }
+					hx-swap="innerHTML"
+					hx-disable="this"
+					class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+				>
+					Retry Failed
+				</button>
+			}
+		</div>
+	}
+}
+
+// bulkButton renders one action for a list's selected cards.
+//
+// Parameters:
+//   - props: The bar.
+//   - action: The action the server applies.
+//   - label: The button's text.
+//   - confirm: The question asked first, empty for none.
+templ bulkButton(props BulkBarProps, action, label, confirm string) {
+	<button
+		type="button"
+		hx-post={ bulkPath }
+		hx-include={ selectedCards(props) }
+		hx-vals={ bulkValues(map[string]string{"action": action}) }
+		hx-target={ "#" + props.StatusID }
+		hx-swap="innerHTML"
+		hx-disable="this"
+		if confirm != "" {
+			hx-confirm={ confirm }
+		}
+		if action == "delete" {
+			class="inline-flex items-center justify-center rounded-md border border-destructive text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors"
+		} else {
+			class="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+		}
+	>
+		{ label }
+	</button>
+}
+
+// BulkStatus renders what a bulk action did, for a list's status line.
+//
+// Parameters:
+//   - message: What the action did.
+templ BulkStatus(message string) {
+	{ message }
+}
+
+// BulkStatusLine renders the status line a list's bulk actions report to.
+//
+// It sits outside the list, so it keeps the result while the list refreshes,
+// and stays hidden until app.js fills it.
+//
+// Parameters:
+//   - id: The line's id, which the bar targets.
+templ BulkStatusLine(id string) {
+	<p id={ id } role="status" aria-live="polite" class="text-sm text-muted-foreground" data-bulk-status hidden></p>
+}

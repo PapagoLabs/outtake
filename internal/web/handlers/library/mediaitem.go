@@ -19,6 +19,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/timecode"
+	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/exportform"
 	"github.com/PapagoLabs/outtake/internal/web/middleware"
 	"github.com/PapagoLabs/outtake/internal/web/pages"
@@ -26,6 +27,16 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
+
+// itemClips is a page of a title's clip list.
+type itemClips struct {
+	// moreURL loads the next page, empty when no clip follows.
+	moreURL string
+	// items are the page's cards.
+	items []view.ClipItem
+	// bulk describes the list's bulk actions.
+	bulk clipcard.BulkBarProps
+}
 
 // mediaLoadFailedMsg is shown when Plex metadata cannot be loaded for a media item.
 const mediaLoadFailedMsg = "Couldn't load this title from Plex. " +
@@ -44,7 +55,7 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 	query := parseClipListQuery(ctx)
 	source := handler.describeItem(ctx, id, item, itemErr)
 	audience := handler.audience(ctx)
-	clips, moreURL := handler.clipsForMedia(ctx, id, source, query, audience)
+	clips := handler.clipsForMedia(ctx, id, source, query, audience)
 	window := exportform.ClipWindow(ctx)
 
 	props := pages.MediaItemPageProps{
@@ -52,8 +63,9 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 		Title:        id,
 		Type:         "",
 		MaxDur:       clip.DurationCap(handler.cfg.MaxClipDur),
-		Clips:        clips,
-		ClipsMoreURL: moreURL,
+		Clips:        clips.items,
+		ClipsMoreURL: clips.moreURL,
+		ClipsBulk:    clips.bulk,
 		SharedClips:  handler.sharedClipsForMedia(ctx, id, source, audience),
 		ClipStatus:   query.Status,
 		ClipType:     query.Type,
@@ -97,7 +109,7 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 func (handler *Handler) MediaItemClips(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
 	query := parseClipListQuery(ctx)
-	clips, moreURL := handler.clipsForMedia(
+	clips := handler.clipsForMedia(
 		ctx,
 		id,
 		handler.sources.Describe(ctx.Context(), id),
@@ -107,12 +119,13 @@ func (handler *Handler) MediaItemClips(ctx fiber.Ctx) error {
 
 	if respond.TargetsElement(ctx, routes.TargetItemClipsMore) {
 		return respond.RenderHTML(ctx, func(writer io.Writer) error {
-			return pages.ItemClipsMore(clips, moreURL).Render(ctx.Context(), writer)
+			return pages.ItemClipsMore(clips.items, clips.moreURL).Render(ctx.Context(), writer)
 		})
 	}
 
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.ItemClipList(clips, query.Filtered(), moreURL).Render(ctx.Context(), writer)
+		return pages.ItemClipList(clips.items, query.Filtered(), clips.moreURL, clips.bulk).
+			Render(ctx.Context(), writer)
 	})
 }
 
@@ -161,28 +174,36 @@ func (handler *Handler) audience(ctx fiber.Ctx) view.Audience {
 //   - audience: Who the cards are shown to.
 //
 // Returns:
-//   - clips: The page's clip cards, carrying the probed audio, HDR flag, and
-//     duration.
-//   - moreURL: Loads the next page, empty when no clip follows.
+//   - clips: The page's cards, carrying the probed audio, HDR flag, and
+//     duration, with the next page's address and the bulk actions.
 func (handler *Handler) clipsForMedia(
 	ctx fiber.Ctx,
 	mediaID string,
 	source library.SourceInfo,
 	query catalog.ClipListQuery,
 	audience view.Audience,
-) ([]view.ClipItem, string) {
-	page := catalog.Window(
-		catalog.Apply(
-			catalog.ForMedia(ctx.Context(), handler.db, audience.Scope, mediaID),
-			query,
-		),
-		query,
+) itemClips {
+	all := catalog.ForMedia(ctx.Context(), handler.db, audience.Scope, mediaID)
+	page := catalog.Window(catalog.Apply(all, query), query)
+	items := handler.clipCards(ctx, page.Jobs, source, audience)
+	failed := catalog.Apply(
+		all,
+		catalog.Normalize(catalog.ClipListQuery{Status: clip.StatusFailed}),
 	)
 
-	path := routes.ItemURL(mediaID, nil) + routes.PathClips
-
-	return handler.clipCards(ctx, page.Jobs, source, audience),
-		view.MoreClipsURL(path, query, page)
+	return itemClips{
+		items:   items,
+		moreURL: view.MoreClipsURL(routes.ItemURL(mediaID, nil)+routes.PathClips, query, page),
+		bulk: clipcard.BulkBarProps{
+			ListID:     routes.TargetItemClipList,
+			ToolbarID:  routes.ItemClipListToolbar,
+			StatusID:   routes.ItemClipBulkStatus,
+			MediaID:    mediaID,
+			Failed:     len(failed),
+			Selectable: view.AnySelectable(items),
+			CanShare:   audience.Shares(),
+		},
+	}
 }
 
 // sharedClipsForMedia returns cards for other accounts' clips of one media id

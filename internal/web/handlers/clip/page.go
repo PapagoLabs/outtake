@@ -206,6 +206,7 @@ func (handler *Handler) Clips(ctx fiber.Ctx) error {
 		Shared:      query.Shared,
 		OfferShared: audience.Shares(),
 		MoreURL:     view.MoreClipsURL(routes.PathClips, query, page),
+		Bulk:        handler.bulkBar(ctx, query, items, audience),
 	}
 
 	if respond.TargetsElement(ctx, routes.TargetClipListMore) {
@@ -223,6 +224,41 @@ func (handler *Handler) Clips(ctx fiber.Ctx) error {
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
 		return pages.Clips(props).Render(ctx.Context(), writer)
 	})
+}
+
+// bulkBar describes the clips page's bulk actions.
+//
+// Retry Failed counts the caller's own failed clips, so the Shared view, which
+// lists other accounts' clips too, does not offer it.
+//
+// Parameters:
+//   - ctx: Request whose caller the clips are kept to.
+//   - query: Normalized toolbar state.
+//   - items: The cards the page shows.
+//   - audience: Who the cards are shown to.
+//
+// Returns:
+//   - props: The bar.
+func (handler *Handler) bulkBar(
+	ctx fiber.Ctx,
+	query catalog.ClipListQuery,
+	items []view.ClipItem,
+	audience view.Audience,
+) clipcard.BulkBarProps {
+	failed := 0
+	if !query.Shared {
+		failed = len(handler.failedJobs(ctx, ""))
+	}
+
+	return clipcard.BulkBarProps{
+		ListID:     routes.TargetClipList,
+		ToolbarID:  routes.ClipListToolbar,
+		StatusID:   routes.ClipBulkStatus,
+		MediaID:    "",
+		Failed:     failed,
+		Selectable: view.AnySelectable(items),
+		CanShare:   audience.Shares(),
+	}
 }
 
 // listedFor returns the clips a list draws from before its filters.

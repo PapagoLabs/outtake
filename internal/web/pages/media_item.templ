@@ -67,6 +67,8 @@ type MediaItemPageProps struct {
 	Clips     []view.ClipItem
 	// ClipsMoreURL loads the next page of Clips, empty when no clip follows.
 	ClipsMoreURL string
+	// ClipsBulk describes the bulk actions of Clips.
+	ClipsBulk clipcard.BulkBarProps
 	// SharedClips are other accounts' clips of this title shared with the
 	// viewer.
 	SharedClips []view.ClipItem
@@ -327,6 +329,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 			<div class="flex flex-col gap-4">
 				<h3 class="text-lg font-semibold">Clips From This Title</h3>
 				@clipcard.ListToolbar(clipcard.ListToolbarProps{
+					ID:      routes.ItemClipListToolbar,
 					Action:  "/media/item/" + props.ID + "/clips",
 					Target:  "item-clip-list",
 					PushURL: false,
@@ -335,8 +338,9 @@ templ MediaItemPage(props MediaItemPageProps) {
 					Query:   props.ClipQuery,
 					Sort:    props.ClipSort,
 				})
+				@clipcard.BulkStatusLine(routes.ItemClipBulkStatus)
 				<div id="item-clip-list" class="flex flex-col gap-4">
-					@ItemClipList(props.Clips, props.ClipStatus != "" || props.ClipType != "" || props.ClipQuery != "", props.ClipsMoreURL)
+					@ItemClipList(props.Clips, props.ClipStatus != "" || props.ClipType != "" || props.ClipQuery != "", props.ClipsMoreURL, props.ClipsBulk)
 				</div>
 			</div>
 			if len(props.SharedClips) > 0 {
@@ -360,7 +364,9 @@ templ MediaItemPage(props MediaItemPageProps) {
 //   - items: The first page of clips made from this item.
 //   - filtered: A status, type, or query filter is set.
 //   - moreURL: Loads the next page, empty when no clip follows.
-templ ItemClipList(items []view.ClipItem, filtered bool, moreURL string) {
+//   - bulk: The list's bulk actions.
+templ ItemClipList(items []view.ClipItem, filtered bool, moreURL string, bulk clipcard.BulkBarProps) {
+	@clipcard.BulkBar(bulk)
 	if len(items) == 0 {
 		if filtered {
 			<p class="text-sm text-muted-foreground">No clips match these filters</p>

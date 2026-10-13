@@ -4,6 +4,8 @@
 package clip
 
 import (
+	"fmt"
+
 	fiber "github.com/gofiber/fiber/v3"
 
 	"github.com/PapagoLabs/outtake/internal/api"
@@ -31,20 +33,39 @@ func (handler *Handler) Delete(ctx fiber.Ctx) error {
 		return respond.WriteNotFound(ctx)
 	}
 
-	// The row goes before the file. Removing the file first meant a row that
-	// could not be deleted came back pointing at a file that was already gone.
-	handler.clipQueue.Delete(id)
-
-	err := handler.db.DeleteClip(ctx.Context(), id)
+	err := handler.deleteJob(ctx, job)
 	if err != nil {
-		handler.reinstateClip(ctx, job)
-
 		return respond.WriteFailure(
 			ctx,
 			fiber.StatusInternalServerError,
 			api.DeleteFailed,
 			respond.FailWith(ctx, msgDeleteFailed, err),
 		)
+	}
+
+	return respond.SendStatusCode(ctx, fiber.StatusOK)
+}
+
+// deleteJob removes a clip, its row, and its files.
+//
+// The row goes before the files, so a row that cannot be deleted never comes
+// back pointing at a file that is already gone. A clip whose row or files
+// cannot be removed is put back.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - job: The clip, which the caller may change.
+//
+// Returns:
+//   - err: Non-nil when the row or a file cannot be removed.
+func (handler *Handler) deleteJob(ctx fiber.Ctx, job *clipdom.Job) error {
+	handler.clipQueue.Delete(job.ID)
+
+	err := handler.db.DeleteClip(ctx.Context(), job.ID)
+	if err != nil {
+		handler.reinstateClip(ctx, job)
+
+		return fmt.Errorf("delete clip row: %w", err)
 	}
 
 	// A video clip's SDR version goes with it.
@@ -59,16 +80,11 @@ func (handler *Handler) Delete(ctx fiber.Ctx) error {
 			// it canceled would hide a finished file the delete did not remove.
 			handler.restoreClip(ctx, job)
 
-			return respond.WriteFailure(
-				ctx,
-				fiber.StatusInternalServerError,
-				api.DeleteFailed,
-				respond.FailWith(ctx, msgDeleteFailed, fileErr),
-			)
+			return fmt.Errorf("delete clip file: %w", fileErr)
 		}
 	}
 
-	return respond.SendStatusCode(ctx, fiber.StatusOK)
+	return nil
 }
 
 // reinstateClip puts a clip back after the row delete failed, canceled so a

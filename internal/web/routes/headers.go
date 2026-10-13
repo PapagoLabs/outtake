@@ -65,4 +65,20 @@ const (
 	// TargetItemClipsMore is the append target for the next page of a
 	// title's clips.
 	TargetItemClipsMore = "item-clip-list-more"
+
+	// TargetItemClipList is the clip list a title's page swaps.
+	TargetItemClipList = "item-clip-list"
+
+	// ClipListToolbar is the clips page's toolbar form.
+	ClipListToolbar = "clip-list-toolbar"
+
+	// ItemClipListToolbar is the toolbar form of a title's clip list.
+	ItemClipListToolbar = "item-clip-list-toolbar"
+
+	// ClipBulkStatus is the status line the clips page's bulk actions report
+	// to.
+	ClipBulkStatus = "clip-bulk-status"
+
+	// ItemClipBulkStatus is the status line a title's bulk actions report to.
+	ItemClipBulkStatus = "item-clip-bulk-status"
 )

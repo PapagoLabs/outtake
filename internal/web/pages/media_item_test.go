@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
 	"github.com/PapagoLabs/outtake/internal/web/assets"
+	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -309,7 +310,7 @@ func TestItemClipListOmitsLayout(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := ItemClipList(nil, true, "").Render(t.Context(), &buf)
+	err := ItemClipList(nil, true, "", clipcard.BulkBarProps{}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
@@ -378,7 +379,7 @@ func TestItemClipListRendersEveryClip(t *testing.T) {
 	err := ItemClipList([]view.ClipItem{
 		{ID: "clip-one", Name: "Opening"},
 		{ID: "clip-two", Name: "Closing"},
-	}, false, "").Render(t.Context(), &buf)
+	}, false, "", clipcard.BulkBarProps{}).Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()

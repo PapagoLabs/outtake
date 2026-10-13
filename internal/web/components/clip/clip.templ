@@ -319,7 +319,9 @@ templ ClipStatus(item view.ClipItem) {
 
 // ClipCard renders one clip card and its metadata edit form.
 //
-// A clip the viewer may not change has no form, only its status region.
+// A clip the viewer may not change has no form, only its status region. One
+// the viewer may change has a box that selects it for the list's bulk
+// actions.
 //
 // Parameters:
 //   - item: Clip being rendered.
@@ -327,11 +329,23 @@ templ ClipCard(item view.ClipItem) {
 	<div id={ "clip-" + item.ID } data-clip-card>
 		@card.Card() {
 			@card.Content() {
-				if item.ReadOnly {
-					@ClipStatus(item)
-				} else {
-					@clipForm(item)
-				}
+				<div class="flex items-start gap-3">
+					if !item.ReadOnly {
+						@checkbox.Checkbox(checkbox.Props{
+							Name:       "id",
+							Value:      item.ID,
+							Class:      "mt-1 rounded border-input",
+							Attributes: templ.Attributes{"data-bulk-select": true, "aria-label": "Select " + item.DisplayName()},
+						})
+					}
+					<div class="min-w-0 flex-1">
+						if item.ReadOnly {
+							@ClipStatus(item)
+						} else {
+							@clipForm(item)
+						}
+					</div>
+				</div>
 			}
 		}
 	</div>

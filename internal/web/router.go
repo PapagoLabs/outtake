@@ -366,6 +366,8 @@ func mountAPI(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	api := app.Group(routeAPI)
 	api.Post(routeClips, guard, clipHandler.Create)
 	api.Post("/clips/preview", guard, previewHandler.Preview)
+	api.Post("/clips/bulk", guard, clipHandler.Bulk)
+	api.Post("/clips/retry", guard, clipHandler.RetryFailed)
 	api.Get("/clips/preview/:id", guard, previewHandler.PreviewStatus)
 	api.Delete("/clips/preview/:id", guard, previewHandler.CancelPreview)
 	api.Post("/clips/:id/update", guard, clipHandler.Update)
