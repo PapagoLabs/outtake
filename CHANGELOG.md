@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Load clip lists a page at a time as they scroll by @nicholas-fedor in [#513](https://github.com/PapagoLabs/outtake/pull/513)
 - Share clips with the installation's other users by @nicholas-fedor in [#500](https://github.com/PapagoLabs/outtake/pull/500)
 - Admit members by approval and enforce render limits by @nicholas-fedor in [#495](https://github.com/PapagoLabs/outtake/pull/495)
 - Read plex as the signed-in account by @nicholas-fedor in [#493](https://github.com/PapagoLabs/outtake/pull/493)
