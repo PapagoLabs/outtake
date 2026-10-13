@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Publish the generated notes as the stable release body by @nicholas-fedor in [#521](https://github.com/PapagoLabs/outtake/pull/521)
+
+## [0.4.0] - 2026-10-13
+
 ### Breaking Changes
 
 Read [Upgrading](https://outtake.papagolabs.com/setup/upgrading/) before you update.
@@ -410,7 +416,8 @@ Read [Upgrading](https://outtake.papagolabs.com/setup/upgrading/) before you upd
 
 ## Compare Releases
 
-- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.3.1...HEAD)
+- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.4.0...HEAD)
+- [0.4.0](https://github.com/PapagoLabs/outtake/compare/v0.3.1...v0.4.0)
 - [0.3.1](https://github.com/PapagoLabs/outtake/compare/v0.2.1...v0.3.1)
 - [0.2.1](https://github.com/PapagoLabs/outtake/compare/v0.2.0...v0.2.1)
 - [0.2.0](https://github.com/PapagoLabs/outtake/compare/v0.1.1...v0.2.0)
