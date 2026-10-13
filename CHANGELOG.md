@@ -41,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update nicholas-fedor/govulncheck-action action to v1.1.1 by @renovate[bot] in [#505](https://github.com/PapagoLabs/outtake/pull/505)
 - Update goreleaser/goreleaser-action digest to a4f02ab by @renovate[bot] in [#504](https://github.com/PapagoLabs/outtake/pull/504)
 - Update github.com/google/pprof digest to 2af12c3 by @renovate[bot] in [#501](https://github.com/PapagoLabs/outtake/pull/501)
 - Update golang.org/x/telemetry digest to 3c2f983 by @renovate[bot] in [#502](https://github.com/PapagoLabs/outtake/pull/502)
@@ -150,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update templ installation to v0.3.1070 by @nicholas-fedor in [#311](https://github.com/PapagoLabs/outtake/pull/311)
 - Update module github.com/jackc/puddle/v2 to v2.2.3 by @renovate[bot] in [#309](https://github.com/PapagoLabs/outtake/pull/309)
 - Track generated templ files by @nicholas-fedor in [#307](https://github.com/PapagoLabs/outtake/pull/307)
-- Update module github.com/minio/minlz to v1.2.2 by @renovate[bot]
+- Update module github.com/minio/minlz to v1.2.2 by @renovate[bot] in [#304](https://github.com/PapagoLabs/outtake/pull/304)
 - Update module github.com/valyala/fasthttp to v1.75.0 by @renovate[bot] in [#301](https://github.com/PapagoLabs/outtake/pull/301)
 - Lock file maintenance by @renovate[bot] in [#299](https://github.com/PapagoLabs/outtake/pull/299)
 - Update module github.com/a-h/templ to v0.3.1070 by @renovate[bot] in [#298](https://github.com/PapagoLabs/outtake/pull/298)
