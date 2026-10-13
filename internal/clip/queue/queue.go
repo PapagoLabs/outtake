@@ -164,6 +164,25 @@ func (q *Queue) Adopt(job *clip.Job) {
 	q.jobs[job.ID] = job.Clone()
 }
 
+// AssignOwnerless gives every clip that belongs to nobody to an account.
+//
+// The installation's first owner takes over the clips made before owners
+// were recorded, which storage has already handed over, so nothing is
+// reported.
+//
+// Parameters:
+//   - owner: The plex.tv id of the account.
+func (q *Queue) AssignOwnerless(owner int) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	for _, job := range q.jobs {
+		if job.OwnerID == 0 {
+			job.OwnerID = owner
+		}
+	}
+}
+
 // Cancel stops a pending or processing job.
 //
 // Parameters:

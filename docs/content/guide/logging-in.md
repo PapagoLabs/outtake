@@ -17,7 +17,7 @@ Every page asks you to log in first.
 
 ## Choosing a server
 
-If your account owns exactly one Plex Media Server that Outtake can reach, Outtake uses it after you log in and opens the dashboard. Otherwise it opens **Servers**, which you can also reach later under **Settings → Servers**. It lists the Plex Media Servers your account owns. A server someone shared with you is not listed, because Outtake uses only a server its owner chose.
+If your account owns exactly one Plex Media Server that Outtake can reach, Outtake uses it after you log in and opens the dashboard. Otherwise it opens **Servers**, which you can also reach later under **Settings → Servers**. Only the owner sees **Servers**, because the server decides whose library everyone reads. It lists the Plex Media Servers your account owns. A server someone shared with you is not listed, because Outtake uses only a server its owner chose.
 
 - **Use This Server** chooses one. Outtake tries all of the server's connections at once and keeps the most direct one that answers: local first, then a direct remote connection, and the Plex relay last.
 - **Custom Server URL** takes an address, such as `https://plex.example.com`, for a server Outtake reaches differently from how Plex advertises it. Outtake asks that address who it is and uses it only if it is a server your account owns.
@@ -46,4 +46,4 @@ docker restart outtake
 
 The reset also forgets every admin and member and the chosen server, and ends every session. Clips are kept. The next Plex account to log in becomes the owner.
 
-If you upgraded from a version without owners, only the account that logged in most recently can claim Outtake.
+If you upgraded from a version without owners, only the account that logged in most recently can claim Outtake, and the clips made before the upgrade become the owner's.

@@ -100,6 +100,8 @@ type Auth struct {
 	plexURL  string
 	store    Store
 	selected ServerBinding
+	// claimed hears that an account claimed the installation, nil for no one.
+	claimed func(plexUserID int)
 }
 
 // Option adjusts an authentication service while New builds it.
@@ -177,6 +179,7 @@ func New(
 		plexURL:  "",
 		store:    store,
 		selected: selected,
+		claimed:  nil,
 	}
 
 	for _, opt := range opts {
@@ -546,6 +549,18 @@ func (auth *Auth) Sessions() []plex.Session {
 	}
 
 	return auth.selected.Sessions()
+}
+
+// SetClaimedFunc registers what hears that an account claimed the
+// installation.
+//
+// The application hands the owner the clips its queue holds that belong to
+// nobody. It is set before the server starts.
+//
+// Parameters:
+//   - fn: The callback, given the owner's plex.tv id, or nil for none.
+func (auth *Auth) SetClaimedFunc(fn func(plexUserID int)) {
+	auth.claimed = fn
 }
 
 // SignIn authenticates a Plex access token as a user of this installation.
@@ -1015,6 +1030,10 @@ func (auth *Auth) settleClaim(ctx context.Context, candidate User) User {
 		Int("plex_user_id", candidate.PlexID).
 		Str("username", candidate.Username).
 		Msg("plex account claimed this installation")
+
+	if auth.claimed != nil {
+		auth.claimed(candidate.PlexID)
+	}
 
 	candidate.Role = RoleOwner
 

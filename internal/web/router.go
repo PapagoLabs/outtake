@@ -325,13 +325,14 @@ func mountPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 //   - built: Every handler the route table mounts.
 func mountAdminPages(app *fiber.App, guard fiber.Handler, built routerHandlers) {
 	admin := middleware.AdminGuard()
+	owner := middleware.OwnerGuard()
 	homeHandler := built.home
 	serverHandler := built.server
 	profilesHandler := built.profiles
 
-	app.Get("/servers", guard, admin, serverHandler.Servers)
-	app.Post("/servers", guard, admin, serverHandler.SelectServer)
-	app.Post("/servers/forget", guard, admin, serverHandler.ForgetServer)
+	app.Get("/servers", guard, owner, serverHandler.Servers)
+	app.Post("/servers", guard, owner, serverHandler.SelectServer)
+	app.Post("/servers/forget", guard, owner, serverHandler.ForgetServer)
 	app.Get(routes.PathSettingsPreviews, guard, admin, homeHandler.PreviewSettings)
 	app.Get("/settings/profiles", guard, admin, profilesHandler.ClipProfiles)
 	app.Post("/settings/profiles", guard, admin, profilesHandler.CreateClipProfile)

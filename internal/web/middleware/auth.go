@@ -85,6 +85,25 @@ func AdminGuard() fiber.Handler {
 	}
 }
 
+// OwnerGuard refuses a request whose caller does not own the installation.
+//
+// It guards the bound Plex server, which decides whose library everyone reads,
+// so not even an admin may change it. It runs after AuthGuard.
+//
+// Returns:
+//   - handler: Middleware that answers a refused request with
+//     respond.ErrOwnerOnly.
+func OwnerGuard() fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		caller, ok := Caller(ctx)
+		if !ok || caller.Role != identity.RoleOwner {
+			return respond.ErrOwnerOnly
+		}
+
+		return ctx.Next()
+	}
+}
+
 // AuthGuard rejects a request whose session has not signed in as a user this
 // installation still recognizes.
 //
@@ -215,7 +234,10 @@ func ViewpointOf(ctx fiber.Ctx) Viewpoint {
 //   - caller: The user the request is made by.
 func SetCaller(ctx fiber.Ctx, caller identity.User) {
 	ctx.Locals(callerKey{}, caller)
-	ctx.SetContext(view.ContextWithManager(ctx.Context(), caller.Manages()))
+	ctx.SetContext(view.ContextWithOwner(
+		view.ContextWithManager(ctx.Context(), caller.Manages()),
+		caller.Role == identity.RoleOwner,
+	))
 }
 
 // renewServerToken asks plex.tv again for a caller's own server token when the

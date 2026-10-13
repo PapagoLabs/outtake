@@ -421,6 +421,37 @@ func TestAdminGuardLetsOnlyTheOwnerAndAdminsThrough(t *testing.T) {
 		"a request without a caller is refused")
 }
 
+// TestOwnerGuardLetsOnlyTheOwnerThrough covers the Servers pages, which not
+// even an admin may use.
+func TestOwnerGuardLetsOnlyTheOwnerThrough(t *testing.T) {
+	t.Parallel()
+
+	for role, want := range map[string]int{
+		"owner":  fiber.StatusOK,
+		"admin":  fiber.StatusForbidden,
+		"member": fiber.StatusForbidden,
+	} {
+		users := mocks.NewMockUserLookup(t)
+		users.EXPECT().UserRole(mock.Anything, 7).Return(role, true, nil).Once()
+
+		app := chainApp(
+			t,
+			okHandler(),
+			session.New(),
+			withUser(7),
+			AuthGuard("test", users, nil),
+			OwnerGuard(),
+		)
+
+		assert.Equal(t, want, issueRequest(t, app, http.MethodGet, "/").status, role)
+	}
+
+	unguarded := chainApp(t, okHandler(), OwnerGuard())
+
+	assert.Equal(t, fiber.StatusForbidden, issueRequest(t, unguarded, http.MethodGet, "/").status,
+		"a request without a caller is refused")
+}
+
 func TestUnauthenticatedRedirectsAPathWithoutTheAPIPrefix(t *testing.T) {
 	t.Parallel()
 

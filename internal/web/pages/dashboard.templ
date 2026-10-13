@@ -146,6 +146,10 @@ templ LiveSessions(sessions []view.SessionItem, tokenRejected bool) {
 // Outtake stored for it, and how to recover.
 templ TokenRejectedNotice() {
 	<p role="status" class="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive" data-token-rejected>
-		Plex rejected the saved login for this server. Logout and login again, or forget the server under <a href="/servers" class="underline">Servers</a> and choose it again.
+		if view.ViewerOwns(ctx) {
+			Plex rejected the saved login for this server. Logout and login again, or forget the server under <a href="/servers" class="underline">Servers</a> and choose it again.
+		} else {
+			Plex rejected the saved login for this server. Ask the owner to logout and login again.
+		}
 	</p>
 }

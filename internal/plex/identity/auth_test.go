@@ -746,10 +746,15 @@ func TestSignInClaimsAnUnownedInstallation(t *testing.T) {
 	routes := map[string]plexRoute{"/api/v2/user": userRoute()}
 	auth := testAuth(t, newPlexServer(t, routes).URL, store, nil)
 
+	var heard []int
+
+	auth.SetClaimedFunc(func(plexUserID int) { heard = append(heard, plexUserID) })
+
 	user, err := auth.SignIn(t.Context(), "access-token")
 
 	require.NoError(t, err)
 	assert.Equal(t, User{PlexID: 42, Username: "Nick", Role: RoleOwner}, user)
+	assert.Equal(t, []int{42}, heard, "the claim is announced once, with the owner")
 }
 
 // TestSignInRefusesAClaimOnABoundServerTheAccountDoesNotOwn covers an
@@ -1194,12 +1199,11 @@ func TestSignInRefusesWhenAnotherAccountWonAConcurrentClaim(t *testing.T) {
 
 	routes := map[string]plexRoute{"/api/v2/user": userRoute()}
 
-	_, err := testAuth(
-		t,
-		newPlexServer(t, routes).URL,
-		store,
-		nil,
-	).SignIn(t.Context(), "access-token")
+	auth := testAuth(t, newPlexServer(t, routes).URL, store, nil)
+
+	auth.SetClaimedFunc(func(int) { t.Error("a lost claim is not announced") })
+
+	_, err := auth.SignIn(t.Context(), "access-token")
 
 	require.ErrorIs(t, err, ErrNotAllowed)
 }

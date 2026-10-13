@@ -562,7 +562,22 @@ func TokenRejectedNotice() templ.Component {
 			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<p role=\"status\" class=\"rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive\" data-token-rejected>Plex rejected the saved login for this server. Logout and login again, or forget the server under <a href=\"/servers\" class=\"underline\">Servers</a> and choose it again.</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<p role=\"status\" class=\"rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive\" data-token-rejected>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		if view.ViewerOwns(ctx) {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "Plex rejected the saved login for this server. Logout and login again, or forget the server under <a href=\"/servers\" class=\"underline\">Servers</a> and choose it again.")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "Plex rejected the saved login for this server. Ask the owner to logout and login again.")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

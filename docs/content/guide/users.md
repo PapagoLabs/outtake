@@ -10,8 +10,8 @@ Outtake belongs to one owner, the Plex account that owns the server Outtake clip
 
 | Role | What it can do |
 | --- | --- |
-| **Owner** | Everything, including making members admins and removing admins. There is one owner |
-| **Admin** | Approve and reject new accounts, remove members, set limits, and use every settings page. Admins have no render limits |
+| **Owner** | Everything, including choosing the Plex server, making members admins, and removing admins. There is one owner |
+| **Admin** | Approve and reject new accounts, remove members, set limits, and use every settings page but **Servers**. Admins have no render limits |
 | **Member** | Make, preview, download, share, and delete their own clips, within their limits |
 | **Pending** | Wait for approval. A pending account sees only a page saying so |
 

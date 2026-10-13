@@ -565,6 +565,7 @@ func TestMediaItemClipsListsOnlyAMembersOwnClips(t *testing.T) {
 	t.Parallel()
 
 	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().Sees(mock.Anything, mock.Anything, "42").Return(true).Once()
 	sources.EXPECT().
 		Describe(mock.Anything, "42").
 		Return(sourceInfo(2 * time.Hour))
@@ -788,4 +789,26 @@ func TestMediaItemClipsLoadsAPageAtATime(t *testing.T) {
 	assertBodyContains(t, more.body, `id="clip-clip-01"`, "the next page carries on")
 	assertBodyContains(t, more.body, `id="clip-clip-00"`, "down to the oldest clip")
 	assertBodyOmits(t, more.body, "item-clip-list-more", "the last page loads nothing more")
+}
+
+// TestMediaItemClipsProbesOnlyATitleTheMemberSees covers a member's clip list
+// for a title Plex does not share with them.
+//
+// The list still renders, and the title's file is never probed with the
+// bound token.
+func TestMediaItemClipsProbesOnlyATitleTheMemberSees(t *testing.T) {
+	t.Parallel()
+
+	sources := mocks.NewMockMediaDescriber(t)
+	sources.EXPECT().Sees(mock.Anything, mock.Anything, "42").Return(false).Once()
+
+	handler, _ := pageHandler(t, offlineAuth(t), sources)
+
+	app := fiber.New()
+	app.Use(middlewaretest.AsMember())
+	app.Get(routes.PathItemPrefix+":"+routes.ParamID+"/clips", handler.MediaItemClips)
+
+	answer := serve(t, app, routes.PathItemPrefix+"42/clips", true)
+
+	assert.Equal(t, fiber.StatusOK, answer.status)
 }

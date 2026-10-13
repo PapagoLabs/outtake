@@ -1324,6 +1324,29 @@ func TestSetFormatsRecordWhatEachFileHolds(t *testing.T) {
 	assert.Nil(t, q.SetSDRFormat("never-queued", sdr))
 }
 
+// TestAssignOwnerlessGivesTheOwnerClipsThatBelongToNobody covers the
+// installation's first claim.
+//
+// A clip without an owner becomes the account's, and another account's clip
+// stays theirs.
+func TestAssignOwnerlessGivesTheOwnerClipsThatBelongToNobody(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+	nobodys := testJob("nobodys", clip.StatusCompleted)
+	members := testJob("members", clip.StatusCompleted)
+
+	members.OwnerID = 7
+
+	q.Restore(nobodys)
+	q.Restore(members)
+
+	q.AssignOwnerless(42)
+
+	assert.Equal(t, 42, q.GetJob("nobodys").OwnerID)
+	assert.Equal(t, 7, q.GetJob("members").OwnerID)
+}
+
 // TestSetSharedReportsTheChange covers sharing a clip the queue holds.
 //
 // The entry and the report carry the change, and a job the queue does not

@@ -21,7 +21,9 @@ func TestLayoutBoostsSidebarIntoMain(t *testing.T) {
 	var buf strings.Builder
 
 	err := Layout(Props{Title: "Dashboard", Active: "dashboard", Library: "7"}).
-		Render(view.ContextWithManager(identity.ContextWithCSRFToken(t.Context(), "csrf-test"), true), &buf)
+		Render(view.ContextWithOwner(view.ContextWithManager(
+			identity.ContextWithCSRFToken(t.Context(), "csrf-test"), true,
+		), true), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
@@ -90,20 +92,32 @@ func assertLogoutForm(t *testing.T, body string) {
 
 // TestLayoutShowsTheAdminSettingsOnlyToManagers covers the settings a member
 // never sees in the sidebar, which the admin guard refuses anyway.
+//
+// Servers shows only to the owner, whom the owner guard alone admits.
 func TestLayoutShowsTheAdminSettingsOnlyToManagers(t *testing.T) {
 	t.Parallel()
 
-	for _, manages := range []bool{true, false} {
+	for name, test := range map[string]struct {
+		manages bool
+		owns    bool
+	}{
+		"owner":  {manages: true, owns: true},
+		"admin":  {manages: true, owns: false},
+		"member": {manages: false, owns: false},
+	} {
 		var buf strings.Builder
 
-		err := Layout(Props{Title: "Dashboard", Active: "dashboard", Library: ""}).
-			Render(view.ContextWithManager(t.Context(), manages), &buf)
+		ctx := view.ContextWithOwner(view.ContextWithManager(t.Context(), test.manages), test.owns)
+
+		err := Layout(Props{Title: "Dashboard", Active: "dashboard", Library: ""}).Render(ctx, &buf)
 		require.NoError(t, err)
 
-		for _, nav := range []string{"servers", "profiles", "previews", "storage", "users"} {
-			assert.Equal(t, manages, strings.Contains(buf.String(), `data-nav="`+nav+`"`), nav)
+		for _, nav := range []string{"profiles", "previews", "storage", "users"} {
+			assert.Equal(t, test.manages, strings.Contains(buf.String(), `data-nav="`+nav+`"`),
+				"%s: %s", name, nav)
 		}
 
+		assert.Equal(t, test.owns, strings.Contains(buf.String(), `data-nav="servers"`), name)
 		assert.Contains(t, buf.String(), `data-nav="appearance"`, "everyone chooses their own palette")
 	}
 }
