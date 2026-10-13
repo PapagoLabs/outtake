@@ -42,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/stretchr/objx to v0.7.0 by @renovate[bot] in [#509](https://github.com/PapagoLabs/outtake/pull/509)
 - Update nicholas-fedor/govulncheck-action action to v1.1.1 by @renovate[bot] in [#505](https://github.com/PapagoLabs/outtake/pull/505)
 - Update goreleaser/goreleaser-action digest to a4f02ab by @renovate[bot] in [#504](https://github.com/PapagoLabs/outtake/pull/504)
 - Update github.com/google/pprof digest to 2af12c3 by @renovate[bot] in [#501](https://github.com/PapagoLabs/outtake/pull/501)
