@@ -78,10 +78,14 @@ tasks:
       - goreleaser check --config build/goreleaser/nightly.yaml
 
   goreleaser:release:
-    desc: Create a stable release with GoReleaser
+    desc: Create a stable release with GoReleaser, with git-cliff's section for the tag as its notes
     deps: [templ]
     cmds:
-      - goreleaser release --config build/goreleaser/stable.yaml
+      - |
+        notes="$(mktemp)"
+        trap 'rm -f "$notes"' EXIT
+        git-cliff --config cliff.toml --latest --strip all --output "$notes"
+        goreleaser release --config build/goreleaser/stable.yaml --release-notes "$notes"
 
   goreleaser:nightly:
     desc: Snapshot a nightly image build with GoReleaser

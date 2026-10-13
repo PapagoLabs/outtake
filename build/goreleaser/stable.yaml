@@ -241,5 +241,6 @@ docker_signs:
 # Changelog Configuration
 # https://goreleaser.com/customization/changelog/
 ################################################################################
-changelog:
-  disable: true
+# The release body is git-cliff's section for the tag, passed as
+# --release-notes. GoReleaser reads that file only in its changelog step, so
+# the changelog stays enabled.
