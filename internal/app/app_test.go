@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -523,6 +524,7 @@ func TestRunWaitsForRequestsStillRunningAtShutdown(t *testing.T) {
 
 	started := make(chan struct{})
 	release := make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
 
 	router := fiber.New()
 	router.Get("/slow", func(ctx fiber.Ctx) error {
@@ -539,6 +541,12 @@ func TestRunWaitsForRequestsStillRunningAtShutdown(t *testing.T) {
 		ctx:    runCtx,
 		stop:   stop,
 	}
+
+	// A failed assertion still lets the handler finish and the server stop.
+	t.Cleanup(func() {
+		releaseOnce()
+		stop()
+	})
 
 	stopped := make(chan error, 1)
 
@@ -569,7 +577,7 @@ func TestRunWaitsForRequestsStillRunningAtShutdown(t *testing.T) {
 	case <-time.After(300 * time.Millisecond):
 	}
 
-	close(release)
+	releaseOnce()
 
 	select {
 	case body := <-answered:
