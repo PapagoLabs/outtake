@@ -34,11 +34,11 @@ const (
 
 // Window picks the page of a sorted list that a query names.
 //
-// Under a sort by creation or by name, the page starts after the clip
-// query.After names while the list still holds it, so a clip made or deleted
-// above it moves no card onto another page. A render changes when a clip was
-// last modified, so a page under that sort, or one whose clip is gone, starts
-// pageOverlap clips before query.Offset.
+// Under a sort by creation, the page starts after the clip query.After names
+// while the list still holds it, so a clip made or deleted above it moves no
+// card onto another page. A rename moves a clip under a sort by name, and a
+// render under a sort by modification, so a page under either sort, or one
+// whose clip is gone, starts pageOverlap clips before query.Offset.
 //
 // Parameters:
 //   - jobs: The filtered, sorted list.
@@ -49,7 +49,7 @@ const (
 func Window(jobs []*clip.Job, query ClipListQuery) ClipPage {
 	start := min(max(query.Offset-pageOverlap, 0), len(jobs))
 
-	if query.After != "" && keepsOrderWhileRendering(query.Sort) {
+	if query.After != "" && keepsEveryPlace(query.Sort) {
 		index := slices.IndexFunc(jobs, func(job *clip.Job) bool { return job.ID == query.After })
 		if index >= 0 {
 			start = index + 1
@@ -73,14 +73,13 @@ func (page ClipPage) Last() string {
 	return page.Jobs[len(page.Jobs)-1].ID
 }
 
-// keepsOrderWhileRendering reports whether a sort leaves a clip's place alone
-// while it renders.
+// keepsEveryPlace reports whether a sort never moves a clip it lists.
 //
 // Parameters:
 //   - sort: A normalized sort key.
 //
 // Returns:
-//   - keeps: False for the sorts by when a clip was last modified.
-func keepsOrderWhileRendering(sort string) bool {
-	return sort != SortUpdatedDesc && sort != SortUpdatedAsc
+//   - keeps: True for the sorts by when a clip was made, which never changes.
+func keepsEveryPlace(sort string) bool {
+	return sort == SortCreatedDesc || sort == SortCreatedAsc
 }

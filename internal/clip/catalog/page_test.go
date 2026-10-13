@@ -84,6 +84,29 @@ func TestWindowFollowsTheLastClipShown(t *testing.T) {
 	assert.Equal(t, "2", gone.Jobs[0].ID)
 }
 
+// TestWindowReadsANameSortFromItsOffset covers the last clip shown being
+// renamed so it sorts further down a list sorted by name.
+//
+// The next page starts from the offset rather than after the renamed clip,
+// so the clips it moved past are still shown.
+func TestWindowReadsANameSortFromItsOffset(t *testing.T) {
+	t.Parallel()
+
+	jobs := numbered(PageSize + 10)
+	query := Normalize(ClipListQuery{Sort: SortNameAsc})
+	first := Window(jobs, query)
+	renamed := append(append(append([]*clip.Job{}, jobs[:PageSize-1]...), jobs[PageSize:]...),
+		jobs[PageSize-1])
+
+	query.After = first.Last()
+	query.Offset = first.Next
+
+	next := Window(renamed, query)
+
+	assert.Equal(t, strconv.Itoa(PageSize), next.Jobs[pageOverlap-1].ID,
+		"the clip after the renamed one is still shown")
+}
+
 // TestWindowOverlapKeepsAMovedClipFromHidingAnother covers a clip shown on
 // the first page that moves to the end of a list sorted by modification.
 //
