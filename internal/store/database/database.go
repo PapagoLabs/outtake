@@ -19,6 +19,7 @@ import (
 	_ "github.com/tursodatabase/libsql-client-go/libsql" // LibSQL driver.
 	_ "modernc.org/sqlite"                               // SQLite driver.
 
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
@@ -256,10 +257,7 @@ func (db *DB) applySQL(ctx context.Context, name, content string) error {
 		return fmt.Errorf("begin migration %s: %w", name, err)
 	}
 
-	defer func() {
-		//nolint:errcheck,revive // After a commit it answers sql.ErrTxDone, with nothing to undo.
-		tx.Rollback()
-	}()
+	defer rollback(tx)
 
 	_, err = tx.ExecContext(ctx, content)
 	if err != nil {
@@ -378,4 +376,19 @@ func isValidSQLFile(name string) bool {
 //   - skip: True for a directory, a non-SQL file, or an applied migration.
 func skipMigration(entry fs.DirEntry, applied []string) bool {
 	return entry.IsDir() || !isValidSQLFile(entry.Name()) || slices.Contains(applied, entry.Name())
+}
+
+// rollback undoes a transaction that a failure left unfinished.
+//
+// After a commit it answers [sql.ErrTxDone], with nothing to undo. Any other
+// failure is logged, because the caller already reports why the transaction
+// did not finish.
+//
+// Parameters:
+//   - tx: The transaction.
+func rollback(tx *sql.Tx) {
+	err := tx.Rollback()
+	if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		logging.Logger.Warn().Err(err).Msg("failed to roll back a database transaction")
+	}
 }

@@ -148,10 +148,7 @@ func (db *DB) ClaimOwner(ctx context.Context, plexUserID int, username string) (
 		return false, fmt.Errorf("begin claim owner: %w", err)
 	}
 
-	defer func() {
-		//nolint:errcheck,revive // After a commit it answers sql.ErrTxDone, with nothing to undo.
-		tx.Rollback()
-	}()
+	defer rollback(tx)
 
 	claimed, err := db.claimOwnerRows(ctx, tx, plexUserID, username)
 	if err != nil {
@@ -254,12 +251,7 @@ func (db *DB) ResetOwner(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("begin reset owner: %w", err)
 	}
 
-	defer func() {
-		rollbackErr := tx.Rollback()
-		if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			return
-		}
-	}()
+	defer rollback(tx)
 
 	removed, err := db.deleteOwnerRows(ctx, tx)
 	if err != nil {
