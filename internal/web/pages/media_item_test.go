@@ -309,7 +309,7 @@ func TestItemClipListOmitsLayout(t *testing.T) {
 
 	var buf strings.Builder
 
-	err := ItemClipList(nil, true).Render(t.Context(), &buf)
+	err := ItemClipList(nil, true, "").Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()
@@ -378,7 +378,7 @@ func TestItemClipListRendersEveryClip(t *testing.T) {
 	err := ItemClipList([]view.ClipItem{
 		{ID: "clip-one", Name: "Opening"},
 		{ID: "clip-two", Name: "Closing"},
-	}, false).Render(t.Context(), &buf)
+	}, false, "").Render(t.Context(), &buf)
 	require.NoError(t, err)
 
 	body := buf.String()

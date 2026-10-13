@@ -21,9 +21,6 @@ import (
 )
 
 const (
-	// queryType is the clip type filter on a media item's clip list.
-	queryType = "type"
-
 	// queryQ is the search query parameter.
 	queryQ = "q"
 

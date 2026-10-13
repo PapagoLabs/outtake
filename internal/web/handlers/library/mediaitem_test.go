@@ -4,10 +4,12 @@
 package library
 
 import (
+	"fmt"
 	"html"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -66,7 +68,13 @@ func clipsForMediaOf(
 	app := fiber.New()
 	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID, func(ctx fiber.Ctx) error {
-		clips = handler.clipsForMedia(ctx, "42", source, normalizedQuery(), handler.audience(ctx))
+		clips, _ = handler.clipsForMedia(
+			ctx,
+			"42",
+			source,
+			normalizedQuery(),
+			handler.audience(ctx),
+		)
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})
@@ -741,4 +749,43 @@ func TestSharedClipsForMediaListsOtherAccountsSharedClips(t *testing.T) {
 	assert.True(t, clips[0].ReadOnly)
 	assert.True(t, clips[0].Shared)
 	assert.Equal(t, "owner", clips[0].OwnerName)
+}
+
+// TestMediaItemClipsLoadsAPageAtATime covers a title with more clips than one
+// page holds.
+//
+// The list shows catalog.PageSize cards and a sentinel whose request answers
+// with the remaining cards alone.
+func TestMediaItemClipsLoadsAPageAtATime(t *testing.T) {
+	t.Parallel()
+
+	handler, db := pageHandler(t, offlineAuth(t), silentSources(t))
+	base := time.Date(2026, time.October, 13, 9, 0, 0, 0, time.UTC)
+
+	for index := range catalog.PageSize + 2 {
+		job := clipJob(fmt.Sprintf("clip-%02d", index), clip.StatusCompleted)
+
+		job.CreatedAt = base.Add(time.Duration(index) * time.Minute)
+		storeClip(t, db, job)
+	}
+
+	app := mediaItemApp(handler)
+	first := serve(t, app, routes.PathItemPrefix+"42/clips", true)
+
+	require.Equal(t, fiber.StatusOK, first.status)
+	assert.Equal(t, catalog.PageSize, countOccurrences(first.body, "data-clip-card"))
+
+	match := regexp.MustCompile(`id="item-clip-list-more" hx-get="([^"]+)"`).
+		FindStringSubmatch(first.body)
+	require.NotNil(t, match, "the list ends with a sentinel for the next page")
+
+	more := serveMethod(
+		t, app, http.MethodGet, html.UnescapeString(match[1]), true, routes.TargetItemClipsMore, "",
+	)
+
+	require.Equal(t, fiber.StatusOK, more.status)
+	assert.Equal(t, 2, countOccurrences(more.body, "data-clip-card"))
+	assertBodyContains(t, more.body, `id="clip-clip-01"`, "the next page carries on")
+	assertBodyContains(t, more.body, `id="clip-clip-00"`, "down to the oldest clip")
+	assertBodyOmits(t, more.body, "item-clip-list-more", "the last page loads nothing more")
 }

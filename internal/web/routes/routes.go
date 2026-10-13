@@ -73,6 +73,24 @@ const (
 	// QueryShow names which clips the clips page lists.
 	QueryShow = "show"
 
+	// QueryClipStatus is a clip list's status filter.
+	QueryClipStatus = "status"
+
+	// QueryClipType is a clip list's type filter.
+	QueryClipType = "type"
+
+	// QueryClipName is a clip list's name search.
+	QueryClipName = "q"
+
+	// QueryClipSort is a clip list's sort.
+	QueryClipSort = "sort"
+
+	// QueryClipAfter names the last clip a page of a clip list showed.
+	QueryClipAfter = "after"
+
+	// QueryClipOffset is how many clips come before a page of a clip list.
+	QueryClipOffset = "offset"
+
 	// ShowShared lists the clips shared with the installation's users.
 	ShowShared = "shared"
 

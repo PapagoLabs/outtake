@@ -324,7 +324,7 @@ templ ClipStatus(item view.ClipItem) {
 // Parameters:
 //   - item: Clip being rendered.
 templ ClipCard(item view.ClipItem) {
-	<div id={ "clip-" + item.ID }>
+	<div id={ "clip-" + item.ID } data-clip-card>
 		@card.Card() {
 			@card.Content() {
 				if item.ReadOnly {
