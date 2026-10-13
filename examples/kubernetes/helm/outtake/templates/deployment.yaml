@@ -41,6 +41,10 @@ spec:
             - name: OUTTAKE_PUBLIC_BASE_URL
               value: {{ .Values.outtake.publicBaseUrl | quote }}
             {{- end }}
+            {{- if .Values.outtake.allowedHosts }}
+            - name: OUTTAKE_ALLOWED_HOSTS
+              value: {{ .Values.outtake.allowedHosts | quote }}
+            {{- end }}
             - name: OUTTAKE_STORAGE_BACKEND
               value: {{ include "outtake.storageBackend" . | quote }}
             - name: OUTTAKE_STORAGE_PATH

@@ -110,6 +110,17 @@ jobs:
           go tool templ generate
           go tool goimports -local github.com/PapagoLabs/outtake -w ./internal/web
 
+      - name: Generate release notes
+        if: ${{ inputs.build-type == 'stable' }}
+        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
+        env:
+          OUTPUT: ${{ runner.temp }}/release-notes.md
+          GITHUB_REPO: ${{ github.repository }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config: cliff.toml
+          args: ${{ inputs.dry-run && '--unreleased' || '--latest' }} --strip all
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7
         with:
@@ -119,6 +130,7 @@ jobs:
             release
             --config build/goreleaser/${{ inputs.build-type }}.yaml
             ${{ inputs.build-type == 'nightly' && '--skip=validate,archive' || '' }}
+            ${{ inputs.build-type == 'stable' && format('--release-notes={0}/release-notes.md', runner.temp) || '' }}
             --clean
             ${{ inputs.dry-run && '--snapshot' || '' }}
         env:

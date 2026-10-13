@@ -79,7 +79,7 @@ That builds `build/docker/Dockerfile.dev`, which bundles the same FFmpeg as the 
 
 ### A host binary
 
-Tagged [releases](https://github.com/PapagoLabs/outtake/releases) are not published yet, so use the image for now. A host binary needs `ffmpeg` and `ffprobe` from FFmpeg 8 or later, built with libx264, libx265, and zimg, on `PATH` or named by `OUTTAKE_FFMPEG_PATH` and `OUTTAKE_FFPROBE_PATH`. Earlier versions copy HDR metadata into SDR clips and write HEVC files some players refuse. It listens on `0.0.0.0:8080` and keeps its database and clips under `~/.local/share/outtake/` on Linux.
+Download the archive for your platform from [releases](https://github.com/PapagoLabs/outtake/releases). A host binary needs `ffmpeg` and `ffprobe` from FFmpeg 8 or later, built with libx264, libx265, and zimg, on `PATH` or named by `OUTTAKE_FFMPEG_PATH` and `OUTTAKE_FFPROBE_PATH`. Earlier versions copy HDR metadata into SDR clips and write HEVC files some players refuse. It listens on `0.0.0.0:8080` and keeps its database and clips under `~/.local/share/outtake/` on Linux.
 
 ```bash
 ./outtake server start

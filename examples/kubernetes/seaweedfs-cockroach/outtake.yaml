@@ -74,6 +74,9 @@ spec:
           env:
             - name: OUTTAKE_LISTEN_ADDR
               value: "0.0.0.0:8080"
+            # The URL you open Outtake at. Outtake answers only known hosts.
+            - name: OUTTAKE_PUBLIC_BASE_URL
+              value: "https://outtake.example.com"
             - name: OUTTAKE_LOG_LEVEL
               value: info
             - name: OUTTAKE_STORAGE_BACKEND
