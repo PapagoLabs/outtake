@@ -12,3 +12,4 @@ Outtake runs as one container next to your Plex Media Server. Start with **Insta
 - [Configuration](/setup/configuration/): every `OUTTAKE_` variable, media paths, and host names
 - [Storage and Databases](/setup/storage/): files, S3, SQLite, Postgres, and backups
 - [Kubernetes](/setup/kubernetes/): example manifests and an example Helm chart
+- [Upgrading](/setup/upgrading/): what changes in each version, and what to do before and after updating

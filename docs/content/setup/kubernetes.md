@@ -19,6 +19,7 @@ Before applying either one:
 
 1. Replace `nfs.example.internal` and `/export/plex` with your Plex media NFS server and export.
 2. Replace the `outtake-s3` keys, and the matching identity in SeaweedFS's `config.json`.
+3. Replace `https://outtake.example.com` in `OUTTAKE_PUBLIC_BASE_URL` with the URL you open Outtake at. Any other host name gets `421 Misdirected Request`.
 
 Then apply it:
 
@@ -38,6 +39,7 @@ kubectl apply -k examples/kubernetes/seaweedfs-cockroach
 
 - The one value every install needs is the media: set `media.nfs.server` and `media.nfs.path`, or `media.existingClaim` for a claim you made.
 - Set `media.plexMediaRoot` when Plex reports a different prefix for the files, as [Media paths](/setup/configuration/#media-paths) describes.
+- Set `outtake.publicBaseUrl` to the URL you open Outtake at, and list any other host name in `outtake.allowedHosts`.
 - Without anything else enabled, the chart uses the same defaults as Compose: files on a volume and SQLite.
 - Enable at most one file backend, `backends.seaweedfs` or `backends.rustfs`, and at most one database backend, `backends.cockroach` or `backends.cnpg`.
 

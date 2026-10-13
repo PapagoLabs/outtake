@@ -12,6 +12,8 @@ Env is `OUTTAKE_*`. Defaults stay local.
 
 | Value | Env | Default |
 | --- | --- | --- |
+| `outtake.publicBaseUrl` | `OUTTAKE_PUBLIC_BASE_URL` | the image's `http://localhost:8080`. Set it to your ingress URL |
+| `outtake.allowedHosts` | `OUTTAKE_ALLOWED_HOSTS` | empty |
 | `outtake.storageBackend` | `OUTTAKE_STORAGE_BACKEND` | `filesystem` |
 | `outtake.storagePath` | `OUTTAKE_STORAGE_PATH` | `/data/output` |
 | `outtake.s3.*` | `OUTTAKE_S3_*` | path-style S3, region `us-east-1` |

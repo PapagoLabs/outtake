@@ -79,6 +79,7 @@ Open [http://localhost:8080](http://localhost:8080) and choose **Login With Plex
   - [Configuration](https://outtake.papagolabs.com/setup/configuration/): every `OUTTAKE_` variable, media paths, and host names
   - [Storage and Databases](https://outtake.papagolabs.com/setup/storage/): files, S3, SQLite, and Postgres
   - [Kubernetes](https://outtake.papagolabs.com/setup/kubernetes/): example manifests and an example Helm chart
+  - [Upgrading](https://outtake.papagolabs.com/setup/upgrading/): what changes in each version, and what to do before and after updating
 - [Guide](https://outtake.papagolabs.com/guide/): using Outtake once it is running
   - [Logging In and Servers](https://outtake.papagolabs.com/guide/logging-in/): the owner account and the server Outtake uses
   - [Making Clips](https://outtake.papagolabs.com/guide/making-clips/): marking a selection, exporting it, and managing clips

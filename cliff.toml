@@ -35,6 +35,19 @@ body = """
     ## [Unreleased]
 {% endif -%}
 
+{%- set breaking = commits | filter(attribute="breaking", value=true) -%}
+{% if breaking | length > 0 %}
+    ### Breaking Changes
+
+    Read [Upgrading](https://outtake.papagolabs.com/setup/upgrading/) before you update.
+    {% for commit in breaking %}
+        - {{ commit.message | split(pat="\n") | first | upper_first | trim }}\
+            {% if commit.remote.pr_number %} in \
+            [#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) \
+            {%- endif -%}
+    {% endfor %}
+{% endif -%}
+
 {% for group, commits in commits | group_by(attribute="group") %}
     ### {{ group | upper_first }}
     {% for commit in commits %}
@@ -93,7 +106,13 @@ trim = true
 conventional_commits = true
 # Exclude commits that do not match the conventional commits specification.
 filter_unconventional = false
-commit_preprocessors = [{ pattern = '\s*\((\w+\s)?#([0-9]+)\)', replace = "" }]
+commit_preprocessors = [
+  { pattern = '\s*\((\w+\s)?#([0-9]+)\)', replace = "" },
+  # Behavior changes that shipped without a breaking marker.
+  { pattern = '^fix\(auth\): restrict outtake to a single plex owner', replace = "fix(auth)!: restrict outtake to a single plex owner" },
+  { pattern = "^fix\\(auth\\): let only the server's owner bind it", replace = "fix(auth)!: let only the server's owner bind it" },
+  { pattern = '^fix: make keep HDR the only HDR switch', replace = "fix!: make keep HDR the only HDR switch" },
+]
 commit_parsers = [
   # Skip changelog updates (noise from generation/merges)
   { message = "(?i)update.*changelog", skip = true },

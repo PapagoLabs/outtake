@@ -6,7 +6,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/papagolabs/outtake
   pullPolicy: IfNotPresent
-  # No tagged Outtake release yet; override when goreleaser cuts one.
+  # Pin a release line, such as "0.4", to take only its updates.
   tag: latest
 
 imagePullSecrets: []
@@ -99,7 +99,11 @@ cloudnative-pg:
 
 outtake:
   listenAddr: "0.0.0.0:8080"
+  # The URL you open Outtake at, such as your ingress. Outtake answers only
+  # known hosts, so an ingress host left unset here gets 421.
   publicBaseUrl: ""
+  # More host names Outtake answers to, separated by commas.
+  allowedHosts: ""
   logLevel: info
   env: production
   # filesystem | s3 (generic: SeaweedFS, RustFS, or any S3-compatible)
@@ -122,7 +126,7 @@ outtake:
   existingSecret: ""
   databaseUrlKey: database-url
 
-# Dockerfile.dev runs USER 1000:1000 (scratch).
+# The image runs as uid and gid 1000.
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
