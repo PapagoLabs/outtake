@@ -394,6 +394,25 @@ func TestBulkRefusesARequestTheListsNeverSend(t *testing.T) {
 	}
 }
 
+// TestBulkRefusesABodyItCannotRead covers a JSON body that does not parse,
+// which is refused as unreadable rather than as naming no clip.
+func TestBulkRefusesABodyItCannotRead(t *testing.T) {
+	t.Parallel()
+
+	handler, _ := sharedSourceHandler(t)
+
+	answer := postBulk(t, handler, bulkCall{
+		caller:      middlewaretest.AsOwner(),
+		path:        "/api/clips/bulk",
+		body:        `{"action":`,
+		contentType: fiber.MIMEApplicationJSON,
+		htmx:        false,
+	})
+
+	assert.Equal(t, fiber.StatusBadRequest, answer.status)
+	assert.Contains(t, answer.body, string(errBulkUnreadable))
+}
+
 // TestBulkAnswersHTMXWithTheStatusLine covers the list's own form post,
 // which names each clip in a repeated field and gets the status line back.
 func TestBulkAnswersHTMXWithTheStatusLine(t *testing.T) {

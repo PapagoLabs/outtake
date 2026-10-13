@@ -78,6 +78,8 @@ const (
 	errBulkNone bulkRequestError = "Select at least one clip"
 	// errBulkTooMany refuses a request that names more than maxBulkClips.
 	errBulkTooMany bulkRequestError = "Select at most 200 clips at a time"
+	// errBulkUnreadable refuses a body that cannot be read.
+	errBulkUnreadable bulkRequestError = "Couldn't read the request"
 )
 
 // errBulkSkipped marks a clip a bulk action does not apply to.
@@ -204,9 +206,12 @@ func (handler *Handler) cancelRender(job *clipdom.Job) error {
 // Returns:
 //   - jobs: The failed clips, newest first.
 func (handler *Handler) failedJobs(ctx fiber.Ctx, mediaID string) []*clipdom.Job {
-	jobs := handler.listJobs(ctx)
+	var jobs []*clipdom.Job
+
 	if mediaID != "" {
 		jobs = catalog.ForMedia(ctx.Context(), handler.db, middleware.ClipScope(ctx), mediaID)
+	} else {
+		jobs = handler.listJobs(ctx)
 	}
 
 	return catalog.Apply(jobs, catalog.Normalize(catalog.ClipListQuery{
@@ -387,7 +392,8 @@ func mediaIDOf(ctx fiber.Ctx) string {
 //
 // Returns:
 //   - req: The action and the clips, each named once.
-//   - err: A bulkRequestError for an unknown action, no clip, or too many.
+//   - err: A bulkRequestError for an unreadable body, an unknown action, no
+//     clip, or too many.
 func parseBulk(ctx fiber.Ctx) (api.BulkRequest, error) {
 	req := api.BulkRequest{Action: "", Clips: nil}
 
@@ -398,7 +404,7 @@ func parseBulk(ctx fiber.Ctx) (api.BulkRequest, error) {
 			req.Clips = append(req.Clips, string(id))
 		}
 	} else if ctx.Bind().Body(&req) != nil {
-		return api.BulkRequest{}, errBulkNone
+		return api.BulkRequest{}, errBulkUnreadable
 	}
 
 	//nolint:wrapcheck // The refusal is the page's message as it is.
