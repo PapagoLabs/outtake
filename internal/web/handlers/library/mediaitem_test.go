@@ -68,13 +68,13 @@ func clipsForMediaOf(
 	app := fiber.New()
 	app.Use(middlewaretest.AsOwner())
 	app.Get(routes.PathItemPrefix+":"+routes.ParamID, func(ctx fiber.Ctx) error {
-		clips, _ = handler.clipsForMedia(
+		clips = handler.clipsForMedia(
 			ctx,
 			"42",
 			source,
 			normalizedQuery(),
 			handler.audience(ctx),
-		)
+		).items
 
 		return ctx.SendStatus(fiber.StatusOK)
 	})

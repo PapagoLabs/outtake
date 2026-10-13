@@ -4,6 +4,8 @@
 package view
 
 import (
+	"slices"
+
 	"github.com/PapagoLabs/outtake/internal/clip"
 )
 
@@ -83,4 +85,16 @@ func (audience Audience) ApplyEach(items []ClipItem, jobs []*clip.Job) {
 //   - shares: True once a second user is known.
 func (audience Audience) Shares() bool {
 	return len(audience.Names) > 1
+}
+
+// AnySelectable reports whether a list holds a card its viewer may change,
+// which its bulk actions can select.
+//
+// Parameters:
+//   - items: The cards.
+//
+// Returns:
+//   - selectable: True when any card is not read only.
+func AnySelectable(items []ClipItem) bool {
+	return slices.ContainsFunc(items, func(item ClipItem) bool { return !item.ReadOnly })
 }

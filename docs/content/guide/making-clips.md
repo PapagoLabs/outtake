@@ -66,6 +66,8 @@ Each card opens to a **Preview** of its file and carries the same settings as th
 - **Share** lets the other people using Outtake who can see the title in Plex play and download the clip, and **Stop Sharing** makes it private again. It appears once Outtake has a second user.
 - **Delete** removes the clip and its files.
 
+To act on several clips at once, select them with the box on each card, or **Select all** for the cards shown, then choose **Regenerate**, **Cancel**, **Share**, **Stop Sharing**, or **Delete**. Each clip goes through the same checks as on its own card: a clip you can't change is skipped, and a regenerate stops at your render limit. The line under the filters says what happened. **Retry Failed** regenerates every failed clip on **Clips**, or every failed clip of the title on a title's page.
+
 A clip that is still rendering only takes a rename. Wait for it to finish, or choose **Cancel** to stop it, to change anything else.
 
 Each player shows a badge in its corner naming what it plays, such as **SDR · 1080p** or **HDR · 4K**.

@@ -16,6 +16,9 @@ import (
 
 // ListToolbarProps carries the clip list filter and sort state.
 type ListToolbarProps struct {
+	// ID is the form's id, which a list's bulk actions submit again to
+	// refresh the list.
+	ID      string
 	Action  string
 	Target  string
 	PushURL bool
@@ -53,6 +56,9 @@ func ownClipsLabel(ctx context.Context) string {
 //   - props: Request endpoint, swap target, and active filter and sort values.
 templ ListToolbar(props ListToolbarProps) {
 	<form
+		if props.ID != "" {
+			id={ props.ID }
+		}
 		hx-get={ props.Action }
 		hx-target={ "#" + props.Target }
 		hx-swap="innerHTML"

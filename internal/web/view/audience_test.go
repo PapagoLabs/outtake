@@ -120,3 +120,13 @@ func TestAudienceApplyEachMarksEveryCard(t *testing.T) {
 	assert.True(t, items[1].ReadOnly)
 	assert.Equal(t, "owner", items[1].OwnerName)
 }
+
+// TestAnySelectableFindsACardTheViewerMayChange covers whether a list
+// offers its bulk actions.
+func TestAnySelectableFindsACardTheViewerMayChange(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, AnySelectable(nil))
+	assert.False(t, AnySelectable([]ClipItem{{ReadOnly: true}}))
+	assert.True(t, AnySelectable([]ClipItem{{ReadOnly: true}, {ReadOnly: false}}))
+}

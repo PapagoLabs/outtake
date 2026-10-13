@@ -36,6 +36,8 @@ type ClipsProps struct {
 	OfferShared bool
 	// MoreURL loads the list's next page, empty when no clip follows.
 	MoreURL string
+	// Bulk describes the list's bulk actions.
+	Bulk clipcard.BulkBarProps
 }
 
 // clipsFiltered reports whether any filter narrows the clip list.
@@ -103,6 +105,7 @@ func Clips(props ClipsProps) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = clipcard.ListToolbar(clipcard.ListToolbarProps{
+				ID:          routes.ClipListToolbar,
 				Action:      "/clips",
 				Target:      "clip-list",
 				PushURL:     true,
@@ -124,7 +127,7 @@ func Clips(props ClipsProps) templ.Component {
 				var templ_7745c5c3_Var3 string
 				templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(props.Status)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clips.templ`, Line: 79, Col: 67}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages/clips.templ`, Line: 82, Col: 67}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 				if templ_7745c5c3_Err != nil {
@@ -134,6 +137,10 @@ func Clips(props ClipsProps) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
+			}
+			templ_7745c5c3_Err = clipcard.BulkStatusLine(routes.ClipBulkStatus).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div id=\"clip-list\" class=\"flex flex-col gap-6\">")
 			if templ_7745c5c3_Err != nil {
@@ -182,6 +189,10 @@ func ClipsList(props ClipsProps) templ.Component {
 			templ_7745c5c3_Var4 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = clipcard.BulkBar(props.Bulk).Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
 		if len(props.Items) == 0 {
 			templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context

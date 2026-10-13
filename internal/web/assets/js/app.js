@@ -765,6 +765,75 @@
 		});
 	}
 
+	// bulkList is the list a bulk bar acts on.
+	function bulkList(bar) {
+		return document.getElementById(bar.getAttribute('data-bulk-list'));
+	}
+
+	// syncBulkBars shows each list's bulk actions while any of its cards is
+	// selected, and keeps its count and select-all box in step with the cards,
+	// including ones a scroll added or an action removed.
+	function syncBulkBars() {
+		document.querySelectorAll('[data-bulk-bar]').forEach(function (bar) {
+			var list = bulkList(bar);
+			if (!list) {
+				return;
+			}
+			var boxes = list.querySelectorAll('[data-bulk-select]').length;
+			var checked = list.querySelectorAll('[data-bulk-select]:checked').length;
+			var all = bar.querySelector('[data-bulk-all]');
+			if (all) {
+				all.checked = boxes > 0 && checked === boxes;
+				all.indeterminate = checked > 0 && checked < boxes;
+			}
+			var count = bar.querySelector('[data-bulk-count]');
+			if (count) {
+				count.textContent = checked + ' selected';
+				count.hidden = checked === 0;
+			}
+			var actions = bar.querySelector('[data-bulk-actions]');
+			if (actions) {
+				actions.hidden = checked === 0;
+			}
+		});
+	}
+
+	// afterBulkAction shows a bulk action's result and refreshes its list
+	// through the list's toolbar, so the list keeps its filters and sort.
+	function afterBulkAction(event) {
+		var src = swapSource(event);
+		var bar = src && src.closest ? src.closest('[data-bulk-bar]') : null;
+		if (!bar) {
+			return;
+		}
+		document.querySelectorAll('[data-bulk-status]').forEach(function (status) {
+			status.hidden = status.textContent.trim() === '';
+		});
+		var toolbar = document.getElementById(bar.getAttribute('data-bulk-refresh'));
+		if (toolbar) {
+			toolbar.requestSubmit();
+		}
+	}
+
+	document.addEventListener('change', function (event) {
+		var target = event.target;
+		if (!target || !target.matches) {
+			return;
+		}
+		var bar = target.matches('[data-bulk-all]') ? target.closest('[data-bulk-bar]') : null;
+		if (bar) {
+			var list = bulkList(bar);
+			if (list) {
+				list.querySelectorAll('[data-bulk-select]').forEach(function (box) {
+					box.checked = target.checked;
+				});
+			}
+		}
+		if (target.matches('[data-bulk-all], [data-bulk-select]')) {
+			syncBulkBars();
+		}
+	});
+
 	// syncClipWindows copies each clip's window from its status region into
 	// its card's form. A copied clip's start moves to the keyframe it starts
 	// on as it renders, and the form, outside the swapped region, would
@@ -793,6 +862,8 @@
 			dropRepeatedCards(pagedList);
 			pagedList = null;
 		}
+		afterBulkAction(event);
+		syncBulkBars();
 		bindExportForms();
 		chooseClipSources();
 		syncClipWindows();

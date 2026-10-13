@@ -569,3 +569,27 @@ func TestClipsLoadsTheListAPageAtATime(t *testing.T) {
 	assertBodyOmits(t, more.body, "No clips", "the next page never says the list is empty")
 	assert.Empty(t, moreURLIn(t, more.body), "the last page loads nothing more")
 }
+
+// TestClipsOffersBulkActions covers the clips page's bulk bar.
+//
+// It acts on the list, reports to a status line outside it, and offers Retry
+// Failed while a clip has failed, but not in the Shared view.
+func TestClipsOffersBulkActions(t *testing.T) {
+	t.Parallel()
+
+	handler, db := clipPageHandler(t)
+	storeClipped(t, db, "done", clipdom.TypeClip, clipdom.StatusCompleted)
+	storeClipped(t, db, "broken", clipdom.TypeClip, clipdom.StatusFailed)
+
+	page := getClips(t, handler, routes.PathClips, "")
+
+	require.Equal(t, fiber.StatusOK, page.status)
+	assertBodyContains(t, page.body, `data-bulk-list="clip-list"`, "the bar acts on the list")
+	assertBodyContains(t, page.body, `id="clip-bulk-status"`, "results go to the status line")
+	assertBodyContains(t, page.body, `id="clip-list-toolbar"`, "the toolbar refreshes the list")
+	assertBodyContains(t, page.body, "Retry Failed", "a clip has failed")
+
+	shared := getClips(t, handler, routes.PathClips+"?show=shared", routes.TargetClipList)
+
+	assertBodyOmits(t, shared.body, "Retry Failed", "the Shared view retries nothing")
+}

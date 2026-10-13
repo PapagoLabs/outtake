@@ -245,6 +245,18 @@ var wantRoutes = []routerRoute{
 		sample:  "/api/clips/preview",
 	},
 	{
+		method:  http.MethodPost,
+		path:    "/api/clips/bulk",
+		guarded: true,
+		sample:  "/api/clips/bulk",
+	},
+	{
+		method:  http.MethodPost,
+		path:    "/api/clips/retry",
+		guarded: true,
+		sample:  "/api/clips/retry",
+	},
+	{
 		method:  http.MethodGet,
 		path:    "/api/clips/preview/:id",
 		guarded: true,
@@ -954,6 +966,8 @@ func TestNewResolvesTheAPIClipRoutesWithoutShadowing(t *testing.T) {
 	for _, route := range []routerRoute{
 		{method: http.MethodGet, path: "/api/clips", sample: "/api/clips"},
 		{method: http.MethodPost, path: "/api/clips/preview", sample: "/api/clips/preview"},
+		{method: http.MethodPost, path: "/api/clips/bulk", sample: "/api/clips/bulk"},
+		{method: http.MethodPost, path: "/api/clips/retry", sample: "/api/clips/retry"},
 		{method: http.MethodGet, path: "/api/clips/preview/:id", sample: "/api/clips/preview/abc"},
 		{method: http.MethodDelete, path: "/api/clips/preview/:id", sample: "/api/clips/preview/abc"},
 		{method: http.MethodPost, path: "/api/clips/:id/update", sample: "/api/clips/abc/update"},
