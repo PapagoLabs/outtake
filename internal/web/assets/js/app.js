@@ -720,19 +720,50 @@
 		document.querySelectorAll('[data-export-form]').forEach(releaseSubmits);
 	});
 
-	document.addEventListener('htmx:before:swap', function (event) {
-		var results = document.getElementById('media-results');
+	// swapSource is the element whose request a swap answers.
+	function swapSource(event) {
 		var detail = event.detail || {};
 		var src = detail.sourceElement;
 		if (!src && detail.ctx) {
 			src = detail.ctx.sourceElement;
 		}
+		return src;
+	}
+
+	// pagedList is the clip list whose next page is being swapped in, from
+	// the swap's start to its end.
+	var pagedList = null;
+
+	// clipSentinels are the ids of the sentinels that load a clip list's next
+	// page.
+	var clipSentinels = ['clip-list-more', 'item-clip-list-more'];
+
+	document.addEventListener('htmx:before:swap', function (event) {
+		var src = swapSource(event);
+		if (src && clipSentinels.indexOf(src.id) !== -1) {
+			pagedList = src.parentElement;
+		}
+		var results = document.getElementById('media-results');
 		if (!results || !src || src.id !== 'media-prev') {
 			return;
 		}
 		results.dataset.prevScrollHeight = String(results.scrollHeight);
 		results.dataset.prevScrollTop = String(results.scrollTop);
 	});
+
+	// dropRepeatedCards keeps the first card of each clip in a list. A page
+	// read from its offset repeats a few cards from the page before it, so a
+	// clip that moved or was deleted meanwhile hides no other card.
+	function dropRepeatedCards(list) {
+		var seen = {};
+		list.querySelectorAll('[data-clip-card]').forEach(function (card) {
+			if (seen[card.id]) {
+				card.remove();
+				return;
+			}
+			seen[card.id] = true;
+		});
+	}
 
 	// syncClipWindows copies each clip's window from its status region into
 	// its card's form. A copied clip's start moves to the keyframe it starts
@@ -758,6 +789,10 @@
 	}
 
 	document.addEventListener('htmx:after:swap', function (event) {
+		if (pagedList) {
+			dropRepeatedCards(pagedList);
+			pagedList = null;
+		}
 		bindExportForms();
 		chooseClipSources();
 		syncClipWindows();

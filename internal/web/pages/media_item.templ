@@ -22,6 +22,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/player"
 	"github.com/PapagoLabs/outtake/internal/web/components/progress"
 	"github.com/PapagoLabs/outtake/internal/web/components/quality"
+	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/utils"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
@@ -64,6 +65,8 @@ type MediaItemPageProps struct {
 	Duration  time.Duration
 	MaxDur    time.Duration
 	Clips     []view.ClipItem
+	// ClipsMoreURL loads the next page of Clips, empty when no clip follows.
+	ClipsMoreURL string
 	// SharedClips are other accounts' clips of this title shared with the
 	// viewer.
 	SharedClips []view.ClipItem
@@ -333,7 +336,7 @@ templ MediaItemPage(props MediaItemPageProps) {
 					Sort:    props.ClipSort,
 				})
 				<div id="item-clip-list" class="flex flex-col gap-4">
-					@ItemClipList(props.Clips, props.ClipStatus != "" || props.ClipType != "" || props.ClipQuery != "")
+					@ItemClipList(props.Clips, props.ClipStatus != "" || props.ClipType != "" || props.ClipQuery != "", props.ClipsMoreURL)
 				</div>
 			</div>
 			if len(props.SharedClips) > 0 {
@@ -354,9 +357,10 @@ templ MediaItemPage(props MediaItemPageProps) {
 // ItemClipList renders the clip cards, or the empty and filtered-empty messages.
 //
 // Parameters:
-//   - items: Clips made from this item.
+//   - items: The first page of clips made from this item.
 //   - filtered: A status, type, or query filter is set.
-templ ItemClipList(items []view.ClipItem, filtered bool) {
+//   - moreURL: Loads the next page, empty when no clip follows.
+templ ItemClipList(items []view.ClipItem, filtered bool, moreURL string) {
 	if len(items) == 0 {
 		if filtered {
 			<p class="text-sm text-muted-foreground">No clips match these filters</p>
@@ -364,7 +368,18 @@ templ ItemClipList(items []view.ClipItem, filtered bool) {
 			<p class="text-sm text-muted-foreground">No clips yet</p>
 		}
 	}
+	@ItemClipsMore(items, moreURL)
+}
+
+// ItemClipsMore renders a page of a title's clip cards and the sentinel for
+// the next one.
+//
+// Parameters:
+//   - items: The page's clips.
+//   - moreURL: Loads the next page, empty when no clip follows.
+templ ItemClipsMore(items []view.ClipItem, moreURL string) {
 	for _, item := range items {
 		@clipcard.ClipCard(item)
 	}
+	@clipcard.MoreClips(routes.TargetItemClipsMore, moreURL)
 }

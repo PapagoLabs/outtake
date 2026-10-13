@@ -54,7 +54,7 @@ Each page keeps one connection open to Outtake while it has something to follow:
 
 ![The Clips page, with filters by type, name, and sort order, and a card for each clip](/images/screenshots/clips.png)
 
-**Clips** lists everything you made, newest first. Filter by **Type** or name, or change the sort order. Once others use Outtake, **Show** switches to **Shared Clips**, the shared clips of titles Plex shares with you (see [Users and Limits](/guide/users/#sharing-clips)).
+**Clips** lists everything you made, newest first, 24 at a time, and loads more as you scroll down. Filter by **Type** or name, or change the sort order. Once others use Outtake, **Show** switches to **Shared Clips**, the shared clips of titles Plex shares with you (see [Users and Limits](/guide/users/#sharing-clips)).
 
 ![A completed screenshot clip, open to its preview, with Regenerate, Save Changes, and Download](/images/screenshots/clip-card.png)
 

@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -23,17 +24,8 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
-const (
-	// queryType is the clip type filter query parameter.
-	queryType = "type"
-	// queryQ is the clip name search query parameter.
-	queryQ = "q"
-	// querySort is the clip list sort query parameter.
-	querySort = "sort"
-
-	// describeLimit is how many clip sources the clips page probes at once.
-	describeLimit = 4
-)
+// describeLimit is how many clip sources the clips page probes at once.
+const describeLimit = 4
 
 // ClipFile streams a completed clip for in-browser playback.
 //
@@ -168,33 +160,21 @@ func (handler *Handler) storedFiles(ctx context.Context, job *clipdom.Job) store
 	}
 }
 
-// Clips renders the clips list page, or the list fragment HTMX swaps into it.
+// Clips renders the clips list page, the list fragment HTMX swaps into it, or
+// the next page a scrolled list appends.
+//
+// A page holds catalog.PageSize cards, and only its own clips are checked in
+// storage and probed.
 //
 // Parameters:
-//   - ctx: Request with optional clip filters and sort.
+//   - ctx: Request with optional clip filters, sort, and page.
 //
 // Returns:
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) Clips(ctx fiber.Ctx) error {
 	query := parseClipListQuery(ctx)
-
-	var listed []*clipdom.Job
-
-	if query.Shared {
-		viewpoint := middleware.ViewpointOf(ctx)
-
-		listed = catalog.Shared(
-			ctx.Context(),
-			handler.clipQueue,
-			handler.db,
-			viewpoint.Scope,
-			catalog.SeenBy(handler.sources, viewpoint.Viewer),
-		)
-	} else {
-		listed = handler.listJobs(ctx)
-	}
-
-	jobs := catalog.Apply(listed, query)
+	page := catalog.Window(catalog.Apply(handler.listedFor(ctx, query), query), query)
+	jobs := page.Jobs
 	items := view.NewClipItems(
 		jobs,
 		profile.SelectableProfiles(ctx.Context(), handler.db),
@@ -225,6 +205,13 @@ func (handler *Handler) Clips(ctx fiber.Ctx) error {
 		Sort:        query.Sort,
 		Shared:      query.Shared,
 		OfferShared: audience.Shares(),
+		MoreURL:     view.MoreClipsURL(routes.PathClips, query, page),
+	}
+
+	if respond.TargetsElement(ctx, routes.TargetClipListMore) {
+		return respond.RenderHTML(ctx, func(writer io.Writer) error {
+			return pages.ClipsMore(props).Render(ctx.Context(), writer)
+		})
 	}
 
 	if wantsClipList(ctx) {
@@ -238,6 +225,31 @@ func (handler *Handler) Clips(ctx fiber.Ctx) error {
 	})
 }
 
+// listedFor returns the clips a list draws from before its filters.
+//
+// Parameters:
+//   - ctx: Request whose caller the clips are kept to.
+//   - query: Normalized toolbar state.
+//
+// Returns:
+//   - jobs: The shared clips the caller sees for the Shared view, and every
+//     clip the caller may change otherwise.
+func (handler *Handler) listedFor(ctx fiber.Ctx, query catalog.ClipListQuery) []*clipdom.Job {
+	if !query.Shared {
+		return handler.listJobs(ctx)
+	}
+
+	viewpoint := middleware.ViewpointOf(ctx)
+
+	return catalog.Shared(
+		ctx.Context(),
+		handler.clipQueue,
+		handler.db,
+		viewpoint.Scope,
+		catalog.SeenBy(handler.sources, viewpoint.Viewer),
+	)
+}
+
 // wantsClipList reports whether the request should swap the clips list only.
 //
 // Parameters:
@@ -249,21 +261,28 @@ func wantsClipList(ctx fiber.Ctx) bool {
 	return respond.TargetsElement(ctx, routes.TargetClipList)
 }
 
-// parseClipListQuery reads type, name, sort, status, and which clips to show
+// parseClipListQuery reads the filters, sort, page, and which clips to show
 // from the request.
 //
 // Parameters:
-//   - ctx: Request with optional type, q, sort, status, and show query
-//     parameters.
+//   - ctx: Request with optional type, q, sort, status, show, after, and
+//     offset query parameters.
 //
 // Returns:
-//   - query: Normalized list filters and sort.
+//   - query: Normalized list filters, sort, and page.
 func parseClipListQuery(ctx fiber.Ctx) catalog.ClipListQuery {
+	offset, err := strconv.Atoi(ctx.Query(routes.QueryClipOffset))
+	if err != nil {
+		offset = 0
+	}
+
 	return catalog.Normalize(catalog.ClipListQuery{
-		Status: clipdom.Status(ctx.Query("status")),
-		Type:   clipdom.Type(ctx.Query(queryType)),
-		Query:  strings.TrimSpace(ctx.Query(queryQ)),
-		Sort:   ctx.Query(querySort),
+		Status: clipdom.Status(ctx.Query(routes.QueryClipStatus)),
+		Type:   clipdom.Type(ctx.Query(routes.QueryClipType)),
+		Query:  strings.TrimSpace(ctx.Query(routes.QueryClipName)),
+		Sort:   ctx.Query(routes.QueryClipSort),
+		After:  ctx.Query(routes.QueryClipAfter),
+		Offset: offset,
 		Shared: ctx.Query(routes.QueryShow) == routes.ShowShared,
 	})
 }

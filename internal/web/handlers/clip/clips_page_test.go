@@ -5,13 +5,18 @@ package clip
 
 import (
 	"context"
+	"fmt"
+	"html"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,6 +31,9 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/middleware/middlewaretest"
 	"github.com/PapagoLabs/outtake/internal/web/routes"
 )
+
+// moreURLPattern finds the address a list's scroll sentinel loads.
+var moreURLPattern = regexp.MustCompile(`id="clip-list-more" hx-get="([^"]+)"`)
 
 // clipsApp mounts the clips page routes on a fresh app.
 //
@@ -170,7 +178,7 @@ func TestClipsFollowsTheCarriedSearch(t *testing.T) {
 	storeClipped(t, db, "completed-clip", clipdom.TypeClip, clipdom.StatusCompleted)
 
 	answer := getClips(t, handler,
-		routes.PathClips+"?"+url.Values{queryQ: {"Intro"}}.Encode(), "")
+		routes.PathClips+"?"+url.Values{routes.QueryClipName: {"Intro"}}.Encode(), "")
 
 	require.Equal(t, fiber.StatusOK, answer.status)
 	assertBodyContains(t, answer.body, `value="`+"Intro"+`"`,
@@ -237,10 +245,10 @@ func TestParseClipListQueryReadsEveryFilter(t *testing.T) {
 	t.Parallel()
 
 	target := routes.PathClips + "?" + url.Values{
-		"type":    {string(clipdom.TypeGIF)},
-		queryQ:    {"  needle  "},
-		querySort: {string(catalog.SortNameAsc)},
-		"status":  {"completed"},
+		"type":               {string(clipdom.TypeGIF)},
+		routes.QueryClipName: {"  needle  "},
+		routes.QueryClipSort: {string(catalog.SortNameAsc)},
+		"status":             {"completed"},
 	}.Encode()
 
 	query := clipQueryOf(t, target)
@@ -286,7 +294,7 @@ func TestParseClipListQueryNormalizesAnUnknownSort(t *testing.T) {
 	t.Parallel()
 
 	target := routes.PathClips + "?" + url.Values{
-		querySort: {"sideways"},
+		routes.QueryClipSort: {"sideways"},
 	}.Encode()
 
 	assert.Equal(t, catalog.SortCreatedDesc, clipQueryOf(t, target).Sort,
@@ -484,4 +492,80 @@ func TestClipsPlaysTheSDRVersionFirst(t *testing.T) {
 	assertBodyContains(t, answer.body, `src="/clips/without-sdr/file?v=`,
 		"a clip with no SDR version plays its own file")
 	assertBodyContains(t, answer.body, "data-sdr-missing", "and is marked as lacking one")
+}
+
+// storeNumberedClips stores clips made a minute apart, clip-00 first.
+//
+// Parameters:
+//   - t: The test the clips belong to.
+//   - db: Database the clips are stored in.
+//   - count: How many clips.
+func storeNumberedClips(t *testing.T, db *database.DB, count int) {
+	t.Helper()
+
+	base := time.Date(2026, time.October, 13, 9, 0, 0, 0, time.UTC)
+
+	for index := range count {
+		job := testClipJob(fmt.Sprintf("clip-%02d", index), clipdom.TypeClip)
+
+		job.CreatedAt = base.Add(time.Duration(index) * time.Minute)
+		job.UpdatedAt = job.CreatedAt
+		require.NoError(t, db.SaveClip(t.Context(), job))
+	}
+}
+
+// moreURLIn reads the next page's address from a list.
+//
+// Parameters:
+//   - t: The test that reads it.
+//   - body: The rendered list.
+//
+// Returns:
+//   - address: The address the sentinel loads, empty when there is none.
+func moreURLIn(t *testing.T, body string) string {
+	t.Helper()
+
+	match := moreURLPattern.FindStringSubmatch(body)
+	if match == nil {
+		return ""
+	}
+
+	return html.UnescapeString(match[1])
+}
+
+// TestClipsLoadsTheListAPageAtATime covers the clips page past one page.
+//
+// The page shows the newest catalog.PageSize clips and a sentinel for the
+// rest. The sentinel's request answers with the remaining cards alone, and
+// a clip made in between repeats none of them.
+func TestClipsLoadsTheListAPageAtATime(t *testing.T) {
+	t.Parallel()
+
+	handler, db := clipPageHandler(t)
+	storeNumberedClips(t, db, catalog.PageSize+6)
+
+	first := getClips(t, handler, routes.PathClips, "")
+
+	require.Equal(t, fiber.StatusOK, first.status)
+	assert.Equal(t, catalog.PageSize, strings.Count(first.body, "data-clip-card"))
+	assertBodyContains(t, first.body, `id="clip-clip-29"`, "the newest clip comes first")
+	assertBodyOmits(t, first.body, `id="clip-clip-05"`, "the oldest wait for the next page")
+
+	next := moreURLIn(t, first.body)
+	require.NotEmpty(t, next)
+
+	meanwhile := testClipJob("made-meanwhile", clipdom.TypeClip)
+
+	meanwhile.CreatedAt = time.Date(2026, time.October, 13, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, db.SaveClip(t.Context(), meanwhile))
+
+	more := getClips(t, handler, next, routes.TargetClipListMore)
+
+	require.Equal(t, fiber.StatusOK, more.status)
+	assert.Equal(t, 6, strings.Count(more.body, "data-clip-card"))
+	assertBodyContains(t, more.body, `id="clip-clip-05"`, "the next page carries on")
+	assertBodyOmits(t, more.body, `id="clip-clip-06"`, "no card repeats")
+	assertBodyOmits(t, more.body, "<html", "the next page is a fragment")
+	assertBodyOmits(t, more.body, "No clips", "the next page never says the list is empty")
+	assert.Empty(t, moreURLIn(t, more.body), "the last page loads nothing more")
 }

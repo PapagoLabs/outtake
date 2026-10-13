@@ -28,7 +28,7 @@ func TestClipCardPollDoesNotCoverEditForm(t *testing.T) {
 	require.NoError(t, ClipCard(item).Render(t.Context(), &buf))
 	body := buf.String()
 
-	assert.Contains(t, body, `<div id="clip-c1">`)
+	assert.Contains(t, body, `<div id="clip-c1" data-clip-card>`)
 
 	statusAt := strings.Index(body, `id="clip-c1-status"`)
 	require.Positive(t, statusAt, "the polled status region must exist")

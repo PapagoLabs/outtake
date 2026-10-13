@@ -16,6 +16,11 @@ type ClipListQuery struct {
 	Type   clip.Type
 	Query  string
 	Sort   string
+	// After names the last clip a page showed, which the next page follows.
+	After string
+	// Offset is how many clips come before the page, used when After names
+	// no clip the list holds.
+	Offset int
 	// Shared keeps the list to clips shared with the installation's users.
 	Shared bool
 }
@@ -56,6 +61,8 @@ func Normalize(query ClipListQuery) ClipListQuery {
 	default:
 		query.Sort = SortCreatedDesc
 	}
+
+	query.Offset = max(query.Offset, 0)
 
 	return query
 }

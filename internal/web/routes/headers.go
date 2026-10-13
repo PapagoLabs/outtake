@@ -57,4 +57,12 @@ const (
 
 	// TargetClipList is the clip list the clips page swaps.
 	TargetClipList = "clip-list"
+
+	// TargetClipListMore is the append target for the clips page's next
+	// page.
+	TargetClipListMore = "clip-list-more"
+
+	// TargetItemClipsMore is the append target for the next page of a
+	// title's clips.
+	TargetItemClipsMore = "item-clip-list-more"
 )

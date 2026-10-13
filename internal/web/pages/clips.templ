@@ -8,6 +8,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/web/components/card"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/layout"
+	"github.com/PapagoLabs/outtake/internal/web/routes"
 	"github.com/PapagoLabs/outtake/internal/web/view"
 )
 
@@ -23,6 +24,8 @@ type ClipsProps struct {
 	// OfferShared shows the choice of the shared clips, once the installation
 	// has another user to share them with.
 	OfferShared bool
+	// MoreURL loads the list's next page, empty when no clip follows.
+	MoreURL string
 }
 
 // clipsFiltered reports whether any filter narrows the clip list.
@@ -105,7 +108,16 @@ templ ClipsList(props ClipsProps) {
 			}
 		}
 	}
+	@ClipsMore(props)
+}
+
+// ClipsMore renders a page of clip cards and the sentinel for the next one.
+//
+// Parameters:
+//   - props: Clip list state.
+templ ClipsMore(props ClipsProps) {
 	for _, item := range props.Items {
 		@clipcard.ClipCard(item)
 	}
+	@clipcard.MoreClips(routes.TargetClipListMore, props.MoreURL)
 }

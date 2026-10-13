@@ -1,0 +1,27 @@
+// Copyright (c) 2026 - Nicholas Fedor <nick@nickfedor.com>
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
+package clip
+
+// MoreClips renders the sentinel that loads a clip list's next page as it
+// scrolls into view.
+//
+// The page answers with its cards and the sentinel for the page after it,
+// which replace this one.
+//
+// Parameters:
+//   - id: The sentinel's id, which the handler tells an append request by.
+//   - url: The next page's address, empty when no clip follows.
+templ MoreClips(id, url string) {
+	if url != "" {
+		<div
+			id={ id }
+			hx-get={ url }
+			hx-trigger="revealed"
+			hx-swap="outerHTML"
+			class="py-4 text-center text-sm text-muted-foreground"
+		>
+			Loading more…
+		</div>
+	}
+}

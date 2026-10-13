@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"strconv"
 	"strings"
 
 	fiber "github.com/gofiber/fiber/v3"
@@ -43,30 +44,31 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 	query := parseClipListQuery(ctx)
 	source := handler.describeItem(ctx, id, item, itemErr)
 	audience := handler.audience(ctx)
-	clips := handler.clipsForMedia(ctx, id, source, query, audience)
+	clips, moreURL := handler.clipsForMedia(ctx, id, source, query, audience)
 	window := exportform.ClipWindow(ctx)
 
 	props := pages.MediaItemPageProps{
-		ID:          id,
-		Title:       id,
-		Type:        "",
-		MaxDur:      clip.DurationCap(handler.cfg.MaxClipDur),
-		Clips:       clips,
-		SharedClips: handler.sharedClipsForMedia(ctx, id, source, audience),
-		ClipStatus:  query.Status,
-		ClipType:    query.Type,
-		ClipQuery:   query.Query,
-		ClipSort:    query.Sort,
-		Profiles:    profile.SelectableProfiles(ctx.Context(), handler.db),
-		AudioTracks: view.AudioTrackOptions(source.AudioStreams),
-		Error:       mediaItemError(ctx, itemErr),
-		PreviewID:   ctx.Query(routes.QueryPreview),
-		StartTime:   window.Start,
-		EndTime:     window.End,
-		Crumbs:      nil,
-		LibraryID:   "",
-		Quality:     source.Quality,
-		SourceHDR:   source.HDR,
+		ID:           id,
+		Title:        id,
+		Type:         "",
+		MaxDur:       clip.DurationCap(handler.cfg.MaxClipDur),
+		Clips:        clips,
+		ClipsMoreURL: moreURL,
+		SharedClips:  handler.sharedClipsForMedia(ctx, id, source, audience),
+		ClipStatus:   query.Status,
+		ClipType:     query.Type,
+		ClipQuery:    query.Query,
+		ClipSort:     query.Sort,
+		Profiles:     profile.SelectableProfiles(ctx.Context(), handler.db),
+		AudioTracks:  view.AudioTrackOptions(source.AudioStreams),
+		Error:        mediaItemError(ctx, itemErr),
+		PreviewID:    ctx.Query(routes.QueryPreview),
+		StartTime:    window.Start,
+		EndTime:      window.End,
+		Crumbs:       nil,
+		LibraryID:    "",
+		Quality:      source.Quality,
+		SourceHDR:    source.HDR,
 	}
 	if itemErr == nil {
 		props.Title = item.DisplayTitle()
@@ -84,17 +86,18 @@ func (handler *Handler) MediaItem(ctx fiber.Ctx) error {
 	})
 }
 
-// MediaItemClips renders the media-item clip list fragment for HTMX swaps.
+// MediaItemClips renders the media-item clip list fragment for HTMX swaps,
+// or the next page a scrolled list appends.
 //
 // Parameters:
-//   - ctx: Request with optional clip filters and sort.
+//   - ctx: Request with optional clip filters, sort, and page.
 //
 // Returns:
 //   - err: Non-nil when rendering fails.
 func (handler *Handler) MediaItemClips(ctx fiber.Ctx) error {
 	id := ctx.Params(routes.ParamID)
 	query := parseClipListQuery(ctx)
-	clips := handler.clipsForMedia(
+	clips, moreURL := handler.clipsForMedia(
 		ctx,
 		id,
 		handler.sources.Describe(ctx.Context(), id),
@@ -102,8 +105,14 @@ func (handler *Handler) MediaItemClips(ctx fiber.Ctx) error {
 		handler.audience(ctx),
 	)
 
+	if respond.TargetsElement(ctx, routes.TargetItemClipsMore) {
+		return respond.RenderHTML(ctx, func(writer io.Writer) error {
+			return pages.ItemClipsMore(clips, moreURL).Render(ctx.Context(), writer)
+		})
+	}
+
 	return respond.RenderHTML(ctx, func(writer io.Writer) error {
-		return pages.ItemClipList(clips, query.Filtered()).Render(ctx.Context(), writer)
+		return pages.ItemClipList(clips, query.Filtered(), moreURL).Render(ctx.Context(), writer)
 	})
 }
 
@@ -152,20 +161,28 @@ func (handler *Handler) audience(ctx fiber.Ctx) view.Audience {
 //   - audience: Who the cards are shown to.
 //
 // Returns:
-//   - clips: Clip cards carrying the probed audio, HDR flag, and duration.
+//   - clips: The page's clip cards, carrying the probed audio, HDR flag, and
+//     duration.
+//   - moreURL: Loads the next page, empty when no clip follows.
 func (handler *Handler) clipsForMedia(
 	ctx fiber.Ctx,
 	mediaID string,
 	source library.SourceInfo,
 	query catalog.ClipListQuery,
 	audience view.Audience,
-) []view.ClipItem {
-	jobs := catalog.Apply(
-		catalog.ForMedia(ctx.Context(), handler.db, audience.Scope, mediaID),
+) ([]view.ClipItem, string) {
+	page := catalog.Window(
+		catalog.Apply(
+			catalog.ForMedia(ctx.Context(), handler.db, audience.Scope, mediaID),
+			query,
+		),
 		query,
 	)
 
-	return handler.clipCards(ctx, jobs, source, audience)
+	path := routes.ItemURL(mediaID, nil) + routes.PathClips
+
+	return handler.clipCards(ctx, page.Jobs, source, audience),
+		view.MoreClipsURL(path, query, page)
 }
 
 // sharedClipsForMedia returns cards for other accounts' clips of one media id
@@ -303,19 +320,28 @@ func (handler *Handler) loadMediaItem(ctx fiber.Ctx, mediaID string) (plex.Media
 	return *item, nil
 }
 
-// parseClipListQuery reads the clip filters carried on a media item page.
+// parseClipListQuery reads the clip filters and page carried on a media item
+// page.
 //
 // Parameters:
-//   - ctx: Request with optional type, q, sort, and status query parameters.
+//   - ctx: Request with optional type, q, sort, status, after, and offset
+//     query parameters.
 //
 // Returns:
-//   - query: Normalized list filters and sort.
+//   - query: Normalized list filters, sort, and page.
 func parseClipListQuery(ctx fiber.Ctx) catalog.ClipListQuery {
+	offset, err := strconv.Atoi(ctx.Query(routes.QueryClipOffset))
+	if err != nil {
+		offset = 0
+	}
+
 	return catalog.Normalize(catalog.ClipListQuery{
-		Status: clip.Status(ctx.Query("status")),
-		Type:   clip.Type(ctx.Query(queryType)),
-		Query:  strings.TrimSpace(ctx.Query(queryQ)),
-		Sort:   ctx.Query(querySort),
+		Status: clip.Status(ctx.Query(routes.QueryClipStatus)),
+		Type:   clip.Type(ctx.Query(routes.QueryClipType)),
+		Query:  strings.TrimSpace(ctx.Query(routes.QueryClipName)),
+		Sort:   ctx.Query(routes.QueryClipSort),
+		After:  ctx.Query(routes.QueryClipAfter),
+		Offset: offset,
 	})
 }
 
