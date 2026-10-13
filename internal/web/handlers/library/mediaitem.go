@@ -112,7 +112,7 @@ func (handler *Handler) MediaItemClips(ctx fiber.Ctx) error {
 	clips := handler.clipsForMedia(
 		ctx,
 		id,
-		handler.sources.Describe(ctx.Context(), id),
+		handler.describeSeen(ctx, id),
 		query,
 		handler.audience(ctx),
 	)
@@ -272,6 +272,28 @@ func (handler *Handler) clipCards(
 	audience.ApplyEach(clips, jobs)
 
 	return clips
+}
+
+// describeSeen reports what the file behind a media item holds, for a caller
+// who can see the item in Plex.
+//
+// The file is found with the bound token, so an item another account cannot
+// see is never probed for it.
+//
+// Parameters:
+//   - ctx: Request whose caller views the clips.
+//   - mediaID: Plex media item id.
+//
+// Returns:
+//   - source: What the file turned out to be, zero for an item the caller
+//     cannot see.
+func (handler *Handler) describeSeen(ctx fiber.Ctx, mediaID string) library.SourceInfo {
+	viewer := middleware.PlexViewer(ctx)
+	if !viewer.Owner && !handler.sources.Sees(ctx.Context(), viewer, mediaID) {
+		return library.SourceInfo{}
+	}
+
+	return handler.sources.Describe(ctx.Context(), mediaID)
 }
 
 // describeItem reports what the file behind a media page holds.

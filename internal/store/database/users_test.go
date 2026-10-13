@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
@@ -64,6 +65,44 @@ func TestClaimOwnerStoresTheFirstAccount(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, found)
 	assert.Equal(t, "owner", role)
+}
+
+// TestClaimOwnerTakesOverClipsThatBelongToNobody covers the clips of an
+// installation from before owners were recorded.
+//
+// The claim hands them to the owner, leaves another account's clips alone,
+// and a later claim that loses changes nothing.
+func TestClaimOwnerTakesOverClipsThatBelongToNobody(t *testing.T) {
+	t.Parallel()
+
+	db := usersDatabase(t)
+
+	for id, owner := range map[string]int{"nobodys": 0, "members": 7} {
+		require.NoError(t, db.SaveClip(t.Context(), &clip.Job{
+			ID: id, Type: clip.TypeClip, MediaID: "1", OwnerID: owner,
+			Status: clip.StatusCompleted,
+		}))
+	}
+
+	claimed, err := db.ClaimOwner(t.Context(), 42, "owner")
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	nobodys, err := db.GetClip(t.Context(), "nobodys")
+	require.NoError(t, err)
+	assert.Equal(t, 42, nobodys.OwnerID)
+
+	members, err := db.GetClip(t.Context(), "members")
+	require.NoError(t, err)
+	assert.Equal(t, 7, members.OwnerID, "another account's clip stays theirs")
+
+	claimed, err = db.ClaimOwner(t.Context(), 43, "late")
+	require.NoError(t, err)
+	assert.False(t, claimed)
+
+	nobodys, err = db.GetClip(t.Context(), "nobodys")
+	require.NoError(t, err)
+	assert.Equal(t, 42, nobodys.OwnerID, "a claim that loses changes nothing")
 }
 
 func TestClaimOwnerRefusesASecondAccount(t *testing.T) {

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -511,6 +512,115 @@ func TestRunStopsWhenTheApplicationContextIsCanceled(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		require.Fail(t, "Run did not return after the context was canceled")
 	}
+}
+
+// TestRunWaitsForRequestsStillRunningAtShutdown covers a shutdown during a
+// request.
+//
+// Run returns only once the request has finished and been answered, so the
+// deferred Close never stops the queue or the database under it.
+func TestRunWaitsForRequestsStillRunningAtShutdown(t *testing.T) {
+	t.Parallel()
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	releaseOnce := sync.OnceFunc(func() { close(release) })
+
+	router := fiber.New()
+	router.Get("/slow", func(ctx fiber.Ctx) error {
+		close(started)
+		<-release
+
+		return ctx.SendString("done")
+	})
+
+	runCtx, stop := context.WithCancel(context.WithoutCancel(t.Context()))
+	application := &App{
+		cfg:    &config.Config{ListenAddr: freeLoopbackAddr(t)},
+		router: router,
+		ctx:    runCtx,
+		stop:   stop,
+	}
+
+	// A failed assertion still lets the handler finish and the server stop.
+	t.Cleanup(func() {
+		releaseOnce()
+		stop()
+	})
+
+	stopped := make(chan error, 1)
+
+	go func() { stopped <- application.Run() }()
+
+	require.Eventually(t, func() bool {
+		return serving(t.Context(), application.cfg.ListenAddr)
+	}, 10*time.Second, 5*time.Millisecond)
+
+	answered := make(chan string, 1)
+
+	reqCtx, cancel := context.WithTimeout(context.WithoutCancel(t.Context()), 10*time.Second)
+	defer cancel()
+
+	go func() { answered <- fetchBody(reqCtx, "http://"+application.cfg.ListenAddr+"/slow") }()
+
+	select {
+	case <-started:
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "the request never reached the handler")
+	}
+
+	stop()
+
+	select {
+	case <-stopped:
+		require.Fail(t, "Run returned while a request was still running")
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	releaseOnce()
+
+	select {
+	case body := <-answered:
+		assert.Equal(t, "done", body, "the request still running is answered")
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "the request still running was never answered")
+	}
+
+	select {
+	case err := <-stopped:
+		require.NoError(t, err)
+	case <-time.After(10 * time.Second):
+		require.Fail(t, "Run did not return once the request finished")
+	}
+}
+
+// fetchBody asks for a page and reads its body.
+//
+// Parameters:
+//   - ctx: Bounds the request.
+//   - address: The page.
+//
+// Returns:
+//   - body: The page's body, or the error that stopped the request.
+func fetchBody(ctx context.Context, address string) string {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, http.NoBody)
+	if err != nil {
+		return err.Error()
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err.Error()
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err.Error()
+	}
+
+	return string(body)
 }
 
 // freeLoopbackAddr reserves and releases a loopback address so the server can

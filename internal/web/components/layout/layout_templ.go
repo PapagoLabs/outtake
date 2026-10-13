@@ -314,7 +314,7 @@ func Layout(props Props) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if view.ViewerManages(ctx) {
+		if view.ViewerOwns(ctx) {
 			var templ_7745c5c3_Var18 = []any{utils.TwMerge(
 				"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
 				utils.IfElse(props.Active == "servers", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -340,6 +340,8 @@ func Layout(props Props) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+		}
+		if view.ViewerManages(ctx) {
 			var templ_7745c5c3_Var20 = []any{utils.TwMerge(
 				"px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
 				utils.IfElse(props.Active == "profiles", "bg-sidebar-primary text-sidebar-primary-foreground", "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"),
@@ -485,7 +487,7 @@ func Layout(props Props) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Active)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 226, Col: 28}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 228, Col: 28}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var30)
 		if templ_7745c5c3_Err != nil {
@@ -498,7 +500,7 @@ func Layout(props Props) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.ResolveAttributeValue(props.Library)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 227, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/components/layout/layout.templ`, Line: 229, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var31)
 		if templ_7745c5c3_Err != nil {

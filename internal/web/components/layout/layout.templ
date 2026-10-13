@@ -132,7 +132,7 @@ templ Layout(props Props) {
 						<div class="flex flex-col gap-1">
 							<span class="px-3 py-2 text-sm font-medium text-sidebar-foreground">Settings</span>
 							<div class="flex flex-col gap-1 pl-2">
-								if view.ViewerManages(ctx) {
+								if view.ViewerOwns(ctx) {
 									<a
 										href="/servers"
 										hx-select="#main-content"
@@ -144,6 +144,8 @@ templ Layout(props Props) {
 									>
 										Servers
 									</a>
+								}
+								if view.ViewerManages(ctx) {
 									<a
 										href="/settings/profiles"
 										hx-select="#main-content"

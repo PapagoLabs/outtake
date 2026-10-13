@@ -130,7 +130,9 @@ func (db *DB) HasOwner(ctx context.Context) (bool, error) {
 // ClaimOwner records a Plex account as the owner unless one is stored already.
 //
 // The unique owner index decides a race between two sign-ins, so exactly one
-// of them reports the claim.
+// of them reports the claim. The claim also takes over every clip that belongs
+// to nobody, such as the clips of an installation upgraded from a release
+// without owners, in the same transaction.
 //
 // Parameters:
 //   - ctx: Request scope for the write.
@@ -141,7 +143,45 @@ func (db *DB) HasOwner(ctx context.Context) (bool, error) {
 //   - claimed: True when this call stored the owner.
 //   - err: Non-nil when the write fails.
 func (db *DB) ClaimOwner(ctx context.Context, plexUserID int, username string) (bool, error) {
-	result, err := db.conn.ExecContext(ctx, db.rewrite(`
+	tx, err := db.conn.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin claim owner: %w", err)
+	}
+
+	defer rollback(tx)
+
+	claimed, err := db.claimOwnerRows(ctx, tx, plexUserID, username)
+	if err != nil {
+		return false, fmt.Errorf("claim: %w", err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return false, fmt.Errorf("commit claim owner: %w", err)
+	}
+
+	return claimed, nil
+}
+
+// claimOwnerRows stores the owner and hands it every clip that belongs to
+// nobody, inside a transaction.
+//
+// Parameters:
+//   - ctx: Request scope for the writes.
+//   - tx: Transaction the writes run in.
+//   - plexUserID: Plex account id claiming the installation.
+//   - username: Plex username of that account.
+//
+// Returns:
+//   - claimed: True when the owner was stored.
+//   - err: Non-nil when a write fails.
+func (db *DB) claimOwnerRows(
+	ctx context.Context,
+	tx *sql.Tx,
+	plexUserID int,
+	username string,
+) (bool, error) {
+	result, err := tx.ExecContext(ctx, db.rewrite(`
 		INSERT INTO users (plex_user_id, username, role, created_at, last_login_at)
 		VALUES (?, ?, 'owner', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		ON CONFLICT DO NOTHING
@@ -155,7 +195,20 @@ func (db *DB) ClaimOwner(ctx context.Context, plexUserID int, username string) (
 		return false, fmt.Errorf("claim owner rows: %w", err)
 	}
 
-	return inserted == 1, nil
+	if inserted != 1 {
+		return false, nil
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		db.rewrite(`UPDATE clips SET owner_id = ? WHERE owner_id = 0`),
+		plexUserID,
+	)
+	if err != nil {
+		return false, fmt.Errorf("give ownerless clips to the owner: %w", err)
+	}
+
+	return true, nil
 }
 
 // TouchLogin records a sign-in, refreshing the username Plex reported.
@@ -198,12 +251,7 @@ func (db *DB) ResetOwner(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("begin reset owner: %w", err)
 	}
 
-	defer func() {
-		rollbackErr := tx.Rollback()
-		if rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
-			return
-		}
-	}()
+	defer rollback(tx)
 
 	removed, err := db.deleteOwnerRows(ctx, tx)
 	if err != nil {

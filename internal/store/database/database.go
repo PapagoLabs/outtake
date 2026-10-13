@@ -19,6 +19,7 @@ import (
 	_ "github.com/tursodatabase/libsql-client-go/libsql" // LibSQL driver.
 	_ "modernc.org/sqlite"                               // SQLite driver.
 
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 )
 
@@ -185,7 +186,11 @@ func (db *DB) appliedMigrations(ctx context.Context) ([]string, error) {
 	return names, nil
 }
 
-// applyOne executes and records a single migration file.
+// applyOne executes and records a single migration file in one transaction.
+//
+// A file that fails partway leaves nothing behind and stays unrecorded, so the
+// next start runs it again from the beginning rather than meeting the columns
+// it already added.
 //
 // Parameters:
 //   - ctx: Request scope for the migration.
@@ -194,18 +199,14 @@ func (db *DB) appliedMigrations(ctx context.Context) ([]string, error) {
 // Returns:
 //   - err: Non-nil when the migration fails or cannot be recorded.
 func (db *DB) applyOne(ctx context.Context, name string) error {
-	err := db.execMigration(ctx, name)
+	content, err := migrationsFS.ReadFile(db.migrationsDir() + "/" + name)
 	if err != nil {
-		return fmt.Errorf("migrate: %w", err)
+		return fmt.Errorf("read migration %s: %w", name, err)
 	}
 
-	_, err = db.conn.ExecContext(
-		ctx,
-		db.rewrite(`INSERT INTO schema_migrations (name) VALUES (?)`),
-		name,
-	)
+	err = db.applySQL(ctx, name, string(content))
 	if err != nil {
-		return fmt.Errorf("record migration %s: %w", name, err)
+		return fmt.Errorf("apply %s: %w", name, err)
 	}
 
 	return nil
@@ -239,23 +240,42 @@ func (db *DB) applyPending(ctx context.Context, applied []string) error {
 	return nil
 }
 
-// execMigration executes a single migration file.
+// applySQL executes a migration's statements and records it in one
+// transaction.
 //
 // Parameters:
 //   - ctx: Request scope for the migration.
-//   - name: Migration filename inside the embedded directory.
+//   - name: Migration filename the ledger records.
+//   - content: The migration's statements.
 //
 // Returns:
-//   - err: Non-nil when the file cannot be read or executed.
-func (db *DB) execMigration(ctx context.Context, name string) error {
-	content, err := migrationsFS.ReadFile(db.migrationsDir() + "/" + name)
+//   - err: Non-nil when a statement fails or the migration cannot be
+//     recorded, and then nothing of it is kept.
+func (db *DB) applySQL(ctx context.Context, name, content string) error {
+	tx, err := db.conn.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("read migration %s: %w", name, err)
+		return fmt.Errorf("begin migration %s: %w", name, err)
 	}
 
-	_, err = db.conn.ExecContext(ctx, string(content))
+	defer rollback(tx)
+
+	_, err = tx.ExecContext(ctx, content)
 	if err != nil {
 		return fmt.Errorf("exec migration %s: %w", name, err)
+	}
+
+	_, err = tx.ExecContext(
+		ctx,
+		db.rewrite(`INSERT INTO schema_migrations (name) VALUES (?)`),
+		name,
+	)
+	if err != nil {
+		return fmt.Errorf("record migration %s: %w", name, err)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("commit migration %s: %w", name, err)
 	}
 
 	return nil
@@ -356,4 +376,19 @@ func isValidSQLFile(name string) bool {
 //   - skip: True for a directory, a non-SQL file, or an applied migration.
 func skipMigration(entry fs.DirEntry, applied []string) bool {
 	return entry.IsDir() || !isValidSQLFile(entry.Name()) || slices.Contains(applied, entry.Name())
+}
+
+// rollback undoes a transaction that a failure left unfinished.
+//
+// After a commit it answers [sql.ErrTxDone], with nothing to undo. Any other
+// failure is logged, because the caller already reports why the transaction
+// did not finish.
+//
+// Parameters:
+//   - tx: The transaction.
+func rollback(tx *sql.Tx) {
+	err := tx.Rollback()
+	if err != nil && !errors.Is(err, sql.ErrTxDone) {
+		logging.Logger.Warn().Err(err).Msg("failed to roll back a database transaction")
+	}
 }

@@ -527,6 +527,47 @@ func TestNewRefusesAMemberEveryAdminRoute(t *testing.T) {
 		"a member still opens the dashboard")
 }
 
+// TestNewKeepsAnAdminOffTheBoundServer covers the Servers pages, which only
+// the owner may use.
+//
+// An admin can neither open them, choose another server, nor forget the
+// bound one, which stays bound.
+func TestNewKeepsAnAdminOffTheBoundServer(t *testing.T) {
+	t.Parallel()
+
+	owner := newBrowser(t)
+	owner.authenticate(t)
+
+	admin := owner.member(t)
+
+	_, err := owner.db.Conn().ExecContext(
+		t.Context(), "UPDATE users SET role = 'admin' WHERE plex_user_id = 7",
+	)
+	require.NoError(t, err)
+
+	for _, request := range []struct{ method, path string }{
+		{method: http.MethodGet, path: "/servers"},
+		{method: http.MethodPost, path: "/servers"},
+		{method: http.MethodPost, path: "/servers/forget"},
+	} {
+		assert.Equal(
+			t,
+			fiber.StatusForbidden,
+			admin.request(t, request.method, request.path).status,
+			"%s %s",
+			request.method,
+			request.path,
+		)
+	}
+
+	assert.Equal(t, fiber.StatusOK, admin.request(t, http.MethodGet, "/settings/users").status,
+		"an admin still manages users")
+
+	server, bound := owner.bind.Get()
+	assert.True(t, bound, "the server stays bound")
+	assert.Equal(t, "machine-1", server.MachineID)
+}
+
 // TestNewKeepsAMemberOutOfTheOwnersClipsAndPreviews covers every route that
 // names a clip or a preview by id.
 //

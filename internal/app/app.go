@@ -112,6 +112,10 @@ func New(cfg *config.Config) (*App, error) {
 
 	jobQueue := startQueue(ctx, cfg, db, runner, store.blob, store.paths)
 
+	// The first owner takes over the restored clips that belong to nobody,
+	// which storage hands over in the same claim.
+	plexAuth.SetClaimedFunc(jobQueue.AssignOwnerless)
+
 	previews, sources := renderServices(cfg, store, bind, runner)
 
 	sessions, sessionsSwept := startSessionStore(ctx, db)
@@ -302,12 +306,19 @@ func (app *App) Close() {
 
 // Run starts the application server and blocks until shutdown.
 //
+// Once the application's context ends, it returns only after the requests
+// still running have finished or shutdownTimeout has passed, so Close never
+// stops the queue or the database under them.
+//
 // Returns:
 //   - error: Non-nil when the listener fails for a reason other than shutdown.
 func (app *App) Run() error {
 	ctx := app.ctx
+	drained := make(chan struct{})
 
 	go func() {
+		defer close(drained)
+
 		<-ctx.Done()
 		log.Info().Msg("shutdown signal received")
 
@@ -318,6 +329,12 @@ func (app *App) Run() error {
 	}()
 
 	err := app.router.Listen(app.cfg.ListenAddr)
+
+	// The listener closes before the open requests finish, so Listen returns
+	// while they still run.
+	if ctx.Err() != nil {
+		<-drained
+	}
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			log.Info().Msg("server closed")
