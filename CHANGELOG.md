@@ -8,8 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking Changes
+
+Read [Upgrading](https://outtake.papagolabs.com/setup/upgrading/) before you update.
+
+- Let only the server's owner bind it and refresh its token in [#487](https://github.com/PapagoLabs/outtake/pull/487)
+- Describe failed clips and previews with a plain message and details in [#450](https://github.com/PapagoLabs/outtake/pull/450)
+- Name the built-in profiles by resolution with generated ids in [#402](https://github.com/PapagoLabs/outtake/pull/402)
+- Make keep hdr a clip profile setting in [#386](https://github.com/PapagoLabs/outtake/pull/386)
+- Make keep HDR the only HDR switch and tone-map every still in [#360](https://github.com/PapagoLabs/outtake/pull/360)
+- Restrict outtake to a single plex owner in [#320](https://github.com/PapagoLabs/outtake/pull/320)
+
 ### Added
 
+- Add the upgrade guide and generate release notes from the changelog by @nicholas-fedor in [#519](https://github.com/PapagoLabs/outtake/pull/519)
 - Add the documentation site with the app's theme and screenshots by @nicholas-fedor in [#446](https://github.com/PapagoLabs/outtake/pull/446)
 - Add a maximum preview resolution and format badges by @nicholas-fedor in [#400](https://github.com/PapagoLabs/outtake/pull/400)
 
@@ -132,6 +144,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fake ffmpeg with the test binary instead of shell scripts by @nicholas-fedor in [#327](https://github.com/PapagoLabs/outtake/pull/327)
 
 ## [0.3.1] - 2026-10-05
+
+### Breaking Changes
+
+Read [Upgrading](https://outtake.papagolabs.com/setup/upgrading/) before you update.
+
+- Group packages by seam in [#303](https://github.com/PapagoLabs/outtake/pull/303)
 
 ### Added
 
