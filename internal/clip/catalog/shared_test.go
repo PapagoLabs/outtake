@@ -219,6 +219,59 @@ func TestSeenTitlesAsksAFewAtATime(t *testing.T) {
 	})
 }
 
+// TestSeenTitlesStopsOnceTheRequestEnds covers a request that ends while
+// titles wait for a slot.
+//
+// The checks under way finish, no other check starts, and every title left
+// unasked reads as not seen.
+func TestSeenTitlesStopsOnceTheRequestEnds(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		var asked atomic.Int32
+
+		ctx, cancel := context.WithCancel(t.Context())
+		release := make(chan struct{})
+		titles := make([]string, 0, titleCheckLimit*3)
+
+		for index := range titleCheckLimit * 3 {
+			titles = append(titles, strconv.Itoa(index))
+		}
+
+		done := make(chan map[string]bool)
+
+		go func() {
+			done <- seenTitles(ctx, titles, func(context.Context, string) bool {
+				asked.Add(1)
+				<-release
+
+				return true
+			})
+		}()
+
+		synctest.Wait()
+		cancel()
+
+		// The loop leaves before any slot is freed, so the end decides.
+		synctest.Wait()
+		close(release)
+
+		seen := <-done
+
+		assert.Equal(t, int32(titleCheckLimit), asked.Load(), "no check starts after the end")
+		assert.Len(t, seen, titleCheckLimit)
+	})
+
+	canceled, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	assert.Empty(t, seenTitles(canceled, []string{"5"}, func(context.Context, string) bool {
+		t.Error("a check started after the request ended")
+
+		return true
+	}))
+}
+
 // TestShareChangesWhetherAClipIsShared covers sharing a clip and making it
 // private again, whether the queue or only storage holds it.
 //

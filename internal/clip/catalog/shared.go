@@ -140,6 +140,27 @@ func SharedForMedia(
 	return keepSeen(ctx, others, scope, sees)
 }
 
+// acquireSlot waits for a free slot.
+//
+// Parameters:
+//   - ctx: Request context, which ends the wait.
+//   - slots: The slots, one taken for each check under way.
+//
+// Returns:
+//   - acquired: False when ctx is done, and then no slot is taken.
+func acquireSlot(ctx context.Context, slots chan struct{}) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+
+	select {
+	case slots <- struct{}{}:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
 // keepSeen keeps the shared clips a caller may see.
 //
 // Each source title is asked about once, a few at a time, and only for
@@ -195,6 +216,9 @@ func othersTitles(jobs []*clip.Job, scope clip.Scope) []string {
 // seenTitles asks which source titles a caller can see, titleCheckLimit at a
 // time.
 //
+// Each check starts only once a slot is free, and none starts after ctx is
+// done. A title left unasked reads as not seen.
+//
 // Parameters:
 //   - ctx: Request context.
 //   - mediaIDs: The titles, without repeats.
@@ -216,8 +240,11 @@ func seenTitles(ctx context.Context, mediaIDs []string, sees TitleCheck) map[str
 	slots := make(chan struct{}, titleCheckLimit)
 
 	for _, mediaID := range mediaIDs {
+		if !acquireSlot(ctx, slots) {
+			break
+		}
+
 		group.Go(func() {
-			slots <- struct{}{}
 			defer func() { <-slots }()
 
 			answer := sees(ctx, mediaID)
