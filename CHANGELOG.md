@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Share clips with the installation's other users by @nicholas-fedor in [#500](https://github.com/PapagoLabs/outtake/pull/500)
 - Admit members by approval and enforce render limits by @nicholas-fedor in [#495](https://github.com/PapagoLabs/outtake/pull/495)
 - Read plex as the signed-in account by @nicholas-fedor in [#493](https://github.com/PapagoLabs/outtake/pull/493)
 - Give every clip and preview an owner by @nicholas-fedor in [#491](https://github.com/PapagoLabs/outtake/pull/491)
