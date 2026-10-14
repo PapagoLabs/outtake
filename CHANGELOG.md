@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Publish the generated notes as the stable release body by @nicholas-fedor in [#521](https://github.com/PapagoLabs/outtake/pull/521)
 
+### Fixed
+
+- Count only new renders and recheck roles when changing users by @nicholas-fedor in [#523](https://github.com/PapagoLabs/outtake/pull/523)
+
 ## [0.4.0] - 2026-10-13
 
 ### Breaking Changes
