@@ -55,6 +55,11 @@ type bulkAnswer struct {
 	status int
 }
 
+// bulkTimeout bounds one bulk request. A batch of maxBulkClips clips checks
+// and probes each one, which takes longer than Fiber's default second on a
+// loaded CI runner under the race detector.
+const bulkTimeout = 30 * time.Second
+
 // postBulk serves one request to a bulk route.
 //
 // The caller's session holds a server token, so a member's Plex check
@@ -90,7 +95,7 @@ func postBulk(t *testing.T, handler *Handler, call bulkCall) bulkAnswer {
 		req.Header.Set(routes.HeaderHXRequest, "true")
 	}
 
-	resp, err := app.Test(req)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: bulkTimeout, FailOnTimeout: true})
 	require.NoError(t, err)
 
 	defer closeBody(t, resp)
