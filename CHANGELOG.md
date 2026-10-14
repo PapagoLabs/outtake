@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bound every ffmpeg run to its share of the cpu budget by @nicholas-fedor in [#527](https://github.com/PapagoLabs/outtake/pull/527)
 - Publish the generated notes as the stable release body by @nicholas-fedor in [#521](https://github.com/PapagoLabs/outtake/pull/521)
 
 ### Chores
