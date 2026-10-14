@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -58,6 +59,9 @@ type Config struct {
 	// limit with the clip's length.
 	//nolint:tagliatelle // The key ends in -sec like session-poll-sec, since its value is a second count.
 	FFmpegTimeout time.Duration `mapstructure:"ffmpeg-timeout-sec"`
+	// FFmpegThreads is how many threads one ffmpeg run may use, zero to share
+	// the process's CPUs between the render workers.
+	FFmpegThreads int `mapstructure:"ffmpeg-threads"`
 	// LogLevel is the log level.
 	LogLevel string `mapstructure:"log-level"`
 	// Env is the environment.
@@ -210,6 +214,8 @@ func Load(configFile string) (*Config, error) {
 
 	// At least one render worker runs, or every clip would wait forever.
 	cfg.NumWorkers = max(cfg.NumWorkers, 1)
+	// A thread count below zero means the same as none set.
+	cfg.FFmpegThreads = max(cfg.FFmpegThreads, 0)
 
 	err = ensureDirs(cfg)
 	if err != nil {
@@ -240,6 +246,7 @@ func emptyConfig() *Config {
 		FFmpegPath:      "",
 		FFprobePath:     "",
 		FFmpegTimeout:   0,
+		FFmpegThreads:   0,
 		LogLevel:        "",
 		Env:             "",
 		SessionPoll:     0,
@@ -276,6 +283,7 @@ func setDefaults(viperInstance *viper.Viper) {
 	viperInstance.SetDefault("ffmpeg-path", defaultFFmpegPath)
 	viperInstance.SetDefault("ffprobe-path", defaultFFprobePath)
 	viperInstance.SetDefault("ffmpeg-timeout-sec", 0)
+	viperInstance.SetDefault("ffmpeg-threads", 0)
 	viperInstance.SetDefault("log-level", defaultLogLevel)
 	viperInstance.SetDefault("env", defaultEnv)
 	viperInstance.SetDefault("session-poll-sec", int(defaultSessionPoll.Seconds()))
@@ -388,6 +396,7 @@ func envKeys() []string {
 		"ffmpeg-path",
 		"ffprobe-path",
 		"ffmpeg-timeout-sec",
+		"ffmpeg-threads",
 		"log-level",
 		"env",
 		"session-poll-sec",
@@ -413,6 +422,23 @@ func (cfg *Config) AllowedHostList() []string {
 	return strings.FieldsFunc(cfg.AllowedHosts, func(char rune) bool {
 		return char == ',' || unicode.IsSpace(char)
 	})
+}
+
+// FFmpegThreadBudget returns how many threads one ffmpeg run may use.
+//
+// A configured count wins. Otherwise the CPUs this process may use are shared
+// between the render workers, so the workers together never ask for more CPU
+// than the process is allowed. GOMAXPROCS follows a container's CPU limit,
+// where FFmpeg would size its pools from every CPU on the host.
+//
+// Returns:
+//   - threads: The threads per run, at least 1.
+func (cfg *Config) FFmpegThreadBudget() int {
+	if cfg.FFmpegThreads > 0 {
+		return cfg.FFmpegThreads
+	}
+
+	return max(runtime.GOMAXPROCS(0)/max(cfg.NumWorkers, 1), 1)
 }
 
 // PublicURL returns the base URL used for Plex OAuth callbacks.

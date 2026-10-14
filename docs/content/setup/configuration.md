@@ -42,6 +42,7 @@ The Compose files also use `OUTTAKE_MEDIA_PATH` and `OUTTAKE_DATA_PATH` to choos
 | `OUTTAKE_FFMPEG_PATH` | `ffmpeg` binary | `ffmpeg` (images use `/usr/bin/ffmpeg`) |
 | `OUTTAKE_FFPROBE_PATH` | `ffprobe` binary | `ffprobe` (images use `/usr/bin/ffprobe`) |
 | `OUTTAKE_FFMPEG_TIMEOUT_SEC` | Longest one FFmpeg run may take, in seconds. `0` allows 20 times the clip's length, or 60 times for the HEVC encode of a clip that keeps HDR, and never less than 30 minutes | `0` |
+| `OUTTAKE_FFMPEG_THREADS` | Threads each FFmpeg run may use to decode, filter, and encode, previews included. `0` shares the CPUs Outtake may use, which follow a container's CPU limit, between `OUTTAKE_NUM_WORKERS`, with at least `1` each. A value below `0` means `0` | `0` |
 
 ### Storage
 

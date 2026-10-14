@@ -445,7 +445,7 @@ func TestAToneMappedClipIsTaggedBT709AndCarriesNoHDRMetadata(t *testing.T) {
 
 	out := filepath.Join(dir, "clip.mp4")
 
-	err = NewExecFFmpeg(ffmpegPath, ffprobePath).ExtractClip(
+	err = NewExecFFmpeg(ffmpegPath, ffprobePath).WithThreads(2).ExtractClip(
 		t.Context(), src, out, 0, 500*time.Millisecond,
 		fastPreset, 0, crop.CropRect{},
 	)
@@ -500,7 +500,7 @@ func TestAKeptHDRClipIsHEVCMain10AndKeepsTheSourcesHDR10Metadata(t *testing.T) {
 		PreserveHDR: true,
 	}
 
-	err := NewExecFFmpeg(ffmpegPath, ffprobePath).ExtractClip(
+	err := NewExecFFmpeg(ffmpegPath, ffprobePath).WithThreads(2).ExtractClip(
 		t.Context(), src, out, 0, 500*time.Millisecond,
 		preset, 0, crop.CropRect{Width: 1920, Height: 800, X: 0, Y: 140},
 	)

@@ -13,6 +13,7 @@ type ExecFFmpeg struct {
 	ffmpegPath  string
 	ffprobePath string
 	timeout     time.Duration
+	threads     int
 }
 
 const (
@@ -57,7 +58,28 @@ func NewExecFFmpeg(ffmpegPath, ffprobePath string) *ExecFFmpeg {
 		ffmpegPath:  ffmpegPath,
 		ffprobePath: ffprobePath,
 		timeout:     0,
+		threads:     0,
 	}
+}
+
+// WithThreads returns a copy of the executor that bounds the threads each run
+// decodes, filters, and encodes with.
+//
+// Without a bound, FFmpeg sizes its thread pools from every CPU it can see,
+// which in a container can be far more than the CPUs it may use.
+//
+// Parameters:
+//   - threads: The threads each run may use, or zero or less to leave it to
+//     FFmpeg.
+//
+// Returns:
+//   - exec: The configured copy.
+func (execFFmpeg *ExecFFmpeg) WithThreads(threads int) *ExecFFmpeg {
+	configured := *execFFmpeg
+
+	configured.threads = max(threads, 0)
+
+	return &configured
 }
 
 // WithTimeout returns a copy of the executor that gives every run the same

@@ -3405,6 +3405,7 @@ linters:
           - YtdlpPath
           - YtdlpURL
           - FFmpegPath
+          - FFmpegThreads
           - FFprobePath
         # Overrides the default/root configuration.
         # Default: []

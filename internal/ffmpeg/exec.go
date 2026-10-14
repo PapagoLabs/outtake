@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"time"
 
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
@@ -32,6 +34,8 @@ const (
 	videoFilterFlag = "-vf"
 	// mapFlag selects an input stream for the output.
 	mapFlag = "-map"
+	// firstVideoStream selects the first input's first video stream.
+	firstVideoStream = "0:v:0"
 	// videoCodecFlag names the output's video codec.
 	videoCodecFlag = "-c:v"
 	// anFlag disables audio decoding.
@@ -47,6 +51,17 @@ const (
 	mapChaptersFlag = "-map_chapters"
 	// dropAll is the input index that copies nothing.
 	dropAll = "-1"
+	// threadsFlag bounds a decoder's threads before an input, and an
+	// encoder's after the inputs.
+	threadsFlag = "-threads"
+	// filterThreadsFlag bounds the threads of a simple filter graph.
+	filterThreadsFlag = "-filter_threads"
+	// filterComplexThreadsFlag bounds the threads of a complex filter graph.
+	filterComplexThreadsFlag = "-filter_complex_threads"
+	// x265PoolsParam bounds libx265's thread pool, which ignores -threads.
+	x265PoolsParam = "pools="
+	// x265ParamSeparator joins the parameters in an -x265-params value.
+	x265ParamSeparator = ":"
 	// commandDir is the working directory for ffmpeg child processes. It is the
 	// filesystem root so a child cannot read a relative path out of this
 	// process's directory. Media paths passed to a child have to be absolute,
@@ -90,7 +105,103 @@ func (execFFmpeg *ExecFFmpeg) run(
 	args ...string,
 ) error {
 	//nolint:wrapcheck // runWithin wraps every error it returns.
-	return runWithin(ctx, duration, execFFmpeg.deadline(duration), args...)
+	return execFFmpeg.runWithin(ctx, duration, execFFmpeg.deadline(duration), args...)
+}
+
+// command builds an FFmpeg process with the executor's thread bound.
+//
+// The child runs in commandDir, and a killed child may hold its output open
+// for at most waitDelay.
+//
+// Parameters:
+//   - ctx: Cancellation and deadline for the process.
+//   - args: ffmpeg argv, whose first element is the binary path.
+//
+// Returns:
+//   - cmd: The process, not yet started.
+func (execFFmpeg *ExecFFmpeg) command(ctx context.Context, args []string) *exec.Cmd {
+	args = threaded(args, execFFmpeg.threads)
+
+	// #nosec G204 - args are controlled by the application
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+
+	cmd.Dir = commandDir
+	cmd.WaitDelay = waitDelay
+
+	return cmd
+}
+
+// threaded bounds every thread pool an FFmpeg run starts.
+//
+// The filter graphs are bounded once, each input's decoder before it, the
+// encoders after the last input, and libx265's own pool in its parameters.
+//
+// Parameters:
+//   - args: ffmpeg argv, whose first element is the binary path.
+//   - threads: The bound, or zero or less to leave every pool to FFmpeg.
+//
+// Returns:
+//   - bounded: The argv with the bound added.
+func threaded(args []string, threads int) []string {
+	lastInput := lastInputFlag(args)
+	if threads <= 0 || lastInput < 0 {
+		return args
+	}
+
+	count := strconv.Itoa(threads)
+
+	bounded := make([]string, 0, len(args))
+
+	bounded = append(bounded, args[0], filterThreadsFlag, count, filterComplexThreadsFlag, count)
+
+	for index := 1; index < len(args); index++ {
+		if args[index] == inputFlag {
+			bounded = append(bounded, threadsFlag, count)
+		}
+
+		bounded = append(bounded, x265Pooled(args, index, count))
+
+		if index == lastInput+1 {
+			bounded = append(bounded, threadsFlag, count)
+		}
+	}
+
+	return bounded
+}
+
+// lastInputFlag finds the last input flag in an argv.
+//
+// Parameters:
+//   - args: ffmpeg argv.
+//
+// Returns:
+//   - index: The last -i's position, -1 when the argv names no input.
+func lastInputFlag(args []string) int {
+	for index, arg := range slices.Backward(args) {
+		if arg == inputFlag {
+			return index
+		}
+	}
+
+	return -1
+}
+
+// x265Pooled returns one argument, with libx265's pool bounded when it is the
+// value of -x265-params.
+//
+// Parameters:
+//   - args: ffmpeg argv.
+//   - index: The argument to return.
+//   - count: The thread bound.
+//
+// Returns:
+//   - arg: The argument, bounded when it holds libx265's parameters.
+func x265Pooled(args []string, index int, count string) string {
+	if args[index-1] != flagX265Params {
+		return args[index]
+	}
+
+	return args[index] + x265ParamSeparator + x265PoolsParam + count
 }
 
 // runWithin executes the FFmpeg command, reporting progress as it decodes,
@@ -104,23 +215,19 @@ func (execFFmpeg *ExecFFmpeg) run(
 //
 // Returns:
 //   - err: Non-nil when the process failed, ErrTimeout when it ran past limit.
-func runWithin(
+func (execFFmpeg *ExecFFmpeg) runWithin(
 	ctx context.Context,
 	duration, limit time.Duration,
 	args ...string,
 ) error {
-	logging.Logger.Debug().
-		Strs("args", args).
-		Msg("running ffmpeg command")
-
 	runCtx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 
-	// #nosec G204 - args are controlled by the application
-	cmd := exec.CommandContext(runCtx, args[0], args[1:]...)
+	cmd := execFFmpeg.command(runCtx, args)
 
-	cmd.Dir = commandDir
-	cmd.WaitDelay = waitDelay
+	logging.Logger.Debug().
+		Strs("args", cmd.Args).
+		Msg("running ffmpeg command")
 
 	stderr := progress.NewWriter(duration, progress.From(ctx))
 
@@ -180,11 +287,7 @@ func (execFFmpeg *ExecFFmpeg) runStderr(
 	runCtx, cancel := context.WithTimeout(ctx, execFFmpeg.deadline(0))
 	defer cancel()
 
-	// #nosec G204 - args are controlled by the application
-	cmd := exec.CommandContext(runCtx, args[0], args[1:]...)
-
-	cmd.Dir = commandDir
-	cmd.WaitDelay = waitDelay
+	cmd := execFFmpeg.command(runCtx, args)
 
 	var stderr bytes.Buffer
 

@@ -118,7 +118,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractClip(
 		)
 		execFFmpeg.resolveColor(ctx, &req)
 
-		return runWithin(
+		return execFFmpeg.runWithin(
 			ctx,
 			duration,
 			execFFmpeg.encodeDeadline(duration, req.encoder),
@@ -275,7 +275,7 @@ func (execFFmpeg *ExecFFmpeg) ExtractPreview(
 		)
 		execFFmpeg.resolveColor(ctx, &req)
 
-		return runWithin(
+		return execFFmpeg.runWithin(
 			ctx,
 			duration,
 			execFFmpeg.encodeDeadline(duration, req.encoder),
@@ -369,7 +369,7 @@ func videoEncodeArgs(req *videoEncodeRequest) []string {
 		ssFlag, timecode.FromDuration(req.start).FormatSeconds(),
 		inputFlag, req.input,
 		durationFlag, timecode.FromDuration(req.duration).FormatSeconds(),
-		mapFlag, "0:v:0",
+		mapFlag, firstVideoStream,
 		mapFlag, "0:a:" + strconv.Itoa(audioIndex) + "?",
 	}
 

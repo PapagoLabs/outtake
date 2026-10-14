@@ -329,7 +329,7 @@ func TestCopyClipStartsOnTheKeyframe(t *testing.T) {
 				require.NoError(t, err, string(out))
 			}
 
-			runner := NewExecFFmpeg(ffmpegPath, ffprobePath)
+			runner := NewExecFFmpeg(ffmpegPath, ffprobePath).WithThreads(2)
 
 			keyframe, found, err := runner.KeyframeBefore(
 				t.Context(),

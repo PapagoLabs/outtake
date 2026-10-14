@@ -59,7 +59,7 @@ func TestExtractGIFWritesFile(t *testing.T) {
 
 	out := filepath.Join(dir, "out.gif")
 
-	err = NewExecFFmpeg(ffmpegPath, "ffprobe").
+	err = NewExecFFmpeg(ffmpegPath, "ffprobe").WithThreads(2).
 		ExtractGIF(
 			t.Context(),
 			src, out, 0, 500*time.Millisecond, 160, 10, crop.CropRect{},
