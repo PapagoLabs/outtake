@@ -15,6 +15,7 @@ import (
 	clipdom "github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/catalog"
 	"github.com/PapagoLabs/outtake/internal/clip/profile"
+	"github.com/PapagoLabs/outtake/internal/clip/queue"
 	"github.com/PapagoLabs/outtake/internal/plex/library"
 	clipcard "github.com/PapagoLabs/outtake/internal/web/components/clip"
 	"github.com/PapagoLabs/outtake/internal/web/components/flash"
@@ -196,10 +197,10 @@ func (handler *Handler) profileKeepHDR(ctx context.Context, quality string) *boo
 	return &keep
 }
 
-// startsRender reports whether an edit starts a new render.
+// startsRender reports whether an edit renders the clip again.
 //
-// A regenerate does, and so does a type change to a clip that is not still
-// waiting. A clip still waiting is already counted by the queue.
+// A regenerate or a type change does. Whether that is a new render depends on
+// whether the clip is still waiting, which only the queue can say.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -209,7 +210,7 @@ func (handler *Handler) profileKeepHDR(ctx context.Context, quality string) *boo
 // Returns:
 //   - starts: True when the edit renders the clip again.
 func startsRender(ctx fiber.Ctx, job *clipdom.Job, edit clipdom.Edit) bool {
-	return regenerates(ctx) || (edit.Type != job.Type && job.Status != clipdom.StatusPending)
+	return regenerates(ctx) || edit.Type != job.Type
 }
 
 // regenerates reports whether the update asked for the clip to render again.
@@ -223,12 +224,13 @@ func regenerates(ctx fiber.Ctx) bool {
 	return ctx.FormValue("regenerate") == routes.FormChecked
 }
 
-// admitEdit saves an edit, within the caller's limits when it renders the clip
-// again.
+// admitEdit saves an edit, within the caller's limits when it starts a new
+// render.
 //
-// A regenerate, or a type change to a clip that is not still waiting, starts
-// a new render. Any other edit, such as a rename or a change to a clip still
-// waiting, which the queue already counts, starts none.
+// A regenerate or a type change to a clip still waiting starts none, because
+// the queue already counts that clip and renders it once with the edit. To any
+// other clip it starts a new render. An edit that renders nothing, such as a
+// rename, starts none either.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -254,6 +256,36 @@ func (handler *Handler) admitEdit(
 		return saved, nil
 	}
 
+	saved, err := catalog.UpdateWaiting(
+		ctx.Context(), handler.clipQueue, handler.db, handler.clipPaths, id, edit,
+	)
+	if errors.Is(err, queue.ErrJobNotWaiting) {
+		saved, err = handler.admitRender(ctx, id, edit)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("save render: %w", err)
+	}
+
+	return saved, nil
+}
+
+// admitRender saves an edit that starts a new render, within the caller's
+// limits.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - id: Clip to change.
+//   - edit: The validated change.
+//
+// Returns:
+//   - saved: The saved clip.
+//   - err: A reached limit, or the catalog's failure.
+func (handler *Handler) admitRender(
+	ctx fiber.Ctx,
+	id string,
+	edit clipdom.Edit,
+) (*clipdom.Job, error) {
 	var saved *clipdom.Job
 
 	err := handler.limits.AdmitClip(ctx.Context(), middleware.RenderMember(ctx), func() error {

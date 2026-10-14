@@ -4,6 +4,7 @@
 package users
 
 import (
+	"context"
 	"io"
 	"math"
 	"net/http"
@@ -37,6 +38,15 @@ type reply struct {
 	flash string
 	// status is its status code.
 	status int
+}
+
+// staleRoles reads users from a database but reports some roles as they
+// were before a change another admin made.
+type staleRoles struct {
+	*database.DB
+
+	// roles are the roles reported in place of the stored ones.
+	roles map[int]string
 }
 
 // Accounts the tests sign in as.
@@ -424,4 +434,58 @@ func TestRoleNameNamesEachRole(t *testing.T) {
 	assert.Equal(t, "Admin", roleName(identity.RoleAdmin))
 	assert.Equal(t, "Member", roleName(identity.RoleMember))
 	assert.Equal(t, "Pending", roleName(identity.RolePending))
+}
+
+// UserRole reports the stale role for a user it holds one for.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - plexUserID: The user.
+//
+// Returns:
+//   - role: The stale or stored role.
+//   - found: Whether the user is stored.
+//   - err: The database's failure.
+func (store staleRoles) UserRole(ctx context.Context, plexUserID int) (string, bool, error) {
+	if role, ok := store.roles[plexUserID]; ok {
+		return role, true, nil
+	}
+
+	//nolint:wrapcheck // The test hands the database's answer on as it is.
+	return store.DB.UserRole(ctx, plexUserID)
+}
+
+// TestChangesLeaveAUserWhoseRoleChangedMeanwhile covers an admin removing a
+// member whom the owner made an admin after the admin's check.
+//
+// The removal is refused with the page's notice, and the new admin stays.
+// Setting their limits is refused the same way.
+func TestChangesLeaveAUserWhoseRoleChangedMeanwhile(t *testing.T) {
+	t.Parallel()
+
+	db := usersDB(t)
+	require.NoError(t, db.SetUserRole(t.Context(), memberID, database.RoleAdmin))
+
+	handler := New(staleRoles{DB: db, roles: map[int]string{memberID: database.RoleMember}}, db)
+
+	app := fiber.New()
+	respondtest.Sessions(t, app)
+	app.Use(middlewaretest.AsCaller(identity.User{
+		PlexID: adminID, Username: "admin", Role: identity.RoleAdmin,
+	}))
+	app.Post(routes.PathSettingsUsers+"/:id/remove", handler.Remove)
+	app.Post(routes.PathSettingsUsers+"/:id/limits", handler.SaveUserLimits)
+
+	target := routes.PathSettingsUsers + "/" + strconv.Itoa(memberID)
+
+	removed := send(t, app, http.MethodPost, target+"/remove", nil)
+	assert.Equal(t, msgCannotChange, removed.flash)
+
+	limited := send(t, app, http.MethodPost, target+"/limits", url.Values{"active": {"1"}})
+	assert.Equal(t, msgCannotChange, limited.flash)
+
+	role, found, err := db.UserRole(t.Context(), memberID)
+	require.NoError(t, err)
+	assert.True(t, found, "the new admin was not removed")
+	assert.Equal(t, database.RoleAdmin, role)
 }

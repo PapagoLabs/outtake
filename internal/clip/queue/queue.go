@@ -85,6 +85,9 @@ const (
 	editInPlace editMode = iota
 	// editForRender changes a job that the caller is about to render again.
 	editForRender
+	// editWaiting changes a job only while it waits for a worker, which
+	// renders the new values when it takes the job.
+	editWaiting
 )
 
 const (
@@ -107,6 +110,10 @@ var ErrQueueStopped = errors.New("queue is stopped")
 
 // ErrJobNotFound is returned when an edit names a job the queue does not have.
 var ErrJobNotFound = errors.New("job not found")
+
+// ErrJobNotWaiting is returned when an edit for a waiting job finds it
+// rendering or settled.
+var ErrJobNotWaiting = errors.New("job is not waiting")
 
 // ErrJobPanicked is recorded against a job whose handler panicked.
 var ErrJobPanicked = errors.New("job handler panicked")
@@ -353,6 +360,35 @@ func (q *Queue) EditAndRegenerate(
 	}
 
 	return job, queued, nil
+}
+
+// EditWaiting edits a job that is waiting for a worker.
+//
+// The worker that takes the job renders the new values, so the edit never
+// queues it again. A job that is rendering or settled is left as it was.
+//
+// Parameters:
+//   - id: The job to change.
+//   - edit: The change to apply.
+//   - output: Where the job renders to once its type is edit.Type.
+//   - save: Writes the edited job. It runs without the queue lock.
+//
+// Returns:
+//   - job: A copy of the edited job.
+//   - err: ErrJobNotFound, ErrJobNotWaiting when the job is not waiting, or
+//     the save's error.
+func (q *Queue) EditWaiting(
+	id string,
+	edit clip.Edit,
+	output string,
+	save func(*clip.Job) error,
+) (*clip.Job, error) {
+	job, _, err := q.applyEdit(id, edit, output, save, editWaiting)
+	if err != nil {
+		return nil, fmt.Errorf("edit waiting %s: %w", id, err)
+	}
+
+	return job, nil
 }
 
 // GetAllJobs returns every job, newest first.
@@ -1222,6 +1258,10 @@ func (q *Queue) stageEdit(
 	entry, ok := q.jobs[id]
 	if !ok {
 		return stagedEdit{}, ErrJobNotFound
+	}
+
+	if _, waiting := q.waiting[id]; mode == editWaiting && !waiting {
+		return stagedEdit{}, ErrJobNotWaiting
 	}
 
 	edited := entry.Clip

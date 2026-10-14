@@ -92,6 +92,54 @@ func UpdateAndRegenerate(
 	return job, nil
 }
 
+// UpdateWaiting applies a validated edit to a clip that is waiting to render,
+// and saves it.
+//
+// The queue decides under its lock whether the clip still waits, so a clip a
+// worker took or finished meanwhile is left as it was.
+//
+// Parameters:
+//   - ctx: Request context.
+//   - work: Queue holding the clip.
+//   - store: Persistence handle for the clips table.
+//   - paths: Output layout, which names the file the clip renders to.
+//   - id: Clip to change.
+//   - edit: The validated change, with its type resolved.
+//
+// Returns:
+//   - job: The edited clip, still waiting.
+//   - err: ErrClipNotFound, queue.ErrJobNotWaiting when the clip is rendering
+//     or settled, or the wrapped save failure.
+func UpdateWaiting(
+	ctx context.Context,
+	work *queue.Queue,
+	store *database.DB,
+	paths blob.Paths,
+	id string,
+	edit clip.Edit,
+) (*clip.Job, error) {
+	apply := func(
+		id string,
+		edit clip.Edit,
+		output string,
+		save func(*clip.Job) error,
+	) (*clip.Job, bool, error) {
+		job, err := work.EditWaiting(id, edit, output, save)
+		if err != nil {
+			return nil, false, fmt.Errorf("edit waiting: %w", err)
+		}
+
+		return job, false, nil
+	}
+
+	job, err := applyUpdate(ctx, store, paths, work, apply, id, edit)
+	if err != nil {
+		return nil, fmt.Errorf("update waiting clip: %w", err)
+	}
+
+	return job, nil
+}
+
 // applyUpdate applies an edit through the queue, which saves it and queues
 // the clip again in the same step when it has to render anew.
 //

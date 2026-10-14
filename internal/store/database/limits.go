@@ -307,16 +307,20 @@ func (db *DB) SaveGlobalLimits(ctx context.Context, limits quota.Limits) error {
 	return nil
 }
 
-// SaveUserLimits stores one user's own render limits.
+// SaveUserLimits stores one member's own render limits.
+//
+// Limits apply only to members, and the user must still be an approved
+// member when the row is written, so a member promoted to admin in the
+// meantime keeps having none.
 //
 // Parameters:
 //   - ctx: Request scope for the write.
-//   - plexUserID: The user, other than the owner.
-//   - override: The user's limits, where nil takes the global value.
+//   - plexUserID: The member.
+//   - override: The member's limits, where nil takes the global value.
 //
 // Returns:
-//   - err: ErrUserNotFound when no user other than the owner is stored under
-//     the id, otherwise the write failure.
+//   - err: ErrUserNotFound when no approved member is stored under the id,
+//     otherwise the write failure.
 func (db *DB) SaveUserLimits(ctx context.Context, plexUserID int, override quota.Override) error {
 	var clipSeconds *int64
 
@@ -328,7 +332,7 @@ func (db *DB) SaveUserLimits(ctx context.Context, plexUserID int, override quota
 
 	err := db.changeUser(ctx, `
 		UPDATE users SET limit_active = ?, limit_weekly = ?, limit_storage_bytes = ?, limit_clip_seconds = ?
-		WHERE plex_user_id = ? AND role <> 'owner'
+		WHERE plex_user_id = ? AND role = 'member' AND approved = 1
 	`, nullableInt(override.Active), nullableInt(override.Weekly), nullableInt64(override.Storage),
 		nullableInt64(clipSeconds), plexUserID)
 	if err != nil {

@@ -611,6 +611,49 @@ func TestIntegration_UpdateAndRegenerateQueuesTheClip(t *testing.T) {
 	require.NoError(t, err, "a clip still waiting renders the edit when its turn comes")
 }
 
+// TestIntegration_UpdateWaitingLeavesASettledClip covers an edit for a clip
+// that must still be waiting.
+//
+// A settled clip is refused and left as it was in the queue and in storage,
+// and a waiting clip takes the edit in both.
+func TestIntegration_UpdateWaitingLeavesASettledClip(t *testing.T) {
+	t.Parallel()
+
+	db := catalogDatabase(t)
+	work := queue.NewQueue(1, nil)
+	paths := blob.NewPaths(t.TempDir())
+
+	settled := queueJobFixture("settled")
+	require.NoError(t, db.SaveClip(t.Context(), settled))
+	work.Restore(settled)
+
+	_, err := catalog.UpdateWaiting(
+		t.Context(), work, db, paths, "settled", renamed(settled, "Renamed"),
+	)
+	require.ErrorIs(t, err, queue.ErrJobNotWaiting)
+
+	stored, err := db.GetClip(t.Context(), "settled")
+	require.NoError(t, err)
+	assert.Equal(t, settled.Name, stored.Name)
+	assert.Equal(t, settled.Status, work.GetJob("settled").Status)
+
+	_, err = catalog.UpdateAndRegenerate(
+		t.Context(), work, db, paths, "settled", renamed(settled, settled.Name),
+	)
+	require.NoError(t, err)
+
+	edited, err := catalog.UpdateWaiting(
+		t.Context(), work, db, paths, "settled", renamed(settled, "Renamed"),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "Renamed", edited.Name)
+	assert.Equal(t, clip.StatusPending, edited.Status)
+
+	stored, err = db.GetClip(t.Context(), "settled")
+	require.NoError(t, err)
+	assert.Equal(t, "Renamed", stored.Name)
+}
+
 // TestIntegration_EditsKeepAClipShared covers a shared clip that is renamed,
 // then rendered again.
 //
