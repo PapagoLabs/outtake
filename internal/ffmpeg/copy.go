@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -239,17 +238,14 @@ func (execFFmpeg *ExecFFmpeg) checkCopyDecodes(ctx context.Context, staging stri
 	runCtx, cancel := context.WithTimeout(ctx, landingTimeout)
 	defer cancel()
 
-	// #nosec G204 - args are controlled by the application
-	cmd := exec.CommandContext(runCtx, execFFmpeg.ffmpegPath,
+	cmd := execFFmpeg.command(runCtx, []string{
+		execFFmpeg.ffmpegPath,
 		"-v", "error",
 		durationFlag, timecode.FromDuration(decodeCheckLength).FormatSeconds(),
 		inputFlag, staging,
 		"-f", "null",
 		"-",
-	)
-
-	cmd.Dir = commandDir
-	cmd.WaitDelay = waitDelay
+	})
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -305,7 +301,7 @@ func (execFFmpeg *ExecFFmpeg) copyChecked(
 	staging string,
 	want time.Duration,
 ) error {
-	err := runWithin(ctx, want, execFFmpeg.deadline(want), args...)
+	err := execFFmpeg.runWithin(ctx, want, execFFmpeg.deadline(want), args...)
 	if err != nil {
 		return fmt.Errorf("run copy: %w", err)
 	}
@@ -342,21 +338,18 @@ func (execFFmpeg *ExecFFmpeg) seekLanding(
 	runCtx, cancel := context.WithTimeout(ctx, landingTimeout)
 	defer cancel()
 
-	// #nosec G204 - args are controlled by the application
-	cmd := exec.CommandContext(runCtx, execFFmpeg.ffmpegPath,
+	cmd := execFFmpeg.command(runCtx, []string{
+		execFFmpeg.ffmpegPath,
 		"-v", "error",
 		ssFlag, timecode.FromDuration(seek).FormatSeconds(),
 		inputFlag, input,
-		mapFlag, "0:v:0",
+		mapFlag, firstVideoStream,
 		videoCodecFlag, copyCodec,
 		"-copyts",
 		framesFlag, "1",
 		"-f", "framecrc",
 		"-",
-	)
-
-	cmd.Dir = commandDir
-	cmd.WaitDelay = waitDelay
+	})
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -483,7 +476,7 @@ func copyArgs(
 		ssFlag, timecode.FromDuration(start).FormatSeconds(),
 		inputFlag, input,
 		durationFlag, timecode.FromDuration(duration).FormatSeconds(),
-		mapFlag, "0:v:0",
+		mapFlag, firstVideoStream,
 		mapFlag, "0:a:" + strconv.Itoa(max(audioIndex, 0)) + "?",
 		videoCodecFlag, copyCodec,
 	}

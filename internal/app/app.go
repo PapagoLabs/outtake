@@ -99,7 +99,9 @@ func New(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("init storage: %w", err)
 	}
 
-	runner := ffmpeg.NewExecFFmpeg(cfg.FFmpegPath, cfg.FFprobePath).WithTimeout(cfg.FFmpegTimeout)
+	runner := ffmpeg.NewExecFFmpeg(cfg.FFmpegPath, cfg.FFprobePath).
+		WithTimeout(cfg.FFmpegTimeout).
+		WithThreads(cfg.FFmpegThreadBudget())
 
 	plexAuth, bind, err := plexIdentity(cfg, db)
 	if err != nil {

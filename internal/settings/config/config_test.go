@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -128,6 +129,67 @@ func TestLoad_RunsAtLeastOneWorker(t *testing.T) {
 			cfg, err := Load("")
 			require.NoError(t, err)
 			assert.Equal(t, 1, cfg.NumWorkers, "a queue with no workers would never render a clip")
+		})
+	}
+}
+
+// TestLoad_FFmpegThreads covers OUTTAKE_FFMPEG_THREADS.
+//
+// Unset, zero, or below zero leaves the count to the CPUs the process may
+// use, a positive count is kept, and a value that is not a number is refused.
+func TestLoad_FFmpegThreads(t *testing.T) {
+	for value, want := range map[string]int{"": 0, "0": 0, "-2": 0, "6": 6} {
+		t.Run("value "+value, func(t *testing.T) {
+			t.Setenv("XDG_DATA_HOME", t.TempDir())
+			t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+			t.Setenv("OUTTAKE_FFMPEG_THREADS", value)
+
+			cfg, err := Load("")
+			require.NoError(t, err)
+			assert.Equal(t, want, cfg.FFmpegThreads)
+		})
+	}
+
+	t.Run("not a number", func(t *testing.T) {
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		t.Setenv("OUTTAKE_FFMPEG_THREADS", "lots")
+
+		_, err := Load("")
+		require.Error(t, err)
+	})
+}
+
+// TestFFmpegThreadBudgetSharesTheCPUsBetweenWorkers covers the threads one
+// ffmpeg run may use.
+//
+// A configured count wins. Otherwise the CPUs the process may use are divided
+// between the workers, and each run gets at least one thread.
+func TestFFmpegThreadBudgetSharesTheCPUsBetweenWorkers(t *testing.T) {
+	t.Parallel()
+
+	cpus := runtime.GOMAXPROCS(0)
+
+	for name, test := range map[string]struct {
+		threads int
+		workers int
+		want    int
+	}{
+		"configured":     {threads: 6, workers: 2, want: 6},
+		"one worker":     {threads: 0, workers: 1, want: cpus},
+		"two workers":    {threads: 0, workers: 2, want: max(cpus/2, 1)},
+		"more than CPUs": {threads: 0, workers: cpus + 1, want: 1},
+		"workers unset":  {threads: 0, workers: 0, want: cpus},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := emptyConfig()
+
+			cfg.FFmpegThreads = test.threads
+			cfg.NumWorkers = test.workers
+
+			assert.Equal(t, test.want, cfg.FFmpegThreadBudget())
 		})
 	}
 }
