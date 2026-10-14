@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Publish the generated notes as the stable release body by @nicholas-fedor in [#521](https://github.com/PapagoLabs/outtake/pull/521)
 
+### Chores
+
+- Update golang.org/x/exp digest to 2ab7f3c by @renovate[bot] in [#525](https://github.com/PapagoLabs/outtake/pull/525)
+
 ### Fixed
 
 - Count only new renders and recheck roles when changing users by @nicholas-fedor in [#523](https://github.com/PapagoLabs/outtake/pull/523)
