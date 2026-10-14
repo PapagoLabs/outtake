@@ -229,16 +229,16 @@ func (_c *MockStore_RejectUser_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // RemoveUser provides a mock function for the type MockStore
-func (_mock *MockStore) RemoveUser(ctx context.Context, plexUserID int) error {
-	ret := _mock.Called(ctx, plexUserID)
+func (_mock *MockStore) RemoveUser(ctx context.Context, plexUserID int, role string) error {
+	ret := _mock.Called(ctx, plexUserID, role)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RemoveUser")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) error); ok {
-		r0 = returnFunc(ctx, plexUserID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, string) error); ok {
+		r0 = returnFunc(ctx, plexUserID, role)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -253,11 +253,12 @@ type MockStore_RemoveUser_Call struct {
 // RemoveUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - plexUserID int
-func (_e *MockStore_Expecter) RemoveUser(ctx any, plexUserID any) *MockStore_RemoveUser_Call {
-	return &MockStore_RemoveUser_Call{Call: _e.mock.On("RemoveUser", ctx, plexUserID)}
+//   - role string
+func (_e *MockStore_Expecter) RemoveUser(ctx any, plexUserID any, role any) *MockStore_RemoveUser_Call {
+	return &MockStore_RemoveUser_Call{Call: _e.mock.On("RemoveUser", ctx, plexUserID, role)}
 }
 
-func (_c *MockStore_RemoveUser_Call) Run(run func(ctx context.Context, plexUserID int)) *MockStore_RemoveUser_Call {
+func (_c *MockStore_RemoveUser_Call) Run(run func(ctx context.Context, plexUserID int, role string)) *MockStore_RemoveUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -267,9 +268,14 @@ func (_c *MockStore_RemoveUser_Call) Run(run func(ctx context.Context, plexUserI
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -280,7 +286,7 @@ func (_c *MockStore_RemoveUser_Call) Return(err error) *MockStore_RemoveUser_Cal
 	return _c
 }
 
-func (_c *MockStore_RemoveUser_Call) RunAndReturn(run func(ctx context.Context, plexUserID int) error) *MockStore_RemoveUser_Call {
+func (_c *MockStore_RemoveUser_Call) RunAndReturn(run func(ctx context.Context, plexUserID int, role string) error) *MockStore_RemoveUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

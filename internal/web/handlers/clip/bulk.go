@@ -113,10 +113,11 @@ func (handler *Handler) Bulk(ctx fiber.Ctx) error {
 	return writeBulk(ctx, action, handler.runBulk(ctx, action, req.Clips))
 }
 
-// RetryFailed renders every failed clip the caller may change again.
+// RetryFailed renders the failed clips the caller may change again.
 //
 // A form field or query parameter naming a title keeps it to that title's
-// clips.
+// clips. One request renders at most maxBulkClips of them, newest first, and
+// another request renders the rest.
 //
 // Parameters:
 //   - ctx: Request optionally naming a title.
@@ -125,6 +126,9 @@ func (handler *Handler) Bulk(ctx fiber.Ctx) error {
 //   - err: Non-nil when the response cannot be written.
 func (handler *Handler) RetryFailed(ctx fiber.Ctx) error {
 	failed := handler.failedJobs(ctx, mediaIDOf(ctx))
+
+	failed = failed[:min(len(failed), maxBulkClips)]
+
 	ids := make([]string, 0, len(failed))
 
 	for _, job := range failed {
@@ -223,7 +227,8 @@ func (handler *Handler) failedJobs(ctx fiber.Ctx, mediaID string) []*clipdom.Job
 // caller's limits.
 //
 // Its source must still be one Plex shares with the caller, and Keep HDR is
-// taken from its profile, as a regenerate from its card does.
+// taken from its profile, as a regenerate from its card does. A clip the queue
+// still holds as waiting starts no new render, so the limits leave it alone.
 //
 // Parameters:
 //   - ctx: Request context.
@@ -251,7 +256,7 @@ func (handler *Handler) regenerateStored(ctx fiber.Ctx, job *clipdom.Job) error 
 		return fmt.Errorf("validate: %w", err)
 	}
 
-	err = handler.limits.AdmitClip(ctx.Context(), middleware.RenderMember(ctx), func() error {
+	submit := func() error {
 		_, saveErr := catalog.UpdateAndRegenerate(
 			ctx.Context(), handler.clipQueue, handler.db, handler.clipPaths, job.ID, edit,
 		)
@@ -259,9 +264,17 @@ func (handler *Handler) regenerateStored(ctx fiber.Ctx, job *clipdom.Job) error 
 			return errBulkSkipped
 		}
 
-		//nolint:wrapcheck // AdmitClip wraps what the submit returns.
+		//nolint:wrapcheck // The caller wraps what the submit returns.
 		return saveErr
-	})
+	}
+
+	_, err = catalog.UpdateWaiting(
+		ctx.Context(), handler.clipQueue, handler.db, handler.clipPaths, job.ID, edit,
+	)
+	if errors.Is(err, queue.ErrJobNotWaiting) {
+		err = handler.limits.AdmitClip(ctx.Context(), middleware.RenderMember(ctx), submit)
+	}
+
 	if err != nil {
 		return fmt.Errorf("regenerate: %w", err)
 	}

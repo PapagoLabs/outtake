@@ -5,6 +5,7 @@ package users
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strconv"
 	"time"
@@ -31,11 +32,11 @@ type Store interface {
 	ApproveUser(ctx context.Context, plexUserID int) error
 	// RejectUser deletes an account still waiting for approval.
 	RejectUser(ctx context.Context, plexUserID int) error
-	// RemoveUser deletes a user other than the owner.
-	RemoveUser(ctx context.Context, plexUserID int) error
+	// RemoveUser deletes an approved member or admin still holding a role.
+	RemoveUser(ctx context.Context, plexUserID int, role string) error
 	// SetUserRole makes a user an admin or a member.
 	SetUserRole(ctx context.Context, plexUserID int, role string) error
-	// SaveUserLimits stores a user's own render limits.
+	// SaveUserLimits stores an approved member's own render limits.
 	SaveUserLimits(ctx context.Context, plexUserID int, override quota.Override) error
 }
 
@@ -88,7 +89,7 @@ func New(store Store, limits LimitStore) *Handler {
 //   - err: Non-nil when the redirect cannot be written.
 func (handler *Handler) Approve(ctx fiber.Ctx) error {
 	//nolint:wrapcheck // change writes the response and wraps its own failures.
-	return handler.change(ctx, identity.ActionApprove, handler.store.ApproveUser)
+	return handler.change(ctx, identity.ActionApprove, ignoreRole(handler.store.ApproveUser))
 }
 
 // Page renders the users, the accounts waiting for approval, and the limits
@@ -166,7 +167,7 @@ func (*Handler) Pending(ctx fiber.Ctx) error {
 //   - err: Non-nil when the redirect cannot be written.
 func (handler *Handler) Reject(ctx fiber.Ctx) error {
 	//nolint:wrapcheck // change writes the response and wraps its own failures.
-	return handler.change(ctx, identity.ActionReject, handler.store.RejectUser)
+	return handler.change(ctx, identity.ActionReject, ignoreRole(handler.store.RejectUser))
 }
 
 // Remove deletes an approved user, keeping their clips.
@@ -178,7 +179,13 @@ func (handler *Handler) Reject(ctx fiber.Ctx) error {
 //   - err: Non-nil when the redirect cannot be written.
 func (handler *Handler) Remove(ctx fiber.Ctx) error {
 	//nolint:wrapcheck // change writes the response and wraps its own failures.
-	return handler.change(ctx, identity.ActionRemove, handler.store.RemoveUser)
+	return handler.change(
+		ctx,
+		identity.ActionRemove,
+		func(ctx context.Context, plexUserID int, role identity.Role) error {
+			return handler.store.RemoveUser(ctx, plexUserID, string(role))
+		},
+	)
 }
 
 // SaveGlobalLimits stores the limits every member has.
@@ -223,9 +230,9 @@ func (handler *Handler) SaveUserLimits(ctx fiber.Ctx) error {
 	return handler.change(
 		ctx,
 		identity.ActionLimits,
-		func(ctx context.Context, plexUserID int) error {
+		ignoreRole(func(ctx context.Context, plexUserID int) error {
 			return handler.store.SaveUserLimits(ctx, plexUserID, override)
-		},
+		}),
 	)
 }
 
@@ -245,24 +252,28 @@ func (handler *Handler) SetRole(ctx fiber.Ctx) error {
 	}
 
 	//nolint:wrapcheck // change writes the response and wraps its own failures.
-	return handler.change(ctx, action, func(ctx context.Context, plexUserID int) error {
+	return handler.change(ctx, action, ignoreRole(func(ctx context.Context, plexUserID int) error {
 		return handler.store.SetUserRole(ctx, plexUserID, role)
-	})
+	}))
 }
 
 // change makes one change to a user when the caller may make it.
 //
+// The store checks again, as it writes, that the user still holds the role
+// the change was allowed for. A user whose role changed in between is left
+// alone, and the page says the change cannot be made.
+//
 // Parameters:
 //   - ctx: Request naming the user.
 //   - action: The change.
-//   - apply: Makes the change.
+//   - apply: Makes the change to the user, given the role it was allowed for.
 //
 // Returns:
 //   - err: Non-nil when the redirect cannot be written.
 func (handler *Handler) change(
 	ctx fiber.Ctx,
 	action identity.Action,
-	apply func(ctx context.Context, plexUserID int) error,
+	apply func(ctx context.Context, plexUserID int, role identity.Role) error,
 ) error {
 	caller, _ := middleware.Caller(ctx)
 
@@ -286,12 +297,33 @@ func (handler *Handler) change(
 		return respond.RedirectTo(ctx, routes.PathSettingsUsers)
 	}
 
-	err = apply(ctx.Context(), plexUserID)
+	err = apply(ctx.Context(), plexUserID, identity.Role(role))
+	if errors.Is(err, database.ErrUserNotFound) {
+		respond.SetFlash(ctx, view.NewNotice(msgCannotChange))
+
+		return respond.RedirectTo(ctx, routes.PathSettingsUsers)
+	}
+
 	if err != nil {
 		respond.SetFlash(ctx, respond.Fail(ctx, err))
 	}
 
 	return respond.RedirectTo(ctx, routes.PathSettingsUsers)
+}
+
+// ignoreRole adapts a change that the store guards without the checked role.
+//
+// Parameters:
+//   - apply: The change.
+//
+// Returns:
+//   - adapted: The change as change takes it.
+func ignoreRole(
+	apply func(ctx context.Context, plexUserID int) error,
+) func(ctx context.Context, plexUserID int, role identity.Role) error {
+	return func(ctx context.Context, plexUserID int, _ identity.Role) error {
+		return apply(ctx, plexUserID)
+	}
 }
 
 // userItem describes one user for the page, with the changes the caller may

@@ -1856,6 +1856,46 @@ func TestEditRefusesAJobTheQueueDoesNotHave(t *testing.T) {
 	require.ErrorIs(t, err, ErrJobNotFound)
 }
 
+// TestEditWaitingChangesOnlyAWaitingJob covers an edit for a job that must
+// still be waiting.
+//
+// A waiting job takes the edit and stays waiting. A settled job refuses it,
+// keeps its record, and is never saved, so the caller can treat the edit as a
+// new render.
+func TestEditWaitingChangesOnlyAWaitingJob(t *testing.T) {
+	t.Parallel()
+
+	q := NewQueue(1, nil)
+
+	waiting := testJob("waiting", clip.StatusPending)
+	require.NoError(t, q.Submit(waiting))
+
+	settled := testJob("settled", clip.StatusCompleted)
+	q.Restore(settled)
+
+	moved := editOf(waiting)
+
+	moved.Name = "Moved"
+
+	edited, err := q.EditWaiting("waiting", moved, "", discardSave)
+	require.NoError(t, err)
+	assert.Equal(t, "Moved", edited.Name)
+	assert.Equal(t, clip.StatusPending, q.GetJob("waiting").Status)
+
+	renamed := editOf(settled)
+
+	renamed.Name = "Renamed"
+
+	_, err = q.EditWaiting("settled", renamed, "", func(*clip.Job) error {
+		t.Error("a refused edit is never saved")
+
+		return nil
+	})
+	require.ErrorIs(t, err, ErrJobNotWaiting)
+	assert.Empty(t, q.GetJob("settled").Name, "the settled job keeps its record")
+	assert.Equal(t, clip.StatusCompleted, q.GetJob("settled").Status)
+}
+
 // TestEditOfARenderingJob covers the edits a running render may take.
 //
 // It takes a change that leaves the file the same, and nothing when a render is

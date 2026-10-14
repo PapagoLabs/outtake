@@ -48,7 +48,7 @@ Every member has render limits. The owner and admins have none.
 | Limit | What it counts | Default |
 | --- | --- | --- |
 | **Concurrent Renders** | Clips waiting or rendering, and previews rendering | 2 |
-| **Renders per Week** | Clips started in any 7 days, counting regenerates and type changes | 100 |
+| **Renders per Week** | Clips started in any 7 days, counting regenerates and type changes of clips that are not still waiting | 100 |
 | **Storage (GB)** | What the member's clips take, with their SDR versions | 25 |
 | **Longest Clip (seconds)** | The longest clip the member may make, never longer than the installation's maximum | The installation's maximum |
 

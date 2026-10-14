@@ -634,3 +634,53 @@ func TestUpdateRefusesAKeepHDRChoiceFromAnAPICaller(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "Intro", saved.Name)
 }
+
+// TestStartsRenderOnARegenerateOrATypeChange covers which edits render a clip
+// again.
+//
+// A regenerate or a type change does, and a rename does not. Whether the
+// render is a new one is left to the queue.
+func TestStartsRenderOnARegenerateOrATypeChange(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		kind       clipdom.Type
+		regenerate bool
+		want       bool
+	}{
+		"regenerate": {kind: clipdom.TypeClip, regenerate: true, want: true},
+		"retype":     {kind: clipdom.TypeGIF, regenerate: false, want: true},
+		"rename":     {kind: clipdom.TypeClip, regenerate: false, want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			job := testClipJob("c", clipdom.TypeClip)
+
+			var starts bool
+
+			app := fiber.New()
+			app.Post("/", func(ctx fiber.Ctx) error {
+				starts = startsRender(ctx, job, clipdom.Edit{Type: test.kind})
+
+				return nil
+			})
+
+			form := url.Values{}
+			if test.regenerate {
+				form.Set("regenerate", routes.FormChecked)
+			}
+
+			req := httptest.NewRequestWithContext(
+				t.Context(), http.MethodPost, "/", strings.NewReader(form.Encode()),
+			)
+			req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationForm)
+
+			resp, err := app.Test(req)
+			require.NoError(t, err)
+			closeBody(t, resp)
+
+			assert.Equal(t, test.want, starts)
+		})
+	}
+}

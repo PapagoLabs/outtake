@@ -439,6 +439,62 @@ func TestRestoreJobsRestoresSettledClips(t *testing.T) {
 	assert.Equal(t, "encode clip: ffmpeg: exit status 1", broken.Error)
 }
 
+// TestRestoreJobsMeasuresClipsNeverMeasured covers clips rendered before
+// their sizes were recorded.
+//
+// A finished clip with no recorded size has its file and SDR version
+// measured, in storage and in the queue, without changing when it was last
+// modified. A clip already measured, or whose file is not stored locally,
+// keeps what it has.
+func TestRestoreJobsMeasuresClipsNeverMeasured(t *testing.T) {
+	t.Parallel()
+
+	db := testDatabase(t)
+	dir := t.TempDir()
+	modified := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
+
+	unmeasured := testClipJob("unmeasured")
+
+	unmeasured.Status = clip.StatusCompleted
+	unmeasured.OutputPath = filepath.Join(dir, "unmeasured.mp4")
+	unmeasured.UpdatedAt = modified
+	require.NoError(t, os.WriteFile(unmeasured.OutputPath, make([]byte, 1000), 0o600))
+	require.NoError(
+		t,
+		os.WriteFile(clip.SDRPathFor(unmeasured.OutputPath), make([]byte, 400), 0o600),
+	)
+	persistClip(t, db, unmeasured)
+
+	measured := testClipJob("measured")
+
+	measured.Status = clip.StatusCompleted
+	measured.OutputPath = filepath.Join(dir, "measured.mp4")
+	measured.OutputBytes = 5
+	require.NoError(t, os.WriteFile(measured.OutputPath, make([]byte, 1000), 0o600))
+	persistClip(t, db, measured)
+
+	remote := testClipJob("remote")
+
+	remote.Status = clip.StatusCompleted
+	remote.OutputPath = filepath.Join(dir, "not-here.mp4")
+	persistClip(t, db, remote)
+
+	jobQueue := testIdleQueue(t)
+
+	restoreJobs(t.Context(), db, jobQueue)
+
+	assert.Equal(t, int64(1400), jobQueue.GetJob("unmeasured").OutputBytes,
+		"the clip's file and its SDR version both count")
+
+	stored, err := db.GetClip(t.Context(), "unmeasured")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1400), stored.OutputBytes)
+	assert.True(t, modified.Equal(stored.UpdatedAt), "the clip's modified time is unchanged")
+
+	assert.Equal(t, int64(5), jobQueue.GetJob("measured").OutputBytes)
+	assert.Zero(t, jobQueue.GetJob("remote").OutputBytes)
+}
+
 func TestRestoreJobsReportsASubmitFailure(t *testing.T) {
 	t.Parallel()
 

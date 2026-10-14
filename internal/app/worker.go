@@ -254,10 +254,41 @@ func restoreBinding(cfg *config.Config, db *database.DB, bind *identity.Binding)
 	}
 }
 
+// measureUnmeasured records how many bytes a finished clip's files take when
+// that was never recorded.
+//
+// Clips rendered before sizes were recorded otherwise count as nothing toward
+// their owner's storage. Only files stored locally are measured, so a clip
+// kept only in S3 stays unmeasured until it renders again. The clip is saved
+// with the time it was last modified unchanged.
+//
+// Parameters:
+//   - ctx: The lifetime context the queue runs under.
+//   - db: Database handle holding the persisted clips.
+//   - job: The clip, changed in place.
+func measureUnmeasured(ctx context.Context, db *database.DB, job *clip.Job) {
+	if job.Status != clip.StatusCompleted || job.OutputBytes != 0 {
+		return
+	}
+
+	bytes := publishedBytes(job)
+	if bytes == 0 {
+		return
+	}
+
+	job.OutputBytes = bytes
+
+	err := db.SaveClip(ctx, job)
+	if err != nil {
+		log.Warn().Err(err).Str("job_id", job.ID).Msg("failed to record a clip's size")
+	}
+}
+
 // restoreJobs reloads persisted clips into the in-memory queue.
 //
 // Unfinished clips are submitted again oldest first, so they render in the
-// order they were made.
+// order they were made. A finished clip whose files were never measured is
+// measured first, so it counts toward its owner's storage.
 //
 // Parameters:
 //   - ctx: The lifetime context the queue runs under.
@@ -278,6 +309,7 @@ func restoreJobs(ctx context.Context, db *database.DB, jobQueue *queue.Queue) {
 		case clip.StatusPending, clip.StatusProcessing:
 			unfinished = append(unfinished, job)
 		default:
+			measureUnmeasured(ctx, db, job)
 			jobQueue.Restore(job)
 		}
 	}

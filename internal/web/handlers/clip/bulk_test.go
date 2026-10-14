@@ -6,6 +6,7 @@ package clip
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -54,6 +55,11 @@ type bulkAnswer struct {
 	status int
 }
 
+// bulkTimeout bounds one bulk request. A batch of maxBulkClips clips checks
+// and probes each one, which takes longer than Fiber's default second on a
+// loaded CI runner under the race detector.
+const bulkTimeout = 30 * time.Second
+
 // postBulk serves one request to a bulk route.
 //
 // The caller's session holds a server token, so a member's Plex check
@@ -89,7 +95,7 @@ func postBulk(t *testing.T, handler *Handler, call bulkCall) bulkAnswer {
 		req.Header.Set(routes.HeaderHXRequest, "true")
 	}
 
-	resp, err := app.Test(req)
+	resp, err := app.Test(req, fiber.TestConfig{Timeout: bulkTimeout, FailOnTimeout: true})
 	require.NoError(t, err)
 
 	defer closeBody(t, resp)
@@ -489,4 +495,65 @@ func TestRetryFailedRegeneratesTheFailedClips(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, every.status, every.body)
 	assert.Equal(t, 1, every.report.Done, "the clip already retried is no longer failed")
 	assert.Equal(t, clipdom.StatusPending, handler.clipQueue.GetJob("failed-there").Status)
+}
+
+// TestBulkRegeneratesAWaitingClipAtTheMembersLimit covers a member at their
+// limit of concurrent renders regenerating a clip still waiting.
+//
+// The queue already counts it, so the regenerate is let through, and nothing
+// is logged against the week.
+func TestBulkRegeneratesAWaitingClipAtTheMembersLimit(t *testing.T) {
+	t.Parallel()
+
+	handler, source := sharedSourceHandler(t)
+
+	require.NoError(
+		t,
+		handler.db.SaveGlobalLimits(t.Context(), quota.Limits{Active: 1, Weekly: 10}),
+	)
+	handler.SetLimits(quota.New(handler.db, handler.clipQueue.CountActive))
+
+	storeOwned(t, handler, source, "waiting", middlewaretest.MemberID, clipdom.StatusPending)
+
+	waiting, err := handler.db.GetClip(t.Context(), "waiting")
+	require.NoError(t, err)
+	require.NoError(t, handler.clipQueue.Submit(waiting))
+
+	answer := bulkJSON(t, handler, middlewaretest.AsMember(), "regenerate", "waiting")
+
+	require.Equal(t, fiber.StatusOK, answer.status, answer.body)
+	assert.Equal(t, 1, answer.report.Done)
+	assert.Zero(t, answer.report.NotStarted)
+
+	started, _, err := handler.db.RendersSince(
+		t.Context(), middlewaretest.MemberID, time.Now().Add(-time.Hour),
+	)
+	require.NoError(t, err)
+	assert.Zero(t, started, "a clip already waiting is not a new render")
+}
+
+// TestRetryFailedRendersAtMostOneBatch covers more failed clips than one
+// request may render.
+//
+// The newest maxBulkClips are rendered, and the rest wait for another click.
+func TestRetryFailedRendersAtMostOneBatch(t *testing.T) {
+	t.Parallel()
+
+	handler, source := sharedSourceHandler(t)
+
+	for index := range maxBulkClips + 3 {
+		storeOwned(t, handler, source, fmt.Sprintf("failed-%03d", index),
+			middlewaretest.OwnerID, clipdom.StatusFailed)
+	}
+
+	answer := postBulk(t, handler, bulkCall{
+		caller:      middlewaretest.AsOwner(),
+		path:        "/api/clips/retry",
+		body:        "",
+		contentType: fiber.MIMEApplicationForm,
+		htmx:        false,
+	})
+
+	require.Equal(t, fiber.StatusOK, answer.status, answer.body)
+	assert.Equal(t, maxBulkClips, answer.report.Done)
 }

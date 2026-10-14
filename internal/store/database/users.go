@@ -390,22 +390,31 @@ func (db *DB) RejectUser(ctx context.Context, plexUserID int) error {
 	return nil
 }
 
-// RemoveUser deletes a user other than the owner.
+// RemoveUser deletes an approved member or admin.
 //
-// The user's sessions end on their next request, and their clips are kept.
+// The user must still hold the role the removal was checked against when the
+// row is deleted, so a member promoted to admin in the meantime is never
+// removed by someone allowed to remove only members. The user's sessions end
+// on their next request, and their clips are kept.
 //
 // Parameters:
 //   - ctx: Request scope for the write.
 //   - plexUserID: The user.
+//   - role: RoleMember or RoleAdmin, the role the removal was checked against.
 //
 // Returns:
-//   - err: ErrUserNotFound when no user other than the owner is stored under
-//     the id, otherwise the write failure.
-func (db *DB) RemoveUser(ctx context.Context, plexUserID int) error {
+//   - err: ErrUserNotFound when no approved user holding that role is stored
+//     under the id, otherwise the write failure.
+func (db *DB) RemoveUser(ctx context.Context, plexUserID int, role string) error {
+	if role != RoleMember && role != RoleAdmin {
+		return fmt.Errorf("remove user with role %q: %w", role, ErrUserNotFound)
+	}
+
 	err := db.changeUser(
 		ctx,
-		`DELETE FROM users WHERE plex_user_id = ? AND role <> 'owner'`,
+		`DELETE FROM users WHERE plex_user_id = ? AND role = ? AND approved = 1`,
 		plexUserID,
+		role,
 	)
 	if err != nil {
 		return fmt.Errorf("remove user: %w", err)

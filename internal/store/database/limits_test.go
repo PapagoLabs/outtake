@@ -72,10 +72,16 @@ func TestUserChangesNeverReachTheOwner(t *testing.T) {
 		"nobody is made the owner",
 	)
 	require.ErrorIs(t, db.SetUserRole(t.Context(), 42, RoleMember), ErrUserNotFound)
-	require.ErrorIs(t, db.RemoveUser(t.Context(), 42), ErrUserNotFound)
+	require.ErrorIs(t, db.RemoveUser(t.Context(), 42, RoleOwner), ErrUserNotFound)
+	require.ErrorIs(t, db.RemoveUser(t.Context(), 42, RoleAdmin), ErrUserNotFound,
+		"the owner is never removed, whatever role is named")
 	require.ErrorIs(t, db.SaveUserLimits(t.Context(), 42, quota.Override{}), ErrUserNotFound)
+	require.ErrorIs(t, db.SaveUserLimits(t.Context(), 7, quota.Override{}), ErrUserNotFound,
+		"an admin has no limits")
+	require.ErrorIs(t, db.RemoveUser(t.Context(), 7, RoleMember), ErrUserNotFound,
+		"a removal checked against a member leaves an admin alone")
 
-	require.NoError(t, db.RemoveUser(t.Context(), 7))
+	require.NoError(t, db.RemoveUser(t.Context(), 7, RoleAdmin))
 
 	_, found, err := db.UserRole(t.Context(), 7)
 	require.NoError(t, err)
@@ -90,6 +96,8 @@ func TestListUsersPutsTheOwnerFirst(t *testing.T) {
 	db := usersDatabase(t)
 
 	require.NoError(t, db.AddPendingUser(t.Context(), 7, "friend"))
+	require.NoError(t, db.ApproveUser(t.Context(), 7))
+	require.NoError(t, db.AddPendingUser(t.Context(), 8, "waiting"))
 
 	_, err := db.ClaimOwner(t.Context(), 42, "nick")
 	require.NoError(t, err)
@@ -99,12 +107,13 @@ func TestListUsersPutsTheOwnerFirst(t *testing.T) {
 
 	users, err := db.ListUsers(t.Context())
 	require.NoError(t, err)
-	require.Len(t, users, 2)
+	require.Len(t, users, 3)
 
 	assert.Equal(t, 42, users[0].PlexID)
 	assert.Equal(t, RoleOwner, users[0].Role)
 	assert.Equal(t, "friend", users[1].Username)
-	assert.Equal(t, RolePending, users[1].Role)
+	assert.Equal(t, RoleMember, users[1].Role)
+	assert.Equal(t, RolePending, users[2].Role)
 	require.NotNil(t, users[1].Limits.Active)
 	assert.Equal(t, 4, *users[1].Limits.Active)
 	assert.Nil(t, users[1].Limits.Weekly, "a limit never set takes the global one")
@@ -119,6 +128,9 @@ func TestUserLimitsRoundTrip(t *testing.T) {
 	db := usersDatabase(t)
 
 	require.NoError(t, db.AddPendingUser(t.Context(), 7, "friend"))
+	require.ErrorIs(t, db.SaveUserLimits(t.Context(), 7, quota.Override{}), ErrUserNotFound,
+		"an account waiting for approval has no limits of its own yet")
+	require.NoError(t, db.ApproveUser(t.Context(), 7))
 
 	weekly := 0
 	storage := int64(5_000_000_000)
