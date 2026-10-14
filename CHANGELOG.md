@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/fiber/v3 to v3.6.1 by @renovate[bot] in [#537](https://github.com/PapagoLabs/outtake/pull/537)
 - Update github.com/google/pprof digest to c3b4e57 by @renovate[bot] in [#533](https://github.com/PapagoLabs/outtake/pull/533)
 - Update golang.org/x/exp digest to f0251eb by @renovate[bot] in [#534](https://github.com/PapagoLabs/outtake/pull/534)
 - Update module github.com/stretchr/objx to v0.8.0 by @renovate[bot] in [#531](https://github.com/PapagoLabs/outtake/pull/531)
