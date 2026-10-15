@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/telemetry digest to b2e8be0 by @renovate[bot] in [#543](https://github.com/PapagoLabs/outtake/pull/543)
 - Update github/codeql-action action to v4.39.0 by @renovate[bot] in [#541](https://github.com/PapagoLabs/outtake/pull/541)
 - Update zizmorcore/zizmor-action action to v0.7.0 by @renovate[bot] in [#539](https://github.com/PapagoLabs/outtake/pull/539)
 - Update module github.com/gofiber/fiber/v3 to v3.6.1 by @renovate[bot] in [#537](https://github.com/PapagoLabs/outtake/pull/537)
