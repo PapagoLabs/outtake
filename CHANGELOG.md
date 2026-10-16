@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module modernc.org/libc to v1.79.0 by @renovate[bot] in [#551](https://github.com/PapagoLabs/outtake/pull/551)
+- Update golang.org/x/telemetry digest to 824aa3d by @renovate[bot] in [#550](https://github.com/PapagoLabs/outtake/pull/550)
 - Update dependency golangci/golangci-lint to v2.15 by @renovate[bot] in [#548](https://github.com/PapagoLabs/outtake/pull/548)
 - Update github.com/google/pprof digest to 1facf8f by @renovate[bot] in [#547](https://github.com/PapagoLabs/outtake/pull/547)
 - Update zizmorcore/zizmor-action action to v0.7.1 by @renovate[bot] in [#545](https://github.com/PapagoLabs/outtake/pull/545)
