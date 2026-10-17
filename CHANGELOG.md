@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/philhofer/fwd to v1.2.1 by @renovate[bot] in [#553](https://github.com/PapagoLabs/outtake/pull/553)
 - Update module modernc.org/libc to v1.79.0 by @renovate[bot] in [#551](https://github.com/PapagoLabs/outtake/pull/551)
 - Update golang.org/x/telemetry digest to 824aa3d by @renovate[bot] in [#550](https://github.com/PapagoLabs/outtake/pull/550)
 - Update dependency golangci/golangci-lint to v2.15 by @renovate[bot] in [#548](https://github.com/PapagoLabs/outtake/pull/548)
