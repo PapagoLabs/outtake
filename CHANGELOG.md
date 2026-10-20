@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang docker tag to v1.27.3 by @renovate[bot] in [#562](https://github.com/PapagoLabs/outtake/pull/562)
 - Update module github.com/valyala/fasthttp to v1.76.0 by @renovate[bot] in [#559](https://github.com/PapagoLabs/outtake/pull/559)
 - Update module github.com/knadh/koanf/v2 to v2.4.1 by @renovate[bot] in [#557](https://github.com/PapagoLabs/outtake/pull/557)
 - Update module github.com/knadh/koanf/v2 to v2.4.0 by @renovate[bot] in [#555](https://github.com/PapagoLabs/outtake/pull/555)
