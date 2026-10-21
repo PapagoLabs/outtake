@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/schema to v1.9.0 by @renovate[bot] in [#570](https://github.com/PapagoLabs/outtake/pull/570)
 - Update step-security/harden-runner action to v2.22.2 by @renovate[bot] in [#567](https://github.com/PapagoLabs/outtake/pull/567)
 - Update golang.org/x/telemetry digest to 7bf0a11 by @renovate[bot] in [#564](https://github.com/PapagoLabs/outtake/pull/564)
 - Update module github.com/huandu/xstrings to v1.6.3 by @renovate[bot] in [#565](https://github.com/PapagoLabs/outtake/pull/565)
