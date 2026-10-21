@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update alpine docker tag to v3.24.3 by @renovate[bot] in [#575](https://github.com/PapagoLabs/outtake/pull/575)
 - Update github/codeql-action action to v4.39.1 by @renovate[bot] in [#573](https://github.com/PapagoLabs/outtake/pull/573)
 - Update golang.org/x/telemetry digest to 6cd571d by @renovate[bot] in [#572](https://github.com/PapagoLabs/outtake/pull/572)
 - Update module github.com/gofiber/schema to v1.9.0 by @renovate[bot] in [#570](https://github.com/PapagoLabs/outtake/pull/570)
