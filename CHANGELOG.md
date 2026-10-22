@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/smithy-go to v1.28.6 by @renovate[bot] in [#580](https://github.com/PapagoLabs/outtake/pull/580)
 - Update golang:1.27.3-alpine docker digest to d530cf6 by @renovate[bot] in [#579](https://github.com/PapagoLabs/outtake/pull/579)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#576](https://github.com/PapagoLabs/outtake/pull/576)
 - Update alpine docker tag to v3.24.3 by @renovate[bot] in [#575](https://github.com/PapagoLabs/outtake/pull/575)
