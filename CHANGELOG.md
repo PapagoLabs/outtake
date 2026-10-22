@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang:1.27.3-alpine docker digest to d530cf6 by @renovate[bot] in [#579](https://github.com/PapagoLabs/outtake/pull/579)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#576](https://github.com/PapagoLabs/outtake/pull/576)
 - Update alpine docker tag to v3.24.3 by @renovate[bot] in [#575](https://github.com/PapagoLabs/outtake/pull/575)
 - Update github/codeql-action action to v4.39.1 by @renovate[bot] in [#573](https://github.com/PapagoLabs/outtake/pull/573)
