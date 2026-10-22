@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update nicholas-fedor/govulncheck-action action to v1.1.2 by @renovate[bot] in [#583](https://github.com/PapagoLabs/outtake/pull/583)
 - Update module github.com/aws/smithy-go to v1.28.6 by @renovate[bot] in [#580](https://github.com/PapagoLabs/outtake/pull/580)
 - Update golang:1.27.3-alpine docker digest to d530cf6 by @renovate[bot] in [#579](https://github.com/PapagoLabs/outtake/pull/579)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#576](https://github.com/PapagoLabs/outtake/pull/576)
