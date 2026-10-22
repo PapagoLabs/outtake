@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update alpine:3.24.3 docker digest to b341357 by @renovate[bot] in [#587](https://github.com/PapagoLabs/outtake/pull/587)
 - Update module modernc.org/sqlite to v1.61.0 by @renovate[bot] in [#584](https://github.com/PapagoLabs/outtake/pull/584)
 - Update nicholas-fedor/govulncheck-action action to v1.1.2 by @renovate[bot] in [#583](https://github.com/PapagoLabs/outtake/pull/583)
 - Update module github.com/aws/smithy-go to v1.28.6 by @renovate[bot] in [#580](https://github.com/PapagoLabs/outtake/pull/580)
