@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang:1.27.3-alpine docker digest to b8c9b82 by @renovate[bot] in [#589](https://github.com/PapagoLabs/outtake/pull/589)
 - Update alpine:3.24.3 docker digest to b341357 by @renovate[bot] in [#587](https://github.com/PapagoLabs/outtake/pull/587)
 - Update module modernc.org/sqlite to v1.61.0 by @renovate[bot] in [#584](https://github.com/PapagoLabs/outtake/pull/584)
 - Update nicholas-fedor/govulncheck-action action to v1.1.2 by @renovate[bot] in [#583](https://github.com/PapagoLabs/outtake/pull/583)
