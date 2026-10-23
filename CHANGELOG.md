@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update docker/login-action digest to 81c6f93 by @renovate[bot] in [#599](https://github.com/PapagoLabs/outtake/pull/599)
 - Update zizmorcore/zizmor-action action to v0.8.0 by @renovate[bot] in [#597](https://github.com/PapagoLabs/outtake/pull/597)
 - Update alpine:3.24.3 docker digest to be26560 by @renovate[bot] in [#593](https://github.com/PapagoLabs/outtake/pull/593)
 - Update securego/gosec action to v2.30.0 by @renovate[bot] in [#594](https://github.com/PapagoLabs/outtake/pull/594)
