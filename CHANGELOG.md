@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update securego/gosec action to v2.30.0 by @renovate[bot] in [#594](https://github.com/PapagoLabs/outtake/pull/594)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#590](https://github.com/PapagoLabs/outtake/pull/590)
 - Update golang:1.27.3-alpine docker digest to b8c9b82 by @renovate[bot] in [#589](https://github.com/PapagoLabs/outtake/pull/589)
 - Update alpine:3.24.3 docker digest to b341357 by @renovate[bot] in [#587](https://github.com/PapagoLabs/outtake/pull/587)
