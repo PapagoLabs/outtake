@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Chores
+
+- Update module github.com/molecule-man/go-brrr to v1.3.1 by @renovate[bot] in [#606](https://github.com/PapagoLabs/outtake/pull/606)
+
+## [0.4.1] - 2026-10-24
+
 ### Changed
 
 - Bound every ffmpeg run to its share of the cpu budget by @nicholas-fedor in [#527](https://github.com/PapagoLabs/outtake/pull/527)
@@ -465,7 +471,8 @@ Read [Upgrading](https://outtake.papagolabs.com/setup/upgrading/) before you upd
 
 ## Compare Releases
 
-- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.4.0...HEAD)
+- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.4.1...HEAD)
+- [0.4.1](https://github.com/PapagoLabs/outtake/compare/v0.4.0...v0.4.1)
 - [0.4.0](https://github.com/PapagoLabs/outtake/compare/v0.3.1...v0.4.0)
 - [0.3.1](https://github.com/PapagoLabs/outtake/compare/v0.2.1...v0.3.1)
 - [0.2.1](https://github.com/PapagoLabs/outtake/compare/v0.2.0...v0.2.1)
