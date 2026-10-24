@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update docs module go directive to v1.27.3 by @nicholas-fedor in [#604](https://github.com/PapagoLabs/outtake/pull/604)
 - Update go module directive to v1.27.3 by @renovate[bot] in [#561](https://github.com/PapagoLabs/outtake/pull/561)
 - Update module github.com/andybalholm/brotli to v1.2.7 by @renovate[bot] in [#601](https://github.com/PapagoLabs/outtake/pull/601)
 - Update docker/login-action digest to 81c6f93 by @renovate[bot] in [#599](https://github.com/PapagoLabs/outtake/pull/599)
