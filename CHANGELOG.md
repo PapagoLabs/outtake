@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module modernc.org/libc to v1.79.1 by @renovate[bot] in [#608](https://github.com/PapagoLabs/outtake/pull/608)
 - Update module github.com/molecule-man/go-brrr to v1.3.1 by @renovate[bot] in [#606](https://github.com/PapagoLabs/outtake/pull/606)
 
 ## [0.4.1] - 2026-10-24
