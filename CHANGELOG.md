@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.11 by @renovate[bot] in [#615](https://github.com/PapagoLabs/outtake/pull/615)
+- Update github.com/google/pprof digest to dbd0ed3 by @renovate[bot] in [#614](https://github.com/PapagoLabs/outtake/pull/614)
 - Update module github.com/valyala/fasthttp to v1.77.0 by @renovate[bot] in [#612](https://github.com/PapagoLabs/outtake/pull/612)
 - Update module github.com/a-h/templ to v0.3.1100 by @renovate[bot] in [#611](https://github.com/PapagoLabs/outtake/pull/611)
 - Update module modernc.org/libc to v1.79.1 by @renovate[bot] in [#608](https://github.com/PapagoLabs/outtake/pull/608)
