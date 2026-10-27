@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/schema to v1.9.1 by @renovate[bot] in [#625](https://github.com/PapagoLabs/outtake/pull/625)
 - Update github.com/a-h/parse digest to db26890 by @renovate[bot] in [#622](https://github.com/PapagoLabs/outtake/pull/622)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#623](https://github.com/PapagoLabs/outtake/pull/623)
 - Update module github.com/gofiber/utils/v2 to v2.6.3 by @renovate[bot] in [#620](https://github.com/PapagoLabs/outtake/pull/620)
