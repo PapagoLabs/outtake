@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang:1.27.3-alpine docker digest to d200d2d by @renovate[bot] in [#618](https://github.com/PapagoLabs/outtake/pull/618)
+- Update github.com/a-h/parse digest to f9176c9 by @renovate[bot] in [#617](https://github.com/PapagoLabs/outtake/pull/617)
 - Update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.11 by @renovate[bot] in [#615](https://github.com/PapagoLabs/outtake/pull/615)
 - Update github.com/google/pprof digest to dbd0ed3 by @renovate[bot] in [#614](https://github.com/PapagoLabs/outtake/pull/614)
 - Update module github.com/valyala/fasthttp to v1.77.0 by @renovate[bot] in [#612](https://github.com/PapagoLabs/outtake/pull/612)
