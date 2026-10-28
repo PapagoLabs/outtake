@@ -206,45 +206,6 @@ func (client *Client) SearchOnServer(
 	return items, nil
 }
 
-// GetChildren lists one level of children for a show, season, artist, or album.
-//
-// Parameters:
-//   - ctx: Cancellation and deadline for the request.
-//   - server: PMS to query.
-//   - mediaID: Rating key of the container.
-//
-// Returns:
-//   - items: The container's children.
-//   - err: Non-nil when both requests and the decode fail.
-func (client *Client) GetChildren(
-	ctx context.Context,
-	server Server,
-	mediaID string,
-) ([]MediaItem, error) {
-	// List child metadata for a container.
-	path := key.Path(mediaID) + "/children"
-
-	resp, err := client.getPMS(ctx, server, path, "")
-	if err != nil {
-		resp, err = client.getPMS(
-			ctx,
-			server,
-			key.Path(mediaID)+"/allLeaves",
-			"",
-		)
-		if err != nil {
-			return nil, fmt.Errorf("get children: %w", err)
-		}
-	}
-
-	container, decodeErr := decodePMS(resp.Body())
-	if decodeErr != nil {
-		return nil, fmt.Errorf("decode children: %w", decodeErr)
-	}
-
-	return metadataItems(container.Metadata, ""), nil
-}
-
 // GetChildrenPage fetches one page of children for a container.
 //
 // Parameters:
