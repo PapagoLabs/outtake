@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update module modernc.org/libc to v1.79.1 by @renovate[bot] in [#608](https://github.com/PapagoLabs/outtake/pull/608)
 - Update module github.com/molecule-man/go-brrr to v1.3.1 by @renovate[bot] in [#606](https://github.com/PapagoLabs/outtake/pull/606)
 
+### Fixed
+
+- Resolve golangci-lint 2.15 configuration errors and findings by @nicholas-fedor in [#632](https://github.com/PapagoLabs/outtake/pull/632)
+
 ## [0.4.1] - 2026-10-24
 
 ### Changed
