@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pin a-h/parse to the commit templ requires by @nicholas-fedor in [#631](https://github.com/PapagoLabs/outtake/pull/631)
 - Resolve golangci-lint 2.15 configuration errors and findings by @nicholas-fedor in [#632](https://github.com/PapagoLabs/outtake/pull/632)
 
+### Removed
+
+- Remove the unused GetChildren method by @nicholas-fedor in [#635](https://github.com/PapagoLabs/outtake/pull/635)
+
 ## [0.4.1] - 2026-10-24
 
 ### Changed
