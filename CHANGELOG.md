@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module golang.org/x/net to v0.62.0 by @renovate[bot] in [#629](https://github.com/PapagoLabs/outtake/pull/629)
 - Update step-security/harden-runner action to v2.22.3 by @renovate[bot] in [#626](https://github.com/PapagoLabs/outtake/pull/626)
 - Update module github.com/gofiber/schema to v1.9.1 by @renovate[bot] in [#625](https://github.com/PapagoLabs/outtake/pull/625)
 - Update github.com/a-h/parse digest to db26890 by @renovate[bot] in [#622](https://github.com/PapagoLabs/outtake/pull/622)
