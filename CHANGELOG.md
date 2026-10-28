@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Lock file maintenance by @renovate[bot] in [#610](https://github.com/PapagoLabs/outtake/pull/610)
 - Update module golang.org/x/net to v0.62.0 by @renovate[bot] in [#629](https://github.com/PapagoLabs/outtake/pull/629)
 - Update step-security/harden-runner action to v2.22.3 by @renovate[bot] in [#626](https://github.com/PapagoLabs/outtake/pull/626)
 - Update module github.com/gofiber/schema to v1.9.1 by @renovate[bot] in [#625](https://github.com/PapagoLabs/outtake/pull/625)
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pin a-h/parse to the commit templ requires by @nicholas-fedor in [#631](https://github.com/PapagoLabs/outtake/pull/631)
 - Resolve golangci-lint 2.15 configuration errors and findings by @nicholas-fedor in [#632](https://github.com/PapagoLabs/outtake/pull/632)
 
 ## [0.4.1] - 2026-10-24
