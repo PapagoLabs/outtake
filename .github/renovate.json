@@ -2,6 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:best-practices", ":semanticCommits"],
   "postUpdateOptions": ["gomodTidy"],
+  "platformAutomerge": false,
   "packageRules": [
     {
       "matchManagers": ["gomod"],
@@ -27,6 +28,12 @@
       "matchDepTypes": ["indirect"],
       "matchUpdateTypes": ["major"],
       "matchPackageNames": ["!github.com/vektra/mockery/v3"],
+      "enabled": false
+    },
+    {
+      "description": "templ requires github.com/a-h/parse by commit, because parse has no tags. Parse moves only with templ, when a templ update requires a newer commit.",
+      "matchManagers": ["gomod"],
+      "matchPackageNames": ["github.com/a-h/parse"],
       "enabled": false
     },
     {
