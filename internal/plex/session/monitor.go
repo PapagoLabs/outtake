@@ -74,8 +74,8 @@ func (mon *Monitor) GetSessions() []plex.Session {
 // Start begins polling for session updates.
 func (mon *Monitor) Start() {
 	logging.Logger.Info().
-		Str("server", mon.server.Name).
-		Dur("interval", mon.interval).
+		Str(logging.KeyServer, mon.server.Name).
+		Dur(logging.KeyInterval, mon.interval).
 		Msg("starting session monitor")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -146,8 +146,8 @@ func (mon *Monitor) refresh(ctx context.Context) {
 	mon.mu.Unlock()
 
 	logging.Logger.Debug().
-		Str("server", mon.server.Name).
-		Int("count", len(sessions)).
+		Str(logging.KeyServer, mon.server.Name).
+		Int(logging.KeyCount, len(sessions)).
 		Msg("refreshed sessions")
 }
 
@@ -166,7 +166,7 @@ func (mon *Monitor) reportFailure(err error) {
 	if message == mon.failure {
 		logging.Logger.Debug().
 			Err(err).
-			Str("server", mon.server.Name).
+			Str(logging.KeyServer, mon.server.Name).
 			Msg("still failing to fetch sessions")
 
 		return
@@ -176,7 +176,7 @@ func (mon *Monitor) reportFailure(err error) {
 
 	logging.Logger.Warn().
 		Err(err).
-		Str("server", mon.server.Name).
+		Str(logging.KeyServer, mon.server.Name).
 		Msg("failed to fetch sessions")
 }
 
@@ -191,6 +191,6 @@ func (mon *Monitor) reportRecovery() {
 	mon.failure = ""
 
 	logging.Logger.Info().
-		Str("server", mon.server.Name).
+		Str(logging.KeyServer, mon.server.Name).
 		Msg("fetching sessions works again")
 }

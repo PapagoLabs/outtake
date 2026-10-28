@@ -105,7 +105,7 @@ func DiscardPublished(store blob.Blob, output string) error {
 	err := store.DeleteFile(output)
 	if err != nil && !os.IsNotExist(err) {
 		logging.Logger.Warn().
-			Str("path", output).
+			Str(logging.KeyPath, output).
 			Err(err).
 			Msg("failed to remove unpublished preview")
 

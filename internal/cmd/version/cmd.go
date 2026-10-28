@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/metadata"
 	"github.com/PapagoLabs/outtake/internal/settings/flags"
 )
@@ -54,7 +55,7 @@ func NewCommand() *cobra.Command {
 //   - error: Non-nil if the printer cannot be selected or output fails.
 func runVersionCmd(cmd *cobra.Command, vflags *flags.Version) error {
 	log.Debug().
-		Str("format", map[bool]string{true: "json", false: "text"}[vflags.JSON]).
+		Str(logging.KeyFormat, map[bool]string{true: "json", false: "text"}[vflags.JSON]).
 		Msg("printing version")
 
 	err := selectPrinter(vflags)(cmd.OutOrStdout())

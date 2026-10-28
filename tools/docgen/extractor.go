@@ -224,7 +224,7 @@ func (extractor *cobraExtractor) buildSection(child *cobra.Command) sectionEntry
 		section.SubCommands = []subCommandEntry{{
 			Name:        child.Name(),
 			Description: child.Short,
-			URL:         extractor.urlBase + child.Name() + "/",
+			URL:         extractor.pageURL(child.Name()),
 		}}
 
 		return section
@@ -234,7 +234,7 @@ func (extractor *cobraExtractor) buildSection(child *cobra.Command) sectionEntry
 		section.SubCommands = append(section.SubCommands, subCommandEntry{
 			Name:        child.Name() + wordSeparator + sub.Name(),
 			Description: sub.Short,
-			URL:         extractor.urlBase + child.Name() + "/" + sub.Name() + "/",
+			URL:         extractor.pageURL(child.Name(), sub.Name()),
 		})
 	}
 
@@ -260,6 +260,17 @@ func (*cobraExtractor) buildUseLine(use, fullPath string) string {
 	}
 
 	return fullPath + wordSeparator + args
+}
+
+// pageURL returns the site path of a command's reference page.
+//
+// Parameters:
+//   - names: the command's path below the root, such as "server" and "start".
+//
+// Returns:
+//   - string: the path, such as "/cli-reference/server/start/".
+func (extractor *cobraExtractor) pageURL(names ...string) string {
+	return extractor.urlBase + strings.Join(names, "/") + "/"
 }
 
 // parseExamples splits cobra Example text into titled blocks.

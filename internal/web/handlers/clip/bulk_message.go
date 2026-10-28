@@ -43,11 +43,16 @@ func bulkMessage(action bulkAction, result bulkResult, limitMessage string) stri
 	sentences := make([]string, 0)
 
 	if result.done > 0 {
-		sentences = append(sentences, bulkVerbs[action]+" "+clipCount(result.done))
+		sentences = append(
+			sentences,
+			fmt.Sprintf("%s %s", bulkVerbs[action], clipCount(result.done)),
+		)
 	}
 
 	if result.skipped > 0 {
-		sentences = append(sentences, clipCount(result.skipped)+" "+were(result.skipped)+" skipped")
+		sentences = append(sentences,
+			fmt.Sprintf("%s %s skipped", clipCount(result.skipped), were(result.skipped)),
+		)
 	}
 
 	if result.failed > 0 {
@@ -60,7 +65,7 @@ func bulkMessage(action bulkAction, result bulkResult, limitMessage string) stri
 	if result.notStarted > 0 {
 		sentences = append(
 			sentences,
-			clipCount(result.notStarted)+" "+weren(result.notStarted)+" started",
+			fmt.Sprintf("%s %s started", clipCount(result.notStarted), weren(result.notStarted)),
 		)
 	}
 

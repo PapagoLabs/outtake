@@ -504,8 +504,8 @@ func (q *Queue) Requeue(job *clip.Job) error {
 	q.signal()
 
 	logging.Logger.Info().
-		Str("job_id", job.ID).
-		Str("type", string(job.Type)).
+		Str(logging.KeyJobID, job.ID).
+		Str(logging.KeyType, string(job.Type)).
 		Msg("job requeued")
 
 	return nil
@@ -716,7 +716,7 @@ func (q *Queue) Start(ctx context.Context) {
 		})
 	}
 
-	logging.Logger.Info().Int("workers", q.workers).Msg("job queue started")
+	logging.Logger.Info().Int(logging.KeyWorkers, q.workers).Msg("job queue started")
 }
 
 // Stop stops the job queue and waits for its workers.
@@ -761,8 +761,8 @@ func (q *Queue) Submit(job *clip.Job) error {
 	q.signal()
 
 	logging.Logger.Info().
-		Str("job_id", job.ID).
-		Str("type", string(job.Type)).
+		Str(logging.KeyJobID, job.ID).
+		Str(logging.KeyType, string(job.Type)).
 		Msg("job submitted")
 
 	return nil
@@ -1000,7 +1000,7 @@ func (q *Queue) joinLine(id string, entry *clip.Job) {
 	if held {
 		q.signal()
 
-		logging.Logger.Info().Str("job_id", id).Msg("job requeued by an edit")
+		logging.Logger.Info().Str(logging.KeyJobID, id).Msg("job requeued by an edit")
 	}
 }
 
@@ -1068,8 +1068,8 @@ func (q *Queue) processJob(ctx context.Context) bool {
 	q.notify(job.ID)
 
 	logging.Logger.Info().
-		Str("job_id", job.ID).
-		Str("type", string(job.Type)).
+		Str(logging.KeyJobID, job.ID).
+		Str(logging.KeyType, string(job.Type)).
 		Msg("processing job")
 
 	err := q.runHandler(jobCtx, job)
@@ -1080,18 +1080,18 @@ func (q *Queue) processJob(ctx context.Context) bool {
 
 	switch {
 	case result == outcomeDeleted:
-		logging.Logger.Info().Str("job_id", job.ID).Msg("job deleted while processing")
+		logging.Logger.Info().Str(logging.KeyJobID, job.ID).Msg("job deleted while processing")
 	case result == outcomeCanceled:
-		logging.Logger.Info().Str("job_id", job.ID).Msg("job canceled")
+		logging.Logger.Info().Str(logging.KeyJobID, job.ID).Msg("job canceled")
 	case err != nil:
 		logging.Logger.Error().
-			Str("job_id", job.ID).
-			Str("ref", failure.Ref).
-			Str("error", failure.Chain).
+			Str(logging.KeyJobID, job.ID).
+			Str(logging.KeyRef, failure.Ref).
+			Str(logging.KeyError, failure.Chain).
 			Msg("job failed")
 	default:
 		logging.Logger.Info().
-			Str("job_id", job.ID).
+			Str(logging.KeyJobID, job.ID).
 			Msg("job completed")
 	}
 
@@ -1151,10 +1151,10 @@ func (q *Queue) runHandler(ctx context.Context, job *clip.Job) (err error) {
 		// The stack is captured here rather than through zerolog's Stack, which
 		// only renders when an error is attached and this event carries none.
 		logging.Logger.Error().
-			Str("job_id", job.ID).
-			Str("type", string(job.Type)).
-			Interface("panic", recovered).
-			Str("stack", string(debug.Stack())).
+			Str(logging.KeyJobID, job.ID).
+			Str(logging.KeyType, string(job.Type)).
+			Interface(logging.KeyPanic, recovered).
+			Str(logging.KeyStack, string(debug.Stack())).
 			Msg("job handler panicked")
 
 		err = ErrJobPanicked

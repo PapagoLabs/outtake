@@ -379,7 +379,7 @@ func (result *bulkResult) count(err error, id string) {
 	default:
 		result.failed++
 
-		logging.Logger.Warn().Str("job_id", id).Err(err).Msg("bulk clip action failed")
+		logging.Logger.Warn().Str(logging.KeyJobID, id).Err(err).Msg("bulk clip action failed")
 	}
 }
 

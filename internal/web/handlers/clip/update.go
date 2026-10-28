@@ -328,7 +328,7 @@ func (handler *Handler) saveEdit(
 
 	job, err := update(ctx.Context(), handler.clipQueue, handler.db, handler.clipPaths, id, edit)
 	if err != nil {
-		return nil, fmt.Errorf("save edit: %w", err)
+		return nil, fmt.Errorf("update clip: %w", err)
 	}
 
 	return job, nil

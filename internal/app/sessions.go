@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/PapagoLabs/outtake/internal/clip/quota"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
 
@@ -105,7 +106,9 @@ func sweepOnce(ctx context.Context, sessions sessionSweeper) {
 	}
 
 	if removed > 0 {
-		log.Debug().Int64("removed", removed).Msg("deleted expired sessions and render records")
+		log.Debug().
+			Int64(logging.KeyRemoved, removed).
+			Msg("deleted expired sessions and render records")
 	}
 }
 

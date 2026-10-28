@@ -13,6 +13,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex"
 )
 
@@ -659,8 +660,8 @@ func (auth *Auth) admitNewAccount(
 	}
 
 	log.Info().
-		Int("plex_user_id", candidate.PlexID).
-		Str("username", candidate.Username).
+		Int(logging.KeyPlexUserID, candidate.PlexID).
+		Str(logging.KeyUsername, candidate.Username).
 		Msg("a plex account is waiting for approval")
 
 	candidate.Role = RolePending
@@ -739,7 +740,7 @@ func (auth *Auth) bindServer(ctx context.Context, accessToken string) {
 	reachable, ok := client.FirstReachable(ctx, plex.ConnectionsOf(servers, unique[0]))
 	if !ok {
 		log.Warn().
-			Str("server", unique[0].Name).
+			Str(logging.KeyServer, unique[0].Name).
 			Msg("no connection to the only plex server answered")
 
 		return
@@ -783,7 +784,7 @@ func (auth *Auth) boundOwnership(ctx context.Context, accessToken string) error 
 
 	log.Warn().
 		Err(err).
-		Str("server", bound.Name).
+		Str(logging.KeyServer, bound.Name).
 		Msg("only the owner of the bound plex server may claim this installation")
 
 	if errors.Is(err, errNotOwned) {
@@ -962,7 +963,10 @@ func (auth *Auth) mayClaim(ctx context.Context, plexUserID int, accessToken stri
 func (auth *Auth) refreshBoundToken(ctx context.Context, client *plex.Client, bound plex.Server) {
 	machineID, token, err := ownedServerToken(ctx, client, bound)
 	if err != nil {
-		log.Warn().Err(err).Str("server", bound.Name).Msg("kept the bound plex server's token")
+		log.Warn().
+			Err(err).
+			Str(logging.KeyServer, bound.Name).
+			Msg("kept the bound plex server's token")
 
 		return
 	}
@@ -985,7 +989,7 @@ func (auth *Auth) refreshBoundToken(ctx context.Context, client *plex.Client, bo
 		return
 	}
 
-	log.Info().Str("server", bound.Name).Msg("refreshed the bound plex server's token")
+	log.Info().Str(logging.KeyServer, bound.Name).Msg("refreshed the bound plex server's token")
 }
 
 // requireAccess checks that the bound server is shared with an account.
@@ -1027,8 +1031,8 @@ func (auth *Auth) settleClaim(ctx context.Context, candidate User) User {
 	}
 
 	log.Info().
-		Int("plex_user_id", candidate.PlexID).
-		Str("username", candidate.Username).
+		Int(logging.KeyPlexUserID, candidate.PlexID).
+		Str(logging.KeyUsername, candidate.Username).
 		Msg("plex account claimed this installation")
 
 	if auth.claimed != nil {

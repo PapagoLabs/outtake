@@ -52,8 +52,11 @@ const (
 )
 
 var (
-	// cropdetectPattern matches the last crop=W:H:X:Y line from ffmpeg cropdetect.
-	cropdetectPattern = regexp.MustCompile(`crop=(\d+):(\d+):(\d+):(\d+)`)
+	// cropdetectPattern matches a crop=W:H:X:Y line from ffmpeg cropdetect,
+	// naming each field.
+	cropdetectPattern = regexp.MustCompile(
+		`crop=(?P<width>\d+):(?P<height>\d+):(?P<x>\d+):(?P<y>\d+)`,
+	)
 
 	// streamSizePattern matches the decoded video WxH in ffmpeg logs.
 	streamSizePattern = regexp.MustCompile(`Video:.*?(\d+)x(\d+)`)
@@ -125,22 +128,22 @@ func ParseCropdetect(output string) (CropRect, bool) {
 	}
 
 	last := matches[len(matches)-1]
-	width, err := strconv.Atoi(last[1])
+	width, err := strconv.Atoi(last[cropdetectPattern.SubexpIndex("width")])
 	if err != nil {
 		return CropRect{}, false
 	}
 
-	height, err := strconv.Atoi(last[2])
+	height, err := strconv.Atoi(last[cropdetectPattern.SubexpIndex("height")])
 	if err != nil {
 		return CropRect{}, false
 	}
 
-	offsetX, err := strconv.Atoi(last[3])
+	offsetX, err := strconv.Atoi(last[cropdetectPattern.SubexpIndex("x")])
 	if err != nil {
 		return CropRect{}, false
 	}
 
-	offsetY, err := strconv.Atoi(last[4])
+	offsetY, err := strconv.Atoi(last[cropdetectPattern.SubexpIndex("y")])
 	if err != nil {
 		return CropRect{}, false
 	}

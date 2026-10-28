@@ -115,7 +115,10 @@ func isStaleLeftover(entry os.DirEntry, cutoff time.Time) bool {
 func readRenderDir(dir string) []os.DirEntry {
 	entries, err := os.ReadDir(dir)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		logging.Logger.Warn().Err(err).Str("dir", dir).Msg("failed to read a render directory")
+		logging.Logger.Warn().
+			Err(err).
+			Str(logging.KeyDir, dir).
+			Msg("failed to read a render directory")
 	}
 
 	return entries
@@ -242,7 +245,10 @@ func removeStaged(path string) bool {
 	}
 
 	if err != nil {
-		logging.Logger.Warn().Str("path", path).Err(err).Msg("failed to remove a staged file")
+		logging.Logger.Warn().
+			Str(logging.KeyPath, path).
+			Err(err).
+			Msg("failed to remove a staged file")
 
 		return false
 	}

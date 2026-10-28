@@ -56,9 +56,9 @@ func runStart(listen *flags.Listen) error {
 	warnRetiredSettings(os.LookupEnv)
 
 	log.Info().
-		Str("listen_addr", cfg.ListenAddr).
-		Int("workers", cfg.NumWorkers).
-		Int("ffmpeg_threads", cfg.FFmpegThreadBudget()).
+		Str(logging.KeyListenAddr, cfg.ListenAddr).
+		Int(logging.KeyWorkers, cfg.NumWorkers).
+		Int(logging.KeyFFmpegThreads, cfg.FFmpegThreadBudget()).
 		Msg("starting outtake")
 
 	application, err := app.New(cfg)

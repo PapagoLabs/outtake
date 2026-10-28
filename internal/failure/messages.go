@@ -221,7 +221,6 @@ func Classify(err error) (message string, input bool) {
 		return messagePlexUnreachable, false
 	}
 
-	//nolint:errcheck // Only the match counts, since the matched value is err itself.
 	if _, ok := errors.AsType[*exec.ExitError](err); ok {
 		return messageRenderFailed, false
 	}

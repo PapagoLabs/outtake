@@ -20,12 +20,14 @@ type scannable interface {
 }
 
 const (
-	// clipSelectCols is the column projection shared by every clip read query.
-	clipSelectCols = `id, media_id, media_title, media_type, clip_type, status, progress,
+	// selectClips starts every clip read query. It selects every column a
+	// clip scan reads.
+	selectClips = `SELECT id, media_id, media_title, media_type, clip_type, status, progress,
 		input_path, output_path, start_time, duration, quality, width, fps,
 		error_message, created_at, updated_at, name, audio_index, crop_black_bars,
 		preserve_hdr, output_width, output_height, output_hdr, sdr_width, sdr_height,
-		error_details, owner_id, output_bytes, shared`
+		error_details, owner_id, output_bytes, shared
+		FROM clips`
 )
 
 // ErrClipNotFound is returned when a clip row does not exist.
@@ -140,7 +142,7 @@ func clipRowValues(job *clip.Job) []any {
 //   - job: The stored render.
 //   - err: ErrClipNotFound when no row matches, otherwise the read failure.
 func (db *DB) GetClip(ctx context.Context, id string) (*clip.Job, error) {
-	query := db.rewrite(`SELECT ` + clipSelectCols + ` FROM clips WHERE id = ?`)
+	query := db.rewrite(selectClips + ` WHERE id = ?`)
 
 	//nolint:gosec // G701: rewrite maps ? to $n on constant SQL.
 	row := db.conn.QueryRowContext(ctx, query, id)
@@ -168,7 +170,7 @@ func (db *DB) GetClip(ctx context.Context, id string) (*clip.Job, error) {
 func (db *DB) ListClips(ctx context.Context) ([]*clip.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
-		db.rewrite(`SELECT `+clipSelectCols+` FROM clips ORDER BY created_at DESC, id DESC`),
+		db.rewrite(selectClips+` ORDER BY created_at DESC, id DESC`),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list clips: %w", err)
@@ -195,7 +197,7 @@ func (db *DB) ListPendingClips(ctx context.Context) ([]*clip.Job, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
 		db.rewrite(
-			`SELECT `+clipSelectCols+` FROM clips WHERE status IN (?, ?) ORDER BY created_at`,
+			selectClips+` WHERE status IN (?, ?) ORDER BY created_at`,
 		),
 		string(clip.StatusPending),
 		string(clip.StatusProcessing),
@@ -226,7 +228,7 @@ func (db *DB) ListClipsForMedia(ctx context.Context, mediaID string) ([]*clip.Jo
 	rows, err := db.conn.QueryContext(
 		ctx,
 		db.rewrite(
-			`SELECT `+clipSelectCols+` FROM clips WHERE media_id = ? ORDER BY created_at DESC, id DESC`,
+			selectClips+` WHERE media_id = ? ORDER BY created_at DESC, id DESC`,
 		),
 		mediaID,
 	)
@@ -266,7 +268,7 @@ func (db *DB) DeleteClip(ctx context.Context, id string) error {
 // scanJob reads one clip row into a job.
 //
 // Parameters:
-//   - row: The row to scan, matching clipSelectCols.
+//   - row: The row to scan, matching selectClips.
 //
 // Returns:
 //   - job: The decoded render.
@@ -337,7 +339,7 @@ func scanJob(row scannable) (*clip.Job, error) {
 // scanJobs reads every remaining clip row.
 //
 // Parameters:
-//   - rows: The rows to scan, matching clipSelectCols.
+//   - rows: The rows to scan, matching selectClips.
 //
 // Returns:
 //   - jobs: The decoded renders.

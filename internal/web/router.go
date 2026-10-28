@@ -9,9 +9,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/csrf"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
-	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/session"
 	"github.com/gofiber/fiber/v3/middleware/static"
+
+	recoverer "github.com/gofiber/fiber/v3/middleware/recover"
 
 	"github.com/PapagoLabs/outtake/internal/clip/preview"
 	profilesettings "github.com/PapagoLabs/outtake/internal/clip/profile"
@@ -249,7 +250,7 @@ func newRouterHandlers(deps Deps) routerHandlers {
 //   - app: The application to install onto.
 //   - cfg: Configuration supplying the allowed hosts.
 func useEdgeMiddleware(app *fiber.App, cfg *config.Config) {
-	app.Use(recover.New())
+	app.Use(recoverer.New())
 	app.Use(middleware.RequestLogger())
 	app.Use(helmet.New(helmetConfig()))
 	app.Use(middleware.HostGuard(hostAllowlist(cfg), routeAPI+routeHealth))

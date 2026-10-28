@@ -17,6 +17,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/api"
 	"github.com/PapagoLabs/outtake/internal/clip"
 	"github.com/PapagoLabs/outtake/internal/clip/quota"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
 	"github.com/PapagoLabs/outtake/internal/web/respond"
@@ -309,7 +310,7 @@ func renewalDue(held string, checked time.Time) bool {
 //   - caller: The signed-in user.
 func signOutUnshared(sess *session.Middleware, caller identity.User) {
 	log.Info().
-		Int("plex_user_id", caller.PlexID).
+		Int(logging.KeyPlexUserID, caller.PlexID).
 		Msg("signed out an account the plex server is no longer shared with")
 
 	err := identity.Reset(sess)
