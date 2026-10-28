@@ -32,9 +32,11 @@ type ClipProfile struct {
 }
 
 const (
-	// clipProfileSelectCols is the clip_profiles projection shared by every read query.
-	clipProfileSelectCols = `id, name, crf, preset, audio_kbps, max_width, is_default, keep_hdr,
-		copy_video, created_at, updated_at`
+	// selectClipProfiles starts every clip profile read query. It selects
+	// every column a profile scan reads.
+	selectClipProfiles = `SELECT id, name, crf, preset, audio_kbps, max_width, is_default,
+		keep_hdr, copy_video, created_at, updated_at
+		FROM clip_profiles`
 )
 
 var (
@@ -123,7 +125,7 @@ func (db *DB) SaveClipProfile(ctx context.Context, profile ClipProfile) error {
 func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
-		db.rewrite(`SELECT `+clipProfileSelectCols+` FROM clip_profiles WHERE id = ?`),
+		db.rewrite(selectClipProfiles+` WHERE id = ?`),
 		id,
 	)
 
@@ -150,7 +152,7 @@ func (db *DB) GetClipProfile(ctx context.Context, id string) (ClipProfile, error
 func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 	rows, err := db.conn.QueryContext(
 		ctx,
-		db.rewrite(`SELECT `+clipProfileSelectCols+` FROM clip_profiles
+		db.rewrite(selectClipProfiles+`
 			ORDER BY is_default DESC, `+db.nameOrder()),
 	)
 	if err != nil {
@@ -191,7 +193,7 @@ func (db *DB) ListClipProfiles(ctx context.Context) ([]ClipProfile, error) {
 func (db *DB) DefaultClipProfile(ctx context.Context) (ClipProfile, error) {
 	row := db.conn.QueryRowContext(
 		ctx,
-		db.rewrite(`SELECT `+clipProfileSelectCols+` FROM clip_profiles
+		db.rewrite(selectClipProfiles+`
 			WHERE is_default = 1 LIMIT 1`),
 	)
 
@@ -364,7 +366,7 @@ func (db *DB) ensureDefaultClipProfile(ctx context.Context) error {
 // scanClipProfile reads one clip profile row.
 //
 // Parameters:
-//   - row: The row to scan, matching clipProfileSelectCols.
+//   - row: The row to scan, matching selectClipProfiles.
 //
 // Returns:
 //   - profile: The decoded clip profile.

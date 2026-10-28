@@ -39,3 +39,26 @@ func TestPrefix(t *testing.T) {
 
 	assert.Equal(t, "/library/metadata/42/children", Prefix+"42/children")
 }
+
+func TestPath(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		id   string
+		want string
+	}{
+		"rating key":       {id: "42", want: "/library/metadata/42"},
+		"escaped slash":    {id: "4/2", want: "/library/metadata/4%2F2"},
+		"escaped question": {id: "42?x=1", want: "/library/metadata/42%3Fx=1"},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, test.want, Path(test.id))
+		})
+	}
+
+	assert.Equal(t, "42", ID(Path("42")+"/children"))
+}

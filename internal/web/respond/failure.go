@@ -72,10 +72,10 @@ func FailWith(ctx fiber.Ctx, message string, err error) view.Failure {
 	chain := scrub(ctx, err.Error())
 
 	logging.Logger.Warn().
-		Str("ref", ref).
-		Str("method", ctx.Method()).
-		Str("path", ctx.Path()).
-		Str("error", chain).
+		Str(logging.KeyRef, ref).
+		Str(logging.KeyMethod, ctx.Method()).
+		Str(logging.KeyPath, ctx.Path()).
+		Str(logging.KeyError, chain).
 		Msg(message)
 
 	if !signedIn(ctx) {

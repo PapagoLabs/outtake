@@ -118,7 +118,7 @@ func (handler *Handler) persistRestoredClip(ctx fiber.Ctx, job *clipdom.Job) {
 	saveErr := handler.db.SaveClip(ctx.Context(), job)
 	if saveErr != nil {
 		logging.Logger.Warn().
-			Str("job_id", job.ID).
+			Str(logging.KeyJobID, job.ID).
 			Err(saveErr).
 			Msg("failed to persist reinstated clip")
 	}

@@ -20,16 +20,29 @@ func TestMayAllowsOnlyTheChangesEachRoleMakes(t *testing.T) {
 
 	allowed := map[Role]map[Role][]Action{
 		RoleOwner: {
-			RolePending: {ActionApprove, ActionReject},
-			RoleMember:  {ActionRemove, ActionLimits, ActionMakeAdmin},
+			RoleOwner:   nil,
 			RoleAdmin:   {ActionRemove, ActionMakeMember},
+			RoleMember:  {ActionRemove, ActionLimits, ActionMakeAdmin},
+			RolePending: {ActionApprove, ActionReject},
 		},
 		RoleAdmin: {
-			RolePending: {ActionApprove, ActionReject},
+			RoleOwner:   nil,
+			RoleAdmin:   nil,
 			RoleMember:  {ActionRemove, ActionLimits},
+			RolePending: {ActionApprove, ActionReject},
 		},
-		RoleMember:  {},
-		RolePending: {},
+		RoleMember: {
+			RoleOwner:   nil,
+			RoleAdmin:   nil,
+			RoleMember:  nil,
+			RolePending: nil,
+		},
+		RolePending: {
+			RoleOwner:   nil,
+			RoleAdmin:   nil,
+			RoleMember:  nil,
+			RolePending: nil,
+		},
 	}
 
 	for _, actor := range []Role{RoleOwner, RoleAdmin, RoleMember, RolePending} {

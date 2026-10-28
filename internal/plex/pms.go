@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	fiberClient "github.com/gofiber/fiber/v3/client"
+
+	"github.com/PapagoLabs/outtake/internal/plex/decode/key"
 )
 
 // thumbPathPatterns match the artwork paths a Plex server hands out.
@@ -220,14 +222,14 @@ func (client *Client) GetChildren(
 	mediaID string,
 ) ([]MediaItem, error) {
 	// List child metadata for a container.
-	path := "/library/metadata/" + url.PathEscape(mediaID) + "/children"
+	path := key.Path(mediaID) + "/children"
 
 	resp, err := client.getPMS(ctx, server, path, "")
 	if err != nil {
 		resp, err = client.getPMS(
 			ctx,
 			server,
-			"/library/metadata/"+url.PathEscape(mediaID)+"/allLeaves",
+			key.Path(mediaID)+"/allLeaves",
 			"",
 		)
 		if err != nil {
@@ -261,14 +263,14 @@ func (client *Client) GetChildrenPage(
 	mediaID string,
 	start, size int,
 ) (MediaPage, error) {
-	path := "/library/metadata/" + url.PathEscape(mediaID) + "/children"
+	path := key.Path(mediaID) + "/children"
 
 	resp, err := client.getPMS(ctx, server, path, containerQuery(start, size))
 	if err != nil {
 		resp, err = client.getPMS(
 			ctx,
 			server,
-			"/library/metadata/"+url.PathEscape(mediaID)+"/allLeaves",
+			key.Path(mediaID)+"/allLeaves",
 			containerQuery(start, size),
 		)
 		if err != nil {
@@ -302,7 +304,7 @@ func (client *Client) GetMediaItem(
 	mediaID string,
 ) (*MediaItem, error) {
 	// Fetch one metadata item from the PMS.
-	resp, err := client.getPMS(ctx, server, "/library/metadata/"+url.PathEscape(mediaID), "")
+	resp, err := client.getPMS(ctx, server, key.Path(mediaID), "")
 	if err != nil {
 		return nil, fmt.Errorf("get media item: %w", err)
 	}

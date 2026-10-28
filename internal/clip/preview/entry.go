@@ -320,9 +320,9 @@ func (registry *registry) finish(previewID string, err error) {
 		failure := registry.describe("preview "+previewID, err)
 
 		logging.Logger.Warn().
-			Str("error", failure.Chain).
-			Str("preview_id", previewID).
-			Str("ref", failure.Ref).
+			Str(logging.KeyError, failure.Chain).
+			Str(logging.KeyPreviewID, previewID).
+			Str(logging.KeyRef, failure.Ref).
 			Msg("preview failed")
 
 		job.view.Status = clip.StatusFailed

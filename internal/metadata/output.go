@@ -18,7 +18,7 @@ import (
 // Returns:
 //   - error: Non-nil if writing to the writer fails.
 func PrintDefault(writer io.Writer) error {
-	_, err := io.WriteString(writer, Name+" "+String()+"\n")
+	_, err := fmt.Fprintln(writer, Name, String())
 	if err != nil {
 		return fmt.Errorf("write default output: %w", err)
 	}
@@ -54,9 +54,7 @@ func PrintVerbose(writer io.Writer) error {
 		"arch:      "+info.Arch,
 	)
 
-	content := strings.Join(lines, "\n") + "\n"
-
-	_, err := io.WriteString(writer, content)
+	_, err := fmt.Fprintln(writer, strings.Join(lines, "\n"))
 	if err != nil {
 		return fmt.Errorf("write verbose output: %w", err)
 	}

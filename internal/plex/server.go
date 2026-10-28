@@ -18,6 +18,7 @@ import (
 	fiberClient "github.com/gofiber/fiber/v3/client"
 
 	"github.com/PapagoLabs/outtake/internal/logging"
+	"github.com/PapagoLabs/outtake/internal/plex/decode/key"
 	"github.com/PapagoLabs/outtake/internal/plex/decode/plextv"
 	"github.com/PapagoLabs/outtake/internal/plex/decode/pms"
 )
@@ -114,8 +115,8 @@ func (client *Client) GetLibraries(ctx context.Context, server Server) ([]Librar
 	}
 
 	logging.Logger.Debug().
-		Str("server", server.Name).
-		Int("count", len(libs)).
+		Str(logging.KeyServer, server.Name).
+		Int(logging.KeyCount, len(libs)).
 		Msg("fetched libraries")
 
 	return libs, nil
@@ -322,7 +323,7 @@ func (client *Client) GetMediaPath(
 		return "", fmt.Errorf("%w: %q", ErrInvalidMediaID, mediaID)
 	}
 
-	resp, err := client.getPMS(ctx, server, "/library/metadata/"+url.PathEscape(mediaID), "")
+	resp, err := client.getPMS(ctx, server, key.Path(mediaID), "")
 	if err != nil {
 		return "", fmt.Errorf("get media path: %w", err)
 	}
@@ -373,7 +374,7 @@ func (client *Client) DiscoverServers(ctx context.Context) ([]Server, error) {
 	servers := serversFromDevices(devices)
 
 	logging.Logger.Debug().
-		Int("count", len(servers)).
+		Int(logging.KeyCount, len(servers)).
 		Msg("discovered servers")
 
 	return servers, nil

@@ -325,7 +325,7 @@ func (service *Service) discard(previewID string) {
 	if err != nil {
 		logging.Logger.Warn().
 			Err(err).
-			Str("preview_id", previewID).
+			Str(logging.KeyPreviewID, previewID).
 			Msg("failed to remove an evicted preview")
 	}
 }

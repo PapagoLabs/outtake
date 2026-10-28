@@ -270,8 +270,8 @@ func (client *Client) requestPlex(
 	cfg := fiberClient.Config{Ctx: ctx, Header: headers}
 
 	logging.Logger.Debug().
-		Str("method", "GET").
-		Str("url", reqURL.String()).
+		Str(logging.KeyMethod, "GET").
+		Str(logging.KeyURL, reqURL.String()).
 		Msg("plex request")
 
 	resp, err := client.httpClient.Get(reqURL.String(), cfg)

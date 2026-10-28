@@ -72,17 +72,14 @@ func (err *StorageLimitError) Error() string {
 //   - reached: True for an *ActiveLimitError, *WeeklyLimitError, or
 //     *StorageLimitError anywhere in the chain.
 func IsLimit(err error) bool {
-	//nolint:errcheck // Only the match counts, since the matched value is err itself.
 	if _, active := errors.AsType[*ActiveLimitError](err); active {
 		return true
 	}
 
-	//nolint:errcheck // Only the match counts, since the matched value is err itself.
 	if _, weekly := errors.AsType[*WeeklyLimitError](err); weekly {
 		return true
 	}
 
-	//nolint:errcheck // Only the match counts, since the matched value is err itself.
 	_, storage := errors.AsType[*StorageLimitError](err)
 
 	return storage

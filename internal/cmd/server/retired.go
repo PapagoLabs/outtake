@@ -5,6 +5,8 @@ package server
 
 import (
 	"github.com/rs/zerolog/log"
+
+	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
 // retiredSetting is an environment variable that no longer configures
@@ -52,8 +54,8 @@ func setRetiredSettings(lookup func(string) (string, bool)) []retiredSetting {
 func warnRetiredSettings(lookup func(string) (string, bool)) {
 	for _, setting := range setRetiredSettings(lookup) {
 		log.Warn().
-			Str("setting", setting.name).
-			Str("replaced_by", setting.replacement).
+			Str(logging.KeySetting, setting.name).
+			Str(logging.KeyReplacedBy, setting.replacement).
 			Msg("ignoring a retired setting")
 	}
 }

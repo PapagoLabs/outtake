@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+
+	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
 // Checker performs health checks against the outtake server.
@@ -79,16 +81,16 @@ func checkHealthResponse(resp *http.Response) error {
 
 	if resp.StatusCode != http.StatusOK {
 		log.Error().
-			Int("status_code", resp.StatusCode).
-			Str("response", string(body)).
+			Int(logging.KeyStatusCode, resp.StatusCode).
+			Str(logging.KeyResponse, string(body)).
 			Msg("health check failed: unexpected status")
 
 		return fmt.Errorf("%w: status %d", errHealthStatus, resp.StatusCode)
 	}
 
 	log.Info().
-		Int("status_code", resp.StatusCode).
-		Str("response", string(body)).
+		Int(logging.KeyStatusCode, resp.StatusCode).
+		Str(logging.KeyResponse, string(body)).
 		Msg("health check passed")
 
 	return nil
@@ -129,7 +131,7 @@ func (chkr *Checker) doHealthCheck(addr string) (*http.Response, error) {
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("url", reqURL.String()).
+			Str(logging.KeyURL, reqURL.String()).
 			Msg("health check failed: could not reach server")
 
 		return nil, fmt.Errorf("health check failed: %w", err)

@@ -22,10 +22,10 @@ func RequestLogger() fiber.Handler {
 		duration := time.Since(start)
 
 		logging.Logger.Info().
-			Str("method", ctx.Method()).
-			Str("path", ctx.Path()).
-			Int("status", ctx.Response().StatusCode()).
-			Dur("duration", duration).
+			Str(logging.KeyMethod, ctx.Method()).
+			Str(logging.KeyPath, ctx.Path()).
+			Int(logging.KeyStatus, ctx.Response().StatusCode()).
+			Dur(logging.KeyDuration, duration).
 			Msg("request")
 
 		if err != nil {

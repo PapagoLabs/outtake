@@ -16,6 +16,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/clip/playback"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/crop"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/store/blob"
 	"github.com/PapagoLabs/outtake/internal/store/database"
 )
@@ -245,7 +246,10 @@ func renderSDRVersion(
 		return fmt.Errorf("render: %w", err)
 	}
 
-	log.Warn().Err(err).Str("job_id", job.ID).Msg("failed to render the SDR version of a clip")
+	log.Warn().
+		Err(err).
+		Str(logging.KeyJobID, job.ID).
+		Msg("failed to render the SDR version of a clip")
 	removeSDRVersion(store, job.ID, output)
 	reporter.SetSDRFormat(job.ID, clip.Format{})
 
@@ -353,7 +357,7 @@ func sourceIsHDR(ctx context.Context, runner *ffmpeg.ExecFFmpeg, input string) b
 func removeSDRVersion(store blob.Blob, id, output string) {
 	err := store.DeleteFile(output)
 	if err != nil {
-		log.Warn().Err(err).Str("job_id", id).Str("path", output).
+		log.Warn().Err(err).Str(logging.KeyJobID, id).Str(logging.KeyPath, output).
 			Msg("failed to remove the SDR version of a clip")
 	}
 }
@@ -504,7 +508,10 @@ func copyVideoClip(
 			return false, fmt.Errorf("copy stopped: %w", err)
 		}
 
-		log.Info().Err(err).Str("job_id", job.ID).Msg("encoding a clip whose copy was refused")
+		log.Info().
+			Err(err).
+			Str(logging.KeyJobID, job.ID).
+			Msg("encoding a clip whose copy was refused")
 
 		return false, nil
 	}

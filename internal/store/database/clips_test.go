@@ -344,7 +344,7 @@ func TestScanJobReadsEveryColumn(t *testing.T) {
 
 	row := db.conn.QueryRowContext(
 		t.Context(),
-		db.rewrite(`SELECT `+clipSelectCols+` FROM clips WHERE id = ?`),
+		db.rewrite(selectClips+` WHERE id = ?`),
 		want.ID,
 	)
 
@@ -362,7 +362,7 @@ func TestScanJobReportsAnUnusableRow(t *testing.T) {
 
 	row := db.conn.QueryRowContext(
 		t.Context(),
-		db.rewrite(`SELECT `+clipSelectCols+` FROM clips WHERE id = ?`),
+		db.rewrite(selectClips+` WHERE id = ?`),
 		"missing",
 	)
 

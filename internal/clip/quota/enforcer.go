@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+
+	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
 // Store reads the limits and what they count, and records renders.
@@ -109,7 +111,7 @@ func (enforcer *Enforcer) AdmitClip(ctx context.Context, member Member, submit f
 	if err != nil {
 		log.Warn().
 			Err(err).
-			Int("plex_user_id", member.ID).
+			Int(logging.KeyPlexUserID, member.ID).
 			Msg("failed to log a render for the weekly limit")
 	}
 

@@ -226,7 +226,7 @@ func (execFFmpeg *ExecFFmpeg) runWithin(
 	cmd := execFFmpeg.command(runCtx, args)
 
 	logging.Logger.Debug().
-		Strs("args", cmd.Args).
+		Strs(logging.KeyArgs, cmd.Args).
 		Msg("running ffmpeg command")
 
 	stderr := progress.NewWriter(duration, progress.From(ctx))
@@ -240,7 +240,7 @@ func (execFFmpeg *ExecFFmpeg) runWithin(
 	if err != nil {
 		logging.Logger.Error().
 			Err(err).
-			Str("output", stderr.String()+stdout.String()).
+			Str(logging.KeyOutput, stderr.String()+stdout.String()).
 			Msg("ffmpeg command failed")
 
 		if cmd.ProcessState == nil && runCtx.Err() == nil {
@@ -259,8 +259,8 @@ func (execFFmpeg *ExecFFmpeg) runWithin(
 	}
 
 	logging.Logger.Debug().
-		Int("exit_code", cmd.ProcessState.ExitCode()).
-		Int("output_len", stderr.Len()+stdout.Len()).
+		Int(logging.KeyExitCode, cmd.ProcessState.ExitCode()).
+		Int(logging.KeyOutputLen, stderr.Len()+stdout.Len()).
 		Msg("ffmpeg command completed")
 
 	return nil

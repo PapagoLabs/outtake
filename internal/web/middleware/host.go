@@ -12,6 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 
 	fiber "github.com/gofiber/fiber/v3"
+
+	"github.com/PapagoLabs/outtake/internal/logging"
 )
 
 // hostPolicy decides which Host headers this installation answers.
@@ -70,7 +72,7 @@ func HostGuard(allowed []string, exempt ...string) fiber.Handler {
 			return ctx.Next()
 		}
 
-		log.Debug().Str("host", host).Msg("refused a request for an unlisted host")
+		log.Debug().Str(logging.KeyHost, host).Msg("refused a request for an unlisted host")
 
 		err := ctx.Status(fiber.StatusMisdirectedRequest).SendString(fmt.Sprintf(
 			"Outtake does not answer to the host %q. Set OUTTAKE_PUBLIC_BASE_URL to the "+

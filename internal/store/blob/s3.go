@@ -203,7 +203,10 @@ func (store *S3) Exists(ctx context.Context, path string) bool {
 
 	exists, err := store.head(ctx, path)
 	if err != nil {
-		logging.Logger.Warn().Err(err).Str("path", path).Msg("failed to look up an object on S3")
+		logging.Logger.Warn().
+			Err(err).
+			Str(logging.KeyPath, path).
+			Msg("failed to look up an object on S3")
 
 		return false
 	}

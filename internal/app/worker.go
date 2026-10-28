@@ -15,6 +15,7 @@ import (
 	"github.com/PapagoLabs/outtake/internal/failure"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg"
 	"github.com/PapagoLabs/outtake/internal/ffmpeg/progress"
+	"github.com/PapagoLabs/outtake/internal/logging"
 	"github.com/PapagoLabs/outtake/internal/plex"
 	"github.com/PapagoLabs/outtake/internal/plex/identity"
 	"github.com/PapagoLabs/outtake/internal/settings/config"
@@ -98,7 +99,10 @@ func persistStatus(ctx context.Context, db *database.DB) queue.StatusFunc {
 	return func(job *clip.Job) {
 		saveErr := db.SaveClip(context.WithoutCancel(ctx), job)
 		if saveErr != nil {
-			log.Warn().Err(saveErr).Str("job_id", job.ID).Msg("failed to persist clip status")
+			log.Warn().
+				Err(saveErr).
+				Str(logging.KeyJobID, job.ID).
+				Msg("failed to persist clip status")
 		}
 	}
 }
@@ -201,7 +205,7 @@ func removeStaleOutput(store blob.Blob, id, stale string) {
 
 		err := store.DeleteFile(path)
 		if err != nil {
-			log.Warn().Err(err).Str("job_id", id).Str("path", path).
+			log.Warn().Err(err).Str(logging.KeyJobID, id).Str(logging.KeyPath, path).
 				Msg("failed to remove an output of another clip type")
 		}
 	}
@@ -225,7 +229,7 @@ func sweepRenders(paths blob.Paths) {
 		paths.PreviewsDir(),
 	)
 	if removed > 0 {
-		log.Info().Int("removed", removed).Msg("removed files left by interrupted renders")
+		log.Info().Int(logging.KeyRemoved, removed).Msg("removed files left by interrupted renders")
 	}
 }
 
@@ -280,7 +284,7 @@ func measureUnmeasured(ctx context.Context, db *database.DB, job *clip.Job) {
 
 	err := db.SaveClip(ctx, job)
 	if err != nil {
-		log.Warn().Err(err).Str("job_id", job.ID).Msg("failed to record a clip's size")
+		log.Warn().Err(err).Str(logging.KeyJobID, job.ID).Msg("failed to record a clip's size")
 	}
 }
 
@@ -323,7 +327,7 @@ func restoreJobs(ctx context.Context, db *database.DB, jobQueue *queue.Queue) {
 
 		err := jobQueue.Submit(job)
 		if err != nil {
-			log.Error().Err(err).Str("job_id", job.ID).Msg("failed to restore job")
+			log.Error().Err(err).Str(logging.KeyJobID, job.ID).Msg("failed to restore job")
 		}
 	}
 }
