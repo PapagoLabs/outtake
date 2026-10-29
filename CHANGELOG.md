@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/vektra/mockery/v3 to v3.9.0 by @renovate[bot] in [#639](https://github.com/PapagoLabs/outtake/pull/639)
 - Update module github.com/fxamacker/cbor/v2 to v2.10.0 by @renovate[bot] in [#637](https://github.com/PapagoLabs/outtake/pull/637)
 - Lock file maintenance by @renovate[bot] in [#610](https://github.com/PapagoLabs/outtake/pull/610)
 - Update module golang.org/x/net to v0.62.0 by @renovate[bot] in [#629](https://github.com/PapagoLabs/outtake/pull/629)
