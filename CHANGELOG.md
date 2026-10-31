@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.13 by @renovate[bot] in [#643](https://github.com/PapagoLabs/outtake/pull/643)
 - Update module github.com/gofiber/schema to v1.9.2 by @renovate[bot] in [#641](https://github.com/PapagoLabs/outtake/pull/641)
 - Update module github.com/vektra/mockery/v3 to v3.9.0 by @renovate[bot] in [#639](https://github.com/PapagoLabs/outtake/pull/639)
 - Update module github.com/fxamacker/cbor/v2 to v2.10.0 by @renovate[bot] in [#637](https://github.com/PapagoLabs/outtake/pull/637)
