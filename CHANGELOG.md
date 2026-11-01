@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module go.yaml.in/yaml/v3 to v3.0.6 by @renovate[bot] in [#647](https://github.com/PapagoLabs/outtake/pull/647)
 - Update module modernc.org/sqlite to v1.61.1 by @renovate[bot] in [#646](https://github.com/PapagoLabs/outtake/pull/646)
 - Update module github.com/aws/aws-sdk-go-v2/credentials to v1.20.13 by @renovate[bot] in [#643](https://github.com/PapagoLabs/outtake/pull/643)
 - Update module github.com/gofiber/schema to v1.9.2 by @renovate[bot] in [#641](https://github.com/PapagoLabs/outtake/pull/641)
