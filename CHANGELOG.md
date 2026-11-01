@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/jackc/pgx/v5 to v5.12.0 by @renovate[bot] in [#645](https://github.com/PapagoLabs/outtake/pull/645)
 - Update module go.yaml.in/yaml/v4 to v4.0.0-rc.7 by @renovate[bot] in [#648](https://github.com/PapagoLabs/outtake/pull/648)
 - Update module go.yaml.in/yaml/v3 to v3.0.6 by @renovate[bot] in [#647](https://github.com/PapagoLabs/outtake/pull/647)
 - Update module modernc.org/sqlite to v1.61.1 by @renovate[bot] in [#646](https://github.com/PapagoLabs/outtake/pull/646)
