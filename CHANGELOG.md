@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to 0031fcd by @renovate[bot] in [#660](https://github.com/PapagoLabs/outtake/pull/660)
 - Update module go.yaml.in/yaml/v4 to v4.0.0-rc.9 by @renovate[bot] in [#658](https://github.com/PapagoLabs/outtake/pull/658)
 - Update module go.yaml.in/yaml/v4 to v4.0.0-rc.8 by @renovate[bot] in [#655](https://github.com/PapagoLabs/outtake/pull/655)
 - Update module modernc.org/libc to v1.80.0 by @renovate[bot] in [#653](https://github.com/PapagoLabs/outtake/pull/653)
