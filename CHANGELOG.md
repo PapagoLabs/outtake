@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/onsi/ginkgo/v2 to v2.34.0 by @renovate[bot] in [#659](https://github.com/PapagoLabs/outtake/pull/659)
 - Update zizmorcore/zizmor-action action to v0.8.1 by @renovate[bot] in [#662](https://github.com/PapagoLabs/outtake/pull/662)
 - Update github.com/google/pprof digest to 0031fcd by @renovate[bot] in [#660](https://github.com/PapagoLabs/outtake/pull/660)
 - Update module go.yaml.in/yaml/v4 to v4.0.0-rc.9 by @renovate[bot] in [#658](https://github.com/PapagoLabs/outtake/pull/658)
