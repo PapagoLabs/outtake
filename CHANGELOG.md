@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/aws/smithy-go to v1.28.8 by @renovate[bot] in [#672](https://github.com/PapagoLabs/outtake/pull/672)
 - Update github.com/google/pprof digest to 97e8293 by @renovate[bot] in [#668](https://github.com/PapagoLabs/outtake/pull/668)
 - Update github/codeql-action action to v4.39.2 by @renovate[bot] in [#665](https://github.com/PapagoLabs/outtake/pull/665)
 - Update module github.com/onsi/ginkgo/v2 to v2.34.0 by @renovate[bot] in [#659](https://github.com/PapagoLabs/outtake/pull/659)
