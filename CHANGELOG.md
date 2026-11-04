@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github/codeql-action action to v4.39.3 by @renovate[bot] in [#677](https://github.com/PapagoLabs/outtake/pull/677)
 - Update module modernc.org/libc to v1.80.1 by @renovate[bot] in [#676](https://github.com/PapagoLabs/outtake/pull/676)
 - Update github.com/google/pprof digest to 393459d by @renovate[bot] in [#674](https://github.com/PapagoLabs/outtake/pull/674)
 - Update module github.com/gofiber/schema to v1.9.3 by @renovate[bot] in [#670](https://github.com/PapagoLabs/outtake/pull/670)
