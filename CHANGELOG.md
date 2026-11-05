@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to 4bf881d by @renovate[bot] in [#684](https://github.com/PapagoLabs/outtake/pull/684)
 - Update module github.com/andybalholm/brotli to v1.2.8 by @renovate[bot] in [#683](https://github.com/PapagoLabs/outtake/pull/683)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#681](https://github.com/PapagoLabs/outtake/pull/681)
 - Update github/codeql-action action to v4.39.3 by @renovate[bot] in [#677](https://github.com/PapagoLabs/outtake/pull/677)
