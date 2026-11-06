@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#689](https://github.com/PapagoLabs/outtake/pull/689)
 - Update golang:1.27.3-alpine docker digest to fa3d596 by @renovate[bot] in [#691](https://github.com/PapagoLabs/outtake/pull/691)
 - Update alpine docker tag to v3.24.4 by @renovate[bot] in [#693](https://github.com/PapagoLabs/outtake/pull/693)
 - Update docker/login-action digest to 8aa5831 by @renovate[bot] in [#688](https://github.com/PapagoLabs/outtake/pull/688)
