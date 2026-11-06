@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update docker/login-action digest to 8aa5831 by @renovate[bot] in [#688](https://github.com/PapagoLabs/outtake/pull/688)
 - Update module go.yaml.in/yaml/v4 to v4.0.0 by @renovate[bot] in [#678](https://github.com/PapagoLabs/outtake/pull/678)
 - Update github.com/google/pprof digest to 4bf881d by @renovate[bot] in [#684](https://github.com/PapagoLabs/outtake/pull/684)
 - Update module github.com/andybalholm/brotli to v1.2.8 by @renovate[bot] in [#683](https://github.com/PapagoLabs/outtake/pull/683)
