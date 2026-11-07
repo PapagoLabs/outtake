@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/tools digest to 4f7264d by @renovate[bot] in [#701](https://github.com/PapagoLabs/outtake/pull/701)
 - Update golang.org/x/exp digest to 47ce03d by @renovate[bot] in [#696](https://github.com/PapagoLabs/outtake/pull/696)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#689](https://github.com/PapagoLabs/outtake/pull/689)
 - Update golang:1.27.3-alpine docker digest to fa3d596 by @renovate[bot] in [#691](https://github.com/PapagoLabs/outtake/pull/691)
