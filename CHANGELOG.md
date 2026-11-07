@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update step-security/harden-runner action to v2.22.4 by @renovate[bot] in [#699](https://github.com/PapagoLabs/outtake/pull/699)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#702](https://github.com/PapagoLabs/outtake/pull/702)
 - Update sigstore/cosign-installer action to v4.1.3 by @renovate[bot] in [#680](https://github.com/PapagoLabs/outtake/pull/680)
 - Update golang.org/x/tools digest to 4f7264d by @renovate[bot] in [#701](https://github.com/PapagoLabs/outtake/pull/701)
