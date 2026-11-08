@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update alpine:3.24.4 docker digest to f59abe6 by @renovate[bot] in [#710](https://github.com/PapagoLabs/outtake/pull/710)
 - Update module modernc.org/sqlite to v1.62.0 by @renovate[bot] in [#706](https://github.com/PapagoLabs/outtake/pull/706)
 - Update module github.com/spf13/pflag to v1.1.0 by @renovate[bot] in [#697](https://github.com/PapagoLabs/outtake/pull/697)
 - Update step-security/harden-runner action to v2.22.4 by @renovate[bot] in [#699](https://github.com/PapagoLabs/outtake/pull/699)
