@@ -23,7 +23,7 @@ require (
 	github.com/valyala/fasthttp v1.77.0
 	go.yaml.in/yaml/v4 v4.0.0
 	golang.org/x/net v0.62.0
-	golang.org/x/sync v0.24.0
+	golang.org/x/sync v0.25.0
 	modernc.org/sqlite v1.62.0
 )
 
@@ -98,9 +98,9 @@ require (
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
 	golang.org/x/crypto v0.58.0 // indirect
 	golang.org/x/exp v0.0.0-20261109185158-a52e3aef5920 // indirect
-	golang.org/x/mod v0.42.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/telemetry v0.0.0-20261021172232-6cd571d43fbb // indirect
+	golang.org/x/mod v0.43.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/telemetry v0.0.0-20261109170223-bc0f59dd170a // indirect
 	golang.org/x/term v0.47.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/tools v0.52.1-0.20261106210606-4f7264d11672 // indirect
