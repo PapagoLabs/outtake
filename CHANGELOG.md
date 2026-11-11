@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to 8bb1ee6 by @renovate[bot] in [#724](https://github.com/PapagoLabs/outtake/pull/724)
 - Update module github.com/aws/smithy-go to v1.28.9 by @renovate[bot] in [#722](https://github.com/PapagoLabs/outtake/pull/722)
 - Update golang.org/x/telemetry digest to bc0f59d by @renovate[bot] in [#716](https://github.com/PapagoLabs/outtake/pull/716)
 - Update golang.org/x/exp digest to a52e3ae by @renovate[bot] in [#715](https://github.com/PapagoLabs/outtake/pull/715)
