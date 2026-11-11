@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang docker tag to v1.27.4 by @renovate[bot] in [#728](https://github.com/PapagoLabs/outtake/pull/728)
 - Update golang.org/x/tools digest to 86b298c by @renovate[bot] in [#719](https://github.com/PapagoLabs/outtake/pull/719)
 - Update github.com/google/pprof digest to 8bb1ee6 by @renovate[bot] in [#724](https://github.com/PapagoLabs/outtake/pull/724)
 - Update module github.com/aws/smithy-go to v1.28.9 by @renovate[bot] in [#722](https://github.com/PapagoLabs/outtake/pull/722)
