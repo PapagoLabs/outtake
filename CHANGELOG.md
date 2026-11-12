@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/exp digest to d10d3b4 by @renovate[bot] in [#744](https://github.com/PapagoLabs/outtake/pull/744)
 - Update module github.com/a-h/templ to v0.3.1118 by @renovate[bot] in [#742](https://github.com/PapagoLabs/outtake/pull/742)
 - Update golang.org/x/tools digest to d4453b5 by @renovate[bot] in [#738](https://github.com/PapagoLabs/outtake/pull/738)
 - Update golang.org/x/telemetry digest to cdaf7e9 by @renovate[bot] in [#736](https://github.com/PapagoLabs/outtake/pull/736)
