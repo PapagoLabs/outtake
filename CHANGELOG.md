@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to fac431e by @renovate[bot] in [#730](https://github.com/PapagoLabs/outtake/pull/730)
 - Update module github.com/gofiber/schema to v1.9.4 by @renovate[bot] in [#729](https://github.com/PapagoLabs/outtake/pull/729)
 - Update golang docker tag to v1.27.4 by @renovate[bot] in [#728](https://github.com/PapagoLabs/outtake/pull/728)
 - Update golang.org/x/tools digest to 86b298c by @renovate[bot] in [#719](https://github.com/PapagoLabs/outtake/pull/719)
