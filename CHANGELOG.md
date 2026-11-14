@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update peter-evans/create-pull-request action to v8.1.3 by @renovate[bot] in [#732](https://github.com/PapagoLabs/outtake/pull/732)
 - Update golang.org/x/exp digest to e397061 by @renovate[bot] in [#752](https://github.com/PapagoLabs/outtake/pull/752)
 - Update module github.com/gofiber/utils/v2 to v2.6.5 by @renovate[bot] in [#734](https://github.com/PapagoLabs/outtake/pull/734)
 - Update golang.org/x/tools digest to 4dd740f by @renovate[bot] in [#746](https://github.com/PapagoLabs/outtake/pull/746)
