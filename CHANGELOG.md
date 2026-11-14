@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/exp digest to e397061 by @renovate[bot] in [#752](https://github.com/PapagoLabs/outtake/pull/752)
+- Update module github.com/gofiber/utils/v2 to v2.6.5 by @renovate[bot] in [#734](https://github.com/PapagoLabs/outtake/pull/734)
 - Update golang.org/x/tools digest to 4dd740f by @renovate[bot] in [#746](https://github.com/PapagoLabs/outtake/pull/746)
 - Update module github.com/vektra/mockery/v3 to v3.9.1 by @renovate[bot] in [#723](https://github.com/PapagoLabs/outtake/pull/723)
 - Update golang.org/x/exp digest to d10d3b4 by @renovate[bot] in [#744](https://github.com/PapagoLabs/outtake/pull/744)
