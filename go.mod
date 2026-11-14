@@ -63,7 +63,7 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
-	github.com/jedib0t/go-pretty/v6 v6.8.3 // indirect
+	github.com/jedib0t/go-pretty/v6 v6.9.2 // indirect
 	github.com/klauspost/compress v1.20.4 // indirect
 	github.com/knadh/koanf/maps v0.1.3 // indirect
 	github.com/knadh/koanf/parsers/yaml v1.1.1 // indirect
@@ -83,6 +83,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/philhofer/fwd v1.2.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
