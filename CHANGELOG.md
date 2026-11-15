@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/jedib0t/go-pretty/v6 to v6.9.2 by @renovate[bot] in [#755](https://github.com/PapagoLabs/outtake/pull/755)
 - Update module github.com/jackc/pgx/v5 to v5.13.0 by @renovate[bot] in [#750](https://github.com/PapagoLabs/outtake/pull/750)
 - Update module github.com/gofiber/fiber/v3 to v3.7.0 by @renovate[bot] in [#748](https://github.com/PapagoLabs/outtake/pull/748)
 - Update golang.org/x/tools digest to cba9b80 by @renovate[bot] in [#753](https://github.com/PapagoLabs/outtake/pull/753)
