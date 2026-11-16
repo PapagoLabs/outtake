@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update go module directive to v1.27.4 by @renovate[bot] in [#740](https://github.com/PapagoLabs/outtake/pull/740)
+- Update module modernc.org/libc to v1.81.2 by @renovate[bot] in [#766](https://github.com/PapagoLabs/outtake/pull/766)
 - Update go module directive to v1.27.4 by @renovate[bot] in [#725](https://github.com/PapagoLabs/outtake/pull/725)
 - Update module modernc.org/libc to v1.81.1 by @renovate[bot] in [#714](https://github.com/PapagoLabs/outtake/pull/714)
 - Update module golang.org/x/crypto to v0.59.0 by @renovate[bot] in [#757](https://github.com/PapagoLabs/outtake/pull/757)
