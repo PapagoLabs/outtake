@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/valyala/fasthttp to v1.79.0 by @renovate[bot] in [#712](https://github.com/PapagoLabs/outtake/pull/712)
 - Update module modernc.org/memory to v1.13.0 by @renovate[bot] in [#770](https://github.com/PapagoLabs/outtake/pull/770)
 - Lock file maintenance by @renovate[bot] in [#654](https://github.com/PapagoLabs/outtake/pull/654)
 - Update go module directive to v1.27.4 by @renovate[bot] in [#740](https://github.com/PapagoLabs/outtake/pull/740)
