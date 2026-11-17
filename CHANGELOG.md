@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/telemetry digest to e77a431 by @renovate[bot] in [#777](https://github.com/PapagoLabs/outtake/pull/777)
 - Update golang:1.27.4-alpine docker digest to 70bd7dd by @renovate[bot] in [#773](https://github.com/PapagoLabs/outtake/pull/773)
 - Update module github.com/valyala/fasthttp to v1.79.0 by @renovate[bot] in [#712](https://github.com/PapagoLabs/outtake/pull/712)
 - Update module modernc.org/memory to v1.13.0 by @renovate[bot] in [#770](https://github.com/PapagoLabs/outtake/pull/770)
