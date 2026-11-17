@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/schema to v1.9.5 by @renovate[bot] in [#789](https://github.com/PapagoLabs/outtake/pull/789)
+- Update module golang.org/x/net to v0.63.0 by @renovate[bot] in [#791](https://github.com/PapagoLabs/outtake/pull/791)
 - Update actions/setup-go action to v7.1.0 by @renovate[bot] in [#785](https://github.com/PapagoLabs/outtake/pull/785)
 - Add tasks that tag the next release by @nicholas-fedor in [#786](https://github.com/PapagoLabs/outtake/pull/786)
 - Update module github.com/jackc/puddle/v2 to v2.2.4 by @renovate[bot] in [#781](https://github.com/PapagoLabs/outtake/pull/781)
