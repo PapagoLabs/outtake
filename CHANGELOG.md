@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Add tasks that tag the next release by @nicholas-fedor in [#786](https://github.com/PapagoLabs/outtake/pull/786)
 - Update module github.com/jackc/puddle/v2 to v2.2.4 by @renovate[bot] in [#781](https://github.com/PapagoLabs/outtake/pull/781)
 - Update actions/setup-go digest to d8cbb80 by @renovate[bot] in [#779](https://github.com/PapagoLabs/outtake/pull/779)
 - Update module github.com/aws/aws-sdk-go-v2/credentials to v1.21.1 by @renovate[bot] in [#778](https://github.com/PapagoLabs/outtake/pull/778)
