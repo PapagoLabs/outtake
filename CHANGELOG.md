@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/tools digest to 6bc5e25 by @renovate[bot] in [#774](https://github.com/PapagoLabs/outtake/pull/774)
+- Lock file maintenance by @renovate[bot] in [#771](https://github.com/PapagoLabs/outtake/pull/771)
 - Update golang.org/x/telemetry digest to e77a431 by @renovate[bot] in [#777](https://github.com/PapagoLabs/outtake/pull/777)
 - Update golang:1.27.4-alpine docker digest to 70bd7dd by @renovate[bot] in [#773](https://github.com/PapagoLabs/outtake/pull/773)
 - Update module github.com/valyala/fasthttp to v1.79.0 by @renovate[bot] in [#712](https://github.com/PapagoLabs/outtake/pull/712)
