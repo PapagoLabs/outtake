@@ -105,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Regenerate templ output and check it in CI by @nicholas-fedor in [#788](https://github.com/PapagoLabs/outtake/pull/788)
 - Pin a-h/parse to the commit templ requires by @nicholas-fedor in [#631](https://github.com/PapagoLabs/outtake/pull/631)
 - Resolve golangci-lint 2.15 configuration errors and findings by @nicholas-fedor in [#632](https://github.com/PapagoLabs/outtake/pull/632)
 
