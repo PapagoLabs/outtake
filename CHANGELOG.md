@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update actions/setup-go digest to d8cbb80 by @renovate[bot] in [#779](https://github.com/PapagoLabs/outtake/pull/779)
+- Update module github.com/aws/aws-sdk-go-v2/credentials to v1.21.1 by @renovate[bot] in [#778](https://github.com/PapagoLabs/outtake/pull/778)
 - Update golang.org/x/tools digest to 6bc5e25 by @renovate[bot] in [#774](https://github.com/PapagoLabs/outtake/pull/774)
 - Lock file maintenance by @renovate[bot] in [#771](https://github.com/PapagoLabs/outtake/pull/771)
 - Update golang.org/x/telemetry digest to e77a431 by @renovate[bot] in [#777](https://github.com/PapagoLabs/outtake/pull/777)
