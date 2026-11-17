@@ -31,6 +31,8 @@ templ, goimports, and mockery are `go tool` dependencies pinned in `go.mod`, so 
 
 The generated `*_templ.go` files are committed. `task templ` is `go tool templ generate` then `go tool goimports -local github.com/PapagoLabs/outtake -w ./internal/web`. Ungrouped imports after generate are fixed by that goimports pass, not by skipping generate. The pass also drops an import a template no longer uses, which `templ generate` alone keeps, so remove it from the `.templ` file: `Dockerfile.dev` and `vet.yaml` run `templ generate` without goimports and fail on it.
 
+`test.yaml` runs the same generate and goimports pair, then fails when that changed a tracked file or added one. The release workflows call it before GoReleaser, which refuses a dirty tree. Each generated file records the templ version that wrote it, so a templ update in `go.mod` must commit regenerated output. Renovate cannot run commands on its branch, so its templ pull request fails that check until `task templ` is run and committed on it.
+
 Do not add templ/goimports hooks to GoReleaser. CI and `task goreleaser*` already generate first. Do not edit Mockery output; regenerate with `task mock` and commit everything it writes. Its goimports pass groups the mocks' imports the way `task templ` regroups the web mocks, so the two tasks never undo each other.
 
 CSS: `task tailwind` reads `internal/web/assets/css/input.css`.

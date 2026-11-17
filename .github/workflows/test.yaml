@@ -51,6 +51,15 @@ jobs:
           go tool templ generate
           go tool goimports -local github.com/PapagoLabs/outtake -w ./internal/web
 
+      - name: Check the generated code is committed
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Generated code differs from the committed files. Run task templ and commit the result."
+            git status --porcelain
+            git diff
+            exit 1
+          fi
+
       - name: Run tests
         run: go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
 
