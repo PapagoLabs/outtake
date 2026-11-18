@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github.com/google/pprof digest to 084b33a by @renovate[bot] in [#794](https://github.com/PapagoLabs/outtake/pull/794)
+
+## [0.4.2] - 2026-11-17
+
+### Chores
+
 - Update module github.com/gofiber/schema to v1.9.5 by @renovate[bot] in [#789](https://github.com/PapagoLabs/outtake/pull/789)
 - Update module golang.org/x/net to v0.63.0 by @renovate[bot] in [#791](https://github.com/PapagoLabs/outtake/pull/791)
 - Update actions/setup-go action to v7.1.0 by @renovate[bot] in [#785](https://github.com/PapagoLabs/outtake/pull/785)
@@ -574,7 +580,8 @@ Read [Upgrading](https://outtake.papagolabs.com/setup/upgrading/) before you upd
 
 ## Compare Releases
 
-- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.4.1...HEAD)
+- [unreleased](https://github.com/PapagoLabs/outtake/compare/v0.4.2...HEAD)
+- [0.4.2](https://github.com/PapagoLabs/outtake/compare/v0.4.1...v0.4.2)
 - [0.4.1](https://github.com/PapagoLabs/outtake/compare/v0.4.0...v0.4.1)
 - [0.4.0](https://github.com/PapagoLabs/outtake/compare/v0.3.1...v0.4.0)
 - [0.3.1](https://github.com/PapagoLabs/outtake/compare/v0.2.1...v0.3.1)
