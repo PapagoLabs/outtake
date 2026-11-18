@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/exp digest to 7a49493 by @renovate[bot] in [#795](https://github.com/PapagoLabs/outtake/pull/795)
 - Update github.com/google/pprof digest to 084b33a by @renovate[bot] in [#794](https://github.com/PapagoLabs/outtake/pull/794)
 
 ## [0.4.2] - 2026-11-17
