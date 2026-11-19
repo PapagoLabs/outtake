@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/telemetry digest to 00acfd7 by @renovate[bot] in [#802](https://github.com/PapagoLabs/outtake/pull/802)
 - Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.115.0 by @renovate[bot] in [#797](https://github.com/PapagoLabs/outtake/pull/797)
 - Update golang.org/x/exp digest to 7a49493 by @renovate[bot] in [#795](https://github.com/PapagoLabs/outtake/pull/795)
 - Update github.com/google/pprof digest to 084b33a by @renovate[bot] in [#794](https://github.com/PapagoLabs/outtake/pull/794)
