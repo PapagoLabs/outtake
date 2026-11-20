@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/gofiber/schema to v1.10.0 by @renovate[bot] in [#800](https://github.com/PapagoLabs/outtake/pull/800)
 - Update golang.org/x/exp digest to 2791e40 by @renovate[bot] in [#805](https://github.com/PapagoLabs/outtake/pull/805)
 - Update golang.org/x/telemetry digest to 00acfd7 by @renovate[bot] in [#802](https://github.com/PapagoLabs/outtake/pull/802)
 - Update module github.com/aws/aws-sdk-go-v2/service/s3 to v1.115.0 by @renovate[bot] in [#797](https://github.com/PapagoLabs/outtake/pull/797)
