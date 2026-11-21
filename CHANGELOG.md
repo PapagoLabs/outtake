@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#807](https://github.com/PapagoLabs/outtake/pull/807)
 - Update golang.org/x/exp digest to 8801fbd by @renovate[bot] in [#815](https://github.com/PapagoLabs/outtake/pull/815)
 - Update golang.org/x/telemetry digest to 508b12d by @renovate[bot] in [#810](https://github.com/PapagoLabs/outtake/pull/810)
 - Update golang.org/x/exp digest to b15d094 by @renovate[bot] in [#809](https://github.com/PapagoLabs/outtake/pull/809)
