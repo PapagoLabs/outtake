@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update github/codeql-action action to v4.39.4 by @renovate[bot] in [#813](https://github.com/PapagoLabs/outtake/pull/813)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#807](https://github.com/PapagoLabs/outtake/pull/807)
 - Update golang.org/x/exp digest to 8801fbd by @renovate[bot] in [#815](https://github.com/PapagoLabs/outtake/pull/815)
 - Update golang.org/x/telemetry digest to 508b12d by @renovate[bot] in [#810](https://github.com/PapagoLabs/outtake/pull/810)
