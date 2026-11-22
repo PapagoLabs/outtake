@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update step-security/harden-runner action to v2.23.0 by @renovate[bot] in [#804](https://github.com/PapagoLabs/outtake/pull/804)
 - Update module github.com/klauspost/compress to v1.20.5 by @renovate[bot] in [#817](https://github.com/PapagoLabs/outtake/pull/817)
 - Update golang.org/x/exp digest to e1094ee by @renovate[bot] in [#821](https://github.com/PapagoLabs/outtake/pull/821)
 - Update module github.com/huandu/xstrings to v1.6.4 by @renovate[bot] in [#814](https://github.com/PapagoLabs/outtake/pull/814)
