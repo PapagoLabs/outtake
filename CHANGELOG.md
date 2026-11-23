@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module modernc.org/sqlite to v1.63.0 by @renovate[bot] in [#827](https://github.com/PapagoLabs/outtake/pull/827)
 - Update module modernc.org/libc to v1.82.12 by @renovate[bot] in [#801](https://github.com/PapagoLabs/outtake/pull/801)
 - Update step-security/harden-runner action to v2.23.0 by @renovate[bot] in [#804](https://github.com/PapagoLabs/outtake/pull/804)
 - Update module github.com/klauspost/compress to v1.20.5 by @renovate[bot] in [#817](https://github.com/PapagoLabs/outtake/pull/817)
