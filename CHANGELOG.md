@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/jedib0t/go-pretty/v6 to v6.9.3 by @renovate[bot] in [#833](https://github.com/PapagoLabs/outtake/pull/833)
 - Update module github.com/valyala/fasthttp to v1.80.0 by @renovate[bot] in [#831](https://github.com/PapagoLabs/outtake/pull/831)
 - Update zizmorcore/zizmor-action action to v0.9.0 by @renovate[bot] in [#828](https://github.com/PapagoLabs/outtake/pull/828)
 - Update module modernc.org/sqlite to v1.63.0 by @renovate[bot] in [#827](https://github.com/PapagoLabs/outtake/pull/827)
