@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update anchore/sbom-action action to v0.24.4 by @renovate[bot] in [#837](https://github.com/PapagoLabs/outtake/pull/837)
 - Update golang.org/x/exp digest to d6646c5 by @renovate[bot] in [#836](https://github.com/PapagoLabs/outtake/pull/836)
 - Update module github.com/jedib0t/go-pretty/v6 to v6.9.3 by @renovate[bot] in [#833](https://github.com/PapagoLabs/outtake/pull/833)
 - Update module github.com/valyala/fasthttp to v1.80.0 by @renovate[bot] in [#831](https://github.com/PapagoLabs/outtake/pull/831)
