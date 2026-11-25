@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module modernc.org/libc to v1.82.13 by @renovate[bot] in [#834](https://github.com/PapagoLabs/outtake/pull/834)
 - Update module github.com/vektra/mockery/v3 to v3.9.2 by @renovate[bot] in [#840](https://github.com/PapagoLabs/outtake/pull/840)
 - Update anchore/sbom-action action to v0.24.4 by @renovate[bot] in [#837](https://github.com/PapagoLabs/outtake/pull/837)
 - Update golang.org/x/exp digest to d6646c5 by @renovate[bot] in [#836](https://github.com/PapagoLabs/outtake/pull/836)
