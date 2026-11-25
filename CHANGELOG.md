@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/telemetry digest to 1402bdb by @renovate[bot] in [#847](https://github.com/PapagoLabs/outtake/pull/847)
 - Update zizmorcore/zizmor-action action to v0.9.2 by @renovate[bot] in [#841](https://github.com/PapagoLabs/outtake/pull/841)
 - Lock file maintenance by @renovate[bot] in [#830](https://github.com/PapagoLabs/outtake/pull/830)
 - Update module github.com/aws/smithy-go to v1.28.10 by @renovate[bot] in [#844](https://github.com/PapagoLabs/outtake/pull/844)
