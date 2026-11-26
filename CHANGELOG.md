@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#854](https://github.com/PapagoLabs/outtake/pull/854)
+- Update module github.com/gofiber/schema to v1.10.2 by @renovate[bot] in [#849](https://github.com/PapagoLabs/outtake/pull/849)
 - Update golang.org/x/telemetry digest to 1402bdb by @renovate[bot] in [#847](https://github.com/PapagoLabs/outtake/pull/847)
 - Update zizmorcore/zizmor-action action to v0.9.2 by @renovate[bot] in [#841](https://github.com/PapagoLabs/outtake/pull/841)
 - Lock file maintenance by @renovate[bot] in [#830](https://github.com/PapagoLabs/outtake/pull/830)
