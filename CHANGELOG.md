@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update module github.com/huandu/xstrings to v1.6.6 by @renovate[bot] in [#852](https://github.com/PapagoLabs/outtake/pull/852)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#854](https://github.com/PapagoLabs/outtake/pull/854)
 - Update module github.com/gofiber/schema to v1.10.2 by @renovate[bot] in [#849](https://github.com/PapagoLabs/outtake/pull/849)
 - Update golang.org/x/telemetry digest to 1402bdb by @renovate[bot] in [#847](https://github.com/PapagoLabs/outtake/pull/847)
