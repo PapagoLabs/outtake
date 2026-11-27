@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update sigstore/cosign-installer action to v4.1.4 by @renovate[bot] in [#853](https://github.com/PapagoLabs/outtake/pull/853)
 - Update module modernc.org/memory to v1.13.1 by @renovate[bot] in [#856](https://github.com/PapagoLabs/outtake/pull/856)
 - Update module modernc.org/libc to v1.82.14 by @renovate[bot] in [#858](https://github.com/PapagoLabs/outtake/pull/858)
 - Update module github.com/huandu/xstrings to v1.6.6 by @renovate[bot] in [#852](https://github.com/PapagoLabs/outtake/pull/852)
