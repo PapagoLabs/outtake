@@ -104,7 +104,7 @@ require (
 	golang.org/x/telemetry v0.0.0-20261124234621-1402bdb29cb5 // indirect
 	golang.org/x/term v0.48.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
-	golang.org/x/tools v0.53.1-0.20261126161324-9b1bd87ef490 // indirect
+	golang.org/x/tools v0.53.1-0.20261127204724-68c23e03d41e // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.82.14 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
