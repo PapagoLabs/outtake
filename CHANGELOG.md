@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Chores
 
+- Update golang.org/x/tools digest to 68c23e0 by @renovate[bot] in [#868](https://github.com/PapagoLabs/outtake/pull/868)
 - Update golang.org/x/exp digest to f63ec7c by @renovate[bot] in [#863](https://github.com/PapagoLabs/outtake/pull/863)
 - Update aws-sdk-go-v2 monorepo by @renovate[bot] in [#864](https://github.com/PapagoLabs/outtake/pull/864)
 - Update module github.com/aws/smithy-go to v1.28.11 by @renovate[bot] in [#861](https://github.com/PapagoLabs/outtake/pull/861)
